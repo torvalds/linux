@@ -48,3 +48,10 @@ have the same physical APIC ID, KVM will deliver events targeting that APIC ID
 only to the vCPU with the lowest vCPU ID.  If KVM_X2APIC_API_USE_32BIT_IDS is
 not enabled, KVM follows x86 architecture when processing interrupts (all vCPUs
 matching the target APIC ID receive the interrupt).
+
+MTRRs
+-----
+KVM does not virtualization guest MTRR memory types.  KVM emulates accesses to
+MTRR MSRs, i.e. {RD,WR}MSR in the guest will behave as expected, but KVM does
+not honor guest MTRRs when determining the effective memory type, and instead
+treats all of guest memory as having Writeback (WB) MTRRs.

@@ -159,7 +159,6 @@
 #define KVM_MIN_FREE_MMU_PAGES 5
 #define KVM_REFILL_PAGES 25
 #define KVM_MAX_CPUID_ENTRIES 256
-#define KVM_NR_FIXED_MTRR_REGION 88
 #define KVM_NR_VAR_MTRR 8
 
 #define ASYNC_PF_PER_VCPU 64
@@ -604,18 +603,12 @@ enum {
 	KVM_DEBUGREG_WONT_EXIT = 2,
 };
 
-struct kvm_mtrr_range {
-	u64 base;
-	u64 mask;
-	struct list_head node;
-};
-
 struct kvm_mtrr {
-	struct kvm_mtrr_range var_ranges[KVM_NR_VAR_MTRR];
-	mtrr_type fixed_ranges[KVM_NR_FIXED_MTRR_REGION];
+	u64 var[KVM_NR_VAR_MTRR * 2];
+	u64 fixed_64k;
+	u64 fixed_16k[2];
+	u64 fixed_4k[8];
 	u64 deftype;
-
-	struct list_head head;
 };
 
 /* Hyper-V SynIC timer */

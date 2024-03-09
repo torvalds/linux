@@ -246,12 +246,7 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	return -(u32)fault & errcode;
 }
 
-bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma);
-
-static inline bool kvm_mmu_honors_guest_mtrrs(struct kvm *kvm)
-{
-	return __kvm_mmu_honors_guest_mtrrs(kvm_arch_has_noncoherent_dma(kvm));
-}
+bool kvm_mmu_may_ignore_guest_pat(void);
 
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);
 

@@ -4613,38 +4613,21 @@ out_unlock:
 }
 #endif
 
-bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma)
+bool kvm_mmu_may_ignore_guest_pat(void)
 {
 	/*
-	 * If host MTRRs are ignored (shadow_memtype_mask is non-zero), and the
-	 * VM has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is
-	 * to honor the memtype from the guest's MTRRs so that guest accesses
-	 * to memory that is DMA'd aren't cached against the guest's wishes.
-	 *
-	 * Note, KVM may still ultimately ignore guest MTRRs for certain PFNs,
-	 * e.g. KVM will force UC memtype for host MMIO.
+	 * When EPT is enabled (shadow_memtype_mask is non-zero), and the VM
+	 * has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is to
+	 * honor the memtype from the guest's PAT so that guest accesses to
+	 * memory that is DMA'd aren't cached against the guest's wishes.  As a
+	 * result, KVM _may_ ignore guest PAT, whereas without non-coherent DMA,
+	 * KVM _always_ ignores guest PAT (when EPT is enabled).
 	 */
-	return vm_has_noncoherent_dma && shadow_memtype_mask;
+	return shadow_memtype_mask;
 }
 
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
-	/*
-	 * If the guest's MTRRs may be used to compute the "real" memtype,
-	 * restrict the mapping level to ensure KVM uses a consistent memtype
-	 * across the entire mapping.
-	 */
-	if (kvm_mmu_honors_guest_mtrrs(vcpu->kvm)) {
-		for ( ; fault->max_level > PG_LEVEL_4K; --fault->max_level) {
-			int page_num = KVM_PAGES_PER_HPAGE(fault->max_level);
-			gfn_t base = gfn_round_for_level(fault->gfn,
-							 fault->max_level);
-
-			if (kvm_mtrr_check_gfn_range_consistency(vcpu, base, page_num))
-				break;
-		}
-	}
-
 #ifdef CONFIG_X86_64
 	if (tdp_mmu_enabled)
 		return kvm_tdp_mmu_page_fault(vcpu, fault);

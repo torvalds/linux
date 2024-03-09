@@ -7658,39 +7658,27 @@ int vmx_vm_init(struct kvm *kvm)
 
 u8 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 {
-	/* We wanted to honor guest CD/MTRR/PAT, but doing so could result in
-	 * memory aliases with conflicting memory types and sometimes MCEs.
-	 * We have to be careful as to what are honored and when.
-	 *
-	 * For MMIO, guest CD/MTRR are ignored.  The EPT memory type is set to
-	 * UC.  The effective memory type is UC or WC depending on guest PAT.
-	 * This was historically the source of MCEs and we want to be
-	 * conservative.
-	 *
-	 * When there is no need to deal with noncoherent DMA (e.g., no VT-d
-	 * or VT-d has snoop control), guest CD/MTRR/PAT are all ignored.  The
-	 * EPT memory type is set to WB.  The effective memory type is forced
-	 * WB.
-	 *
-	 * Otherwise, we trust guest.  Guest CD/MTRR/PAT are all honored.  The
-	 * EPT memory type is used to emulate guest CD/MTRR.
+	/*
+	 * Force UC for host MMIO regions, as allowing the guest to access MMIO
+	 * with cacheable accesses will result in Machine Checks.
 	 */
-
 	if (is_mmio)
 		return MTRR_TYPE_UNCACHABLE << VMX_EPT_MT_EPTE_SHIFT;
 
+	/*
+	 * Force WB and ignore guest PAT if the VM does NOT have a non-coherent
+	 * device attached.  Letting the guest control memory types on Intel
+	 * CPUs may result in unexpected behavior, and so KVM's ABI is to trust
+	 * the guest to behave only as a last resort.
+	 */
 	if (!kvm_arch_has_noncoherent_dma(vcpu->kvm))
 		return (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT) | VMX_EPT_IPAT_BIT;
 
-	if (kvm_read_cr0_bits(vcpu, X86_CR0_CD)) {
-		if (kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
-			return MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT;
-		else
-			return (MTRR_TYPE_UNCACHABLE << VMX_EPT_MT_EPTE_SHIFT) |
-				VMX_EPT_IPAT_BIT;
-	}
+	if (kvm_read_cr0_bits(vcpu, X86_CR0_CD) &&
+	    !kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
+		return (MTRR_TYPE_UNCACHABLE << VMX_EPT_MT_EPTE_SHIFT) | VMX_EPT_IPAT_BIT;
 
-	return kvm_mtrr_get_guest_memory_type(vcpu, gfn) << VMX_EPT_MT_EPTE_SHIFT;
+	return (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT);
 }
 
 static void vmcs_set_secondary_exec_control(struct vcpu_vmx *vmx, u32 new_ctl)
