@@ -7953,7 +7953,11 @@ The valid bits in cap.args[0] are:
                                     When this quirk is disabled, the reset value
                                     is 0x10000 (APIC_LVT_MASKED).
 
- KVM_X86_QUIRK_CD_NW_CLEARED        By default, KVM clears CR0.CD and CR0.NW.
+ KVM_X86_QUIRK_CD_NW_CLEARED        By default, KVM clears CR0.CD and CR0.NW on
+                                    AMD CPUs to workaround buggy guest firmware
+                                    that runs in perpetuity with CR0.CD, i.e.
+                                    with caches in "no fill" mode.
+
                                     When this quirk is disabled, KVM does not
                                     change the value of CR0.CD and CR0.NW.
 
