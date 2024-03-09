@@ -234,7 +234,7 @@ static const struct regmap_config stusb1600_regmap_config = {
 	.readable_reg	= stusb160x_reg_readable,
 	.volatile_reg	= stusb160x_reg_volatile,
 	.precious_reg	= stusb160x_reg_precious,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static bool stusb160x_get_vconn(struct stusb160x *chip)
