@@ -346,8 +346,10 @@ pub trait WorkItem<const ID: u64 = 0> {
 /// This is a helper type used to associate a `work_struct` with the [`WorkItem`] that uses it.
 ///
 /// [`run`]: WorkItemPointer::run
+#[pin_data]
 #[repr(transparent)]
 pub struct Work<T: ?Sized, const ID: u64 = 0> {
+    #[pin]
     work: Opaque<bindings::work_struct>,
     _inner: PhantomData<T>,
 }
@@ -369,21 +371,22 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
     where
         T: WorkItem<ID>,
     {
-        // SAFETY: The `WorkItemPointer` implementation promises that `run` can be used as the work
-        // item function.
-        unsafe {
-            kernel::init::pin_init_from_closure(move |slot| {
-                let slot = Self::raw_get(slot);
-                bindings::init_work_with_key(
-                    slot,
-                    Some(T::Pointer::run),
-                    false,
-                    name.as_char_ptr(),
-                    key.as_ptr(),
-                );
-                Ok(())
-            })
-        }
+        pin_init!(Self {
+            work <- Opaque::ffi_init(|slot| {
+                // SAFETY: The `WorkItemPointer` implementation promises that `run` can be used as
+                // the work item function.
+                unsafe {
+                    bindings::init_work_with_key(
+                        slot,
+                        Some(T::Pointer::run),
+                        false,
+                        name.as_char_ptr(),
+                        key.as_ptr(),
+                    )
+                }
+            }),
+            _inner: PhantomData,
+        })
     }
 
     /// Get a pointer to the inner `work_struct`.
