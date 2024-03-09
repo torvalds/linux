@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/sophgo,cv1800.h>
 
 #define CV1800_CLK_MAX			(CLK_XTAL_AP + 1)
+#define CV1810_CLK_MAX			(CLK_DISP_SRC_VIP + 1)
 
 #define REG_PLL_G2_CTRL			0x800
 #define REG_PLL_G2_STATUS		0x804
