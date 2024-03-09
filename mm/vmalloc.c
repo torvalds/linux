@@ -1944,8 +1944,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 				unsigned long align,
 				unsigned long vstart, unsigned long vend,
 				int node, gfp_t gfp_mask,
-				unsigned long va_flags, struct vm_struct *vm,
-				unsigned long flags, const void *caller)
+				unsigned long va_flags, struct vm_struct *vm)
 {
 	struct vmap_node *vn;
 	struct vmap_area *va;
@@ -2008,8 +2007,11 @@ retry:
 	va->vm = NULL;
 	va->flags = (va_flags | vn_id);
 
-	if (vm)
-		setup_vmalloc_vm(vm, va, flags, caller);
+	if (vm) {
+		vm->addr = (void *)va->va_start;
+		vm->size = va->va_end - va->va_start;
+		va->vm = vm;
+	}
 
 	vn = addr_to_node(va->va_start);
 
@@ -2588,8 +2590,7 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
 					VMALLOC_START, VMALLOC_END,
 					node, gfp_mask,
-					VMAP_RAM|VMAP_BLOCK, NULL,
-					0, NULL);
+					VMAP_RAM|VMAP_BLOCK, NULL);
 	if (IS_ERR(va)) {
 		kfree(vb);
 		return ERR_CAST(va);
@@ -2947,7 +2948,7 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node)
 		va = alloc_vmap_area(size, PAGE_SIZE,
 				VMALLOC_START, VMALLOC_END,
 				node, GFP_KERNEL, VMAP_RAM,
-				NULL, 0, NULL);
+				NULL);
 		if (IS_ERR(va))
 			return NULL;
 
@@ -3086,7 +3087,10 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
 	if (!(flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
 
-	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0, area, flags, caller);
+	area->flags = flags;
+	area->caller = caller;
+
+	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0, area);
 	if (IS_ERR(va)) {
 		kfree(area);
 		return NULL;
