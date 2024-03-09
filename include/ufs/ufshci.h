@@ -426,7 +426,7 @@ union ufs_crypto_cfg_entry {
  */
 
 /* Transfer request command type */
-enum {
+enum utp_cmd_type {
 	UTP_CMD_TYPE_SCSI		= 0x0,
 	UTP_CMD_TYPE_UFS		= 0x1,
 	UTP_CMD_TYPE_DEV_MANAGE		= 0x2,
