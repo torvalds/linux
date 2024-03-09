@@ -464,18 +464,12 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev = msm_dsi->dev;
 	struct drm_encoder *encoder;
-	struct drm_bridge *ext_bridge;
 	struct drm_connector *connector;
 	int ret;
 
-	ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
-					    msm_dsi->pdev->dev.of_node, 1, 0);
-	if (IS_ERR(ext_bridge))
-		return PTR_ERR(ext_bridge);
-
 	encoder = int_bridge->encoder;
 
-	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
+	ret = drm_bridge_attach(encoder, msm_dsi->next_bridge, int_bridge,
 			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret)
 		return ret;
