@@ -2074,6 +2074,7 @@ static void dump_fact_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 	struct isst_fact_info fact_info;
 	int ret;
 
+	memset(&fact_info, 0, sizeof(fact_info));
 	ret = isst_get_fact_info(id, tdp_level, fact_bucket, &fact_info);
 	if (ret) {
 		isst_display_error_info_message(1, "Failed to get turbo-freq info at this level", 1, tdp_level);
