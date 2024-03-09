@@ -10,6 +10,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
     let (
         Generics {
             impl_generics,
+            decl_generics: _,
             ty_generics,
         },
         rest,
