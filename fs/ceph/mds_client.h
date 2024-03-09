@@ -552,7 +552,7 @@ extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 				struct inode *dir,
 				struct ceph_mds_request *req);
 extern void ceph_mdsc_release_dir_caps(struct ceph_mds_request *req);
-extern void ceph_mdsc_release_dir_caps_no_check(struct ceph_mds_request *req);
+extern void ceph_mdsc_release_dir_caps_async(struct ceph_mds_request *req);
 static inline void ceph_mdsc_get_request(struct ceph_mds_request *req)
 {
 	kref_get(&req->r_kref);

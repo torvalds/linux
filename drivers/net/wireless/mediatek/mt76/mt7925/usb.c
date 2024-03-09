@@ -329,4 +329,5 @@ static struct usb_driver mt7925u_driver = {
 module_usb_driver(mt7925u_driver);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
+MODULE_DESCRIPTION("MediaTek MT7925U (USB) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");

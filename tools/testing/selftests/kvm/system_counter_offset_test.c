@@ -108,7 +108,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			handle_abort(&uc);
 			return;
 		default:
-			TEST_ASSERT(0, "unhandled ucall %ld\n",
+			TEST_ASSERT(0, "unhandled ucall %ld",
 				    get_ucall(vcpu, &uc));
 		}
 	}

@@ -1271,4 +1271,6 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 #define PFERR_GUEST_PAGE_MASK	BIT_ULL(PFERR_GUEST_PAGE_BIT)
 #define PFERR_IMPLICIT_ACCESS	BIT_ULL(PFERR_IMPLICIT_ACCESS_BIT)
 
+bool sys_clocksource_is_based_on_tsc(void);
+
 #endif /* SELFTEST_KVM_PROCESSOR_H */

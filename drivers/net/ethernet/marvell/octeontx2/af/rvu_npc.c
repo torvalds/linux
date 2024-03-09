@@ -1850,8 +1850,8 @@ void npc_mcam_rsrcs_deinit(struct rvu *rvu)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 
-	kfree(mcam->bmap);
-	kfree(mcam->bmap_reverse);
+	bitmap_free(mcam->bmap);
+	bitmap_free(mcam->bmap_reverse);
 	kfree(mcam->entry2pfvf_map);
 	kfree(mcam->cntr2pfvf_map);
 	kfree(mcam->entry2cntr_map);
@@ -1904,21 +1904,20 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->pf_offset = mcam->nixlf_offset + nixlf_count;
 
 	/* Allocate bitmaps for managing MCAM entries */
-	mcam->bmap = kmalloc_array(BITS_TO_LONGS(mcam->bmap_entries),
-				   sizeof(long), GFP_KERNEL);
+	mcam->bmap = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap)
 		return -ENOMEM;
 
-	mcam->bmap_reverse = kmalloc_array(BITS_TO_LONGS(mcam->bmap_entries),
-					   sizeof(long), GFP_KERNEL);
+	mcam->bmap_reverse = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap_reverse)
 		goto free_bmap;
 
 	mcam->bmap_fcnt = mcam->bmap_entries;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
-	mcam->entry2pfvf_map = kmalloc_array(mcam->bmap_entries,
-					     sizeof(u16), GFP_KERNEL);
+	mcam->entry2pfvf_map = kcalloc(mcam->bmap_entries, sizeof(u16),
+				       GFP_KERNEL);
+
 	if (!mcam->entry2pfvf_map)
 		goto free_bmap_reverse;
 
@@ -1941,21 +1940,21 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	if (err)
 		goto free_entry_map;
 
-	mcam->cntr2pfvf_map = kmalloc_array(mcam->counters.max,
-					    sizeof(u16), GFP_KERNEL);
+	mcam->cntr2pfvf_map = kcalloc(mcam->counters.max, sizeof(u16),
+				      GFP_KERNEL);
 	if (!mcam->cntr2pfvf_map)
 		goto free_cntr_bmap;
 
 	/* Alloc memory for MCAM entry to counter mapping and for tracking
 	 * counter's reference count.
 	 */
-	mcam->entry2cntr_map = kmalloc_array(mcam->bmap_entries,
-					     sizeof(u16), GFP_KERNEL);
+	mcam->entry2cntr_map = kcalloc(mcam->bmap_entries, sizeof(u16),
+				       GFP_KERNEL);
 	if (!mcam->entry2cntr_map)
 		goto free_cntr_map;
 
-	mcam->cntr_refcnt = kmalloc_array(mcam->counters.max,
-					  sizeof(u16), GFP_KERNEL);
+	mcam->cntr_refcnt = kcalloc(mcam->counters.max, sizeof(u16),
+				    GFP_KERNEL);
 	if (!mcam->cntr_refcnt)
 		goto free_entry_cntr_map;
 
@@ -1988,9 +1987,9 @@ free_cntr_bmap:
 free_entry_map:
 	kfree(mcam->entry2pfvf_map);
 free_bmap_reverse:
-	kfree(mcam->bmap_reverse);
+	bitmap_free(mcam->bmap_reverse);
 free_bmap:
-	kfree(mcam->bmap);
+	bitmap_free(mcam->bmap);
 
 	return -ENOMEM;
 }

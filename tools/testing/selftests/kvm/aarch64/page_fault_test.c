@@ -414,10 +414,10 @@ static bool punch_hole_in_backing_store(struct kvm_vm *vm,
 	if (fd != -1) {
 		ret = fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				0, paging_size);
-		TEST_ASSERT(ret == 0, "fallocate failed\n");
+		TEST_ASSERT(ret == 0, "fallocate failed");
 	} else {
 		ret = madvise(hva, paging_size, MADV_DONTNEED);
-		TEST_ASSERT(ret == 0, "madvise failed\n");
+		TEST_ASSERT(ret == 0, "madvise failed");
 	}
 
 	return true;
@@ -501,7 +501,7 @@ static bool handle_cmd(struct kvm_vm *vm, int cmd)
 
 void fail_vcpu_run_no_handler(int ret)
 {
-	TEST_FAIL("Unexpected vcpu run failure\n");
+	TEST_FAIL("Unexpected vcpu run failure");
 }
 
 void fail_vcpu_run_mmio_no_syndrome_handler(int ret)
