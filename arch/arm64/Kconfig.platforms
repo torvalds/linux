@@ -8,6 +8,13 @@ config ARCH_ACTIONS
 	help
 	  This enables support for the Actions Semiconductor S900 SoC family.
 
+config ARCH_AIROHA
+	bool "Airoha SoC Support"
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  This enables support for the ARM64 based Airoha SoCs.
+
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
