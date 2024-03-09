@@ -465,6 +465,7 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 	struct drm_device *dev = msm_dsi->dev;
 	struct drm_encoder *encoder;
 	struct drm_bridge *ext_bridge;
+	struct drm_connector *connector;
 	int ret;
 
 	ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
@@ -474,35 +475,20 @@ int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 
 	encoder = int_bridge->encoder;
 
-	/*
-	 * Try first to create the bridge without it creating its own
-	 * connector.. currently some bridges support this, and others
-	 * do not (and some support both modes)
-	 */
 	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
 			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-	if (ret == -EINVAL) {
-		/*
-		 * link the internal dsi bridge to the external bridge,
-		 * connector is created by the next bridge.
-		 */
-		ret = drm_bridge_attach(encoder, ext_bridge, int_bridge, 0);
-		if (ret < 0)
-			return ret;
-	} else {
-		struct drm_connector *connector;
+	if (ret)
+		return ret;
 
-		/* We are in charge of the connector, create one now. */
-		connector = drm_bridge_connector_init(dev, encoder);
-		if (IS_ERR(connector)) {
-			DRM_ERROR("Unable to create bridge connector\n");
-			return PTR_ERR(connector);
-		}
-
-		ret = drm_connector_attach_encoder(connector, encoder);
-		if (ret < 0)
-			return ret;
+	connector = drm_bridge_connector_init(dev, encoder);
+	if (IS_ERR(connector)) {
+		DRM_ERROR("Unable to create bridge connector\n");
+		return PTR_ERR(connector);
 	}
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
