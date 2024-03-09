@@ -423,7 +423,18 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 	return msm_dsi_host_check_dsc(host, mode);
 }
 
+static int dsi_mgr_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
+{
+	int id = dsi_mgr_bridge_get_id(bridge);
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+
+	return drm_bridge_attach(bridge->encoder, msm_dsi->next_bridge,
+				 bridge, flags);
+}
+
 static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
+	.attach = dsi_mgr_bridge_attach,
 	.pre_enable = dsi_mgr_bridge_pre_enable,
 	.post_disable = dsi_mgr_bridge_post_disable,
 	.mode_set = dsi_mgr_bridge_mode_set,
@@ -431,17 +442,19 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 };
 
 /* initialize bridge */
-struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi,
-					       struct drm_encoder *encoder)
+int msm_dsi_manager_connector_init(struct msm_dsi *msm_dsi,
+				   struct drm_encoder *encoder)
 {
+	struct drm_device *dev = msm_dsi->dev;
 	struct drm_bridge *bridge;
 	struct dsi_bridge *dsi_bridge;
+	struct drm_connector *connector;
 	int ret;
 
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
 				sizeof(*dsi_bridge), GFP_KERNEL);
 	if (!dsi_bridge)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	dsi_bridge->id = msm_dsi->id;
 
@@ -450,27 +463,9 @@ struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi,
 
 	ret = devm_drm_bridge_add(msm_dsi->dev->dev, bridge);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
-	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return bridge;
-}
-
-int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct drm_device *dev = msm_dsi->dev;
-	struct drm_encoder *encoder;
-	struct drm_connector *connector;
-	int ret;
-
-	encoder = int_bridge->encoder;
-
-	ret = drm_bridge_attach(encoder, msm_dsi->next_bridge, int_bridge,
-			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	ret = drm_bridge_attach(encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret)
 		return ret;
 
