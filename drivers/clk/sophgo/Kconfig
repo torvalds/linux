@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+# common clock support for SOPHGO SoC family.
+
+config CLK_SOPHGO_CV1800
+	tristate "Support for the Sophgo CV1800 series SoCs clock controller"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  This driver supports clock controller of Sophgo CV18XX series SoC.
+	  The driver require a 25MHz Oscillator to function generate clock.
+	  It includes PLLs, common clock function and some vendor clock for
+	  IPs of CV18XX series SoC
