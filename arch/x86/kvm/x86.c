@@ -11136,6 +11136,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	kvm_vcpu_srcu_read_lock(vcpu);
 
 	/*
+	 * Call this to ensure WC buffers in guest are evicted after each VM
+	 * Exit, so that the evicted WC writes can be snooped across all cpus
+	 */
+	smp_mb__after_srcu_read_lock();
+
+	/*
 	 * Profile KVM exit RIPs:
 	 */
 	if (unlikely(prof_on == KVM_PROFILING)) {
