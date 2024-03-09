@@ -25,8 +25,7 @@
 #include <linux/random.h>
 
 static int bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
-				  btree_path_idx_t, struct btree *,
-				  struct keylist *, unsigned);
+				  btree_path_idx_t, struct btree *, struct keylist *);
 static void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
 
 static btree_path_idx_t get_unlocked_mut_path(struct btree_trans *trans,
@@ -1473,7 +1472,7 @@ static void btree_split_insert_keys(struct btree_update *as,
 
 static int btree_split(struct btree_update *as, struct btree_trans *trans,
 		       btree_path_idx_t path, struct btree *b,
-		       struct keylist *keys, unsigned flags)
+		       struct keylist *keys)
 {
 	struct bch_fs *c = as->c;
 	struct btree *parent = btree_node_parent(trans->paths + path, b);
@@ -1574,7 +1573,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 	if (parent) {
 		/* Split a non root node */
-		ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys, flags);
+		ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys);
 		if (ret)
 			goto err;
 	} else if (n3) {
@@ -1669,7 +1668,6 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
  * @path_idx:		path that points to current node
  * @b:			node to insert keys into
  * @keys:		list of keys to insert
- * @flags:		transaction commit flags
  *
  * Returns: 0 on success, typically transaction restart error on failure
  *
@@ -1679,7 +1677,7 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
  */
 static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *trans,
 				  btree_path_idx_t path_idx, struct btree *b,
-				  struct keylist *keys, unsigned flags)
+				  struct keylist *keys)
 {
 	struct bch_fs *c = as->c;
 	struct btree_path *path = trans->paths + path_idx;
@@ -1735,7 +1733,7 @@ split:
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_split_race);
 	}
 
-	return btree_split(as, trans, path_idx, b, keys, flags);
+	return btree_split(as, trans, path_idx, b, keys);
 }
 
 int bch2_btree_split_leaf(struct btree_trans *trans,
@@ -1754,7 +1752,7 @@ int bch2_btree_split_leaf(struct btree_trans *trans,
 	if (IS_ERR(as))
 		return PTR_ERR(as);
 
-	ret = btree_split(as, trans, path, b, NULL, flags);
+	ret = btree_split(as, trans, path, b, NULL);
 	if (ret) {
 		bch2_btree_update_free(as, trans);
 		return ret;
@@ -1964,7 +1962,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 	bch2_trans_verify_paths(trans);
 
-	ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys, flags);
+	ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys);
 	if (ret)
 		goto err_free_update;
 
@@ -2035,8 +2033,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	if (parent) {
 		bch2_keylist_add(&as->parent_keys, &n->key);
-		ret = bch2_btree_insert_node(as, trans, iter->path,
-					     parent, &as->parent_keys, flags);
+		ret = bch2_btree_insert_node(as, trans, iter->path, parent, &as->parent_keys);
 		if (ret)
 			goto err;
 	} else {
