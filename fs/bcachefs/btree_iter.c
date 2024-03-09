@@ -1729,7 +1729,9 @@ bch2_btree_iter_traverse(struct btree_iter *iter)
 	if (ret)
 		return ret;
 
-	btree_path_set_should_be_locked(trans->paths + iter->path);
+	struct btree_path *path = btree_iter_path(trans, iter);
+	if (btree_path_node(path, path->level))
+		btree_path_set_should_be_locked(path);
 	return 0;
 }
 

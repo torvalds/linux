@@ -1208,10 +1208,6 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	mutex_unlock(&c->btree_cache.lock);
 
 	mutex_lock(&c->btree_root_lock);
-	BUG_ON(btree_node_root(c, b) &&
-	       (b->c.level < btree_node_root(c, b)->c.level ||
-		!btree_node_dying(btree_node_root(c, b))));
-
 	bch2_btree_id_root(c, b->c.btree_id)->b = b;
 	mutex_unlock(&c->btree_root_lock);
 
@@ -1747,7 +1743,6 @@ int bch2_btree_split_leaf(struct btree_trans *trans,
 			  unsigned flags)
 {
 	/* btree_split & merge may both cause paths array to be reallocated */
-
 	struct btree *b = path_l(trans->paths + path)->b;
 	struct btree_update *as;
 	unsigned l;
@@ -1773,6 +1768,60 @@ int bch2_btree_split_leaf(struct btree_trans *trans,
 		ret = bch2_foreground_maybe_merge(trans, path, l, flags);
 
 	return ret;
+}
+
+static void __btree_increase_depth(struct btree_update *as, struct btree_trans *trans,
+				   btree_path_idx_t path_idx)
+{
+	struct bch_fs *c = as->c;
+	struct btree_path *path = trans->paths + path_idx;
+	struct btree *n, *b = bch2_btree_id_root(c, path->btree_id)->b;
+
+	BUG_ON(!btree_node_locked(path, b->c.level));
+
+	n = __btree_root_alloc(as, trans, b->c.level + 1);
+
+	bch2_btree_update_add_new_node(as, n);
+	six_unlock_write(&n->c.lock);
+
+	path->locks_want++;
+	BUG_ON(btree_node_locked(path, n->c.level));
+	six_lock_increment(&n->c.lock, SIX_LOCK_intent);
+	mark_btree_node_locked(trans, path, n->c.level, BTREE_NODE_INTENT_LOCKED);
+	bch2_btree_path_level_init(trans, path, n);
+
+	n->sib_u64s[0] = U16_MAX;
+	n->sib_u64s[1] = U16_MAX;
+
+	bch2_keylist_add(&as->parent_keys, &b->key);
+	btree_split_insert_keys(as, trans, path_idx, n, &as->parent_keys);
+
+	bch2_btree_set_root(as, trans, path, n);
+	bch2_btree_update_get_open_buckets(as, n);
+	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
+	bch2_trans_node_add(trans, path, n);
+	six_unlock_intent(&n->c.lock);
+
+	mutex_lock(&c->btree_cache.lock);
+	list_add_tail(&b->list, &c->btree_cache.live);
+	mutex_unlock(&c->btree_cache.lock);
+
+	bch2_trans_verify_locks(trans);
+}
+
+int bch2_btree_increase_depth(struct btree_trans *trans, btree_path_idx_t path, unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct btree *b = bch2_btree_id_root(c, trans->paths[path].btree_id)->b;
+	struct btree_update *as =
+		bch2_btree_update_start(trans, trans->paths + path,
+					b->c.level, true, flags);
+	if (IS_ERR(as))
+		return PTR_ERR(as);
+
+	__btree_increase_depth(as, trans, path);
+	bch2_btree_update_done(as, trans);
+	return 0;
 }
 
 int __bch2_foreground_maybe_merge(struct btree_trans *trans,
