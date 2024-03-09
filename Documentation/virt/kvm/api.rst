@@ -8791,6 +8791,11 @@ means the VM type with value @n is supported.  Possible values of @n are::
   #define KVM_X86_DEFAULT_VM	0
   #define KVM_X86_SW_PROTECTED_VM	1
 
+Note, KVM_X86_SW_PROTECTED_VM is currently only for development and testing.
+Do not use KVM_X86_SW_PROTECTED_VM for "real" VMs, and especially not in
+production.  The behavior and effective ABI for software-protected VMs is
+unstable.
+
 9. Known KVM API problems
 =========================
 
