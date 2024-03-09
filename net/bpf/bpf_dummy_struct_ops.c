@@ -174,7 +174,7 @@ static int bpf_dummy_ops_check_member(const struct btf_type *t,
 	case offsetof(struct bpf_dummy_ops, test_sleepable):
 		break;
 	default:
-		if (prog->aux->sleepable)
+		if (prog->sleepable)
 			return -EINVAL;
 	}
 

@@ -5274,7 +5274,7 @@ bad_type:
 
 static bool in_sleepable(struct bpf_verifier_env *env)
 {
-	return env->prog->aux->sleepable;
+	return env->prog->sleepable;
 }
 
 /* The non-sleepable programs and sleepable programs with explicit bpf_rcu_read_lock()
@@ -18137,7 +18137,7 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (prog->aux->sleepable)
+	if (prog->sleepable)
 		switch (map->map_type) {
 		case BPF_MAP_TYPE_HASH:
 		case BPF_MAP_TYPE_LRU_HASH:
@@ -18325,7 +18325,7 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 				return -E2BIG;
 			}
 
-			if (env->prog->aux->sleepable)
+			if (env->prog->sleepable)
 				atomic64_inc(&map->sleepable_refcnt);
 			/* hold the map. If the program is rejected by verifier,
 			 * the map will be released by release_maps() or it
@@ -20938,7 +20938,7 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			}
 		}
 
-		if (prog->aux->sleepable) {
+		if (prog->sleepable) {
 			ret = -EINVAL;
 			switch (prog->type) {
 			case BPF_PROG_TYPE_TRACING:
@@ -21049,14 +21049,14 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 	u64 key;
 
 	if (prog->type == BPF_PROG_TYPE_SYSCALL) {
-		if (prog->aux->sleepable)
+		if (prog->sleepable)
 			/* attach_btf_id checked to be zero already */
 			return 0;
 		verbose(env, "Syscall programs can only be sleepable\n");
 		return -EINVAL;
 	}
 
-	if (prog->aux->sleepable && !can_be_sleepable(prog)) {
+	if (prog->sleepable && !can_be_sleepable(prog)) {
 		verbose(env, "Only fentry/fexit/fmod_ret, lsm, iter, uprobe, and struct_ops programs can be sleepable\n");
 		return -EINVAL;
 	}

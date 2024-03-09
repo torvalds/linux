@@ -3256,7 +3256,7 @@ static int uprobe_prog_run(struct bpf_uprobe *uprobe,
 		.uprobe = uprobe,
 	};
 	struct bpf_prog *prog = link->link.prog;
-	bool sleepable = prog->aux->sleepable;
+	bool sleepable = prog->sleepable;
 	struct bpf_run_ctx *old_run_ctx;
 	int err = 0;
 
