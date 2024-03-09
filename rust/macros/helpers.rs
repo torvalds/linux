@@ -95,7 +95,6 @@ pub(crate) struct Generics {
     /// The generics with bounds and default values (e.g. `T: Clone, const N: usize = 0`).
     ///
     /// Use this on type definitions e.g. `struct Foo<$decl_generics> ...` (or `union`/`enum`).
-    #[allow(dead_code)]
     pub(crate) decl_generics: Vec<TokenTree>,
     /// The generics with bounds (e.g. `T: Clone, const N: usize`).
     ///
