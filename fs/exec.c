@@ -1720,7 +1720,6 @@ static int prepare_binprm(struct linux_binprm *bprm)
  */
 int remove_arg_zero(struct linux_binprm *bprm)
 {
-	int ret = 0;
 	unsigned long offset;
 	char *kaddr;
 	struct page *page;
@@ -1731,10 +1730,8 @@ int remove_arg_zero(struct linux_binprm *bprm)
 	do {
 		offset = bprm->p & ~PAGE_MASK;
 		page = get_arg_page(bprm, bprm->p, 0);
-		if (!page) {
-			ret = -EFAULT;
-			goto out;
-		}
+		if (!page)
+			return -EFAULT;
 		kaddr = kmap_local_page(page);
 
 		for (; offset < PAGE_SIZE && kaddr[offset];
@@ -1748,8 +1745,7 @@ int remove_arg_zero(struct linux_binprm *bprm)
 	bprm->p++;
 	bprm->argc--;
 
-out:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(remove_arg_zero);
 
