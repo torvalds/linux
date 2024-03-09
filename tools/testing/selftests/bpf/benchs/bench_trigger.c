@@ -85,10 +85,22 @@ static void trigger_kprobe_setup(void)
 	attach_bpf(ctx.skel->progs.bench_trigger_kprobe);
 }
 
+static void trigger_kretprobe_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe);
+}
+
 static void trigger_fentry_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fentry);
+}
+
+static void trigger_fexit_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_fexit);
 }
 
 static void trigger_fentry_sleep_setup(void)
@@ -261,10 +273,30 @@ const struct bench bench_trig_kprobe = {
 	.report_final = hits_drops_report_final,
 };
 
+const struct bench bench_trig_kretprobe = {
+	.name = "trig-kretprobe",
+	.validate = trigger_validate,
+	.setup = trigger_kretprobe_setup,
+	.producer_thread = trigger_producer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
 const struct bench bench_trig_fentry = {
 	.name = "trig-fentry",
 	.validate = trigger_validate,
 	.setup = trigger_fentry_setup,
+	.producer_thread = trigger_producer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_fexit = {
+	.name = "trig-fexit",
+	.validate = trigger_validate,
+	.setup = trigger_fexit_setup,
 	.producer_thread = trigger_producer,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,

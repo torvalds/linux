@@ -495,7 +495,9 @@ extern const struct bench bench_trig_base;
 extern const struct bench bench_trig_tp;
 extern const struct bench bench_trig_rawtp;
 extern const struct bench bench_trig_kprobe;
+extern const struct bench bench_trig_kretprobe;
 extern const struct bench bench_trig_fentry;
+extern const struct bench bench_trig_fexit;
 extern const struct bench bench_trig_fentry_sleep;
 extern const struct bench bench_trig_fmodret;
 extern const struct bench bench_trig_uprobe_base;
@@ -539,7 +541,9 @@ static const struct bench *benchs[] = {
 	&bench_trig_tp,
 	&bench_trig_rawtp,
 	&bench_trig_kprobe,
+	&bench_trig_kretprobe,
 	&bench_trig_fentry,
+	&bench_trig_fexit,
 	&bench_trig_fentry_sleep,
 	&bench_trig_fmodret,
 	&bench_trig_uprobe_base,
