@@ -235,7 +235,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	if (!pos_ht_cap || !ht) {
 		netdev_warn(ieee->dev,
-			    "%s(): posHTCap and ht_info are null\n", __func__);
+			    "%s(): pos_ht_cap and ht_info are null\n", __func__);
 		return;
 	}
 	memset(pos_ht_cap, 0, *len);
