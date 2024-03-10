@@ -415,7 +415,7 @@ enum {
 	SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
 	SCARLETT2_CONFIG_INPUT_LINK_SWITCH,
 	SCARLETT2_CONFIG_POWER_EXT,
-	SCARLETT2_CONFIG_POWER_STATUS,
+	SCARLETT2_CONFIG_POWER_LOW,
 	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_COUNT
@@ -723,8 +723,8 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 		[SCARLETT2_CONFIG_POWER_EXT] = {
 			.offset = 0x168 },
 
-		[SCARLETT2_CONFIG_POWER_STATUS] = {
-			.offset = 0x66 }
+		[SCARLETT2_CONFIG_POWER_LOW] = {
+			.offset = 0x16d }
 	}
 };
 
@@ -6294,8 +6294,7 @@ static int scarlett2_update_power_status(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	int err;
-	u8 power_ext;
-	u8 power_status;
+	u8 power_ext, power_low;
 
 	private->power_status_updated = 0;
 
@@ -6304,12 +6303,12 @@ static int scarlett2_update_power_status(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
-	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_STATUS,
-				       1, &power_status);
+	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_LOW,
+				       1, &power_low);
 	if (err < 0)
 		return err;
 
-	if (power_status > 1)
+	if (power_low)
 		private->power_status = SCARLETT2_POWER_STATUS_FAIL;
 	else if (power_ext)
 		private->power_status = SCARLETT2_POWER_STATUS_EXT;
