@@ -101,7 +101,7 @@ static void set_blackbg_theme(void)
 	DLG_COLOR(button_key_active,     COLOR_YELLOW, COLOR_RED,   true);
 	DLG_COLOR(button_key_inactive,   COLOR_RED,    COLOR_BLACK, false);
 	DLG_COLOR(button_label_active,   COLOR_WHITE,  COLOR_RED,   false);
-	DLG_COLOR(button_label_inactive, COLOR_BLACK,  COLOR_BLACK, true);
+	DLG_COLOR(button_label_inactive, COLOR_WHITE,  COLOR_BLACK, false);
 
 	DLG_COLOR(inputbox,         COLOR_YELLOW, COLOR_BLACK, false);
 	DLG_COLOR(inputbox_border,  COLOR_YELLOW, COLOR_BLACK, false);
