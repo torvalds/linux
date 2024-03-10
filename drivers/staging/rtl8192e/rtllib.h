@@ -1478,7 +1478,7 @@ struct rtllib_device {
 
 	void (*allow_all_dest_addr_handler)(struct net_device *dev,
 					    bool allow_all_da,
-					    bool WriteIntoReg);
+					    bool write_into_reg);
 
 	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
