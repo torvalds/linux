@@ -124,13 +124,6 @@ static const struct pwm_ops bcm2835_pwm_ops = {
 	.apply = bcm2835_pwm_apply,
 };
 
-static void devm_clk_rate_exclusive_put(void *data)
-{
-	struct clk *clk = data;
-
-	clk_rate_exclusive_put(clk);
-}
-
 static int bcm2835_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -152,15 +145,10 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pc->clk),
 				     "clock not found\n");
 
-	ret = clk_rate_exclusive_get(pc->clk);
+	ret = devm_clk_rate_exclusive_get(dev, pc->clk);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "fail to get exclusive rate\n");
-
-	ret = devm_add_action_or_reset(dev, devm_clk_rate_exclusive_put,
-				       pc->clk);
-	if (ret)
-		return ret;
 
 	pc->rate = clk_get_rate(pc->clk);
 	if (!pc->rate)
