@@ -600,33 +600,33 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to initialize regmap fields\n");
 
-	if (pc->pwm_num_devs) {
+	if (pwm_num_devs) {
 		pc->pwm_clk = devm_clk_get_prepared(dev, "pwm");
 		if (IS_ERR(pc->pwm_clk))
 			return dev_err_probe(dev, PTR_ERR(pc->pwm_clk),
 					     "failed to get PWM clock\n");
 	}
 
-	if (pc->cpt_num_devs) {
+	if (cpt_num_devs) {
 		pc->cpt_clk = devm_clk_get_prepared(dev, "capture");
 		if (IS_ERR(pc->cpt_clk))
 			return dev_err_probe(dev, PTR_ERR(pc->cpt_clk),
 					     "failed to get PWM capture clock\n");
 
-		pc->ddata = devm_kcalloc(dev, pc->cpt_num_devs,
+		pc->ddata = devm_kcalloc(dev, cpt_num_devs,
 					 sizeof(*pc->ddata), GFP_KERNEL);
 		if (!pc->ddata)
 			return -ENOMEM;
+
+		for (i = 0; i < cpt_num_devs; i++) {
+			struct sti_cpt_ddata *ddata = &pc->ddata[i];
+
+			init_waitqueue_head(&ddata->wait);
+			mutex_init(&ddata->lock);
+		}
 	}
 
 	chip->ops = &sti_pwm_ops;
-
-	for (i = 0; i < pc->cpt_num_devs; i++) {
-		struct sti_cpt_ddata *ddata = &pc->ddata[i];
-
-		init_waitqueue_head(&ddata->wait);
-		mutex_init(&ddata->lock);
-	}
 
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret)
