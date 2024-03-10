@@ -931,9 +931,6 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 
 	b = bch2_btree_id_root(c, btree_id)->b;
 
-	if (btree_node_fake(b))
-		return 0;
-
 	six_lock_read(&b->c.lock, NULL, NULL);
 	printbuf_reset(&buf);
 	bch2_bpos_to_text(&buf, b->data->min_key);
