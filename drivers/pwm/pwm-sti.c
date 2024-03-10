@@ -502,7 +502,7 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 	return ret;
 }
 
-static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
+static int sti_pwm_probe_regmap(struct sti_pwm_chip *pc)
 {
 	struct device *dev = pc->dev;
 	const struct reg_field *reg_fields;
@@ -570,10 +570,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	if (!ret)
 		cpt_num_devs = num_devs;
 
-	if (!pwm_num_devs && !cpt_num_devs) {
-		dev_err(dev, "No channels configured\n");
-		return -EINVAL;
-	}
+	if (!pwm_num_devs && !cpt_num_devs)
+		return dev_err_probe(dev, -EINVAL, "No channels configured\n");
 
 	chip = devm_pwmchip_alloc(dev, max(pwm_num_devs, cpt_num_devs), sizeof(*pc));
 	if (IS_ERR(chip))
@@ -591,7 +589,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	pc->regmap = devm_regmap_init_mmio(dev, pc->mmio,
 					   &sti_pwm_regmap_config);
 	if (IS_ERR(pc->regmap))
-		return PTR_ERR(pc->regmap);
+		return dev_err_probe(dev, PTR_ERR(pc->regmap),
+				     "Failed to initialize regmap\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -599,10 +598,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, irq, sti_pwm_interrupt, 0,
 			       pdev->name, pc);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to request IRQ\n");
-		return ret;
-	}
+	if (ret < 0)
+		dev_err_probe(&pdev->dev, ret, "Failed to request IRQ\n");
 
 	/*
 	 * Setup PWM data with default values: some values could be replaced
@@ -619,24 +616,22 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	pc->en_count = 0;
 	mutex_init(&pc->sti_pwm_lock);
 
-	ret = sti_pwm_probe_dt(pc);
+	ret = sti_pwm_probe_regmap(pc);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to initialize regmap fields\n");
 
 	if (cdata->pwm_num_devs) {
 		pc->pwm_clk = devm_clk_get_prepared(dev, "pwm");
-		if (IS_ERR(pc->pwm_clk)) {
-			dev_err(dev, "failed to get PWM clock\n");
-			return PTR_ERR(pc->pwm_clk);
-		}
+		if (IS_ERR(pc->pwm_clk))
+			return dev_err_probe(dev, PTR_ERR(pc->pwm_clk),
+					     "failed to get PWM clock\n");
 	}
 
 	if (cdata->cpt_num_devs) {
 		pc->cpt_clk = devm_clk_get_prepared(dev, "capture");
-		if (IS_ERR(pc->cpt_clk)) {
-			dev_err(dev, "failed to get PWM capture clock\n");
-			return PTR_ERR(pc->cpt_clk);
-		}
+		if (IS_ERR(pc->cpt_clk))
+			return dev_err_probe(dev, PTR_ERR(pc->cpt_clk),
+					     "failed to get PWM capture clock\n");
 
 		cdata->ddata = devm_kzalloc(dev, cdata->cpt_num_devs * sizeof(*cdata->ddata), GFP_KERNEL);
 		if (!cdata->ddata)
@@ -652,7 +647,11 @@ static int sti_pwm_probe(struct platform_device *pdev)
 		mutex_init(&ddata->lock);
 	}
 
-	return devm_pwmchip_add(dev, chip);
+	ret = devm_pwmchip_add(dev, chip);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register pwm chip\n");
+
+	return 0;
 }
 
 static const struct of_device_id sti_pwm_of_match[] = {
