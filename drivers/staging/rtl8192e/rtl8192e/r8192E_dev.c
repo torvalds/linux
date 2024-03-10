@@ -702,12 +702,12 @@ void rtl92e_link_change(struct net_device *dev)
 	}
 }
 
-void rtl92e_set_monitor_mode(struct net_device *dev, bool bAllowAllDA,
+void rtl92e_set_monitor_mode(struct net_device *dev, bool allow_all_da,
 			     bool WriteIntoReg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (bAllowAllDA)
+	if (allow_all_da)
 		priv->receive_config |= RCR_AAP;
 	else
 		priv->receive_config &= ~RCR_AAP;
