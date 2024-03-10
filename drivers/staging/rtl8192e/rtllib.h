@@ -299,7 +299,7 @@ enum rt_op_mode {
 	RT_OP_MODE_NO_LINK,
 };
 
-#define aSifsTime						\
+#define asifs_time						\
 	 ((priv->rtllib->current_network.mode == WIRELESS_MODE_N_24G) ? 16 : 10)
 
 #define MGMT_QUEUE_NUM 5
