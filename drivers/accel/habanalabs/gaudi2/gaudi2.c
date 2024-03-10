@@ -10004,6 +10004,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		if (gaudi2_handle_hbm_mc_sei_err(hdev, event_type, &eq_entry->sei_data)) {
 			reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 			reset_required = true;
+			is_critical = eq_entry->sei_data.hdr.is_critical;
 		}
 		error_count++;
 		break;
@@ -10235,8 +10236,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		gaudi2_print_event(hdev, event_type, true,
 				"No error cause for H/W event %u", event_type);
 
-	if ((gaudi2_irq_map_table[event_type].reset != EVENT_RESET_TYPE_NONE) ||
-				reset_required) {
+	if ((gaudi2_irq_map_table[event_type].reset != EVENT_RESET_TYPE_NONE) || reset_required) {
 		if (reset_required ||
 				(gaudi2_irq_map_table[event_type].reset == EVENT_RESET_TYPE_HARD))
 			reset_flags |= HL_DRV_RESET_HARD;
