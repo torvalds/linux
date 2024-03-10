@@ -1051,7 +1051,7 @@ enum rt_rf_power_state {
 struct rt_pwr_save_ctrl {
 	bool				bSwRfProcessing;
 	enum rt_rf_power_state eInactivePowerState;
-	enum ips_callback_function ReturnPoint;
+	enum ips_callback_function return_point;
 
 	bool				bLeisurePs;
 	u8				lps_idle_count;
