@@ -233,6 +233,12 @@ choice: T_CHOICE T_EOL
 
 choice_entry: choice choice_option_list
 {
+	if (!current_entry->prompt) {
+		fprintf(stderr, "%s:%d: error: choice must have a prompt\n",
+			current_entry->filename, current_entry->lineno);
+		yynerrs++;
+	}
+
 	$$ = menu_add_menu();
 };
 

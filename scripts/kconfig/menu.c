@@ -561,9 +561,6 @@ void menu_finalize(struct menu *parent)
 		if (sym->type == S_UNKNOWN)
 			menu_warn(parent, "config symbol defined without type");
 
-		if (sym_is_choice(sym) && !parent->prompt)
-			menu_warn(parent, "choice must have a prompt");
-
 		/* Check properties connected to this symbol */
 		sym_check_prop(sym);
 		sym->flags |= SYMBOL_WARNED;
