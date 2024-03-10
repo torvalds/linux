@@ -1586,8 +1586,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 			"  should be %u",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
 			r->refcount)) {
-		struct bkey_i *new = bch2_bkey_make_mut(trans, iter, &k, 0);
-
+		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
 		ret = PTR_ERR_OR_ZERO(new);
 		if (ret)
 			return ret;
@@ -1596,6 +1595,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 			new->k.type = KEY_TYPE_deleted;
 		else
 			*bkey_refcount(bkey_i_to_s(new)) = cpu_to_le64(r->refcount);
+		ret = bch2_trans_update(trans, iter, new, 0);
 	}
 fsck_err:
 	printbuf_exit(&buf);
