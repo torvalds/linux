@@ -799,10 +799,7 @@ int conf_write_defconfig(const char *filename)
 	while (menu != NULL)
 	{
 		sym = menu->sym;
-		if (sym == NULL) {
-			if (!menu_is_visible(menu))
-				goto next_menu;
-		} else if (!sym_is_choice(sym)) {
+		if (sym && !sym_is_choice(sym)) {
 			sym_calc_value(sym);
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next_menu;
