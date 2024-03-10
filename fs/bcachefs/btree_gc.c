@@ -1818,10 +1818,10 @@ out:
 	if (!ret) {
 		bch2_journal_block(&c->journal);
 
-		ret   = bch2_gc_stripes_done(c, metadata_only) ?:
-			bch2_gc_reflink_done(c, metadata_only) ?:
-			bch2_gc_alloc_done(c, metadata_only) ?:
-			bch2_gc_done(c, initial, metadata_only);
+		ret   = bch2_gc_alloc_done(c, metadata_only) ?:
+			bch2_gc_done(c, initial, metadata_only) ?:
+			bch2_gc_stripes_done(c, metadata_only) ?:
+			bch2_gc_reflink_done(c, metadata_only);
 
 		bch2_journal_unblock(&c->journal);
 	}
