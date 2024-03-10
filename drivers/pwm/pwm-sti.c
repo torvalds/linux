@@ -73,20 +73,16 @@ struct sti_cpt_ddata {
 	wait_queue_head_t wait;
 };
 
-struct sti_pwm_compat_data {
-	unsigned int pwm_num_devs;
-	unsigned int cpt_num_devs;
-	unsigned int max_pwm_cnt;
-	unsigned int max_prescale;
-	struct sti_cpt_ddata *ddata;
-};
-
 struct sti_pwm_chip {
 	struct device *dev;
 	struct clk *pwm_clk;
 	struct clk *cpt_clk;
 	struct regmap *regmap;
-	struct sti_pwm_compat_data *cdata;
+	unsigned int pwm_num_devs;
+	unsigned int cpt_num_devs;
+	unsigned int max_pwm_cnt;
+	unsigned int max_prescale;
+	struct sti_cpt_ddata *ddata;
 	struct regmap_field *prescale_low;
 	struct regmap_field *prescale_high;
 	struct regmap_field *pwm_out_en;
@@ -121,7 +117,6 @@ static inline struct sti_pwm_chip *to_sti_pwmchip(struct pwm_chip *chip)
 static int sti_pwm_get_prescale(struct sti_pwm_chip *pc, unsigned long period,
 				unsigned int *prescale)
 {
-	struct sti_pwm_compat_data *cdata = pc->cdata;
 	unsigned long clk_rate;
 	unsigned long value;
 	unsigned int ps;
@@ -136,13 +131,13 @@ static int sti_pwm_get_prescale(struct sti_pwm_chip *pc, unsigned long period,
 	 * prescale = ((period_ns * clk_rate) / (10^9 * (max_pwm_cnt + 1)) - 1
 	 */
 	value = NSEC_PER_SEC / clk_rate;
-	value *= cdata->max_pwm_cnt + 1;
+	value *= pc->max_pwm_cnt + 1;
 
 	if (period % value)
 		return -EINVAL;
 
 	ps  = period / value - 1;
-	if (ps > cdata->max_prescale)
+	if (ps > pc->max_prescale)
 		return -EINVAL;
 
 	*prescale = ps;
@@ -163,7 +158,6 @@ static int sti_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			  int duty_ns, int period_ns)
 {
 	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
-	struct sti_pwm_compat_data *cdata = pc->cdata;
 	unsigned int ncfg, value, prescale = 0;
 	struct pwm_device *cur = pc->cur;
 	struct device *dev = pc->dev;
@@ -223,7 +217,7 @@ static int sti_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		 * PWM pulse = (max_pwm_count + 1) local cycles,
 		 * that is continuous pulse: signal never goes low.
 		 */
-		value = cdata->max_pwm_cnt * duty_ns / period_ns;
+		value = pc->max_pwm_cnt * duty_ns / period_ns;
 
 		ret = regmap_write(pc->regmap, PWM_OUT_VAL(pwm->hwpwm), value);
 		if (ret)
@@ -312,14 +306,13 @@ static int sti_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			   struct pwm_capture *result, unsigned long timeout)
 {
 	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
-	struct sti_pwm_compat_data *cdata = pc->cdata;
-	struct sti_cpt_ddata *ddata = &cdata->ddata[pwm->hwpwm];
+	struct sti_cpt_ddata *ddata = &pc->ddata[pwm->hwpwm];
 	struct device *dev = pc->dev;
 	unsigned int effective_ticks;
 	unsigned long long high, low;
 	int ret;
 
-	if (pwm->hwpwm >= cdata->cpt_num_devs) {
+	if (pwm->hwpwm >= pc->cpt_num_devs) {
 		dev_err(dev, "device %u is not valid\n", pwm->hwpwm);
 		return -EINVAL;
 	}
@@ -394,11 +387,10 @@ static int sti_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			 const struct pwm_state *state)
 {
 	struct sti_pwm_chip *pc = to_sti_pwmchip(chip);
-	struct sti_pwm_compat_data *cdata = pc->cdata;
 	struct device *dev = pc->dev;
 	int err;
 
-	if (pwm->hwpwm >= cdata->pwm_num_devs) {
+	if (pwm->hwpwm >= pc->pwm_num_devs) {
 		dev_err(dev, "device %u is not valid for pwm mode\n",
 			pwm->hwpwm);
 		return -EINVAL;
@@ -447,7 +439,7 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 	while (cpt_int_stat) {
 		devicenum = ffs(cpt_int_stat) - 1;
 
-		ddata = &pc->cdata->ddata[devicenum];
+		ddata = &pc->ddata[devicenum];
 
 		/*
 		 * Capture input:
@@ -551,7 +543,6 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	u32 num_devs;
 	unsigned int pwm_num_devs = 0;
 	unsigned int cpt_num_devs = 0;
-	struct sti_pwm_compat_data *cdata;
 	struct pwm_chip *chip;
 	struct sti_pwm_chip *pc;
 	unsigned int i;
@@ -572,10 +563,6 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	pc = to_sti_pwmchip(chip);
-
-	cdata = devm_kzalloc(dev, sizeof(*cdata), GFP_KERNEL);
-	if (!cdata)
-		return -ENOMEM;
 
 	pc->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->mmio))
@@ -600,12 +587,11 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	 * Setup PWM data with default values: some values could be replaced
 	 * with specific ones provided from Device Tree.
 	 */
-	cdata->max_prescale = 0xff;
-	cdata->max_pwm_cnt = 255;
-	cdata->pwm_num_devs = pwm_num_devs;
-	cdata->cpt_num_devs = cpt_num_devs;
+	pc->max_prescale = 0xff;
+	pc->max_pwm_cnt = 255;
+	pc->pwm_num_devs = pwm_num_devs;
+	pc->cpt_num_devs = cpt_num_devs;
 
-	pc->cdata = cdata;
 	pc->dev = dev;
 	pc->en_count = 0;
 	mutex_init(&pc->sti_pwm_lock);
@@ -614,28 +600,28 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to initialize regmap fields\n");
 
-	if (cdata->pwm_num_devs) {
+	if (pc->pwm_num_devs) {
 		pc->pwm_clk = devm_clk_get_prepared(dev, "pwm");
 		if (IS_ERR(pc->pwm_clk))
 			return dev_err_probe(dev, PTR_ERR(pc->pwm_clk),
 					     "failed to get PWM clock\n");
 	}
 
-	if (cdata->cpt_num_devs) {
+	if (pc->cpt_num_devs) {
 		pc->cpt_clk = devm_clk_get_prepared(dev, "capture");
 		if (IS_ERR(pc->cpt_clk))
 			return dev_err_probe(dev, PTR_ERR(pc->cpt_clk),
 					     "failed to get PWM capture clock\n");
 
-		cdata->ddata = devm_kzalloc(dev, cdata->cpt_num_devs * sizeof(*cdata->ddata), GFP_KERNEL);
-		if (!cdata->ddata)
+		pc->ddata = devm_kzalloc(dev, pc->cpt_num_devs * sizeof(*pc->ddata), GFP_KERNEL);
+		if (!pc->ddata)
 			return -ENOMEM;
 	}
 
 	chip->ops = &sti_pwm_ops;
 
-	for (i = 0; i < cdata->cpt_num_devs; i++) {
-		struct sti_cpt_ddata *ddata = &cdata->ddata[i];
+	for (i = 0; i < pc->cpt_num_devs; i++) {
+		struct sti_cpt_ddata *ddata = &pc->ddata[i];
 
 		init_waitqueue_head(&ddata->wait);
 		mutex_init(&ddata->lock);
