@@ -74,7 +74,6 @@ struct sti_cpt_ddata {
 };
 
 struct sti_pwm_compat_data {
-	const struct reg_field *reg_fields;
 	unsigned int pwm_num_devs;
 	unsigned int cpt_num_devs;
 	unsigned int max_pwm_cnt;
@@ -505,38 +504,34 @@ static irqreturn_t sti_pwm_interrupt(int irq, void *data)
 static int sti_pwm_probe_regmap(struct sti_pwm_chip *pc)
 {
 	struct device *dev = pc->dev;
-	const struct reg_field *reg_fields;
-	struct sti_pwm_compat_data *cdata = pc->cdata;
-
-	reg_fields = cdata->reg_fields;
 
 	pc->prescale_low = devm_regmap_field_alloc(dev, pc->regmap,
-					reg_fields[PWMCLK_PRESCALE_LOW]);
+					sti_pwm_regfields[PWMCLK_PRESCALE_LOW]);
 	if (IS_ERR(pc->prescale_low))
 		return PTR_ERR(pc->prescale_low);
 
 	pc->prescale_high = devm_regmap_field_alloc(dev, pc->regmap,
-					reg_fields[PWMCLK_PRESCALE_HIGH]);
+					sti_pwm_regfields[PWMCLK_PRESCALE_HIGH]);
 	if (IS_ERR(pc->prescale_high))
 		return PTR_ERR(pc->prescale_high);
 
 	pc->pwm_out_en = devm_regmap_field_alloc(dev, pc->regmap,
-						 reg_fields[PWM_OUT_EN]);
+						 sti_pwm_regfields[PWM_OUT_EN]);
 	if (IS_ERR(pc->pwm_out_en))
 		return PTR_ERR(pc->pwm_out_en);
 
 	pc->pwm_cpt_en = devm_regmap_field_alloc(dev, pc->regmap,
-						 reg_fields[PWM_CPT_EN]);
+						 sti_pwm_regfields[PWM_CPT_EN]);
 	if (IS_ERR(pc->pwm_cpt_en))
 		return PTR_ERR(pc->pwm_cpt_en);
 
 	pc->pwm_cpt_int_en = devm_regmap_field_alloc(dev, pc->regmap,
-						reg_fields[PWM_CPT_INT_EN]);
+						sti_pwm_regfields[PWM_CPT_INT_EN]);
 	if (IS_ERR(pc->pwm_cpt_int_en))
 		return PTR_ERR(pc->pwm_cpt_int_en);
 
 	pc->pwm_cpt_int_stat = devm_regmap_field_alloc(dev, pc->regmap,
-						reg_fields[PWM_CPT_INT_STAT]);
+						sti_pwm_regfields[PWM_CPT_INT_STAT]);
 	if (PTR_ERR_OR_ZERO(pc->pwm_cpt_int_stat))
 		return PTR_ERR(pc->pwm_cpt_int_stat);
 
@@ -605,7 +600,6 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	 * Setup PWM data with default values: some values could be replaced
 	 * with specific ones provided from Device Tree.
 	 */
-	cdata->reg_fields = sti_pwm_regfields;
 	cdata->max_prescale = 0xff;
 	cdata->max_pwm_cnt = 255;
 	cdata->pwm_num_devs = pwm_num_devs;
