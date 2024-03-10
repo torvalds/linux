@@ -173,7 +173,9 @@
 
 /* some gui mixers can't handle negative ctl values */
 #define SCARLETT2_VOLUME_BIAS 127
-#define SCARLETT2_GAIN_BIAS 70
+
+/* maximum preamp input gain */
+#define SCARLETT2_MAX_GAIN 70
 
 /* mixer range from -80dB to +6dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
@@ -3464,7 +3466,7 @@ static int scarlett2_input_gain_ctl_info(struct snd_kcontrol *kctl,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = elem->channels;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = SCARLETT2_GAIN_BIAS;
+	uinfo->value.integer.max = SCARLETT2_MAX_GAIN;
 	uinfo->value.integer.step = 1;
 
 unlock:
@@ -3541,7 +3543,7 @@ unlock:
 }
 
 static const DECLARE_TLV_DB_MINMAX(
-	db_scale_scarlett2_gain, -SCARLETT2_GAIN_BIAS * 100, 0
+	db_scale_scarlett2_gain, 0, SCARLETT2_MAX_GAIN * 100
 );
 
 static const struct snd_kcontrol_new scarlett2_input_gain_ctl = {
