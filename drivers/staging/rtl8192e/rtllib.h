@@ -483,7 +483,7 @@ struct rtllib_rx_stats {
 	u16 bICV:1;
 	u16 Decrypted:1;
 	u32 time_stamp_low;
-	u32 TimeStampHigh;
+	u32 time_stamp_high;
 
 	u8    RxDrvInfoSize;
 	u8    RxBufShift;
