@@ -141,8 +141,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	if (!bl)
 		return 0;
 
-	t = kzalloc(sizeof(*t) + sizeof(t->entries[0]) * nr,
-		    GFP_KERNEL);
+	t = kzalloc(struct_size(t, entries, nr), GFP_KERNEL);
 	if (!t)
 		return -BCH_ERR_ENOMEM_blacklist_table_init;
 
