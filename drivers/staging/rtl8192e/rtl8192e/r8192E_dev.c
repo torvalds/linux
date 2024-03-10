@@ -900,7 +900,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->RtsBandwidth = 0;
 	pTxFwInfo->RtsSubcarrier = cb_desc->RTSSC;
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
-			  (cb_desc->bRTSUseShortPreamble ? 1 : 0) :
+			  (cb_desc->rts_use_short_preamble ? 1 : 0) :
 			  (cb_desc->bRTSUseShortGI ? 1 : 0);
 	if (priv->current_chnl_bw == HT_CHANNEL_WIDTH_20_40) {
 		if (cb_desc->bPacketBW) {

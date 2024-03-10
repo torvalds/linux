@@ -121,7 +121,7 @@ struct cb_desc {
 
 	u8 bRTSBW:1;
 	u8 bPacketBW:1;
-	u8 bRTSUseShortPreamble:1;
+	u8 rts_use_short_preamble:1;
 	u8 bRTSUseShortGI:1;
 	u8 multicast:1;
 	u8 bBroadcast:1;
