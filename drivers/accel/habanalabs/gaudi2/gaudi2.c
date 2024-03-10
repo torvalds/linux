@@ -9263,8 +9263,8 @@ static int gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type,
 static bool gaudi2_hbm_sei_handle_read_err(struct hl_device *hdev,
 			struct hl_eq_hbm_sei_read_err_intr_info *rd_err_data, u32 err_cnt)
 {
+	bool require_hard_reset = false;
 	u32 addr, beat, beat_shift;
-	bool rc = false;
 
 	dev_err_ratelimited(hdev->dev,
 			"READ ERROR count: ECC SERR: %d, ECC DERR: %d, RD_PARITY: %d\n",
@@ -9296,7 +9296,7 @@ static bool gaudi2_hbm_sei_handle_read_err(struct hl_device *hdev,
 						beat,
 						le32_to_cpu(rd_err_data->dbg_rd_err_dm),
 						le32_to_cpu(rd_err_data->dbg_rd_err_syndrome));
-			rc |= true;
+			require_hard_reset = true;
 		}
 
 		beat_shift = beat * HBM_RD_ERR_BEAT_SHIFT;
@@ -9309,7 +9309,7 @@ static bool gaudi2_hbm_sei_handle_read_err(struct hl_device *hdev,
 					(le32_to_cpu(rd_err_data->dbg_rd_err_misc) &
 						(HBM_RD_ERR_PAR_DATA_BEAT0_MASK << beat_shift)) >>
 						(HBM_RD_ERR_PAR_DATA_BEAT0_SHIFT + beat_shift));
-			rc |= true;
+			require_hard_reset = true;
 		}
 
 		dev_err_ratelimited(hdev->dev, "Beat%d DQ data:\n", beat);
@@ -9319,7 +9319,7 @@ static bool gaudi2_hbm_sei_handle_read_err(struct hl_device *hdev,
 					le32_to_cpu(rd_err_data->dbg_rd_err_data[beat * 2 + 1]));
 	}
 
-	return rc;
+	return require_hard_reset;
 }
 
 static void gaudi2_hbm_sei_print_wr_par_info(struct hl_device *hdev,
