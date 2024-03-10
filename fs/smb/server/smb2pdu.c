@@ -607,30 +607,6 @@ int smb2_check_user_session(struct ksmbd_work *work)
 	return -ENOENT;
 }
 
-static void destroy_previous_session(struct ksmbd_conn *conn,
-				     struct ksmbd_user *user, u64 id)
-{
-	struct ksmbd_session *prev_sess = ksmbd_session_lookup_slowpath(id);
-	struct ksmbd_user *prev_user;
-	struct channel *chann;
-	long index;
-
-	if (!prev_sess)
-		return;
-
-	prev_user = prev_sess->user;
-
-	if (!prev_user ||
-	    strcmp(user->name, prev_user->name) ||
-	    user->passkey_sz != prev_user->passkey_sz ||
-	    memcmp(user->passkey, prev_user->passkey, user->passkey_sz))
-		return;
-
-	prev_sess->state = SMB2_SESSION_EXPIRED;
-	xa_for_each(&prev_sess->ksmbd_chann_list, index, chann)
-		ksmbd_conn_set_exiting(chann->conn);
-}
-
 /**
  * smb2_get_name() - get filename string from on the wire smb format
  * @src:	source buffer

@@ -156,7 +156,7 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	kfree(sess);
 }
 
-static struct ksmbd_session *__session_lookup(unsigned long long id)
+struct ksmbd_session *__session_lookup(unsigned long long id)
 {
 	struct ksmbd_session *sess;
 
@@ -303,6 +303,31 @@ struct preauth_session *ksmbd_preauth_session_alloc(struct ksmbd_conn *conn,
 	list_add(&sess->preauth_entry, &conn->preauth_sess_table);
 
 	return sess;
+}
+
+void destroy_previous_session(struct ksmbd_conn *conn,
+			      struct ksmbd_user *user, u64 id)
+{
+	struct ksmbd_session *prev_sess;
+	struct ksmbd_user *prev_user;
+
+	down_write(&sessions_table_lock);
+	down_write(&conn->session_lock);
+	prev_sess = __session_lookup(id);
+	if (!prev_sess || prev_sess->state == SMB2_SESSION_EXPIRED)
+		goto out;
+
+	prev_user = prev_sess->user;
+	if (!prev_user ||
+	    strcmp(user->name, prev_user->name) ||
+	    user->passkey_sz != prev_user->passkey_sz ||
+	    memcmp(user->passkey, prev_user->passkey, user->passkey_sz))
+		goto out;
+
+	prev_sess->state = SMB2_SESSION_EXPIRED;
+out:
+	up_write(&conn->session_lock);
+	up_write(&sessions_table_lock);
 }
 
 static bool ksmbd_preauth_session_id_match(struct preauth_session *sess,
