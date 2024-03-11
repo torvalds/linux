@@ -2354,7 +2354,7 @@ static int mp_irqdomain_create(int ioapic)
 	fwspec.param_count = 1;
 	fwspec.param[0] = mpc_ioapic_id(ioapic);
 
-	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
+	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_GENERIC_MSI);
 	if (!parent) {
 		if (!cfg->dev)
 			irq_domain_free_fwnode(fn);
