@@ -34,7 +34,6 @@ FILES=(
   "arch/x86/include/asm/cpufeatures.h"
   "arch/x86/include/asm/inat_types.h"
   "arch/x86/include/asm/emulate_prefix.h"
-  "arch/x86/include/asm/irq_vectors.h"
   "arch/x86/include/asm/msr-index.h"
   "arch/x86/include/uapi/asm/prctl.h"
   "arch/x86/lib/x86-opcode-map.txt"
@@ -93,6 +92,7 @@ SYNC_CHECK_FILES=(
 
 declare -a BEAUTY_FILES
 BEAUTY_FILES=(
+  "arch/x86/include/asm/irq_vectors.h"
   "include/linux/socket.h"
   "include/uapi/linux/fs.h"
   "include/uapi/linux/mount.h"
