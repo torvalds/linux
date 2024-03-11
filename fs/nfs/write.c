@@ -1301,7 +1301,7 @@ static bool
 is_whole_file_wrlock(struct file_lock *fl)
 {
 	return fl->fl_start == 0 && fl->fl_end == OFFSET_MAX &&
-			fl->fl_type == F_WRLCK;
+			lock_is_write(fl);
 }
 
 /* If we know the page is up to date, and we're not using byte range locks (or
@@ -1335,13 +1335,13 @@ static int nfs_can_extend_write(struct file *file, struct folio *folio,
 	spin_lock(&flctx->flc_lock);
 	if (!list_empty(&flctx->flc_posix)) {
 		fl = list_first_entry(&flctx->flc_posix, struct file_lock,
-					fl_list);
+					c.flc_list);
 		if (is_whole_file_wrlock(fl))
 			ret = 1;
 	} else if (!list_empty(&flctx->flc_flock)) {
 		fl = list_first_entry(&flctx->flc_flock, struct file_lock,
-					fl_list);
-		if (fl->fl_type == F_WRLCK)
+					c.flc_list);
+		if (lock_is_write(fl))
 			ret = 1;
 	}
 	spin_unlock(&flctx->flc_lock);

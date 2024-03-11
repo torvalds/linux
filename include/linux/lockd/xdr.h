@@ -52,7 +52,7 @@ struct nlm_lock {
  *	FreeBSD uses 16, Apple Mac OS X 10.3 uses 20. Therefore we set it to
  *	32 bytes.
  */
- 
+
 struct nlm_cookie
 {
 	unsigned char data[NLM_MAXCOOKIELEN];

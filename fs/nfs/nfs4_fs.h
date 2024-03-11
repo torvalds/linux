@@ -330,7 +330,7 @@ extern int update_open_stateid(struct nfs4_state *state,
 				const nfs4_stateid *deleg_stateid,
 				fmode_t fmode);
 extern int nfs4_proc_setlease(struct file *file, int arg,
-			      struct file_lock **lease, void **priv);
+			      struct file_lease **lease, void **priv);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
 extern void nfs4_update_changeattr(struct inode *dir,

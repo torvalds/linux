@@ -963,7 +963,7 @@ nfs3_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 	struct nfs_open_context *ctx = nfs_file_open_context(filp);
 	int status;
 
-	if (fl->fl_flags & FL_CLOSE) {
+	if (fl->c.flc_flags & FL_CLOSE) {
 		l_ctx = nfs_get_lock_context(ctx);
 		if (IS_ERR(l_ctx))
 			l_ctx = NULL;

@@ -674,7 +674,7 @@ static void nfs4_xdr_enc_cb_notify_lock(struct rpc_rqst *req,
 	const struct nfsd4_callback *cb = data;
 	const struct nfsd4_blocked_lock *nbl =
 		container_of(cb, struct nfsd4_blocked_lock, nbl_cb);
-	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)nbl->nbl_lock.fl_owner;
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)nbl->nbl_lock.c.flc_owner;
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = 0,
 		.minorversion = cb->cb_clp->cl_minorversion,
