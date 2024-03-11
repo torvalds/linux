@@ -559,6 +559,20 @@ static void mmhub_v1_8_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 
 }
 
+static bool mmhub_v1_8_query_utcl2_poison_status(struct amdgpu_device *adev,
+				int hub_inst)
+{
+	u32 fed, status;
+
+	status = RREG32_SOC15(MMHUB, hub_inst, regVM_L2_PROTECTION_FAULT_STATUS);
+	fed = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
+	/* reset page fault status */
+	WREG32_P(SOC15_REG_OFFSET(MMHUB, hub_inst,
+			regVM_L2_PROTECTION_FAULT_STATUS), 1, ~1);
+
+	return fed;
+}
+
 const struct amdgpu_mmhub_funcs mmhub_v1_8_funcs = {
 	.get_fb_location = mmhub_v1_8_get_fb_location,
 	.init = mmhub_v1_8_init,
@@ -568,6 +582,7 @@ const struct amdgpu_mmhub_funcs mmhub_v1_8_funcs = {
 	.setup_vm_pt_regs = mmhub_v1_8_setup_vm_pt_regs,
 	.set_clockgating = mmhub_v1_8_set_clockgating,
 	.get_clockgating = mmhub_v1_8_get_clockgating,
+	.query_utcl2_poison_status = mmhub_v1_8_query_utcl2_poison_status,
 };
 
 static const struct amdgpu_ras_err_status_reg_entry mmhub_v1_8_ce_reg_list[] = {
