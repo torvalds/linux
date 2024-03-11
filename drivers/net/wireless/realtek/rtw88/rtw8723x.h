@@ -165,6 +165,8 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define MAX_TOLERANCE	5
 #define IQK_TX_X_ERR	0x142
 #define IQK_TX_Y_ERR	0x42
+#define IQK_RX_X_ERR	0x132
+#define IQK_RX_Y_ERR	0x36
 #define IQK_RX_X_UPPER	0x11a
 #define IQK_RX_X_LOWER	0xe6
 #define IQK_RX_Y_LMT	0x1a
@@ -177,6 +179,10 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define DIS_3WIRE		0xccf000c0
 #define EN_3WIRE		0xccc000c0
 #define START_PSD		0x400000
+#define FREQ_CH5		0xfccd
+#define FREQ_CH6		0xfc4d
+#define FREQ_CH7		0xffcd
+#define FREQ_CH8		0xff4d
 #define FREQ_CH13		0xfccd
 #define FREQ_CH14		0xff9a
 #define RFCFGCH_CHANNEL_MASK	GENMASK(7, 0)
@@ -239,10 +245,13 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define BIT_MASK_OFDM0_EXT_C	BIT(29)
 #define BIT_MASK_OFDM0_EXTS	(BIT(31) | BIT(29) | BIT(28))
 #define BIT_SET_OFDM0_EXTS(a, c, d) (((a) << 31) | ((c) << 29) | ((d) << 28))
+#define BIT_MASK_OFDM0_EXTS_B	(BIT(27) | BIT(25) | BIT(24))
+#define BIT_SET_OFDM0_EXTS_B(a, c, d) (((a) << 27) | ((c) << 25) | ((d) << 24))
 #define REG_OFDM0_XAAGC1	0x0c50
 #define REG_OFDM0_XBAGC1	0x0c58
 #define REG_AGCRSSI		0x0c78
 #define REG_OFDM_0_XA_TX_IQ_IMBALANCE	0x0c80
+#define REG_OFDM_0_XB_TX_IQ_IMBALANCE	0x0c88
 #define BIT_MASK_TXIQ_ELM_A	0x03ff
 #define BIT_SET_TXIQ_ELM_ACD(a, c, d) (((d) << 22) | (((c) & 0x3F) << 16) |    \
 				       ((a) & 0x03ff))
@@ -303,6 +312,8 @@ extern const struct rtw8723x_common rtw8723x_common;
 #define REG_IQK_AGC_RSP_11N	0x0e4c
 #define REG_TX_IQK_TONE_B	0x0e50
 #define REG_RX_IQK_TONE_B	0x0e54
+#define REG_TXIQK_PI_B		0x0e58
+#define REG_RXIQK_PI_B		0x0e5c
 #define REG_IQK_RES_TX		0x0e94
 #define BIT_MASK_RES_TX		GENMASK(25, 16)
 #define REG_IQK_RES_TY		0x0e9c
