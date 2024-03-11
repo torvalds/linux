@@ -17,7 +17,6 @@ FILES=(
   "include/uapi/linux/in.h"
   "include/uapi/linux/openat2.h"
   "include/uapi/linux/perf_event.h"
-  "include/uapi/linux/prctl.h"
   "include/uapi/linux/sched.h"
   "include/uapi/linux/seccomp.h"
   "include/uapi/linux/stat.h"
@@ -35,7 +34,6 @@ FILES=(
   "arch/x86/include/asm/inat_types.h"
   "arch/x86/include/asm/emulate_prefix.h"
   "arch/x86/include/asm/msr-index.h"
-  "arch/x86/include/uapi/asm/prctl.h"
   "arch/x86/lib/x86-opcode-map.txt"
   "arch/x86/tools/gen-insn-attr-x86.awk"
   "arch/arm/include/uapi/asm/perf_regs.h"
@@ -93,9 +91,11 @@ SYNC_CHECK_FILES=(
 declare -a BEAUTY_FILES
 BEAUTY_FILES=(
   "arch/x86/include/asm/irq_vectors.h"
+  "arch/x86/include/uapi/asm/prctl.h"
   "include/linux/socket.h"
   "include/uapi/linux/fs.h"
   "include/uapi/linux/mount.h"
+  "include/uapi/linux/prctl.h"
   "include/uapi/linux/usbdevice_fs.h"
   "include/uapi/sound/asound.h"
 )
