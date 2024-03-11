@@ -240,17 +240,6 @@ static int fsl_rpmsg_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_pm_disable;
 
-	rpmsg->card_pdev = platform_device_register_data(&pdev->dev,
-							 "imx-audio-rpmsg",
-							 PLATFORM_DEVID_AUTO,
-							 NULL,
-							 0);
-	if (IS_ERR(rpmsg->card_pdev)) {
-		dev_err(&pdev->dev, "failed to register rpmsg card\n");
-		ret = PTR_ERR(rpmsg->card_pdev);
-		goto err_pm_disable;
-	}
-
 	return 0;
 
 err_pm_disable:
