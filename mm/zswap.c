@@ -871,12 +871,7 @@ static void zswap_entry_cache_free(struct zswap_entry *entry)
 
 static struct zpool *zswap_find_zpool(struct zswap_entry *entry)
 {
-	int i = 0;
-
-	if (ZSWAP_NR_ZPOOLS > 1)
-		i = hash_ptr(entry, ilog2(ZSWAP_NR_ZPOOLS));
-
-	return entry->pool->zpools[i];
+	return entry->pool->zpools[hash_ptr(entry, ilog2(ZSWAP_NR_ZPOOLS))];
 }
 
 /*
