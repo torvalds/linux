@@ -88,11 +88,12 @@ enum inv_devices {
 	INV_NUM_PARTS
 };
 
-/* chip sensors mask: accelerometer, gyroscope, temperature, magnetometer */
+/* chip sensors mask: accelerometer, gyroscope, temperature, magnetometer, WoM */
 #define INV_MPU6050_SENSOR_ACCL		BIT(0)
 #define INV_MPU6050_SENSOR_GYRO		BIT(1)
 #define INV_MPU6050_SENSOR_TEMP		BIT(2)
 #define INV_MPU6050_SENSOR_MAGN		BIT(3)
+#define INV_MPU6050_SENSOR_WOM		BIT(4)
 
 /**
  *  struct inv_mpu6050_chip_config - Cached chip configuration data.
@@ -104,11 +105,13 @@ enum inv_devices {
  *  @gyro_en:		gyro engine enabled
  *  @temp_en:		temperature sensor enabled
  *  @magn_en:		magn engine (i2c master) enabled
+ *  @wom_en:		Wake-on-Motion enabled
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
  *  @temp_fifo_enable:	enable temp data output
  *  @magn_fifo_enable:	enable magn data output
  *  @divider:		chip sample rate divider (sample rate divider - 1)
+ *  @roc_threshold:	save ROC threshold (WoM) set value
  */
 struct inv_mpu6050_chip_config {
 	unsigned int clk:3;
@@ -119,12 +122,14 @@ struct inv_mpu6050_chip_config {
 	unsigned int gyro_en:1;
 	unsigned int temp_en:1;
 	unsigned int magn_en:1;
+	unsigned int wom_en:1;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
 	unsigned int temp_fifo_enable:1;
 	unsigned int magn_fifo_enable:1;
 	u8 divider;
 	u8 user_ctrl;
+	u64 roc_threshold;
 };
 
 /*
@@ -256,12 +261,16 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_INT_ENABLE          0x38
 #define INV_MPU6050_BIT_DATA_RDY_EN         0x01
 #define INV_MPU6050_BIT_DMP_INT_EN          0x02
+#define INV_MPU6500_BIT_WOM_INT_EN          BIT(6)
+#define INV_ICM20608_BIT_WOM_INT_EN         GENMASK(7, 5)
 
 #define INV_MPU6050_REG_RAW_ACCEL           0x3B
 #define INV_MPU6050_REG_TEMPERATURE         0x41
 #define INV_MPU6050_REG_RAW_GYRO            0x43
 
 #define INV_MPU6050_REG_INT_STATUS          0x3A
+#define INV_MPU6500_BIT_WOM_INT             BIT(6)
+#define INV_ICM20608_BIT_WOM_INT            GENMASK(7, 5)
 #define INV_MPU6050_BIT_FIFO_OVERFLOW_INT   0x10
 #define INV_MPU6050_BIT_RAW_DATA_RDY_INT    0x01
 
@@ -301,6 +310,11 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BIT_PWR_ACCL_STBY       0x38
 #define INV_MPU6050_BIT_PWR_GYRO_STBY       0x07
 
+/* ICM20609 registers */
+#define INV_ICM20609_REG_ACCEL_WOM_X_THR    0x20
+#define INV_ICM20609_REG_ACCEL_WOM_Y_THR    0x21
+#define INV_ICM20609_REG_ACCEL_WOM_Z_THR    0x22
+
 /* ICM20602 register */
 #define INV_ICM20602_REG_I2C_IF             0x70
 #define INV_ICM20602_BIT_I2C_IF_DIS         0x40
@@ -320,6 +334,10 @@ struct inv_mpu6050_state {
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D
 #define INV_ICM20689_BITS_FIFO_SIZE_MAX     0xC0
+#define INV_MPU6500_REG_WOM_THRESHOLD       0x1F
+#define INV_MPU6500_REG_ACCEL_INTEL_CTRL    0x69
+#define INV_MPU6500_BIT_ACCEL_INTEL_EN      BIT(7)
+#define INV_MPU6500_BIT_ACCEL_INTEL_MODE    BIT(6)
 #define INV_MPU6500_REG_ACCEL_OFFSET        0x77
 
 /* delay time in milliseconds */

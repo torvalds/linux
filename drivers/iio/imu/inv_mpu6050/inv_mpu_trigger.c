@@ -135,11 +135,13 @@ int inv_mpu6050_prepare_fifo(struct inv_mpu6050_state *st, bool enable)
 		ret = regmap_write(st->map, st->reg->user_ctrl, d);
 		if (ret)
 			return ret;
-		/* enable interrupt */
-		ret = regmap_write(st->map, st->reg->int_enable,
-				   INV_MPU6050_BIT_DATA_RDY_EN);
+		/* enable data interrupt */
+		ret = regmap_update_bits(st->map, st->reg->int_enable,
+				INV_MPU6050_BIT_DATA_RDY_EN, INV_MPU6050_BIT_DATA_RDY_EN);
 	} else {
-		ret = regmap_write(st->map, st->reg->int_enable, 0);
+		/* disable data interrupt */
+		ret = regmap_update_bits(st->map, st->reg->int_enable,
+				INV_MPU6050_BIT_DATA_RDY_EN, 0);
 		if (ret)
 			return ret;
 		ret = regmap_write(st->map, st->reg->fifo_en, 0);
@@ -172,9 +174,9 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 			return result;
 		/*
 		 * In case autosuspend didn't trigger, turn off first not
-		 * required sensors.
+		 * required sensors excepted WoM
 		 */
-		result = inv_mpu6050_switch_engine(st, false, ~scan);
+		result = inv_mpu6050_switch_engine(st, false, ~scan & ~INV_MPU6050_SENSOR_WOM);
 		if (result)
 			goto error_power_off;
 		result = inv_mpu6050_switch_engine(st, true, scan);

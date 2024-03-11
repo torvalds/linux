@@ -15,6 +15,8 @@
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
@@ -332,7 +334,7 @@ static int inv_mpu6050_clock_switch(struct inv_mpu6050_state *st,
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
 			      unsigned int mask)
 {
-	unsigned int sleep;
+	unsigned int sleep, val;
 	u8 pwr_mgmt2, user_ctrl;
 	int ret;
 
@@ -345,6 +347,14 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
 		mask &= ~INV_MPU6050_SENSOR_TEMP;
 	if (mask & INV_MPU6050_SENSOR_MAGN && en == st->chip_config.magn_en)
 		mask &= ~INV_MPU6050_SENSOR_MAGN;
+	if (mask & INV_MPU6050_SENSOR_WOM && en == st->chip_config.wom_en)
+		mask &= ~INV_MPU6050_SENSOR_WOM;
+
+	/* force accel on if WoM is on and not going off */
+	if (!en && (mask & INV_MPU6050_SENSOR_ACCL) && st->chip_config.wom_en &&
+			!(mask & INV_MPU6050_SENSOR_WOM))
+		mask &= ~INV_MPU6050_SENSOR_ACCL;
+
 	if (mask == 0)
 		return 0;
 
@@ -437,6 +447,16 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
 			if (ret)
 				return ret;
 		}
+	}
+
+	/* enable/disable accel intelligence control */
+	if (mask & INV_MPU6050_SENSOR_WOM) {
+		val = en ? INV_MPU6500_BIT_ACCEL_INTEL_EN |
+			   INV_MPU6500_BIT_ACCEL_INTEL_MODE : 0;
+		ret = regmap_write(st->map, INV_MPU6500_REG_ACCEL_INTEL_CTRL, val);
+		if (ret)
+			return ret;
+		st->chip_config.wom_en = en;
 	}
 
 	return 0;
@@ -893,6 +913,239 @@ error_write_raw_unlock:
 	return result;
 }
 
+static u64 inv_mpu6050_convert_wom_to_roc(unsigned int threshold, unsigned int freq_div)
+{
+	/* 4mg per LSB converted in m/s² in micro (1000000) */
+	const unsigned int convert = 4U * 9807U;
+	u64 value;
+
+	value = threshold * convert;
+
+	/* compute the differential by multiplying by the frequency */
+	return div_u64(value * INV_MPU6050_INTERNAL_FREQ_HZ, freq_div);
+}
+
+static unsigned int inv_mpu6050_convert_roc_to_wom(u64 roc, unsigned int freq_div)
+{
+	/* 4mg per LSB converted in m/s² in micro (1000000) */
+	const unsigned int convert = 4U * 9807U;
+	u64 value;
+
+	/* return 0 only if roc is 0 */
+	if (roc == 0)
+		return 0;
+
+	value = div_u64(roc * freq_div, convert * INV_MPU6050_INTERNAL_FREQ_HZ);
+
+	/* limit value to 8 bits and prevent 0 */
+	return min(255, max(1, value));
+}
+
+static int inv_mpu6050_set_wom_int(struct inv_mpu6050_state *st, bool on)
+{
+	unsigned int reg_val, val;
+
+	switch (st->chip_type) {
+	case INV_MPU6050:
+	case INV_MPU6500:
+	case INV_MPU6515:
+	case INV_MPU6880:
+	case INV_MPU6000:
+	case INV_MPU9150:
+	case INV_MPU9250:
+	case INV_MPU9255:
+		reg_val = INV_MPU6500_BIT_WOM_INT_EN;
+		break;
+	default:
+		reg_val = INV_ICM20608_BIT_WOM_INT_EN;
+		break;
+	}
+
+	val = on ? reg_val : 0;
+
+	return regmap_update_bits(st->map, st->reg->int_enable, reg_val, val);
+}
+
+static int inv_mpu6050_set_wom_threshold(struct inv_mpu6050_state *st, u64 value,
+					 unsigned int freq_div)
+{
+	unsigned int threshold;
+	int result;
+
+	/* convert roc to wom threshold and convert back to handle clipping */
+	threshold = inv_mpu6050_convert_roc_to_wom(value, freq_div);
+	value = inv_mpu6050_convert_wom_to_roc(threshold, freq_div);
+
+	dev_dbg(regmap_get_device(st->map), "wom_threshold: 0x%x\n", threshold);
+
+	switch (st->chip_type) {
+	case INV_ICM20609:
+	case INV_ICM20689:
+	case INV_ICM20600:
+	case INV_ICM20602:
+	case INV_ICM20690:
+		st->data[0] = threshold;
+		st->data[1] = threshold;
+		st->data[2] = threshold;
+		result = regmap_bulk_write(st->map, INV_ICM20609_REG_ACCEL_WOM_X_THR,
+					   st->data, 3);
+		break;
+	default:
+		result = regmap_write(st->map, INV_MPU6500_REG_WOM_THRESHOLD, threshold);
+		break;
+	}
+	if (result)
+		return result;
+
+	st->chip_config.roc_threshold = value;
+
+	return 0;
+}
+
+static int inv_mpu6050_enable_wom(struct inv_mpu6050_state *st, bool en)
+{
+	struct device *pdev = regmap_get_device(st->map);
+	unsigned int mask;
+	int result;
+
+	if (en) {
+		result = pm_runtime_resume_and_get(pdev);
+		if (result)
+			return result;
+
+		mask = INV_MPU6050_SENSOR_ACCL | INV_MPU6050_SENSOR_WOM;
+		result = inv_mpu6050_switch_engine(st, true, mask);
+		if (result)
+			goto error_suspend;
+
+		result = inv_mpu6050_set_wom_int(st, true);
+		if (result)
+			goto error_suspend;
+	} else {
+		result = inv_mpu6050_set_wom_int(st, false);
+		if (result)
+			dev_err(pdev, "error %d disabling WoM interrupt bit", result);
+
+		/* disable only WoM and let accel be disabled by autosuspend */
+		result = inv_mpu6050_switch_engine(st, false, INV_MPU6050_SENSOR_WOM);
+		if (result) {
+			dev_err(pdev, "error %d disabling WoM force off", result);
+			/* force WoM off */
+			st->chip_config.wom_en = false;
+		}
+
+		pm_runtime_mark_last_busy(pdev);
+		pm_runtime_put_autosuspend(pdev);
+	}
+
+	return result;
+
+error_suspend:
+	pm_runtime_mark_last_busy(pdev);
+	pm_runtime_put_autosuspend(pdev);
+	return result;
+}
+
+static int inv_mpu6050_read_event_config(struct iio_dev *indio_dev,
+					 const struct iio_chan_spec *chan,
+					 enum iio_event_type type,
+					 enum iio_event_direction dir)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+
+	/* support only WoM (accel roc rising) event */
+	if (chan->type != IIO_ACCEL || type != IIO_EV_TYPE_ROC ||
+	    dir != IIO_EV_DIR_RISING)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	return st->chip_config.wom_en ? 1 : 0;
+}
+
+static int inv_mpu6050_write_event_config(struct iio_dev *indio_dev,
+					  const struct iio_chan_spec *chan,
+					  enum iio_event_type type,
+					  enum iio_event_direction dir,
+					  int state)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	int enable;
+
+	/* support only WoM (accel roc rising) event */
+	if (chan->type != IIO_ACCEL || type != IIO_EV_TYPE_ROC ||
+	    dir != IIO_EV_DIR_RISING)
+		return -EINVAL;
+
+	enable = !!state;
+
+	guard(mutex)(&st->lock);
+
+	if (st->chip_config.wom_en == enable)
+		return 0;
+
+	return inv_mpu6050_enable_wom(st, enable);
+}
+
+static int inv_mpu6050_read_event_value(struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan,
+					enum iio_event_type type,
+					enum iio_event_direction dir,
+					enum iio_event_info info,
+					int *val, int *val2)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	u32 rem;
+
+	/* support only WoM (accel roc rising) event value */
+	if (chan->type != IIO_ACCEL || type != IIO_EV_TYPE_ROC ||
+	    dir != IIO_EV_DIR_RISING || info != IIO_EV_INFO_VALUE)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	/* return value in micro */
+	*val = div_u64_rem(st->chip_config.roc_threshold, 1000000U, &rem);
+	*val2 = rem;
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
+static int inv_mpu6050_write_event_value(struct iio_dev *indio_dev,
+					 const struct iio_chan_spec *chan,
+					 enum iio_event_type type,
+					 enum iio_event_direction dir,
+					 enum iio_event_info info,
+					 int val, int val2)
+{
+	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	struct device *pdev = regmap_get_device(st->map);
+	u64 value;
+	int result;
+
+	/* support only WoM (accel roc rising) event value */
+	if (chan->type != IIO_ACCEL || type != IIO_EV_TYPE_ROC ||
+	    dir != IIO_EV_DIR_RISING || info != IIO_EV_INFO_VALUE)
+		return -EINVAL;
+
+	if (val < 0 || val2 < 0)
+		return -EINVAL;
+
+	guard(mutex)(&st->lock);
+
+	result = pm_runtime_resume_and_get(pdev);
+	if (result)
+		return result;
+
+	value = (u64)val * 1000000ULL + (u64)val2;
+	result = inv_mpu6050_set_wom_threshold(st, value, INV_MPU6050_FREQ_DIVIDER(st));
+
+	pm_runtime_mark_last_busy(pdev);
+	pm_runtime_put_autosuspend(pdev);
+
+	return result;
+}
+
 /*
  *  inv_mpu6050_set_lpf() - set low pass filer based on fifo rate.
  *
@@ -986,6 +1239,12 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 
 	/* update rate for magn, noop if not present in chip */
 	result = inv_mpu_magn_set_rate(st, fifo_rate);
+	if (result)
+		goto fifo_rate_fail_power_off;
+
+	/* update wom threshold since roc is dependent on sampling frequency */
+	result = inv_mpu6050_set_wom_threshold(st, st->chip_config.roc_threshold,
+					       INV_MPU6050_FREQ_DIVIDER(st));
 	if (result)
 		goto fifo_rate_fail_power_off;
 
@@ -1326,6 +1585,10 @@ static const struct iio_info mpu_info = {
 	.write_raw = &inv_mpu6050_write_raw,
 	.write_raw_get_fmt = &inv_write_raw_get_fmt,
 	.attrs = &inv_attribute_group,
+	.read_event_config = inv_mpu6050_read_event_config,
+	.write_event_config = inv_mpu6050_write_event_config,
+	.read_event_value = inv_mpu6050_read_event_value,
+	.write_event_value = inv_mpu6050_write_event_value,
 	.validate_trigger = inv_mpu6050_validate_trigger,
 	.debugfs_reg_access = &inv_mpu6050_reg_access,
 };
@@ -1706,6 +1969,12 @@ static int inv_mpu_resume(struct device *dev)
 	if (result)
 		goto out_unlock;
 
+	if (st->chip_config.wom_en) {
+		result = inv_mpu6050_set_wom_int(st, true);
+		if (result)
+			goto out_unlock;
+	}
+
 	if (iio_buffer_enabled(indio_dev))
 		result = inv_mpu6050_prepare_fifo(st, true);
 
@@ -1735,6 +2004,12 @@ static int inv_mpu_suspend(struct device *dev)
 			goto out_unlock;
 	}
 
+	if (st->chip_config.wom_en) {
+		result = inv_mpu6050_set_wom_int(st, false);
+		if (result)
+			goto out_unlock;
+	}
+
 	if (st->chip_config.accl_en)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_ACCL;
 	if (st->chip_config.gyro_en)
@@ -1743,6 +2018,8 @@ static int inv_mpu_suspend(struct device *dev)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_TEMP;
 	if (st->chip_config.magn_en)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_MAGN;
+	if (st->chip_config.wom_en)
+		st->suspended_sensors |= INV_MPU6050_SENSOR_WOM;
 	result = inv_mpu6050_switch_engine(st, false, st->suspended_sensors);
 	if (result)
 		goto out_unlock;
@@ -1767,7 +2044,8 @@ static int inv_mpu_runtime_suspend(struct device *dev)
 	mutex_lock(&st->lock);
 
 	sensors = INV_MPU6050_SENSOR_ACCL | INV_MPU6050_SENSOR_GYRO |
-			INV_MPU6050_SENSOR_TEMP | INV_MPU6050_SENSOR_MAGN;
+			INV_MPU6050_SENSOR_TEMP | INV_MPU6050_SENSOR_MAGN |
+			INV_MPU6050_SENSOR_WOM;
 	ret = inv_mpu6050_switch_engine(st, false, sensors);
 	if (ret)
 		goto out_unlock;
