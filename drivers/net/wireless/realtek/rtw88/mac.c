@@ -943,6 +943,12 @@ static int __rtw_download_firmware_legacy(struct rtw_dev *rtwdev,
 {
 	int ret = 0;
 
+	/* reset firmware if still present */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8703B &&
+	    rtw_read8_mask(rtwdev, REG_MCUFW_CTRL, BIT_RAM_DL_SEL)) {
+		rtw_write8(rtwdev, REG_MCUFW_CTRL, 0x00);
+	}
+
 	en_download_firmware_legacy(rtwdev, true);
 	ret = download_firmware_legacy(rtwdev, fw->firmware->data, fw->firmware->size);
 	en_download_firmware_legacy(rtwdev, false);
