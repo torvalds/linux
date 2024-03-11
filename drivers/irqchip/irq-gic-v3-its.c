@@ -4436,12 +4436,12 @@ static const struct irq_domain_ops its_sgi_domain_ops = {
 
 static int its_vpe_id_alloc(void)
 {
-	return ida_simple_get(&its_vpeid_ida, 0, ITS_MAX_VPEID, GFP_KERNEL);
+	return ida_alloc_max(&its_vpeid_ida, ITS_MAX_VPEID - 1, GFP_KERNEL);
 }
 
 static void its_vpe_id_free(u16 id)
 {
-	ida_simple_remove(&its_vpeid_ida, id);
+	ida_free(&its_vpeid_ida, id);
 }
 
 static int its_vpe_init(struct its_vpe *vpe)
