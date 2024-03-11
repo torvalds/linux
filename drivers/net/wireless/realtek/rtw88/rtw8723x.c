@@ -63,6 +63,163 @@ static void __rtw8723x_lck(struct rtw_dev *rtwdev)
 		rtw_write8(rtwdev, REG_TXPAUSE, 0x00);
 }
 
+#define DBG_EFUSE_VAL(rtwdev, map, name)			\
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, # name "=0x%02x\n",	\
+		(map)->name)
+#define DBG_EFUSE_2BYTE(rtwdev, map, name)			\
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, # name "=0x%02x%02x\n",	\
+		(map)->name[0], (map)->name[1])
+
+static void rtw8723xe_efuse_debug(struct rtw_dev *rtwdev,
+				  struct rtw8723x_efuse *map)
+{
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "mac_addr=%pM\n", map->e.mac_addr);
+	DBG_EFUSE_2BYTE(rtwdev, map, e.vendor_id);
+	DBG_EFUSE_2BYTE(rtwdev, map, e.device_id);
+	DBG_EFUSE_2BYTE(rtwdev, map, e.sub_vendor_id);
+	DBG_EFUSE_2BYTE(rtwdev, map, e.sub_device_id);
+}
+
+static void rtw8723xu_efuse_debug(struct rtw_dev *rtwdev,
+				  struct rtw8723x_efuse *map)
+{
+	DBG_EFUSE_2BYTE(rtwdev, map, u.vendor_id);
+	DBG_EFUSE_2BYTE(rtwdev, map, u.product_id);
+	DBG_EFUSE_VAL(rtwdev, map, u.usb_option);
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "mac_addr=%pM\n", map->u.mac_addr);
+}
+
+static void rtw8723xs_efuse_debug(struct rtw_dev *rtwdev,
+				  struct rtw8723x_efuse *map)
+{
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "mac_addr=%pM\n", map->s.mac_addr);
+}
+
+static void __rtw8723x_debug_txpwr_limit(struct rtw_dev *rtwdev,
+					 struct rtw_txpwr_idx *table,
+					 int tx_path_count)
+{
+	if (!rtw_dbg_is_enabled(rtwdev, RTW_DBG_EFUSE))
+		return;
+
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+		"Power index table (2.4G):\n");
+	/* CCK base */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "CCK base\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF    G0  G1  G2  G3  G4  G5\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %3u %3u %3u %3u %3u %3u\n",
+			'A' + i,
+			table[i].pwr_idx_2g.cck_base[0],
+			table[i].pwr_idx_2g.cck_base[1],
+			table[i].pwr_idx_2g.cck_base[2],
+			table[i].pwr_idx_2g.cck_base[3],
+			table[i].pwr_idx_2g.cck_base[4],
+			table[i].pwr_idx_2g.cck_base[5]);
+	/* CCK diff */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "CCK diff\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF   1S 2S 3S 4S\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %2d %2d %2d %2d\n",
+			'A' + i, 0 /* no diff for 1S */,
+			table[i].pwr_idx_2g.ht_2s_diff.cck,
+			table[i].pwr_idx_2g.ht_3s_diff.cck,
+			table[i].pwr_idx_2g.ht_4s_diff.cck);
+	/* BW40-1S base */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "BW40-1S base\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF    G0  G1  G2  G3  G4\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %3u %3u %3u %3u %3u\n",
+			'A' + i,
+			table[i].pwr_idx_2g.bw40_base[0],
+			table[i].pwr_idx_2g.bw40_base[1],
+			table[i].pwr_idx_2g.bw40_base[2],
+			table[i].pwr_idx_2g.bw40_base[3],
+			table[i].pwr_idx_2g.bw40_base[4]);
+	/* OFDM diff */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "OFDM diff\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF   1S 2S 3S 4S\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %2d %2d %2d %2d\n",
+			'A' + i,
+			table[i].pwr_idx_2g.ht_1s_diff.ofdm,
+			table[i].pwr_idx_2g.ht_2s_diff.ofdm,
+			table[i].pwr_idx_2g.ht_3s_diff.ofdm,
+			table[i].pwr_idx_2g.ht_4s_diff.ofdm);
+	/* BW20 diff */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "BW20 diff\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF   1S 2S 3S 4S\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %2d %2d %2d %2d\n",
+			'A' + i,
+			table[i].pwr_idx_2g.ht_1s_diff.bw20,
+			table[i].pwr_idx_2g.ht_2s_diff.bw20,
+			table[i].pwr_idx_2g.ht_3s_diff.bw20,
+			table[i].pwr_idx_2g.ht_4s_diff.bw20);
+	/* BW40 diff */
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "BW40 diff\n");
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "RF   1S 2S 3S 4S\n");
+	for (int i = 0; i < tx_path_count; i++)
+		rtw_dbg(rtwdev, RTW_DBG_EFUSE,
+			"[%c]: %2d %2d %2d %2d\n",
+			'A' + i, 0 /* no diff for 1S */,
+			table[i].pwr_idx_2g.ht_2s_diff.bw40,
+			table[i].pwr_idx_2g.ht_3s_diff.bw40,
+			table[i].pwr_idx_2g.ht_4s_diff.bw40);
+}
+
+static void efuse_debug_dump(struct rtw_dev *rtwdev,
+			     struct rtw8723x_efuse *map)
+{
+	if (!rtw_dbg_is_enabled(rtwdev, RTW_DBG_EFUSE))
+		return;
+
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "EFUSE raw logical map:\n");
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1,
+		       (u8 *)map, sizeof(struct rtw8723x_efuse), false);
+	rtw_dbg(rtwdev, RTW_DBG_EFUSE, "Parsed rtw8723x EFUSE data:\n");
+	DBG_EFUSE_VAL(rtwdev, map, rtl_id);
+	DBG_EFUSE_VAL(rtwdev, map, afe);
+	rtw8723x_debug_txpwr_limit(rtwdev, map->txpwr_idx_table, 4);
+	DBG_EFUSE_VAL(rtwdev, map, channel_plan);
+	DBG_EFUSE_VAL(rtwdev, map, xtal_k);
+	DBG_EFUSE_VAL(rtwdev, map, thermal_meter);
+	DBG_EFUSE_VAL(rtwdev, map, iqk_lck);
+	DBG_EFUSE_VAL(rtwdev, map, pa_type);
+	DBG_EFUSE_2BYTE(rtwdev, map, lna_type_2g);
+	DBG_EFUSE_2BYTE(rtwdev, map, lna_type_5g);
+	DBG_EFUSE_VAL(rtwdev, map, rf_board_option);
+	DBG_EFUSE_VAL(rtwdev, map, rf_feature_option);
+	DBG_EFUSE_VAL(rtwdev, map, rf_bt_setting);
+	DBG_EFUSE_VAL(rtwdev, map, eeprom_version);
+	DBG_EFUSE_VAL(rtwdev, map, eeprom_customer_id);
+	DBG_EFUSE_VAL(rtwdev, map, tx_bb_swing_setting_2g);
+	DBG_EFUSE_VAL(rtwdev, map, tx_pwr_calibrate_rate);
+	DBG_EFUSE_VAL(rtwdev, map, rf_antenna_option);
+	DBG_EFUSE_VAL(rtwdev, map, rfe_option);
+	DBG_EFUSE_2BYTE(rtwdev, map, country_code);
+
+	switch (rtw_hci_type(rtwdev)) {
+	case RTW_HCI_TYPE_PCIE:
+		rtw8723xe_efuse_debug(rtwdev, map);
+		break;
+	case RTW_HCI_TYPE_USB:
+		rtw8723xu_efuse_debug(rtwdev, map);
+		break;
+	case RTW_HCI_TYPE_SDIO:
+		rtw8723xs_efuse_debug(rtwdev, map);
+		break;
+	default:
+		/* unsupported now */
+		break;
+	}
+}
+
 static void rtw8723xe_efuse_parsing(struct rtw_efuse *efuse,
 				    struct rtw8723x_efuse *map)
 {
@@ -88,6 +245,7 @@ static int __rtw8723x_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 	int i;
 
 	map = (struct rtw8723x_efuse *)log_map;
+	efuse_debug_dump(rtwdev, map);
 
 	efuse->rfe_option = 0;
 	efuse->rf_board_option = map->rf_board_option;
@@ -553,6 +711,7 @@ const struct rtw8723x_common rtw8723x_common = {
 	.pwrtrack_set_xtal = __rtw8723x_pwrtrack_set_xtal,
 	.coex_cfg_init = __rtw8723x_coex_cfg_init,
 	.fill_txdesc_checksum = __rtw8723x_fill_txdesc_checksum,
+	.debug_txpwr_limit = __rtw8723x_debug_txpwr_limit,
 };
 EXPORT_SYMBOL(rtw8723x_common);
 

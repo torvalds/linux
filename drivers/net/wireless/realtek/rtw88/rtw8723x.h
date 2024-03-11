@@ -154,6 +154,9 @@ struct rtw8723x_common {
 	void (*fill_txdesc_checksum)(struct rtw_dev *rtwdev,
 				     struct rtw_tx_pkt_info *pkt_info,
 				     u8 *txdesc);
+	void (*debug_txpwr_limit)(struct rtw_dev *rtwdev,
+				  struct rtw_txpwr_idx *table,
+				  int tx_path_count);
 };
 
 extern const struct rtw8723x_common rtw8723x_common;
@@ -344,6 +347,14 @@ static inline s32 iqk_mult(s32 x, s32 y, s32 *ext)
 		*ext = (t >> 7) & 0x1;	/* Q.16 --> Q.9; get LSB of Q.9 */
 
 	return (t >> 8);	/* Q.16 --> Q.8 */
+}
+
+static inline
+void rtw8723x_debug_txpwr_limit(struct rtw_dev *rtwdev,
+				struct rtw_txpwr_idx *table,
+				int tx_path_count)
+{
+	rtw8723x_common.debug_txpwr_limit(rtwdev, table, tx_path_count);
 }
 
 static inline void rtw8723x_lck(struct rtw_dev *rtwdev)
