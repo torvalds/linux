@@ -1012,6 +1012,9 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 			free_huge_folio(folio);
 			continue;
 		}
+		if (folio_test_large(folio) &&
+		    folio_test_large_rmappable(folio))
+			folio_undo_large_rmappable(folio);
 
 		__page_cache_release(folio, &lruvec, &flags);
 
