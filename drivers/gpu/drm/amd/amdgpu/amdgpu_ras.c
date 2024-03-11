@@ -2076,6 +2076,17 @@ static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj
 {
 	dev_info(obj->adev->dev,
 		"Poison is created\n");
+
+	if (amdgpu_ip_version(obj->adev, UMC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
+		struct amdgpu_ras *con = amdgpu_ras_get_context(obj->adev);
+
+		amdgpu_ras_put_poison_req(obj->adev,
+			AMDGPU_RAS_BLOCK__UMC, 0, NULL, NULL, false);
+
+		atomic_inc(&con->page_retirement_req_cnt);
+
+		wake_up(&con->page_retirement_wq);
+	}
 }
 
 static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
@@ -2727,7 +2738,6 @@ int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
 	return 0;
 }
 
-#ifdef PRE_DEFINED_FUNCTION
 static int amdgpu_ras_get_poison_req(struct amdgpu_device *adev,
 		struct ras_poison_msg *poison_msg)
 {
@@ -2735,7 +2745,6 @@ static int amdgpu_ras_get_poison_req(struct amdgpu_device *adev,
 
 	return kfifo_get(&con->poison_fifo, poison_msg);
 }
-#endif
 
 static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
 {
@@ -2766,10 +2775,54 @@ static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
 	mutex_destroy(&ecc_log->lock);
 	ecc_log->de_updated = false;
 }
+
+static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
+			enum amdgpu_ras_block ras_block, uint32_t timeout_ms)
+{
+	int ret = 0;
+	struct ras_ecc_log_info *ecc_log;
+	struct ras_query_if info;
+	uint32_t timeout = timeout_ms;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	memset(&info, 0, sizeof(info));
+	info.head.block = ras_block;
+
+	ecc_log = &ras->umc_ecc_log;
+	ecc_log->de_updated = false;
+	do {
+		ret = amdgpu_ras_query_error_status(adev, &info);
+		if (ret) {
+			dev_err(adev->dev, "Failed to query ras error! ret:%d\n", ret);
+			return ret;
+		}
+
+		if (timeout && !ecc_log->de_updated) {
+			msleep(1);
+			timeout--;
+		}
+	} while (timeout && !ecc_log->de_updated);
+
+	if (timeout_ms && !timeout) {
+		dev_warn(adev->dev, "Can't find deferred error\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
+					uint32_t timeout)
+{
+	amdgpu_ras_query_ecc_status(adev, AMDGPU_RAS_BLOCK__UMC, timeout);
+}
+
 static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_poison_msg poison_msg;
+	enum amdgpu_ras_block ras_block;
 
 	while (!kthread_should_stop()) {
 
@@ -2780,13 +2833,22 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		if (kthread_should_stop())
 			break;
 
-		dev_info(adev->dev, "Start processing page retirement. request:%d\n",
-			atomic_read(&con->page_retirement_req_cnt));
-
 		atomic_dec(&con->page_retirement_req_cnt);
 
-		amdgpu_umc_bad_page_polling_timeout(adev,
-				0, MAX_UMC_POISON_POLLING_TIME_ASYNC);
+		if (!amdgpu_ras_get_poison_req(adev, &poison_msg))
+			continue;
+
+		ras_block = poison_msg.block;
+
+		dev_info(adev->dev, "Start processing ras block %s(%d)\n",
+				ras_block_str(ras_block), ras_block);
+
+		if (ras_block == AMDGPU_RAS_BLOCK__UMC)
+			amdgpu_ras_poison_creation_handler(adev,
+				MAX_UMC_POISON_POLLING_TIME_ASYNC);
+		else
+			amdgpu_umc_bad_page_polling_timeout(adev,
+				false, MAX_UMC_POISON_POLLING_TIME_ASYNC);
 	}
 
 	return 0;
