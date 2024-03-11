@@ -28,8 +28,12 @@ config RTW88_8822B
 config RTW88_8822C
 	tristate
 
+config RTW88_8723X
+	tristate
+
 config RTW88_8723D
 	tristate
+	select RTW88_8723X
 
 config RTW88_8821C
 	tristate
