@@ -170,6 +170,9 @@ struct erdma_kqp {
 	void *sq_db_info;
 	void *rq_db_info;
 
+	dma_addr_t sq_db_info_dma_addr;
+	dma_addr_t rq_db_info_dma_addr;
+
 	u8 sig_all;
 };
 
@@ -247,6 +250,7 @@ struct erdma_kcq_info {
 	spinlock_t lock;
 	u8 __iomem *db;
 	u64 *db_record;
+	dma_addr_t db_record_dma_addr;
 };
 
 struct erdma_ucq_info {

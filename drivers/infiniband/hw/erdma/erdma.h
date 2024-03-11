@@ -34,6 +34,7 @@ struct erdma_eq {
 
 	void __iomem *db;
 	u64 *db_record;
+	dma_addr_t db_record_dma_addr;
 };
 
 struct erdma_cmdq_sq {
@@ -49,6 +50,7 @@ struct erdma_cmdq_sq {
 	u16 wqebb_cnt;
 
 	u64 *db_record;
+	dma_addr_t db_record_dma_addr;
 };
 
 struct erdma_cmdq_cq {
@@ -62,6 +64,7 @@ struct erdma_cmdq_cq {
 	u32 cmdsn;
 
 	u64 *db_record;
+	dma_addr_t db_record_dma_addr;
 
 	atomic64_t armed_num;
 };
@@ -177,9 +180,6 @@ enum {
 	ERDMA_RES_CNT = 2,
 };
 
-#define ERDMA_EXTRA_BUFFER_SIZE ERDMA_DB_SIZE
-#define WARPPED_BUFSIZE(size) ((size) + ERDMA_EXTRA_BUFFER_SIZE)
-
 struct erdma_dev {
 	struct ib_device ibdev;
 	struct net_device *netdev;
@@ -213,6 +213,7 @@ struct erdma_dev {
 	atomic_t num_ctx;
 	struct list_head cep_list;
 
+	struct dma_pool *db_pool;
 	struct dma_pool *resp_pool;
 };
 

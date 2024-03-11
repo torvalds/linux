@@ -76,10 +76,8 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 
 		req.rq_buf_addr = qp->kern_qp.rq_buf_dma_addr;
 		req.sq_buf_addr = qp->kern_qp.sq_buf_dma_addr;
-		req.sq_db_info_dma_addr = qp->kern_qp.sq_buf_dma_addr +
-					  (qp->attrs.sq_size << SQEBB_SHIFT);
-		req.rq_db_info_dma_addr = qp->kern_qp.rq_buf_dma_addr +
-					  (qp->attrs.rq_size << RQE_SHIFT);
+		req.sq_db_info_dma_addr = qp->kern_qp.sq_db_info_dma_addr;
+		req.rq_db_info_dma_addr = qp->kern_qp.rq_db_info_dma_addr;
 	} else {
 		user_qp = &qp->user_qp;
 		req.sq_cqn_mtt_cfg = FIELD_PREP(
@@ -209,8 +207,7 @@ static int create_cq_cmd(struct erdma_ucontext *uctx, struct erdma_cq *cq)
 				       ERDMA_MR_MTT_0LEVEL);
 
 		req.first_page_offset = 0;
-		req.cq_db_info_addr =
-			cq->kern_cq.qbuf_dma_addr + (cq->depth << CQE_SHIFT);
+		req.cq_db_info_addr = cq->kern_cq.db_record_dma_addr;
 	} else {
 		mem = &cq->user_cq.qbuf_mem;
 		req.cfg0 |=
@@ -482,16 +479,24 @@ static void free_kernel_qp(struct erdma_qp *qp)
 	vfree(qp->kern_qp.rwr_tbl);
 
 	if (qp->kern_qp.sq_buf)
-		dma_free_coherent(
-			&dev->pdev->dev,
-			WARPPED_BUFSIZE(qp->attrs.sq_size << SQEBB_SHIFT),
-			qp->kern_qp.sq_buf, qp->kern_qp.sq_buf_dma_addr);
+		dma_free_coherent(&dev->pdev->dev,
+				  qp->attrs.sq_size << SQEBB_SHIFT,
+				  qp->kern_qp.sq_buf,
+				  qp->kern_qp.sq_buf_dma_addr);
+
+	if (qp->kern_qp.sq_db_info)
+		dma_pool_free(dev->db_pool, qp->kern_qp.sq_db_info,
+			      qp->kern_qp.sq_db_info_dma_addr);
 
 	if (qp->kern_qp.rq_buf)
-		dma_free_coherent(
-			&dev->pdev->dev,
-			WARPPED_BUFSIZE(qp->attrs.rq_size << RQE_SHIFT),
-			qp->kern_qp.rq_buf, qp->kern_qp.rq_buf_dma_addr);
+		dma_free_coherent(&dev->pdev->dev,
+				  qp->attrs.rq_size << RQE_SHIFT,
+				  qp->kern_qp.rq_buf,
+				  qp->kern_qp.rq_buf_dma_addr);
+
+	if (qp->kern_qp.rq_db_info)
+		dma_pool_free(dev->db_pool, qp->kern_qp.rq_db_info,
+			      qp->kern_qp.rq_db_info_dma_addr);
 }
 
 static int init_kernel_qp(struct erdma_dev *dev, struct erdma_qp *qp,
@@ -516,20 +521,27 @@ static int init_kernel_qp(struct erdma_dev *dev, struct erdma_qp *qp,
 	if (!kqp->swr_tbl || !kqp->rwr_tbl)
 		goto err_out;
 
-	size = (qp->attrs.sq_size << SQEBB_SHIFT) + ERDMA_EXTRA_BUFFER_SIZE;
+	size = qp->attrs.sq_size << SQEBB_SHIFT;
 	kqp->sq_buf = dma_alloc_coherent(&dev->pdev->dev, size,
 					 &kqp->sq_buf_dma_addr, GFP_KERNEL);
 	if (!kqp->sq_buf)
 		goto err_out;
 
-	size = (qp->attrs.rq_size << RQE_SHIFT) + ERDMA_EXTRA_BUFFER_SIZE;
+	kqp->sq_db_info = dma_pool_zalloc(dev->db_pool, GFP_KERNEL,
+					  &kqp->sq_db_info_dma_addr);
+	if (!kqp->sq_db_info)
+		goto err_out;
+
+	size = qp->attrs.rq_size << RQE_SHIFT;
 	kqp->rq_buf = dma_alloc_coherent(&dev->pdev->dev, size,
 					 &kqp->rq_buf_dma_addr, GFP_KERNEL);
 	if (!kqp->rq_buf)
 		goto err_out;
 
-	kqp->sq_db_info = kqp->sq_buf + (qp->attrs.sq_size << SQEBB_SHIFT);
-	kqp->rq_db_info = kqp->rq_buf + (qp->attrs.rq_size << RQE_SHIFT);
+	kqp->rq_db_info = dma_pool_zalloc(dev->db_pool, GFP_KERNEL,
+					  &kqp->rq_db_info_dma_addr);
+	if (!kqp->rq_db_info)
+		goto err_out;
 
 	return 0;
 
@@ -1237,9 +1249,10 @@ int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		return err;
 
 	if (rdma_is_kernel_res(&cq->ibcq.res)) {
-		dma_free_coherent(&dev->pdev->dev,
-				  WARPPED_BUFSIZE(cq->depth << CQE_SHIFT),
+		dma_free_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
 				  cq->kern_cq.qbuf, cq->kern_cq.qbuf_dma_addr);
+		dma_pool_free(dev->db_pool, cq->kern_cq.db_record,
+			      cq->kern_cq.db_record_dma_addr);
 	} else {
 		erdma_unmap_user_dbrecords(ctx, &cq->user_cq.user_dbr_page);
 		put_mtt_entries(dev, &cq->user_cq.qbuf_mem);
@@ -1279,16 +1292,7 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	wait_for_completion(&qp->safe_free);
 
 	if (rdma_is_kernel_res(&qp->ibqp.res)) {
-		vfree(qp->kern_qp.swr_tbl);
-		vfree(qp->kern_qp.rwr_tbl);
-		dma_free_coherent(
-			&dev->pdev->dev,
-			WARPPED_BUFSIZE(qp->attrs.rq_size << RQE_SHIFT),
-			qp->kern_qp.rq_buf, qp->kern_qp.rq_buf_dma_addr);
-		dma_free_coherent(
-			&dev->pdev->dev,
-			WARPPED_BUFSIZE(qp->attrs.sq_size << SQEBB_SHIFT),
-			qp->kern_qp.sq_buf, qp->kern_qp.sq_buf_dma_addr);
+		free_kernel_qp(qp);
 	} else {
 		put_mtt_entries(dev, &qp->user_qp.sq_mem);
 		put_mtt_entries(dev, &qp->user_qp.rq_mem);
@@ -1600,19 +1604,27 @@ static int erdma_init_kernel_cq(struct erdma_cq *cq)
 	struct erdma_dev *dev = to_edev(cq->ibcq.device);
 
 	cq->kern_cq.qbuf =
-		dma_alloc_coherent(&dev->pdev->dev,
-				   WARPPED_BUFSIZE(cq->depth << CQE_SHIFT),
+		dma_alloc_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
 				   &cq->kern_cq.qbuf_dma_addr, GFP_KERNEL);
 	if (!cq->kern_cq.qbuf)
 		return -ENOMEM;
 
-	cq->kern_cq.db_record =
-		(u64 *)(cq->kern_cq.qbuf + (cq->depth << CQE_SHIFT));
+	cq->kern_cq.db_record = dma_pool_zalloc(
+		dev->db_pool, GFP_KERNEL, &cq->kern_cq.db_record_dma_addr);
+	if (!cq->kern_cq.db_record)
+		goto err_out;
+
 	spin_lock_init(&cq->kern_cq.lock);
 	/* use default cqdb addr */
 	cq->kern_cq.db = dev->func_bar + ERDMA_BAR_CQDB_SPACE_OFFSET;
 
 	return 0;
+
+err_out:
+	dma_free_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
+			  cq->kern_cq.qbuf, cq->kern_cq.qbuf_dma_addr);
+
+	return -ENOMEM;
 }
 
 int erdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
@@ -1676,9 +1688,10 @@ err_free_res:
 		erdma_unmap_user_dbrecords(ctx, &cq->user_cq.user_dbr_page);
 		put_mtt_entries(dev, &cq->user_cq.qbuf_mem);
 	} else {
-		dma_free_coherent(&dev->pdev->dev,
-				  WARPPED_BUFSIZE(depth << CQE_SHIFT),
+		dma_free_coherent(&dev->pdev->dev, depth << CQE_SHIFT,
 				  cq->kern_cq.qbuf, cq->kern_cq.qbuf_dma_addr);
+		dma_pool_free(dev->db_pool, cq->kern_cq.db_record,
+			      cq->kern_cq.db_record_dma_addr);
 	}
 
 err_out_xa:
