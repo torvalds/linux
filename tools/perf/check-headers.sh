@@ -22,7 +22,6 @@ FILES=(
   "include/uapi/linux/seccomp.h"
   "include/uapi/linux/stat.h"
   "include/uapi/linux/vhost.h"
-  "include/uapi/sound/asound.h"
   "include/linux/bits.h"
   "include/vdso/bits.h"
   "include/linux/const.h"
@@ -98,6 +97,7 @@ BEAUTY_FILES=(
   "include/uapi/linux/fs.h"
   "include/uapi/linux/mount.h"
   "include/uapi/linux/usbdevice_fs.h"
+  "include/uapi/sound/asound.h"
 )
 
 declare -a FAILURES
