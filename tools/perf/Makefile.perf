@@ -499,19 +499,19 @@ $(fadvise_advice_array): $(linux_uapi_dir)/in.h $(fadvise_advice_tbl)
 fsmount_arrays := $(beauty_outdir)/fsmount_arrays.c
 fsmount_tbls := $(srctree)/tools/perf/trace/beauty/fsmount.sh
 
-$(fsmount_arrays): $(linux_uapi_dir)/fs.h $(fsmount_tbls)
+$(fsmount_arrays): $(linux_uapi_dir)/mount.h $(fsmount_tbls)
 	$(Q)$(SHELL) '$(fsmount_tbls)' $(linux_uapi_dir) > $@
 
 fspick_arrays := $(beauty_outdir)/fspick_arrays.c
 fspick_tbls := $(srctree)/tools/perf/trace/beauty/fspick.sh
 
-$(fspick_arrays): $(linux_uapi_dir)/fs.h $(fspick_tbls)
+$(fspick_arrays): $(linux_uapi_dir)/mount.h $(fspick_tbls)
 	$(Q)$(SHELL) '$(fspick_tbls)' $(linux_uapi_dir) > $@
 
 fsconfig_arrays := $(beauty_outdir)/fsconfig_arrays.c
 fsconfig_tbls := $(srctree)/tools/perf/trace/beauty/fsconfig.sh
 
-$(fsconfig_arrays): $(linux_uapi_dir)/fs.h $(fsconfig_tbls)
+$(fsconfig_arrays): $(linux_uapi_dir)/mount.h $(fsconfig_tbls)
 	$(Q)$(SHELL) '$(fsconfig_tbls)' $(linux_uapi_dir) > $@
 
 pkey_alloc_access_rights_array := $(beauty_outdir)/pkey_alloc_access_rights_array.c
@@ -597,13 +597,13 @@ $(mremap_flags_array): $(linux_uapi_dir)/mman.h $(mremap_flags_tbl)
 mount_flags_array := $(beauty_outdir)/mount_flags_array.c
 mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 
-$(mount_flags_array): $(linux_uapi_dir)/fs.h $(mount_flags_tbl)
+$(mount_flags_array): $(linux_uapi_dir)/mount.h $(mount_flags_tbl)
 	$(Q)$(SHELL) '$(mount_flags_tbl)' $(linux_uapi_dir) > $@
 
 move_mount_flags_array := $(beauty_outdir)/move_mount_flags_array.c
 move_mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/move_mount_flags.sh
 
-$(move_mount_flags_array): $(linux_uapi_dir)/fs.h $(move_mount_flags_tbl)
+$(move_mount_flags_array): $(linux_uapi_dir)/mount.h $(move_mount_flags_tbl)
 	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(linux_uapi_dir) > $@
 
 
