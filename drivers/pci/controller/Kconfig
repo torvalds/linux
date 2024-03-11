@@ -358,6 +358,20 @@ config PCI_MSM
 
 	  If unsure, say N.
 
+config PCIE_QCOM_ECAM
+	tristate "QCOM PCIe ECAM host controller"
+	depends on ARCH_QCOM && PCI
+	depends on OF
+	select PCI_MSI
+	select PCI_HOST_COMMON
+	select IRQ_DOMAIN
+	help
+	  Say Y here if you want to use ECAM shift mode compatible PCIe
+	  root host controller. The controller is programmed using firmware
+	  to support ECAM compatible memory address space.
+
+	  If unsure, say N.
+
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"
 source "drivers/pci/controller/cadence/Kconfig"
