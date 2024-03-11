@@ -859,9 +859,6 @@ struct cpucp_packet {
 		 * result cannot be used to hold general purpose data.
 		 */
 		__le32 status_mask;
-
-		/* random, used once number, for security packets */
-		__le32 nonce;
 	};
 
 	union {
@@ -870,6 +867,9 @@ struct cpucp_packet {
 
 		/* For Generic packet sub index */
 		__le32 pkt_subidx;
+
+		/* random, used once number, for security packets */
+		__le32 nonce;
 	};
 };
 
