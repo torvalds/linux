@@ -105,6 +105,7 @@ mod into_iter;
 #[cfg(not(no_global_oom_handling))]
 use self::is_zero::IsZero;
 
+#[cfg(not(no_global_oom_handling))]
 mod is_zero;
 
 #[cfg(not(no_global_oom_handling))]
@@ -123,7 +124,7 @@ use self::set_len_on_drop::SetLenOnDrop;
 mod set_len_on_drop;
 
 #[cfg(not(no_global_oom_handling))]
-use self::in_place_drop::{InPlaceDrop, InPlaceDstBufDrop};
+use self::in_place_drop::{InPlaceDrop, InPlaceDstDataSrcBufDrop};
 
 #[cfg(not(no_global_oom_handling))]
 mod in_place_drop;
@@ -1376,7 +1377,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// [`as_mut_ptr`]: Vec::as_mut_ptr
     /// [`as_ptr`]: Vec::as_ptr
     #[stable(feature = "vec_as_ptr", since = "1.37.0")]
-    #[cfg_attr(not(bootstrap), rustc_never_returns_null_ptr)]
+    #[rustc_never_returns_null_ptr]
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         // We shadow the slice method of the same name to avoid going through
@@ -1436,7 +1437,7 @@ impl<T, A: Allocator> Vec<T, A> {
     /// [`as_mut_ptr`]: Vec::as_mut_ptr
     /// [`as_ptr`]: Vec::as_ptr
     #[stable(feature = "vec_as_ptr", since = "1.37.0")]
-    #[cfg_attr(not(bootstrap), rustc_never_returns_null_ptr)]
+    #[rustc_never_returns_null_ptr]
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         // We shadow the slice method of the same name to avoid going through
@@ -1565,7 +1566,8 @@ impl<T, A: Allocator> Vec<T, A> {
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn swap_remove(&mut self, index: usize) -> T {
         #[cold]
-        #[inline(never)]
+        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("swap_remove index (is {index}) should be < len (is {len})");
         }
@@ -1606,7 +1608,8 @@ impl<T, A: Allocator> Vec<T, A> {
     #[stable(feature = "rust1", since = "1.0.0")]
     pub fn insert(&mut self, index: usize, element: T) {
         #[cold]
-        #[inline(never)]
+        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("insertion index (is {index}) should be <= len (is {len})");
         }
@@ -1667,7 +1670,7 @@ impl<T, A: Allocator> Vec<T, A> {
     #[track_caller]
     pub fn remove(&mut self, index: usize) -> T {
         #[cold]
-        #[inline(never)]
+        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
         #[track_caller]
         fn assert_failed(index: usize, len: usize) -> ! {
             panic!("removal index (is {index}) should be < len (is {len})");
@@ -1891,7 +1894,32 @@ impl<T, A: Allocator> Vec<T, A> {
             return;
         }
 
-        /* INVARIANT: vec.len() > read >= write > write-1 >= 0 */
+        // Check if we ever want to remove anything.
+        // This allows to use copy_non_overlapping in next cycle.
+        // And avoids any memory writes if we don't need to remove anything.
+        let mut first_duplicate_idx: usize = 1;
+        let start = self.as_mut_ptr();
+        while first_duplicate_idx != len {
+            let found_duplicate = unsafe {
+                // SAFETY: first_duplicate always in range [1..len)
+                // Note that we start iteration from 1 so we never overflow.
+                let prev = start.add(first_duplicate_idx.wrapping_sub(1));
+                let current = start.add(first_duplicate_idx);
+                // We explicitly say in docs that references are reversed.
+                same_bucket(&mut *current, &mut *prev)
+            };
+            if found_duplicate {
+                break;
+            }
+            first_duplicate_idx += 1;
+        }
+        // Don't need to remove anything.
+        // We cannot get bigger than len.
+        if first_duplicate_idx == len {
+            return;
+        }
+
+        /* INVARIANT: vec.len() > read > write > write-1 >= 0 */
         struct FillGapOnDrop<'a, T, A: core::alloc::Allocator> {
             /* Offset of the element we want to check if it is duplicate */
             read: usize,
@@ -1937,31 +1965,39 @@ impl<T, A: Allocator> Vec<T, A> {
             }
         }
 
-        let mut gap = FillGapOnDrop { read: 1, write: 1, vec: self };
-        let ptr = gap.vec.as_mut_ptr();
-
         /* Drop items while going through Vec, it should be more efficient than
          * doing slice partition_dedup + truncate */
+
+        // Construct gap first and then drop item to avoid memory corruption if `T::drop` panics.
+        let mut gap =
+            FillGapOnDrop { read: first_duplicate_idx + 1, write: first_duplicate_idx, vec: self };
+        unsafe {
+            // SAFETY: we checked that first_duplicate_idx in bounds before.
+            // If drop panics, `gap` would remove this item without drop.
+            ptr::drop_in_place(start.add(first_duplicate_idx));
+        }
 
         /* SAFETY: Because of the invariant, read_ptr, prev_ptr and write_ptr
          * are always in-bounds and read_ptr never aliases prev_ptr */
         unsafe {
             while gap.read < len {
-                let read_ptr = ptr.add(gap.read);
-                let prev_ptr = ptr.add(gap.write.wrapping_sub(1));
+                let read_ptr = start.add(gap.read);
+                let prev_ptr = start.add(gap.write.wrapping_sub(1));
 
-                if same_bucket(&mut *read_ptr, &mut *prev_ptr) {
+                // We explicitly say in docs that references are reversed.
+                let found_duplicate = same_bucket(&mut *read_ptr, &mut *prev_ptr);
+                if found_duplicate {
                     // Increase `gap.read` now since the drop may panic.
                     gap.read += 1;
                     /* We have found duplicate, drop it in-place */
                     ptr::drop_in_place(read_ptr);
                 } else {
-                    let write_ptr = ptr.add(gap.write);
+                    let write_ptr = start.add(gap.write);
 
-                    /* Because `read_ptr` can be equal to `write_ptr`, we either
-                     * have to use `copy` or conditional `copy_nonoverlapping`.
-                     * Looks like the first option is faster. */
-                    ptr::copy(read_ptr, write_ptr, 1);
+                    /* read_ptr cannot be equal to write_ptr because at this point
+                     * we guaranteed to skip at least one element (before loop starts).
+                     */
+                    ptr::copy_nonoverlapping(read_ptr, write_ptr, 1);
 
                     /* We have filled that place, so go further */
                     gap.write += 1;
@@ -2097,6 +2133,7 @@ impl<T, A: Allocator> Vec<T, A> {
         } else {
             unsafe {
                 self.len -= 1;
+                core::intrinsics::assume(self.len < self.capacity());
                 Some(ptr::read(self.as_ptr().add(self.len())))
             }
         }
@@ -2299,7 +2336,8 @@ impl<T, A: Allocator> Vec<T, A> {
         A: Clone,
     {
         #[cold]
-        #[inline(never)]
+        #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never))]
+        #[track_caller]
         fn assert_failed(at: usize, len: usize) -> ! {
             panic!("`at` split index (is {at}) should be <= len (is {len})");
         }
@@ -2840,6 +2878,7 @@ pub fn from_elem_in<T: Clone, A: Allocator>(elem: T, n: usize, alloc: A) -> Vec<
     <T as SpecFromElem>::from_elem(elem, n, alloc)
 }
 
+#[cfg(not(no_global_oom_handling))]
 trait ExtendFromWithinSpec {
     /// # Safety
     ///
@@ -2848,6 +2887,7 @@ trait ExtendFromWithinSpec {
     unsafe fn spec_extend_from_within(&mut self, src: Range<usize>);
 }
 
+#[cfg(not(no_global_oom_handling))]
 impl<T: Clone, A: Allocator> ExtendFromWithinSpec for Vec<T, A> {
     default unsafe fn spec_extend_from_within(&mut self, src: Range<usize>) {
         // SAFETY:
@@ -2867,6 +2907,7 @@ impl<T: Clone, A: Allocator> ExtendFromWithinSpec for Vec<T, A> {
     }
 }
 
+#[cfg(not(no_global_oom_handling))]
 impl<T: Copy, A: Allocator> ExtendFromWithinSpec for Vec<T, A> {
     unsafe fn spec_extend_from_within(&mut self, src: Range<usize>) {
         let count = src.len();
@@ -2947,7 +2988,7 @@ impl<T: Clone, A: Allocator + Clone> Clone for Vec<T, A> {
 /// ```
 /// use std::hash::BuildHasher;
 ///
-/// let b = std::collections::hash_map::RandomState::new();
+/// let b = std::hash::RandomState::new();
 /// let v: Vec<u8> = vec![0xa8, 0x3c, 0x09];
 /// let s: &[u8] = &[0xa8, 0x3c, 0x09];
 /// assert_eq!(b.hash_one(v), b.hash_one(s));

@@ -161,7 +161,7 @@ use core::marker::Tuple;
 use core::marker::Unsize;
 use core::mem::{self, SizedTypeProperties};
 use core::ops::{
-    CoerceUnsized, Deref, DerefMut, DispatchFromDyn, Generator, GeneratorState, Receiver,
+    CoerceUnsized, Coroutine, CoroutineState, Deref, DerefMut, DispatchFromDyn, Receiver,
 };
 use core::pin::Pin;
 use core::ptr::{self, NonNull, Unique};
@@ -211,7 +211,7 @@ impl<T> Box<T> {
     /// ```
     /// let five = Box::new(5);
     /// ```
-    #[cfg(all(not(no_global_oom_handling)))]
+    #[cfg(not(no_global_oom_handling))]
     #[inline(always)]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[must_use]
@@ -1042,10 +1042,18 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
     /// use std::ptr;
     ///
     /// let x = Box::new(String::from("Hello"));
-    /// let p = Box::into_raw(x);
+    /// let ptr = Box::into_raw(x);
     /// unsafe {
-    ///     ptr::drop_in_place(p);
-    ///     dealloc(p as *mut u8, Layout::new::<String>());
+    ///     ptr::drop_in_place(ptr);
+    ///     dealloc(ptr as *mut u8, Layout::new::<String>());
+    /// }
+    /// ```
+    /// Note: This is equivalent to the following:
+    /// ```
+    /// let x = Box::new(String::from("Hello"));
+    /// let ptr = Box::into_raw(x);
+    /// unsafe {
+    ///     drop(Box::from_raw(ptr));
     /// }
     /// ```
     ///
@@ -2110,28 +2118,28 @@ impl<T: ?Sized, A: Allocator> AsMut<T> for Box<T, A> {
 #[stable(feature = "pin", since = "1.33.0")]
 impl<T: ?Sized, A: Allocator> Unpin for Box<T, A> where A: 'static {}
 
-#[unstable(feature = "generator_trait", issue = "43122")]
-impl<G: ?Sized + Generator<R> + Unpin, R, A: Allocator> Generator<R> for Box<G, A>
+#[unstable(feature = "coroutine_trait", issue = "43122")]
+impl<G: ?Sized + Coroutine<R> + Unpin, R, A: Allocator> Coroutine<R> for Box<G, A>
 where
     A: 'static,
 {
     type Yield = G::Yield;
     type Return = G::Return;
 
-    fn resume(mut self: Pin<&mut Self>, arg: R) -> GeneratorState<Self::Yield, Self::Return> {
+    fn resume(mut self: Pin<&mut Self>, arg: R) -> CoroutineState<Self::Yield, Self::Return> {
         G::resume(Pin::new(&mut *self), arg)
     }
 }
 
-#[unstable(feature = "generator_trait", issue = "43122")]
-impl<G: ?Sized + Generator<R>, R, A: Allocator> Generator<R> for Pin<Box<G, A>>
+#[unstable(feature = "coroutine_trait", issue = "43122")]
+impl<G: ?Sized + Coroutine<R>, R, A: Allocator> Coroutine<R> for Pin<Box<G, A>>
 where
     A: 'static,
 {
     type Yield = G::Yield;
     type Return = G::Return;
 
-    fn resume(mut self: Pin<&mut Self>, arg: R) -> GeneratorState<Self::Yield, Self::Return> {
+    fn resume(mut self: Pin<&mut Self>, arg: R) -> CoroutineState<Self::Yield, Self::Return> {
         G::resume((*self).as_mut(), arg)
     }
 }
@@ -2447,5 +2455,9 @@ impl<T: core::error::Error> core::error::Error for Box<T> {
 
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         core::error::Error::source(&**self)
+    }
+
+    fn provide<'b>(&'b self, request: &mut core::error::Request<'b>) {
+        core::error::Error::provide(&**self, request);
     }
 }
