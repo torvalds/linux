@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+generated-y += orc_hash.h
+
 generic-y += dma-contiguous.h
 generic-y += mcs_spinlock.h
 generic-y += parport.h

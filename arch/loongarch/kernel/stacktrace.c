@@ -29,6 +29,7 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 			regs->csr_era = thread_saved_ra(task);
 		}
 		regs->regs[1] = 0;
+		regs->regs[22] = 0;
 	}
 
 	for (unwind_start(&state, task, regs);
