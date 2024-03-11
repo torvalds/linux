@@ -173,6 +173,13 @@ source "fs/proc/Kconfig"
 source "fs/kernfs/Kconfig"
 source "fs/sysfs/Kconfig"
 
+config FS_PID
+	bool "Pseudo filesystem for process file descriptors"
+	depends on 64BIT
+	default y
+	help
+	  Pidfs implements advanced features for process file descriptors.
+
 config TMPFS
 	bool "Tmpfs virtual memory file system support (former shm fs)"
 	depends on SHMEM

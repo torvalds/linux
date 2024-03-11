@@ -23,6 +23,7 @@
 #include <linux/fsnotify.h>
 #include <linux/unicode.h>
 #include <linux/fscrypt.h>
+#include <linux/pidfs.h>
 
 #include <linux/uaccess.h>
 
@@ -1985,3 +1986,144 @@ struct timespec64 simple_inode_init_ts(struct inode *inode)
 	return ts;
 }
 EXPORT_SYMBOL(simple_inode_init_ts);
+
+static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
+{
+	struct dentry *dentry;
+
+	guard(rcu)();
+	dentry = READ_ONCE(stashed);
+	if (!dentry)
+		return NULL;
+	if (!lockref_get_not_dead(&dentry->d_lockref))
+		return NULL;
+	return dentry;
+}
+
+static struct dentry *prepare_anon_dentry(struct dentry **stashed,
+					  unsigned long ino,
+					  struct super_block *sb,
+					  void *data)
+{
+	struct dentry *dentry;
+	struct inode *inode;
+	const struct stashed_operations *sops = sb->s_fs_info;
+
+	dentry = d_alloc_anon(sb);
+	if (!dentry)
+		return ERR_PTR(-ENOMEM);
+
+	inode = new_inode_pseudo(sb);
+	if (!inode) {
+		dput(dentry);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	inode->i_ino = ino;
+	inode->i_flags |= S_IMMUTABLE;
+	inode->i_mode = S_IFREG;
+	simple_inode_init_ts(inode);
+	sops->init_inode(inode, data);
+
+	/* Notice when this is changed. */
+	WARN_ON_ONCE(!S_ISREG(inode->i_mode));
+	WARN_ON_ONCE(!IS_IMMUTABLE(inode));
+
+	/* Store address of location where dentry's supposed to be stashed. */
+	dentry->d_fsdata = stashed;
+
+	/* @data is now owned by the fs */
+	d_instantiate(dentry, inode);
+	return dentry;
+}
+
+static struct dentry *stash_dentry(struct dentry **stashed,
+				   struct dentry *dentry)
+{
+	guard(rcu)();
+	for (;;) {
+		struct dentry *old;
+
+		/* Assume any old dentry was cleared out. */
+		old = cmpxchg(stashed, NULL, dentry);
+		if (likely(!old))
+			return dentry;
+
+		/* Check if somebody else installed a reusable dentry. */
+		if (lockref_get_not_dead(&old->d_lockref))
+			return old;
+
+		/* There's an old dead dentry there, try to take it over. */
+		if (likely(try_cmpxchg(stashed, &old, dentry)))
+			return dentry;
+	}
+}
+
+/**
+ * path_from_stashed - create path from stashed or new dentry
+ * @stashed:    where to retrieve or stash dentry
+ * @ino:        inode number to use
+ * @mnt:        mnt of the filesystems to use
+ * @data:       data to store in inode->i_private
+ * @path:       path to create
+ *
+ * The function tries to retrieve a stashed dentry from @stashed. If the dentry
+ * is still valid then it will be reused. If the dentry isn't able the function
+ * will allocate a new dentry and inode. It will then check again whether it
+ * can reuse an existing dentry in case one has been added in the meantime or
+ * update @stashed with the newly added dentry.
+ *
+ * Special-purpose helper for nsfs and pidfs.
+ *
+ * Return: On success zero and on failure a negative error is returned.
+ */
+int path_from_stashed(struct dentry **stashed, unsigned long ino,
+		      struct vfsmount *mnt, void *data, struct path *path)
+{
+	struct dentry *dentry;
+	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
+
+	/* See if dentry can be reused. */
+	path->dentry = get_stashed_dentry(*stashed);
+	if (path->dentry) {
+		sops->put_data(data);
+		goto out_path;
+	}
+
+	/* Allocate a new dentry. */
+	dentry = prepare_anon_dentry(stashed, ino, mnt->mnt_sb, data);
+	if (IS_ERR(dentry)) {
+		sops->put_data(data);
+		return PTR_ERR(dentry);
+	}
+
+	/* Added a new dentry. @data is now owned by the filesystem. */
+	path->dentry = stash_dentry(stashed, dentry);
+	if (path->dentry != dentry)
+		dput(dentry);
+
+out_path:
+	WARN_ON_ONCE(path->dentry->d_fsdata != stashed);
+	WARN_ON_ONCE(d_inode(path->dentry)->i_private != data);
+	path->mnt = mntget(mnt);
+	return 0;
+}
+
+void stashed_dentry_prune(struct dentry *dentry)
+{
+	struct dentry **stashed = dentry->d_fsdata;
+	struct inode *inode = d_inode(dentry);
+
+	if (WARN_ON_ONCE(!stashed))
+		return;
+
+	if (!inode)
+		return;
+
+	/*
+	 * Only replace our own @dentry as someone else might've
+	 * already cleared out @dentry and stashed their own
+	 * dentry in there.
+	 */
+	cmpxchg(stashed, dentry, NULL);
+}
