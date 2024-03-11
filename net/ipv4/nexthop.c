@@ -674,10 +674,11 @@ static void nh_grp_entry_stats_inc(struct nh_grp_entry *nhge)
 {
 	struct nh_grp_entry_stats *cpu_stats;
 
-	cpu_stats = this_cpu_ptr(nhge->stats);
+	cpu_stats = get_cpu_ptr(nhge->stats);
 	u64_stats_update_begin(&cpu_stats->syncp);
 	u64_stats_inc(&cpu_stats->packets);
 	u64_stats_update_end(&cpu_stats->syncp);
+	put_cpu_ptr(cpu_stats);
 }
 
 static void nh_grp_entry_stats_read(struct nh_grp_entry *nhge,
