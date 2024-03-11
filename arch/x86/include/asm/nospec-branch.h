@@ -330,8 +330,13 @@
 .macro CLEAR_BRANCH_HISTORY
 	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP
 .endm
+
+.macro CLEAR_BRANCH_HISTORY_VMEXIT
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT
+.endm
 #else
 #define CLEAR_BRANCH_HISTORY
+#define CLEAR_BRANCH_HISTORY_VMEXIT
 #endif
 
 #else /* __ASSEMBLY__ */

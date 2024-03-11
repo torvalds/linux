@@ -439,10 +439,12 @@ The possible values in this file are:
    - System is protected by retpoline
  * - BHI: BHI_DIS_S
    - System is protected by BHI_DIS_S
- * - BHI: SW loop
+ * - BHI: SW loop; KVM SW loop
    - System is protected by software clearing sequence
  * - BHI: Syscall hardening
    - Syscalls are hardened against BHI
+ * - BHI: Syscall hardening; KVM: SW loop
+   - System is protected from userspace attacks by syscall hardening; KVM is protected by software clearing sequence
 
 Full mitigation might require a microcode update from the CPU
 vendor. When the necessary microcode is not available, the kernel will
@@ -669,7 +671,8 @@ kernel command line.
 			unconditionally disable.
 		auto
 			enable if hardware mitigation
-			control(BHI_DIS_S) is available.
+			control(BHI_DIS_S) is available, otherwise
+			enable alternate mitigation in KVM.
 
 For spectre_v2_user see Documentation/admin-guide/kernel-parameters.txt
 
