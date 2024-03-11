@@ -679,8 +679,6 @@ static void __init populate_initrd_image(char *err)
 	struct file *file;
 	loff_t pos = 0;
 
-	unpack_to_rootfs(__initramfs_start, __initramfs_size);
-
 	printk(KERN_INFO "rootfs image is not initramfs (%s); looks like an initrd\n",
 			err);
 	file = filp_open("/initrd.image", O_WRONLY | O_CREAT, 0700);

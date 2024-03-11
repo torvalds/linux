@@ -846,12 +846,6 @@ int send_sigurg(struct fown_struct *fown)
 static DEFINE_SPINLOCK(fasync_lock);
 static struct kmem_cache *fasync_cache __ro_after_init;
 
-static void fasync_free_rcu(struct rcu_head *head)
-{
-	kmem_cache_free(fasync_cache,
-			container_of(head, struct fasync_struct, fa_rcu));
-}
-
 /*
  * Remove a fasync entry. If successfully removed, return
  * positive and clear the FASYNC flag. If no entry exists,
@@ -877,7 +871,7 @@ int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 		write_unlock_irq(&fa->fa_lock);
 
 		*fp = fa->fa_next;
-		call_rcu(&fa->fa_rcu, fasync_free_rcu);
+		kfree_rcu(fa, fa_rcu);
 		filp->f_flags &= ~FASYNC;
 		result = 1;
 		break;
