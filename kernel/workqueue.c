@@ -2564,7 +2564,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 		add_timer_on(timer, cpu);
 	} else {
 		if (likely(cpu == WORK_CPU_UNBOUND))
-			add_timer(timer);
+			add_timer_global(timer);
 		else
 			add_timer_on(timer, cpu);
 	}
