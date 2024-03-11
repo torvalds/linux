@@ -198,7 +198,11 @@ impl Queue {
         // stay valid until we call the function pointer in the `work_struct`, so the access is ok.
         unsafe {
             w.__enqueue(move |work_ptr| {
-                bindings::queue_work_on(bindings::WORK_CPU_UNBOUND as _, queue_ptr, work_ptr)
+                bindings::queue_work_on(
+                    bindings::wq_misc_consts_WORK_CPU_UNBOUND as _,
+                    queue_ptr,
+                    work_ptr,
+                )
             })
         }
     }

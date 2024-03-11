@@ -77,10 +77,12 @@ wants a function to be executed asynchronously it has to set up a work
 item pointing to that function and queue that work item on a
 workqueue.
 
-Special purpose threads, called worker threads, execute the functions
-off of the queue, one after the other.  If no work is queued, the
-worker threads become idle.  These worker threads are managed in so
-called worker-pools.
+A work item can be executed in either a thread or the BH (softirq) context.
+
+For threaded workqueues, special purpose threads, called [k]workers, execute
+the functions off of the queue, one after the other. If no work is queued,
+the worker threads become idle. These worker threads are managed in
+worker-pools.
 
 The cmwq design differentiates between the user-facing workqueues that
 subsystems and drivers queue work items on and the backend mechanism
@@ -90,6 +92,12 @@ There are two worker-pools, one for normal work items and the other
 for high priority ones, for each possible CPU and some extra
 worker-pools to serve work items queued on unbound workqueues - the
 number of these backing pools is dynamic.
+
+BH workqueues use the same framework. However, as there can only be one
+concurrent execution context, there's no need to worry about concurrency.
+Each per-CPU BH worker pool contains only one pseudo worker which represents
+the BH execution context. A BH workqueue can be considered a convenience
+interface to softirq.
 
 Subsystems and drivers can create and queue work items through special
 workqueue API functions as they see fit. They can influence some
@@ -106,7 +114,7 @@ unless specifically overridden, a work item of a bound workqueue will
 be queued on the worklist of either normal or highpri worker-pool that
 is associated to the CPU the issuer is running on.
 
-For any worker pool implementation, managing the concurrency level
+For any thread pool implementation, managing the concurrency level
 (how many execution contexts are active) is an important issue.  cmwq
 tries to keep the concurrency at a minimal but sufficient level.
 Minimal to save resources and sufficient in that the system is used at
@@ -163,6 +171,17 @@ resources, scheduled and executed.
 
 ``flags``
 ---------
+
+``WQ_BH``
+  BH workqueues can be considered a convenience interface to softirq. BH
+  workqueues are always per-CPU and all BH work items are executed in the
+  queueing CPU's softirq context in the queueing order.
+
+  All BH workqueues must have 0 ``max_active`` and ``WQ_HIGHPRI`` is the
+  only allowed additional flag.
+
+  BH work items cannot sleep. All other features such as delayed queueing,
+  flushing and canceling are supported.
 
 ``WQ_UNBOUND``
   Work items queued to an unbound wq are served by the special
@@ -237,15 +256,11 @@ may queue at the same time.  Unless there is a specific need for
 throttling the number of active work items, specifying '0' is
 recommended.
 
-Some users depend on the strict execution ordering of ST wq.  The
-combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` used to
-achieve this behavior.  Work items on such wq were always queued to the
-unbound worker-pools and only one work item could be active at any given
-time thus achieving the same ordering property as ST wq.
-
-In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_workqueue()`` should
-be used to achieve system-wide ST behavior.
+Some users depend on strict execution ordering where only one work item
+is in flight at any given time and the work items are processed in
+queueing order. While the combination of ``@max_active`` of 1 and
+``WQ_UNBOUND`` used to achieve this behavior, this is no longer the
+case. Use ``alloc_ordered_queue()`` instead.
 
 
 Example Execution Scenarios

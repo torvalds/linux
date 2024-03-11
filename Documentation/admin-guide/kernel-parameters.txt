@@ -7244,6 +7244,15 @@
 			threshold repeatedly. They are likely good
 			candidates for using WQ_UNBOUND workqueues instead.
 
+	workqueue.cpu_intensive_warning_thresh=<uint>
+			If CONFIG_WQ_CPU_INTENSIVE_REPORT is set, the kernel
+			will report the work functions which violate the
+			intensive_threshold_us repeatedly. In order to prevent
+			spurious warnings, start printing only after a work
+			function has violated this threshold number of times.
+
+			The default is 4 times. 0 disables the warning.
+
 	workqueue.power_efficient
 			Per-cpu workqueues are generally preferred because
 			they show better performance thanks to cache
