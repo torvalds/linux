@@ -1645,9 +1645,14 @@ static void __init bhi_select_mitigation(void)
 	if (!IS_ENABLED(CONFIG_X86_64))
 		return;
 
+	/* Mitigate KVM by default */
+	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT);
+	pr_info("Spectre BHI mitigation: SW BHB clearing on vm exit\n");
+
 	if (bhi_mitigation == BHI_MITIGATION_AUTO)
 		return;
 
+	/* Mitigate syscalls when the mitigation is forced =on */
 	setup_force_cpu_cap(X86_FEATURE_CLEAR_BHB_LOOP);
 	pr_info("Spectre BHI mitigation: SW BHB clearing on syscall\n");
 }
@@ -2790,10 +2795,12 @@ static const char * const spectre_bhi_state(void)
 	else if  (boot_cpu_has(X86_FEATURE_CLEAR_BHB_HW))
 		return "; BHI: BHI_DIS_S";
 	else if  (boot_cpu_has(X86_FEATURE_CLEAR_BHB_LOOP))
-		return "; BHI: SW loop";
+		return "; BHI: SW loop, KVM: SW loop";
 	else if (boot_cpu_has(X86_FEATURE_RETPOLINE) &&
 		 !(x86_read_arch_cap_msr() & ARCH_CAP_RRSBA))
 		return "; BHI: Retpoline";
+	else if  (boot_cpu_has(X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT))
+		return "; BHI: Syscall hardening, KVM: SW loop";
 
 	return "; BHI: Vulnerable (Syscall hardening enabled)";
 }

@@ -5741,8 +5741,9 @@
 
 			on   - unconditionally enable.
 			off  - unconditionally disable.
-			auto - (default) enable only if hardware mitigation
-			       control(BHI_DIS_S) is available.
+			auto - (default) enable hardware mitigation
+			       (BHI_DIS_S) if available, otherwise enable
+			       alternate mitigation in KVM.
 
 	spectre_v2=	[X86] Control mitigation of Spectre variant 2
 			(indirect branch speculation) vulnerability.
