@@ -2112,7 +2112,8 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       bool disable_offloading,
 			       bool offload_ns,
-			       u32 cmd_flags);
+			       u32 cmd_flags,
+			       u8 sta_id);
 
 /* BT Coex */
 int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);
