@@ -139,6 +139,7 @@ def define_niobe():
         "drivers/soc/qcom/pmic-pon-log.ko",
         "drivers/soc/qcom/pmic_glink.ko",
         "drivers/soc/qcom/qcom_aoss.ko",
+        "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_cpucp.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
