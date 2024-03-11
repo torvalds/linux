@@ -6,7 +6,6 @@ config DRM_PANTHOR
 	depends on ARM || ARM64 || COMPILE_TEST
 	depends on !GENERIC_ATOMIC64  # for IOMMU_IO_PGTABLE_LPAE
 	depends on MMU
-	depends on PM
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DRM_EXEC
 	select DRM_GEM_SHMEM_HELPER

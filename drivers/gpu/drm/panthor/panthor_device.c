@@ -402,6 +402,7 @@ int panthor_device_mmap_io(struct panthor_device *ptdev, struct vm_area_struct *
 	return 0;
 }
 
+#ifdef CONFIG_PM
 int panthor_device_resume(struct device *dev)
 {
 	struct panthor_device *ptdev = dev_get_drvdata(dev);
@@ -546,3 +547,4 @@ err_set_active:
 	mutex_unlock(&ptdev->pm.mmio_lock);
 	return ret;
 }
+#endif
