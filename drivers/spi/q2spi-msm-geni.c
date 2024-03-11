@@ -2412,6 +2412,12 @@ static int q2spi_set_clock(struct q2spi_geni *q2spi, unsigned long clk_hz)
 
 void q2spi_geni_se_dump_regs(struct q2spi_geni *q2spi)
 {
+	mutex_lock(&q2spi->geni_resource_lock);
+	if (!q2spi->resources_on) {
+		Q2SPI_DEBUG(q2spi, "%s: Err cannot dump, resources are off!!!\n", __func__);
+		mutex_unlock(&q2spi->geni_resource_lock);
+		return;
+	}
 	Q2SPI_ERROR(q2spi, "GENI_STATUS: 0x%x\n", geni_read_reg(q2spi->base, SE_GENI_STATUS));
 	Q2SPI_ERROR(q2spi, "SPI_TRANS_CFG: 0x%x\n", geni_read_reg(q2spi->base, SE_SPI_TRANS_CFG));
 	Q2SPI_ERROR(q2spi, "SE_GENI_IOS: 0x%x\n", geni_read_reg(q2spi->base, SE_GENI_IOS));
@@ -2440,6 +2446,7 @@ void q2spi_geni_se_dump_regs(struct q2spi_geni *q2spi)
 		    geni_read_reg(q2spi->base, SE_DMA_RX_IRQ_STAT));
 	Q2SPI_ERROR(q2spi, "DMA_RX_LEN_IN: 0x%x\n", geni_read_reg(q2spi->base, SE_DMA_RX_LEN_IN));
 	Q2SPI_ERROR(q2spi, "DMA_DEBUG_REG0: 0x%x\n", geni_read_reg(q2spi->base, SE_DMA_DEBUG_REG0));
+	mutex_unlock(&q2spi->geni_resource_lock);
 }
 
 static irqreturn_t q2spi_geni_wakeup_isr(int irq, void *data)
@@ -2983,10 +2990,13 @@ void q2spi_geni_resources_off(struct q2spi_geni *q2spi)
 	struct geni_se *se = &q2spi->se;
 	int ret = 0;
 
+	mutex_lock(&q2spi->geni_resource_lock);
 	if (!q2spi->resources_on) {
 		Q2SPI_DEBUG(q2spi, "%s: Err Resources already off\n", __func__);
-		return;
+		goto exit_resource_off;
 	}
+
+	q2spi->resources_on = false;
 
 	writel(0x1, se->base + GENI_SER_M_CLK_CFG);
 	/* Set pinctrl state to sleep configuration */
@@ -3005,7 +3015,8 @@ void q2spi_geni_resources_off(struct q2spi_geni *q2spi)
 	if (ret)
 		Q2SPI_DEBUG(q2spi, "%s: Err icc disable failed, ret:%d\n", __func__, ret);
 
-	q2spi->resources_on = false;
+exit_resource_off:
+	mutex_unlock(&q2spi->geni_resource_lock);
 	Q2SPI_DEBUG(q2spi, "%s: ret:%d\n", __func__, ret);
 }
 
@@ -3020,36 +3031,39 @@ int q2spi_geni_resources_on(struct q2spi_geni *q2spi)
 	struct geni_se *se = &q2spi->se;
 	int ret = 0;
 
+	mutex_lock(&q2spi->geni_resource_lock);
 	if (q2spi->resources_on) {
 		Q2SPI_DEBUG(q2spi, "%s: Err Resources already on\n", __func__);
-		return ret;
+		goto exit_resource_on;
 	}
 
 	ret = geni_icc_enable(&q2spi->se);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s: Err icc enable failed, ret:%d\n", __func__, ret);
-		return ret;
+		goto exit_resource_on;
 	}
 
 	ret = pinctrl_select_state(q2spi->geni_pinctrl,	q2spi->geni_gpio_active);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s: Err failed to pinctrl state to active, ret:%d\n",
 			    __func__, ret);
-		return ret;
+		goto exit_resource_on;
 	}
 
 	/* Enable m_ahb, s_ahb and se clks */
 	ret = geni_se_common_clks_on(q2spi->se.clk, q2spi->m_ahb_clk, q2spi->s_ahb_clk);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s: Err set common_clk_on failed, ret:%d\n", __func__, ret);
-		return ret;
+		goto exit_resource_on;
 	}
 
-	q2spi->resources_on = true;
 	writel(q2spi->m_clk_cfg, se->base + GENI_SER_M_CLK_CFG);
-	Q2SPI_DEBUG(q2spi, "%s: ret:%d\n", __func__, ret);
+	q2spi->resources_on = true;
 
-	return 0;
+exit_resource_on:
+	mutex_unlock(&q2spi->geni_resource_lock);
+	Q2SPI_DEBUG(q2spi, "%s: ret:%d\n", __func__, ret);
+	return ret;
 }
 
 /**
@@ -3960,6 +3974,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	spin_lock_init(&q2spi->txn_lock);
 	mutex_init(&q2spi->queue_lock);
 	mutex_init(&q2spi->send_msgs_lock);
+	mutex_init(&q2spi->geni_resource_lock);
 	spin_lock_init(&q2spi->cr_queue_lock);
 
 	q2spi->kworker = kthread_create_worker(0, "kthread_q2spi");
