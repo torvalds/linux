@@ -51,6 +51,9 @@ struct intel_tlv {
 	u8 val[];
 } __packed;
 
+#define BTINTEL_IMG_BOOTLOADER		0x01	/* Bootloader image */
+#define BTINTEL_IMG_OP			0x03	/* Operational image */
+
 struct intel_version_tlv {
 	u32	cnvi_top;
 	u32	cnvr_top;

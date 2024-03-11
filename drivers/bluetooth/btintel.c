@@ -489,7 +489,7 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 	}
 
 	switch (version->img_type) {
-	case 0x01:
+	case BTINTEL_IMG_BOOTLOADER:
 		variant = "Bootloader";
 		/* It is required that every single firmware fragment is acknowledged
 		 * with a command complete event. If the boot parameters indicate
@@ -521,7 +521,7 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 			    version->min_fw_build_nn, version->min_fw_build_cw,
 			    2000 + version->min_fw_build_yy);
 		break;
-	case 0x03:
+	case BTINTEL_IMG_OP:
 		variant = "Firmware";
 		break;
 	default:
@@ -535,7 +535,7 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 	bt_dev_info(hdev, "%s timestamp %u.%u buildtype %u build %u", variant,
 		    2000 + (version->timestamp >> 8), version->timestamp & 0xff,
 		    version->build_type, version->build_num);
-	if (version->img_type == 0x03)
+	if (version->img_type == BTINTEL_IMG_OP)
 		bt_dev_info(hdev, "Firmware SHA1: 0x%8.8x", version->git_sha1);
 
 	return 0;
@@ -1172,7 +1172,7 @@ static int btintel_download_fw_tlv(struct hci_dev *hdev,
 	 * If the firmware version has changed that means it needs to be reset
 	 * to bootloader when operational so the new firmware can be loaded.
 	 */
-	if (ver->img_type == 0x03)
+	if (ver->img_type == BTINTEL_IMG_OP)
 		return -EINVAL;
 
 	/* iBT hardware variants 0x0b, 0x0c, 0x11, 0x12, 0x13, 0x14 support
@@ -2230,7 +2230,7 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 	 * It is not possible to use the Secure Boot Parameters in this
 	 * case since that command is only available in bootloader mode.
 	 */
-	if (ver->img_type == 0x03) {
+	if (ver->img_type == BTINTEL_IMG_OP) {
 		btintel_clear_flag(hdev, INTEL_BOOTLOADER);
 		btintel_check_bdaddr(hdev);
 	} else {
@@ -2600,7 +2600,7 @@ static int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 		return err;
 
 	/* check if controller is already having an operational firmware */
-	if (ver->img_type == 0x03)
+	if (ver->img_type == BTINTEL_IMG_OP)
 		goto finish;
 
 	err = btintel_boot(hdev, boot_param);
