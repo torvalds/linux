@@ -11,7 +11,7 @@ $defs:
     minimum: 0
   len-or-define:
     type: [ string, integer ]
-    pattern: ^[0-9A-Za-z_]+( - 1)?$
+    pattern: ^[0-9A-Za-z_-]+( - 1)?$
     minimum: 0
   len-or-limit:
     # literal int or limit based on fixed-width type e.g. u8-min, u16-max, etc.

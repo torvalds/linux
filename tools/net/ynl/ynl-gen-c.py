@@ -80,6 +80,8 @@ class Type(SpecAttr):
         value = self.checks.get(limit, default)
         if value is None:
             return value
+        elif value in self.family.consts:
+            return c_upper(f"{self.family['name']}-{value}")
         if not isinstance(value, int):
             value = limit_to_number(value)
         return value
