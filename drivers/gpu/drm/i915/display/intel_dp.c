@@ -6557,6 +6557,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->sync_state = intel_dp_connector_sync_state;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		intel_dp_aux_fini(intel_dp);
