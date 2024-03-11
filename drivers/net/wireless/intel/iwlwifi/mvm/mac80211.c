@@ -1437,6 +1437,7 @@ int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 		u8 ap_sta_id = mvmvif->link[link_id]->ap_sta_id;
 
 		mvmvif->csa_bcn_pending = false;
+		mvmvif->csa_blocks_tx = false;
 		mvmsta = iwl_mvm_sta_from_staid_protected(mvm, ap_sta_id);
 
 		if (WARN_ON(!mvmsta)) {
@@ -5426,6 +5427,7 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->csa_failed = false;
+	mvmvif->csa_blocks_tx = false;
 
 	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
@@ -5464,6 +5466,8 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		break;
 	case NL80211_IFTYPE_STATION:
+		mvmvif->csa_blocks_tx = chsw->block_tx;
+
 		/*
 		 * In the new flow FW is in charge of timing the switch so there
 		 * is no need for all of this
@@ -5628,8 +5632,8 @@ static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
 void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       u32 queues, bool drop)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif;
 	struct iwl_mvm_sta *mvmsta;
 	struct ieee80211_sta *sta;
 	bool ap_sta_done = false;
@@ -5641,11 +5645,22 @@ void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return;
 	}
 
+	if (!drop && hweight16(vif->active_links) <= 1) {
+		int link_id = vif->active_links ? __ffs(vif->active_links) : 0;
+		struct ieee80211_bss_conf *link_conf;
+
+		link_conf = wiphy_dereference(hw->wiphy,
+					      vif->link_conf[link_id]);
+		if (WARN_ON(!link_conf))
+			return;
+		if (link_conf->csa_active && mvmvif->csa_blocks_tx)
+			drop = true;
+	}
+
 	/* Make sure we're done with the deferred traffic before flushing */
 	flush_work(&mvm->add_stream_wk);
 
 	mutex_lock(&mvm->mutex);
-	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	/* flush the AP-station and all TDLS peers */
 	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
