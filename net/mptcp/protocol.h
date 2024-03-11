@@ -850,7 +850,7 @@ static inline void __mptcp_sync_sndbuf(struct sock *sk)
 	if (sk->sk_userlocks & SOCK_SNDBUF_LOCK)
 		return;
 
-	new_sndbuf = sock_net(sk)->ipv4.sysctl_tcp_wmem[0];
+	new_sndbuf = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_wmem[0]);
 	mptcp_for_each_subflow(mptcp_sk(sk), subflow) {
 		ssk_sndbuf =  READ_ONCE(mptcp_subflow_tcp_sock(subflow)->sk_sndbuf);
 
