@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -16,6 +16,7 @@
 #include <linux/coresight.h>
 #include <linux/regulator/consumer.h>
 #include <linux/qcom_scm.h>
+#include <linux/suspend.h>
 
 #include "coresight-priv.h"
 #include "coresight-common.h"
@@ -4308,6 +4309,38 @@ static void __exit tpdm_remove(struct amba_device *adev)
 	coresight_unregister(drvdata->csdev);
 }
 
+#ifdef CONFIG_DEEPSLEEP
+static int tpdm_suspend(struct device *dev)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (mem_sleep_current == PM_SUSPEND_MEM)
+		coresight_disable(drvdata->csdev);
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_HIBERNATION
+static int tpdm_freeze(struct device *dev)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	coresight_disable(drvdata->csdev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops tpdm_dev_pm_ops = {
+#ifdef CONFIG_DEEPSLEEP
+	.suspend = tpdm_suspend,
+#endif
+#ifdef CONFIG_HIBERNATION
+	.freeze  = tpdm_freeze,
+#endif
+};
+
 static struct amba_id tpdm_ids[] = {
 	{
 		.id     = 0x0003b968,
@@ -4323,6 +4356,7 @@ static struct amba_driver tpdm_driver = {
 		.name   = "coresight-tpdm",
 		.owner	= THIS_MODULE,
 		.suppress_bind_attrs = true,
+		.pm	= &tpdm_dev_pm_ops,
 	},
 	.probe          = tpdm_probe,
 	.remove		= tpdm_remove,
