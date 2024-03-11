@@ -109,6 +109,7 @@ def define_pitti():
         "drivers/scsi/sg.ko",
         "drivers/slimbus/slim-qcom-ngd-ctrl.ko",
         "drivers/slimbus/slimbus.ko",
+        "drivers/soc/qcom/adsp_sleepmon.ko",
         "drivers/soc/qcom/altmode-glink.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/charger-ulog-glink.ko",
