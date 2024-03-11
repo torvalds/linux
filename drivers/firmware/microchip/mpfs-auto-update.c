@@ -167,7 +167,7 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	u32 *response_msg;
 	int ret;
 
-	response_msg = devm_kzalloc(priv->dev, AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(response_msg),
+	response_msg = devm_kzalloc(priv->dev, AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
 				    GFP_KERNEL);
 	if (!response_msg)
 		return -ENOMEM;

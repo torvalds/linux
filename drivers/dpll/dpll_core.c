@@ -42,6 +42,11 @@ struct dpll_pin_registration {
 	void *priv;
 };
 
+struct dpll_pin *netdev_dpll_pin(const struct net_device *dev)
+{
+	return rcu_dereference_rtnl(dev->dpll_pin);
+}
+
 struct dpll_device *dpll_device_get_by_id(int id)
 {
 	if (xa_get_mark(&dpll_device_xa, id, DPLL_REGISTERED))
@@ -564,7 +569,7 @@ void dpll_pin_put(struct dpll_pin *pin)
 		xa_destroy(&pin->parent_refs);
 		xa_erase(&dpll_pin_xa, pin->id);
 		dpll_pin_prop_free(&pin->prop);
-		kfree(pin);
+		kfree_rcu(pin, rcu);
 	}
 	mutex_unlock(&dpll_lock);
 }

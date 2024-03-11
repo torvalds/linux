@@ -29,6 +29,7 @@
 #include <linux/backing-dev.h>
 #include <linux/string.h>
 #include <linux/msg.h>
+#include <linux/overflow.h>
 #include <net/flow.h>
 
 /* How many LSMs were built into the kernel? */
@@ -4015,6 +4016,7 @@ int security_setselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 	struct security_hook_list *hp;
 	struct lsm_ctx *lctx;
 	int rc = LSM_RET_DEFAULT(setselfattr);
+	u64 required_len;
 
 	if (flags)
 		return -EINVAL;
@@ -4027,8 +4029,9 @@ int security_setselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 	if (IS_ERR(lctx))
 		return PTR_ERR(lctx);
 
-	if (size < lctx->len || size < lctx->ctx_len + sizeof(*lctx) ||
-	    lctx->len < lctx->ctx_len + sizeof(*lctx)) {
+	if (size < lctx->len ||
+	    check_add_overflow(sizeof(*lctx), lctx->ctx_len, &required_len) ||
+	    lctx->len < required_len) {
 		rc = -EINVAL;
 		goto free_out;
 	}

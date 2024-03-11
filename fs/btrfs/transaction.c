@@ -564,56 +564,22 @@ static int btrfs_reserve_trans_metadata(struct btrfs_fs_info *fs_info,
 					u64 num_bytes,
 					u64 *delayed_refs_bytes)
 {
-	struct btrfs_block_rsv *delayed_refs_rsv = &fs_info->delayed_refs_rsv;
 	struct btrfs_space_info *si = fs_info->trans_block_rsv.space_info;
-	u64 extra_delayed_refs_bytes = 0;
-	u64 bytes;
+	u64 bytes = num_bytes + *delayed_refs_bytes;
 	int ret;
-
-	/*
-	 * If there's a gap between the size of the delayed refs reserve and
-	 * its reserved space, than some tasks have added delayed refs or bumped
-	 * its size otherwise (due to block group creation or removal, or block
-	 * group item update). Also try to allocate that gap in order to prevent
-	 * using (and possibly abusing) the global reserve when committing the
-	 * transaction.
-	 */
-	if (flush == BTRFS_RESERVE_FLUSH_ALL &&
-	    !btrfs_block_rsv_full(delayed_refs_rsv)) {
-		spin_lock(&delayed_refs_rsv->lock);
-		if (delayed_refs_rsv->size > delayed_refs_rsv->reserved)
-			extra_delayed_refs_bytes = delayed_refs_rsv->size -
-				delayed_refs_rsv->reserved;
-		spin_unlock(&delayed_refs_rsv->lock);
-	}
-
-	bytes = num_bytes + *delayed_refs_bytes + extra_delayed_refs_bytes;
 
 	/*
 	 * We want to reserve all the bytes we may need all at once, so we only
 	 * do 1 enospc flushing cycle per transaction start.
 	 */
 	ret = btrfs_reserve_metadata_bytes(fs_info, si, bytes, flush);
-	if (ret == 0) {
-		if (extra_delayed_refs_bytes > 0)
-			btrfs_migrate_to_delayed_refs_rsv(fs_info,
-							  extra_delayed_refs_bytes);
-		return 0;
-	}
-
-	if (extra_delayed_refs_bytes > 0) {
-		bytes -= extra_delayed_refs_bytes;
-		ret = btrfs_reserve_metadata_bytes(fs_info, si, bytes, flush);
-		if (ret == 0)
-			return 0;
-	}
 
 	/*
 	 * If we are an emergency flush, which can steal from the global block
 	 * reserve, then attempt to not reserve space for the delayed refs, as
 	 * we will consume space for them from the global block reserve.
 	 */
-	if (flush == BTRFS_RESERVE_FLUSH_ALL_STEAL) {
+	if (ret && flush == BTRFS_RESERVE_FLUSH_ALL_STEAL) {
 		bytes -= *delayed_refs_bytes;
 		*delayed_refs_bytes = 0;
 		ret = btrfs_reserve_metadata_bytes(fs_info, si, bytes, flush);
@@ -1868,7 +1834,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	key.offset = (u64)-1;
-	pending->snap = btrfs_get_new_fs_root(fs_info, objectid, pending->anon_dev);
+	pending->snap = btrfs_get_new_fs_root(fs_info, objectid, &pending->anon_dev);
 	if (IS_ERR(pending->snap)) {
 		ret = PTR_ERR(pending->snap);
 		pending->snap = NULL;

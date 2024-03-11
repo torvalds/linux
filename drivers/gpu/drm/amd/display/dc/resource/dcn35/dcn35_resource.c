@@ -780,7 +780,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = false,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
-	.ips2_eval_delay_us = 1650,
+	.ips2_eval_delay_us = 2000,
 	.ips2_entry_delay_us = 800,
 	.static_screen_wait_frames = 2,
 };

@@ -8,28 +8,15 @@
 #include <linux/pagewalk.h>
 #include <linux/types.h>
 
-struct xe_ptw_dir;
-
 /**
  * struct xe_ptw - base class for driver pagetable subclassing.
- * @dir: Pointer to an array of children if any.
+ * @children: Pointer to an array of children if any.
  *
  * Drivers could subclass this, and if it's a page-directory, typically
- * embed the xe_ptw_dir::entries array in the same allocation.
+ * embed an array of xe_ptw pointers.
  */
 struct xe_ptw {
-	struct xe_ptw_dir *dir;
-};
-
-/**
- * struct xe_ptw_dir - page directory structure
- * @entries: Array holding page directory children.
- *
- * It is the responsibility of the user to ensure @entries is
- * correctly sized.
- */
-struct xe_ptw_dir {
-	struct xe_ptw *entries[0];
+	struct xe_ptw **children;
 };
 
 /**

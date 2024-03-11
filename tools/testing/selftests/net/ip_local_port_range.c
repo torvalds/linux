@@ -16,6 +16,10 @@
 #define IP_LOCAL_PORT_RANGE 51
 #endif
 
+#ifndef IPPROTO_MPTCP
+#define IPPROTO_MPTCP 262
+#endif
+
 static __u32 pack_port_range(__u16 lo, __u16 hi)
 {
 	return (hi << 16) | (lo << 0);

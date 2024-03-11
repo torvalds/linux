@@ -284,8 +284,16 @@ void unix_gc(void)
 	 * which are creating the cycle(s).
 	 */
 	skb_queue_head_init(&hitlist);
-	list_for_each_entry(u, &gc_candidates, link)
+	list_for_each_entry(u, &gc_candidates, link) {
 		scan_children(&u->sk, inc_inflight, &hitlist);
+
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+		if (u->oob_skb) {
+			kfree_skb(u->oob_skb);
+			u->oob_skb = NULL;
+		}
+#endif
+	}
 
 	/* not_cycle_list contains those sockets which do not make up a
 	 * cycle.  Restore these to the inflight list.
@@ -313,17 +321,6 @@ void unix_gc(void)
 
 	/* Here we are. Hitlist is filled. Die. */
 	__skb_queue_purge(&hitlist);
-
-#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
-	list_for_each_entry_safe(u, next, &gc_candidates, link) {
-		struct sk_buff *skb = u->oob_skb;
-
-		if (skb) {
-			u->oob_skb = NULL;
-			kfree_skb(skb);
-		}
-	}
-#endif
 
 	spin_lock(&unix_gc_lock);
 

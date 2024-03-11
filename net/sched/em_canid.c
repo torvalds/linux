@@ -222,6 +222,7 @@ static void __exit exit_em_canid(void)
 	tcf_em_unregister(&em_canid_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier to match CAN IDs embedded in skb CAN frames");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_canid);

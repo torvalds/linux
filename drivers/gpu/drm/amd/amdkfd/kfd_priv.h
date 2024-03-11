@@ -532,6 +532,7 @@ struct queue_properties {
 enum mqd_update_flag {
 	UPDATE_FLAG_DBG_WA_ENABLE = 1,
 	UPDATE_FLAG_DBG_WA_DISABLE = 2,
+	UPDATE_FLAG_IS_GWS = 4, /* quirk for gfx9 IP */
 };
 
 struct mqd_update_info {

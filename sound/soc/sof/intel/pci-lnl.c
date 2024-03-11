@@ -36,7 +36,7 @@ static const struct sof_dev_desc lnl_desc = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/lnl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-tplg",
 	},
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-lnl.ri",

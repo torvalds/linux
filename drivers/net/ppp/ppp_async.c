@@ -87,6 +87,7 @@ struct asyncppp {
 static int flag_time = HZ;
 module_param(flag_time, int, 0);
 MODULE_PARM_DESC(flag_time, "ppp_async: interval between flagged packets (in clock ticks)");
+MODULE_DESCRIPTION("PPP async serial channel module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_PPP);
 
