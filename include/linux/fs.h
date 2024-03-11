@@ -1264,8 +1264,22 @@ struct super_block {
 	struct fsnotify_mark_connector __rcu	*s_fsnotify_marks;
 #endif
 
+	/*
+	 * q: why are s_id and s_sysfs_name not the same? both are human
+	 * readable strings that identify the filesystem
+	 * a: s_id is allowed to change at runtime; it's used in log messages,
+	 * and we want to when a device starts out as single device (s_id is dev
+	 * name) but then a device is hot added and we have to switch to
+	 * identifying it by UUID
+	 * but s_sysfs_name is a handle for programmatic access, and can't
+	 * change at runtime
+	 */
 	char			s_id[32];	/* Informational name */
 	uuid_t			s_uuid;		/* UUID */
+	u8			s_uuid_len;	/* Default 16, possibly smaller for weird filesystems */
+
+	/* if set, fs shows up under sysfs at /sys/fs/$FSTYP/s_sysfs_name */
+	char			s_sysfs_name[UUID_STRING_LEN + 1];
 
 	unsigned int		s_max_links;
 
@@ -2537,6 +2551,44 @@ int thaw_super(struct super_block *super, enum freeze_holder who);
 extern __printf(2, 3)
 int super_setup_bdi_name(struct super_block *sb, char *fmt, ...);
 extern int super_setup_bdi(struct super_block *sb);
+
+static inline void super_set_uuid(struct super_block *sb, const u8 *uuid, unsigned len)
+{
+	if (WARN_ON(len > sizeof(sb->s_uuid)))
+		len = sizeof(sb->s_uuid);
+	sb->s_uuid_len = len;
+	memcpy(&sb->s_uuid, uuid, len);
+}
+
+/* set sb sysfs name based on sb->s_bdev */
+static inline void super_set_sysfs_name_bdev(struct super_block *sb)
+{
+	snprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), "%pg", sb->s_bdev);
+}
+
+/* set sb sysfs name based on sb->s_uuid */
+static inline void super_set_sysfs_name_uuid(struct super_block *sb)
+{
+	WARN_ON(sb->s_uuid_len != sizeof(sb->s_uuid));
+	snprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), "%pU", sb->s_uuid.b);
+}
+
+/* set sb sysfs name based on sb->s_id */
+static inline void super_set_sysfs_name_id(struct super_block *sb)
+{
+	strscpy(sb->s_sysfs_name, sb->s_id, sizeof(sb->s_sysfs_name));
+}
+
+/* try to use something standard before you use this */
+__printf(2, 3)
+static inline void super_set_sysfs_name_generic(struct super_block *sb, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), fmt, args);
+	va_end(args);
+}
 
 extern int current_umask(void);
 
