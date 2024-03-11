@@ -500,20 +500,20 @@ $(fadvise_advice_array): $(linux_uapi_dir)/in.h $(fadvise_advice_tbl)
 fsmount_arrays := $(beauty_outdir)/fsmount_arrays.c
 fsmount_tbls := $(srctree)/tools/perf/trace/beauty/fsmount.sh
 
-$(fsmount_arrays): $(linux_uapi_dir)/mount.h $(fsmount_tbls)
-	$(Q)$(SHELL) '$(fsmount_tbls)' $(linux_uapi_dir) > $@
+$(fsmount_arrays): $(beauty_uapi_linux_dir)/mount.h $(fsmount_tbls)
+	$(Q)$(SHELL) '$(fsmount_tbls)' $(beauty_uapi_linux_dir) > $@
 
 fspick_arrays := $(beauty_outdir)/fspick_arrays.c
 fspick_tbls := $(srctree)/tools/perf/trace/beauty/fspick.sh
 
-$(fspick_arrays): $(linux_uapi_dir)/mount.h $(fspick_tbls)
-	$(Q)$(SHELL) '$(fspick_tbls)' $(linux_uapi_dir) > $@
+$(fspick_arrays): $(beauty_uapi_linux_dir)/mount.h $(fspick_tbls)
+	$(Q)$(SHELL) '$(fspick_tbls)' $(beauty_uapi_linux_dir) > $@
 
 fsconfig_arrays := $(beauty_outdir)/fsconfig_arrays.c
 fsconfig_tbls := $(srctree)/tools/perf/trace/beauty/fsconfig.sh
 
-$(fsconfig_arrays): $(linux_uapi_dir)/mount.h $(fsconfig_tbls)
-	$(Q)$(SHELL) '$(fsconfig_tbls)' $(linux_uapi_dir) > $@
+$(fsconfig_arrays): $(beauty_uapi_linux_dir)/mount.h $(fsconfig_tbls)
+	$(Q)$(SHELL) '$(fsconfig_tbls)' $(beauty_uapi_linux_dir) > $@
 
 pkey_alloc_access_rights_array := $(beauty_outdir)/pkey_alloc_access_rights_array.c
 asm_generic_hdr_dir := $(srctree)/tools/include/uapi/asm-generic/
@@ -598,15 +598,14 @@ $(mremap_flags_array): $(linux_uapi_dir)/mman.h $(mremap_flags_tbl)
 mount_flags_array := $(beauty_outdir)/mount_flags_array.c
 mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 
-$(mount_flags_array): $(linux_uapi_dir)/mount.h $(mount_flags_tbl)
-	$(Q)$(SHELL) '$(mount_flags_tbl)' $(linux_uapi_dir) > $@
+$(mount_flags_array): $(beauty_uapi_linux_dir)/mount.h $(mount_flags_tbl)
+	$(Q)$(SHELL) '$(mount_flags_tbl)' $(beauty_uapi_linux_dir) > $@
 
 move_mount_flags_array := $(beauty_outdir)/move_mount_flags_array.c
 move_mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/move_mount_flags.sh
 
-$(move_mount_flags_array): $(linux_uapi_dir)/mount.h $(move_mount_flags_tbl)
-	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(linux_uapi_dir) > $@
-
+$(move_mount_flags_array): $(beauty_uapi_linux_dir)/mount.h $(move_mount_flags_tbl)
+	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(beauty_uapi_linux_dir) > $@
 
 mmap_prot_array := $(beauty_outdir)/mmap_prot_array.c
 mmap_prot_tbl := $(srctree)/tools/perf/trace/beauty/mmap_prot.sh

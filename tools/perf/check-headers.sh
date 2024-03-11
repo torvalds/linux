@@ -15,7 +15,6 @@ FILES=(
   "include/uapi/linux/kcmp.h"
   "include/uapi/linux/kvm.h"
   "include/uapi/linux/in.h"
-  "include/uapi/linux/mount.h"
   "include/uapi/linux/openat2.h"
   "include/uapi/linux/perf_event.h"
   "include/uapi/linux/prctl.h"
@@ -98,6 +97,7 @@ declare -a BEAUTY_FILES
 BEAUTY_FILES=(
   "include/linux/socket.h"
   "include/uapi/linux/fs.h"
+  "include/uapi/linux/mount.h"
 )
 
 declare -a FAILURES
