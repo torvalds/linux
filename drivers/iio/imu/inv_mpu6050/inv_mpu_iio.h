@@ -305,6 +305,7 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_PWR_MGMT_1          0x6B
 #define INV_MPU6050_BIT_H_RESET             0x80
 #define INV_MPU6050_BIT_SLEEP               0x40
+#define INV_MPU6050_BIT_CYCLE               0x20
 #define INV_MPU6050_BIT_TEMP_DIS            0x08
 #define INV_MPU6050_BIT_CLK_MASK            0x7
 
@@ -336,6 +337,7 @@ struct inv_mpu6050_state {
 /* mpu6500 registers */
 #define INV_MPU6500_REG_ACCEL_CONFIG_2      0x1D
 #define INV_ICM20689_BITS_FIFO_SIZE_MAX     0xC0
+#define INV_MPU6500_REG_LP_ODR              0x1E
 #define INV_MPU6500_REG_WOM_THRESHOLD       0x1F
 #define INV_MPU6500_REG_ACCEL_INTEL_CTRL    0x69
 #define INV_MPU6500_BIT_ACCEL_INTEL_EN      BIT(7)
@@ -450,6 +452,18 @@ enum inv_mpu6050_filter_e {
 	INV_MPU6050_FILTER_5HZ,
 	INV_MPU6050_FILTER_NOLPF,
 	NUM_MPU6050_FILTER
+};
+
+enum inv_mpu6050_lposc_e {
+	INV_MPU6050_LPOSC_4HZ = 4,
+	INV_MPU6050_LPOSC_8HZ,
+	INV_MPU6050_LPOSC_16HZ,
+	INV_MPU6050_LPOSC_31HZ,
+	INV_MPU6050_LPOSC_62HZ,
+	INV_MPU6050_LPOSC_125HZ,
+	INV_MPU6050_LPOSC_250HZ,
+	INV_MPU6050_LPOSC_500HZ,
+	NUM_MPU6050_LPOSC,
 };
 
 /* IIO attribute address */

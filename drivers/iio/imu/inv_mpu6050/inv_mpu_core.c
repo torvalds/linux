@@ -289,7 +289,7 @@ static const struct inv_mpu6050_hw hw_info[] = {
 };
 
 static int inv_mpu6050_pwr_mgmt_1_write(struct inv_mpu6050_state *st, bool sleep,
-					int clock, int temp_dis)
+					bool cycle, int clock, int temp_dis)
 {
 	u8 val;
 
@@ -303,6 +303,8 @@ static int inv_mpu6050_pwr_mgmt_1_write(struct inv_mpu6050_state *st, bool sleep
 		val |= INV_MPU6050_BIT_TEMP_DIS;
 	if (sleep)
 		val |= INV_MPU6050_BIT_SLEEP;
+	if (cycle)
+		val |= INV_MPU6050_BIT_CYCLE;
 
 	dev_dbg(regmap_get_device(st->map), "pwr_mgmt_1: 0x%x\n", val);
 	return regmap_write(st->map, st->reg->pwr_mgmt_1, val);
@@ -318,7 +320,7 @@ static int inv_mpu6050_clock_switch(struct inv_mpu6050_state *st,
 	case INV_MPU6000:
 	case INV_MPU9150:
 		/* old chips: switch clock manually */
-		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, clock, -1);
+		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, false, clock, -1);
 		if (ret)
 			return ret;
 		st->chip_config.clk = clock;
@@ -360,7 +362,7 @@ int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en,
 
 	/* turn on/off temperature sensor */
 	if (mask & INV_MPU6050_SENSOR_TEMP) {
-		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, -1, !en);
+		ret = inv_mpu6050_pwr_mgmt_1_write(st, false, false, -1, !en);
 		if (ret)
 			return ret;
 		st->chip_config.temp_en = en;
@@ -467,7 +469,7 @@ static int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st,
 {
 	int result;
 
-	result = inv_mpu6050_pwr_mgmt_1_write(st, !power_on, -1, -1);
+	result = inv_mpu6050_pwr_mgmt_1_write(st, !power_on, false, -1, -1);
 	if (result)
 		return result;
 
@@ -497,22 +499,9 @@ static int inv_mpu6050_set_gyro_fsr(struct inv_mpu6050_state *st,
 	return regmap_write(st->map, st->reg->gyro_config, data);
 }
 
-/*
- *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
- *
- *  MPU60xx/MPU9150 use only 1 register for accelerometer + gyroscope
- *  MPU6500 and above have a dedicated register for accelerometer
- */
-static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
-				    enum inv_mpu6050_filter_e val)
+static int inv_mpu6050_set_accel_lpf_regs(struct inv_mpu6050_state *st,
+					  enum inv_mpu6050_filter_e val)
 {
-	int result;
-
-	result = regmap_write(st->map, st->reg->lpf, val);
-	if (result)
-		return result;
-
-	/* set accel lpf */
 	switch (st->chip_type) {
 	case INV_MPU6050:
 	case INV_MPU6000:
@@ -529,6 +518,25 @@ static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
 	}
 
 	return regmap_write(st->map, st->reg->accel_lpf, val);
+}
+
+/*
+ *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
+ *
+ *  MPU60xx/MPU9150 use only 1 register for accelerometer + gyroscope
+ *  MPU6500 and above have a dedicated register for accelerometer
+ */
+static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
+				    enum inv_mpu6050_filter_e val)
+{
+	int result;
+
+	result = regmap_write(st->map, st->reg->lpf, val);
+	if (result)
+		return result;
+
+	/* set accel lpf */
+	return inv_mpu6050_set_accel_lpf_regs(st, val);
 }
 
 /*
@@ -1000,6 +1008,84 @@ static int inv_mpu6050_set_wom_threshold(struct inv_mpu6050_state *st, u64 value
 	st->chip_config.roc_threshold = value;
 
 	return 0;
+}
+
+static int inv_mpu6050_set_lp_odr(struct inv_mpu6050_state *st, unsigned int freq_div,
+				  unsigned int *lp_div)
+{
+	static const unsigned int freq_dividers[] = {2, 4, 8, 16, 32, 64, 128, 256};
+	static const unsigned int reg_values[] = {
+		INV_MPU6050_LPOSC_500HZ, INV_MPU6050_LPOSC_250HZ,
+		INV_MPU6050_LPOSC_125HZ, INV_MPU6050_LPOSC_62HZ,
+		INV_MPU6050_LPOSC_31HZ, INV_MPU6050_LPOSC_16HZ,
+		INV_MPU6050_LPOSC_8HZ, INV_MPU6050_LPOSC_4HZ,
+	};
+	unsigned int val, i;
+
+	switch (st->chip_type) {
+	case INV_ICM20609:
+	case INV_ICM20689:
+	case INV_ICM20600:
+	case INV_ICM20602:
+	case INV_ICM20690:
+		/* nothing to do */
+		*lp_div = INV_MPU6050_FREQ_DIVIDER(st);
+		return 0;
+	default:
+		break;
+	}
+
+	/* found the nearest superior frequency divider */
+	i = ARRAY_SIZE(reg_values) - 1;
+	val = reg_values[i];
+	*lp_div = freq_dividers[i];
+	for (i = 0; i < ARRAY_SIZE(freq_dividers); ++i) {
+		if (freq_div <= freq_dividers[i]) {
+			val = reg_values[i];
+			*lp_div = freq_dividers[i];
+			break;
+		}
+	}
+
+	dev_dbg(regmap_get_device(st->map), "lp_odr: 0x%x\n", val);
+	return regmap_write(st->map, INV_MPU6500_REG_LP_ODR, val);
+}
+
+static int inv_mpu6050_set_wom_lp(struct inv_mpu6050_state *st, bool on)
+{
+	unsigned int lp_div;
+	int result;
+
+	if (on) {
+		/* set low power ODR */
+		result = inv_mpu6050_set_lp_odr(st, INV_MPU6050_FREQ_DIVIDER(st), &lp_div);
+		if (result)
+			return result;
+		/* disable accel low pass filter */
+		result = inv_mpu6050_set_accel_lpf_regs(st, INV_MPU6050_FILTER_NOLPF);
+		if (result)
+			return result;
+		/* update wom threshold with new low-power frequency divider */
+		result = inv_mpu6050_set_wom_threshold(st, st->chip_config.roc_threshold, lp_div);
+		if (result)
+			return result;
+		/* set cycle mode */
+		result = inv_mpu6050_pwr_mgmt_1_write(st, false, true, -1, -1);
+	} else {
+		/* disable cycle mode */
+		result = inv_mpu6050_pwr_mgmt_1_write(st, false, false, -1, -1);
+		if (result)
+			return result;
+		/* restore wom threshold */
+		result = inv_mpu6050_set_wom_threshold(st, st->chip_config.roc_threshold,
+						       INV_MPU6050_FREQ_DIVIDER(st));
+		if (result)
+			return result;
+		/* restore accel low pass filter */
+		result = inv_mpu6050_set_accel_lpf_regs(st, st->chip_config.lpf);
+	}
+
+	return result;
 }
 
 static int inv_mpu6050_enable_wom(struct inv_mpu6050_state *st, bool en)
@@ -1836,6 +1922,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 			irq_type);
 		return -EINVAL;
 	}
+	device_set_wakeup_capable(dev, true);
 
 	st->vdd_supply = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(st->vdd_supply))
@@ -2001,16 +2088,27 @@ static int inv_mpu_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	bool wakeup;
 	int result;
 
-	mutex_lock(&st->lock);
-	result = inv_mpu_core_enable_regulator_vddio(st);
-	if (result)
-		goto out_unlock;
+	guard(mutex)(&st->lock);
 
-	result = inv_mpu6050_set_power_itg(st, true);
-	if (result)
-		goto out_unlock;
+	wakeup = device_may_wakeup(dev) && st->chip_config.wom_en;
+
+	if (wakeup) {
+		enable_irq(st->irq);
+		disable_irq_wake(st->irq);
+		result = inv_mpu6050_set_wom_lp(st, false);
+		if (result)
+			return result;
+	} else {
+		result = inv_mpu_core_enable_regulator_vddio(st);
+		if (result)
+			return result;
+		result = inv_mpu6050_set_power_itg(st, true);
+		if (result)
+			return result;
+	}
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
@@ -2018,19 +2116,16 @@ static int inv_mpu_resume(struct device *dev)
 
 	result = inv_mpu6050_switch_engine(st, true, st->suspended_sensors);
 	if (result)
-		goto out_unlock;
+		return result;
 
-	if (st->chip_config.wom_en) {
+	if (st->chip_config.wom_en && !wakeup) {
 		result = inv_mpu6050_set_wom_int(st, true);
 		if (result)
-			goto out_unlock;
+			return result;
 	}
 
 	if (iio_buffer_enabled(indio_dev))
 		result = inv_mpu6050_prepare_fifo(st, true);
-
-out_unlock:
-	mutex_unlock(&st->lock);
 
 	return result;
 }
@@ -2039,29 +2134,30 @@ static int inv_mpu_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	bool wakeup;
 	int result;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	st->suspended_sensors = 0;
-	if (pm_runtime_suspended(dev)) {
-		result = 0;
-		goto out_unlock;
-	}
+	if (pm_runtime_suspended(dev))
+		return 0;
 
 	if (iio_buffer_enabled(indio_dev)) {
 		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
-			goto out_unlock;
+			return result;
 	}
 
-	if (st->chip_config.wom_en) {
+	wakeup = device_may_wakeup(dev) && st->chip_config.wom_en;
+
+	if (st->chip_config.wom_en && !wakeup) {
 		result = inv_mpu6050_set_wom_int(st, false);
 		if (result)
-			goto out_unlock;
+			return result;
 	}
 
-	if (st->chip_config.accl_en)
+	if (st->chip_config.accl_en && !wakeup)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_ACCL;
 	if (st->chip_config.gyro_en)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_GYRO;
@@ -2069,21 +2165,26 @@ static int inv_mpu_suspend(struct device *dev)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_TEMP;
 	if (st->chip_config.magn_en)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_MAGN;
-	if (st->chip_config.wom_en)
+	if (st->chip_config.wom_en && !wakeup)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_WOM;
 	result = inv_mpu6050_switch_engine(st, false, st->suspended_sensors);
 	if (result)
-		goto out_unlock;
+		return result;
 
-	result = inv_mpu6050_set_power_itg(st, false);
-	if (result)
-		goto out_unlock;
+	if (wakeup) {
+		result = inv_mpu6050_set_wom_lp(st, true);
+		if (result)
+			return result;
+		enable_irq_wake(st->irq);
+		disable_irq(st->irq);
+	} else {
+		result = inv_mpu6050_set_power_itg(st, false);
+		if (result)
+			return result;
+		inv_mpu_core_disable_regulator_vddio(st);
+	}
 
-	inv_mpu_core_disable_regulator_vddio(st);
-out_unlock:
-	mutex_unlock(&st->lock);
-
-	return result;
+	return 0;
 }
 
 static int inv_mpu_runtime_suspend(struct device *dev)
