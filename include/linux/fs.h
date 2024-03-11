@@ -1237,8 +1237,8 @@ struct super_block {
 #endif
 	struct hlist_bl_head	s_roots;	/* alternate root dentries for NFS */
 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
-	struct block_device	*s_bdev;
-	struct bdev_handle	*s_bdev_handle;
+	struct block_device	*s_bdev;	/* can go away once we use an accessor for @s_bdev_file */
+	struct file		*s_bdev_file;
 	struct backing_dev_info *s_bdi;
 	struct mtd_info		*s_mtd;
 	struct hlist_node	s_instances;

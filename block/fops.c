@@ -572,18 +572,17 @@ static int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
 blk_mode_t file_to_blk_mode(struct file *file)
 {
 	blk_mode_t mode = 0;
-	struct bdev_handle *handle = file->private_data;
 
 	if (file->f_mode & FMODE_READ)
 		mode |= BLK_OPEN_READ;
 	if (file->f_mode & FMODE_WRITE)
 		mode |= BLK_OPEN_WRITE;
 	/*
-	 * do_dentry_open() clears O_EXCL from f_flags, use handle->mode to
-	 * determine whether the open was exclusive for already open files.
+	 * do_dentry_open() clears O_EXCL from f_flags, use file->private_data
+	 * to determine whether the open was exclusive for already open files.
 	 */
-	if (handle)
-		mode |= handle->mode & BLK_OPEN_EXCL;
+	if (file->private_data)
+		mode |= BLK_OPEN_EXCL;
 	else if (file->f_flags & O_EXCL)
 		mode |= BLK_OPEN_EXCL;
 	if (file->f_flags & O_NDELAY)
@@ -602,36 +601,31 @@ blk_mode_t file_to_blk_mode(struct file *file)
 
 static int blkdev_open(struct inode *inode, struct file *filp)
 {
-	struct bdev_handle *handle;
+	struct block_device *bdev;
 	blk_mode_t mode;
-
-	/*
-	 * Preserve backwards compatibility and allow large file access
-	 * even if userspace doesn't ask for it explicitly. Some mkfs
-	 * binary needs it. We might want to drop this workaround
-	 * during an unstable branch.
-	 */
-	filp->f_flags |= O_LARGEFILE;
-	filp->f_mode |= FMODE_BUF_RASYNC | FMODE_CAN_ODIRECT;
+	int ret;
 
 	mode = file_to_blk_mode(filp);
-	handle = bdev_open_by_dev(inode->i_rdev, mode,
-			mode & BLK_OPEN_EXCL ? filp : NULL, NULL);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
+	/* Use the file as the holder. */
+	if (mode & BLK_OPEN_EXCL)
+		filp->private_data = filp;
+	ret = bdev_permission(inode->i_rdev, mode, filp->private_data);
+	if (ret)
+		return ret;
 
-	if (bdev_nowait(handle->bdev))
-		filp->f_mode |= FMODE_NOWAIT;
+	bdev = blkdev_get_no_open(inode->i_rdev);
+	if (!bdev)
+		return -ENXIO;
 
-	filp->f_mapping = handle->bdev->bd_inode->i_mapping;
-	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
-	filp->private_data = handle;
-	return 0;
+	ret = bdev_open(bdev, mode, filp->private_data, NULL, filp);
+	if (ret)
+		blkdev_put_no_open(bdev);
+	return ret;
 }
 
 static int blkdev_release(struct inode *inode, struct file *filp)
 {
-	bdev_release(filp->private_data);
+	bdev_release(filp);
 	return 0;
 }
 

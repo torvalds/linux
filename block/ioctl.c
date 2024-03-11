@@ -469,7 +469,7 @@ static int blkdev_bszset(struct block_device *bdev, blk_mode_t mode,
 		int __user *argp)
 {
 	int ret, n;
-	struct bdev_handle *handle;
+	struct file *file;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -481,12 +481,11 @@ static int blkdev_bszset(struct block_device *bdev, blk_mode_t mode,
 	if (mode & BLK_OPEN_EXCL)
 		return set_blocksize(bdev, n);
 
-	handle = bdev_open_by_dev(bdev->bd_dev, mode, &bdev, NULL);
-	if (IS_ERR(handle))
+	file = bdev_file_open_by_dev(bdev->bd_dev, mode, &bdev, NULL);
+	if (IS_ERR(file))
 		return -EBUSY;
 	ret = set_blocksize(bdev, n);
-	bdev_release(handle);
-
+	fput(file);
 	return ret;
 }
 

@@ -412,7 +412,7 @@ dasd_state_ready_to_online(struct dasd_device * device)
 					KOBJ_CHANGE);
 			return 0;
 		}
-		disk_uevent(device->block->bdev_handle->bdev->bd_disk,
+		disk_uevent(file_bdev(device->block->bdev_file)->bd_disk,
 			    KOBJ_CHANGE);
 	}
 	return 0;
@@ -433,7 +433,7 @@ static int dasd_state_online_to_ready(struct dasd_device *device)
 
 	device->state = DASD_STATE_READY;
 	if (device->block && !(device->features & DASD_FEATURE_USERAW))
-		disk_uevent(device->block->bdev_handle->bdev->bd_disk,
+		disk_uevent(file_bdev(device->block->bdev_file)->bd_disk,
 			    KOBJ_CHANGE);
 	return 0;
 }
@@ -3588,7 +3588,7 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	 * in the other openers.
 	 */
 	if (device->block) {
-		max_count = device->block->bdev_handle ? 0 : -1;
+		max_count = device->block->bdev_file ? 0 : -1;
 		open_count = atomic_read(&device->block->open_count);
 		if (open_count > max_count) {
 			if (open_count > 0)
@@ -3634,8 +3634,8 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		 * so sync bdev first and then wait for our queues to become
 		 * empty
 		 */
-		if (device->block && device->block->bdev_handle)
-			bdev_mark_dead(device->block->bdev_handle->bdev, false);
+		if (device->block && device->block->bdev_file)
+			bdev_mark_dead(file_bdev(device->block->bdev_file), false);
 		dasd_schedule_device_bh(device);
 		rc = wait_event_interruptible(shutdown_waitq,
 					      _wait_for_empty_queues(device));

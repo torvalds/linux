@@ -299,7 +299,7 @@ struct reiserfs_journal {
 	/* oldest journal block.  start here for traverse */
 	struct reiserfs_journal_cnode *j_first;
 
-	struct bdev_handle *j_bdev_handle;
+	struct file *j_bdev_file;
 
 	/* first block on s_dev of reserved area journal */
 	int j_1st_reserved_block;
@@ -2810,10 +2810,10 @@ struct reiserfs_journal_header {
 
 /* We need these to make journal.c code more readable */
 #define journal_find_get_block(s, block) __find_get_block(\
-		SB_JOURNAL(s)->j_bdev_handle->bdev, block, s->s_blocksize)
-#define journal_getblk(s, block) __getblk(SB_JOURNAL(s)->j_bdev_handle->bdev,\
+		file_bdev(SB_JOURNAL(s)->j_bdev_file), block, s->s_blocksize)
+#define journal_getblk(s, block) __getblk(file_bdev(SB_JOURNAL(s)->j_bdev_file),\
 		block, s->s_blocksize)
-#define journal_bread(s, block) __bread(SB_JOURNAL(s)->j_bdev_handle->bdev,\
+#define journal_bread(s, block) __bread(file_bdev(SB_JOURNAL(s)->j_bdev_file),\
 		block, s->s_blocksize)
 
 enum reiserfs_bh_state_bits {

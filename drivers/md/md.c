@@ -2582,7 +2582,7 @@ static void export_rdev(struct md_rdev *rdev, struct mddev *mddev)
 	if (test_bit(AutoDetected, &rdev->flags))
 		md_autodetect_dev(rdev->bdev->bd_dev);
 #endif
-	bdev_release(rdev->bdev_handle);
+	fput(rdev->bdev_file);
 	rdev->bdev = NULL;
 	kobject_put(&rdev->kobj);
 }
@@ -3777,16 +3777,16 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 	if (err)
 		goto out_clear_rdev;
 
-	rdev->bdev_handle = bdev_open_by_dev(newdev,
+	rdev->bdev_file = bdev_file_open_by_dev(newdev,
 			BLK_OPEN_READ | BLK_OPEN_WRITE,
 			super_format == -2 ? &claim_rdev : rdev, NULL);
-	if (IS_ERR(rdev->bdev_handle)) {
+	if (IS_ERR(rdev->bdev_file)) {
 		pr_warn("md: could not open device unknown-block(%u,%u).\n",
 			MAJOR(newdev), MINOR(newdev));
-		err = PTR_ERR(rdev->bdev_handle);
+		err = PTR_ERR(rdev->bdev_file);
 		goto out_clear_rdev;
 	}
-	rdev->bdev = rdev->bdev_handle->bdev;
+	rdev->bdev = file_bdev(rdev->bdev_file);
 
 	kobject_init(&rdev->kobj, &rdev_ktype);
 
@@ -3817,7 +3817,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 	return rdev;
 
 out_blkdev_put:
-	bdev_release(rdev->bdev_handle);
+	fput(rdev->bdev_file);
 out_clear_rdev:
 	md_rdev_clear(rdev);
 out_free_rdev:
