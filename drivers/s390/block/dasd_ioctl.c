@@ -10,8 +10,6 @@
  * i/o controls for the dasd driver.
  */
 
-#define KMSG_COMPONENT "dasd"
-
 #include <linux/interrupt.h>
 #include <linux/compat.h>
 #include <linux/major.h>
@@ -24,11 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/dasd_mod.h>
 
-/* This is ugly... */
-#define PRINTK_HEADER "dasd_ioctl:"
-
 #include "dasd_int.h"
-
 
 static int
 dasd_ioctl_api_version(void __user *argp)

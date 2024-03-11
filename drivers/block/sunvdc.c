@@ -784,6 +784,14 @@ static const struct blk_mq_ops vdc_mq_ops = {
 
 static int probe_disk(struct vdc_port *port)
 {
+	struct queue_limits lim = {
+		.physical_block_size		= port->vdisk_phys_blksz,
+		.max_hw_sectors			= port->max_xfer_size,
+		/* Each segment in a request is up to an aligned page in size. */
+		.seg_boundary_mask		= PAGE_SIZE - 1,
+		.max_segment_size		= PAGE_SIZE,
+		.max_segments			= port->ring_cookies,
+	};
 	struct request_queue *q;
 	struct gendisk *g;
 	int err;
@@ -824,7 +832,7 @@ static int probe_disk(struct vdc_port *port)
 	if (err)
 		return err;
 
-	g = blk_mq_alloc_disk(&port->tag_set, port);
+	g = blk_mq_alloc_disk(&port->tag_set, &lim, port);
 	if (IS_ERR(g)) {
 		printk(KERN_ERR PFX "%s: Could not allocate gendisk.\n",
 		       port->vio.name);
@@ -835,12 +843,6 @@ static int probe_disk(struct vdc_port *port)
 	port->disk = g;
 	q = g->queue;
 
-	/* Each segment in a request is up to an aligned page in size. */
-	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
-	blk_queue_max_segment_size(q, PAGE_SIZE);
-
-	blk_queue_max_segments(q, port->ring_cookies);
-	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
 	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
 	g->minors = 1 << PARTITION_SHIFT;
@@ -871,8 +873,6 @@ static int probe_disk(struct vdc_port *port)
 			break;
 		}
 	}
-
-	blk_queue_physical_block_size(q, port->vdisk_phys_blksz);
 
 	pr_info(PFX "%s: %u sectors (%u MB) protocol %d.%d\n",
 	       g->disk_name,

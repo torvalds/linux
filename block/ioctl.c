@@ -18,7 +18,7 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct blkpg_partition p;
-	sector_t start, length;
+	sector_t start, length, capacity, end;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -41,6 +41,13 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 
 	start = p.start >> SECTOR_SHIFT;
 	length = p.length >> SECTOR_SHIFT;
+	capacity = get_capacity(disk);
+
+	if (check_add_overflow(start, length, &end))
+		return -EINVAL;
+
+	if (start >= capacity || end > capacity)
+		return -EINVAL;
 
 	switch (op) {
 	case BLKPG_ADD_PARTITION:

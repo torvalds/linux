@@ -1201,7 +1201,7 @@ static int block_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return add_uevent_var(env, "DISKSEQ=%llu", disk->diskseq);
 }
 
-struct class block_class = {
+const struct class block_class = {
 	.name		= "block",
 	.dev_uevent	= block_uevent,
 };
@@ -1391,19 +1391,21 @@ out_free_disk:
 	return NULL;
 }
 
-struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass)
+struct gendisk *__blk_alloc_disk(struct queue_limits *lim, int node,
+		struct lock_class_key *lkclass)
 {
+	struct queue_limits default_lim = { };
 	struct request_queue *q;
 	struct gendisk *disk;
 
-	q = blk_alloc_queue(node);
-	if (!q)
-		return NULL;
+	q = blk_alloc_queue(lim ? lim : &default_lim, node);
+	if (IS_ERR(q))
+		return ERR_CAST(q);
 
 	disk = __alloc_disk_node(q, node, lkclass);
 	if (!disk) {
 		blk_put_queue(q);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 	set_bit(GD_OWNS_QUEUE, &disk->state);
 	return disk;

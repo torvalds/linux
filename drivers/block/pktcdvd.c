@@ -828,6 +828,12 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
  */
 static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
 {
+	/*
+	 * Some CDRW drives can not handle writes larger than one packet,
+	 * even if the size is a multiple of the packet size.
+	 */
+	bio->bi_opf |= REQ_NOMERGE;
+
 	spin_lock(&pd->iosched.lock);
 	if (bio_data_dir(bio) == READ)
 		bio_list_add(&pd->iosched.read_queue, bio);
@@ -2191,11 +2197,6 @@ static int pkt_open_dev(struct pktcdvd_device *pd, bool write)
 		ret = pkt_open_write(pd);
 		if (ret)
 			goto out_putdev;
-		/*
-		 * Some CDRW drives can not handle writes larger than one packet,
-		 * even if the size is a multiple of the packet size.
-		 */
-		blk_queue_max_hw_sectors(q, pd->settings.size);
 		set_bit(PACKET_WRITABLE, &pd->flags);
 	} else {
 		pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
@@ -2338,9 +2339,9 @@ static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 	pkt_queue_bio(pd, cloned_bio);
 }
 
-static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
+static void pkt_make_request_write(struct bio *bio)
 {
-	struct pktcdvd_device *pd = q->queuedata;
+	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->private_data;
 	sector_t zone;
 	struct packet_data *pkt;
 	int was_empty, blocked_bio;
@@ -2432,7 +2433,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 
 static void pkt_submit_bio(struct bio *bio)
 {
-	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->queue->queuedata;
+	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->private_data;
 	struct device *ddev = disk_to_dev(pd->disk);
 	struct bio *split;
 
@@ -2476,21 +2477,12 @@ static void pkt_submit_bio(struct bio *bio)
 			split = bio;
 		}
 
-		pkt_make_request_write(bio->bi_bdev->bd_disk->queue, split);
+		pkt_make_request_write(split);
 	} while (split != bio);
 
 	return;
 end_io:
 	bio_io_error(bio);
-}
-
-static void pkt_init_queue(struct pktcdvd_device *pd)
-{
-	struct request_queue *q = pd->disk->queue;
-
-	blk_queue_logical_block_size(q, CD_FRAMESIZE);
-	blk_queue_max_hw_sectors(q, PACKET_MAX_SECTORS);
-	q->queuedata = pd;
 }
 
 static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
@@ -2535,8 +2527,6 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 
 	pd->bdev_file = bdev_file;
 	set_blocksize(file_bdev(bdev_file), CD_FRAMESIZE);
-
-	pkt_init_queue(pd);
 
 	atomic_set(&pd->cdrw.pending_bios, 0);
 	pd->cdrw.thread = kthread_run(kcdrwd, pd, "%s", pd->disk->disk_name);
@@ -2634,6 +2624,10 @@ static const struct block_device_operations pktcdvd_ops = {
  */
 static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 {
+	struct queue_limits lim = {
+		.max_hw_sectors		= PACKET_MAX_SECTORS,
+		.logical_block_size	= CD_FRAMESIZE,
+	};
 	int idx;
 	int ret = -ENOMEM;
 	struct pktcdvd_device *pd;
@@ -2673,10 +2667,11 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	pd->write_congestion_on  = write_congestion_on;
 	pd->write_congestion_off = write_congestion_off;
 
-	ret = -ENOMEM;
-	disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!disk)
+	disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(disk)) {
+		ret = PTR_ERR(disk);
 		goto out_mem;
+	}
 	pd->disk = disk;
 	disk->major = pktdev_major;
 	disk->first_minor = idx;

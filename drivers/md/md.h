@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <trace/events/block.h>
 #include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
@@ -207,6 +208,7 @@ enum flag_bits {
 				 * check if there is collision between raid1
 				 * serial bios.
 				 */
+	Nonrot,			/* non-rotational device (SSD) */
 };
 
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
@@ -222,6 +224,16 @@ static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
 	}
 	return 0;
 }
+
+static inline int rdev_has_badblock(struct md_rdev *rdev, sector_t s,
+				    int sectors)
+{
+	sector_t first_bad;
+	int bad_sectors;
+
+	return is_badblock(rdev, s, sectors, &first_bad, &bad_sectors);
+}
+
 extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 			      int is_new);
 extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
@@ -468,7 +480,6 @@ struct mddev {
 	struct timer_list		safemode_timer;
 	struct percpu_ref		writes_pending;
 	int				sync_checkers;	/* # of threads checking writes_pending */
-	struct request_queue		*queue;	/* for plugging ... */
 
 	struct bitmap			*bitmap; /* the bitmap for the device */
 	struct {
@@ -558,6 +569,37 @@ enum recovery_flags {
 	MD_RESYNCING_REMOTE,	/* remote node is running resync thread */
 };
 
+enum md_ro_state {
+	MD_RDWR,
+	MD_RDONLY,
+	MD_AUTO_READ,
+	MD_MAX_STATE
+};
+
+static inline bool md_is_rdwr(struct mddev *mddev)
+{
+	return (mddev->ro == MD_RDWR);
+}
+
+static inline bool reshape_interrupted(struct mddev *mddev)
+{
+	/* reshape never start */
+	if (mddev->reshape_position == MaxSector)
+		return false;
+
+	/* interrupted */
+	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return true;
+
+	/* running reshape will be interrupted soon. */
+	if (test_bit(MD_RECOVERY_WAIT, &mddev->recovery) ||
+	    test_bit(MD_RECOVERY_INTR, &mddev->recovery) ||
+	    test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
+		return true;
+
+	return false;
+}
+
 static inline int __must_check mddev_lock(struct mddev *mddev)
 {
 	return mutex_lock_interruptible(&mddev->reconfig_mutex);
@@ -617,6 +659,7 @@ struct md_personality
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
 	void (*update_reshape_pos) (struct mddev *mddev);
+	void (*prepare_suspend) (struct mddev *mddev);
 	/* quiesce suspends or resumes internal processing.
 	 * 1 - stop new actions and wait for action io to complete
 	 * 0 - return to normal behaviour
@@ -750,6 +793,7 @@ extern void md_finish_reshape(struct mddev *mddev);
 void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
 			struct bio *bio, sector_t start, sector_t size);
 void md_account_bio(struct mddev *mddev, struct bio **bio);
+void md_free_cloned_bio(struct bio *bio);
 
 extern bool __must_check md_flush_request(struct mddev *mddev, struct bio *bio);
 extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
@@ -778,9 +822,12 @@ extern void md_stop_writes(struct mddev *mddev);
 extern int md_rdev_init(struct md_rdev *rdev);
 extern void md_rdev_clear(struct md_rdev *rdev);
 
-extern void md_handle_request(struct mddev *mddev, struct bio *bio);
+extern bool md_handle_request(struct mddev *mddev, struct bio *bio);
 extern int mddev_suspend(struct mddev *mddev, bool interruptible);
 extern void mddev_resume(struct mddev *mddev);
+extern void md_idle_sync_thread(struct mddev *mddev);
+extern void md_frozen_sync_thread(struct mddev *mddev);
+extern void md_unfrozen_sync_thread(struct mddev *mddev);
 
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
@@ -821,7 +868,7 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 	    !bio->bi_bdev->bd_disk->queue->limits.max_write_zeroes_sectors)
-		mddev->queue->limits.max_write_zeroes_sectors = 0;
+		mddev->gendisk->queue->limits.max_write_zeroes_sectors = 0;
 }
 
 static inline int mddev_suspend_and_lock(struct mddev *mddev)
@@ -860,7 +907,31 @@ void md_autostart_arrays(int part);
 int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
 int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
 int do_md_run(struct mddev *mddev);
+void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim);
+int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev);
+void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes);
 
 extern const struct block_device_operations md_fops;
+
+/*
+ * MD devices can be used undeneath by DM, in which case ->gendisk is NULL.
+ */
+static inline bool mddev_is_dm(struct mddev *mddev)
+{
+	return !mddev->gendisk;
+}
+
+static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
+		sector_t sector)
+{
+	if (!mddev_is_dm(mddev))
+		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
+}
+
+#define mddev_add_trace_msg(mddev, fmt, args...)			\
+do {									\
+	if (!mddev_is_dm(mddev))					\
+		blk_add_trace_msg((mddev)->gendisk->queue, fmt, ##args); \
+} while (0)
 
 #endif /* _MD_MD_H */

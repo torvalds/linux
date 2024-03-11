@@ -2101,8 +2101,8 @@ static struct mapped_device *alloc_dev(int minor)
 	 * established. If request-based table is loaded: blk-mq will
 	 * override accordingly.
 	 */
-	md->disk = blk_alloc_disk(md->numa_node_id);
-	if (!md->disk)
+	md->disk = blk_alloc_disk(NULL, md->numa_node_id);
+	if (IS_ERR(md->disk))
 		goto bad;
 	md->queue = md->disk->queue;
 

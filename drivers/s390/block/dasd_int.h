@@ -113,9 +113,6 @@ do { \
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
 
-/* limit size for an errorstring */
-#define ERRORLENGTH 30
-
 /* definition of dbf debug levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
@@ -125,32 +122,6 @@ do { \
 #define	DBF_NOTICE	5	/* normal but significant condition	*/
 #define	DBF_INFO	6	/* informational			*/
 #define	DBF_DEBUG	6	/* debug-level messages			*/
-
-/* messages to be written via klogd and dbf */
-#define DEV_MESSAGE(d_loglevel,d_device,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       dev_name(&d_device->cdev->dev), d_args); \
-	DBF_DEV_EVENT(DBF_ALERT, d_device, d_string, d_args); \
-} while(0)
-
-#define MESSAGE(d_loglevel,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
-	DBF_EVENT(DBF_ALERT, d_string, d_args); \
-} while(0)
-
-/* messages to be written via klogd only */
-#define DEV_MESSAGE_LOG(d_loglevel,d_device,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       dev_name(&d_device->cdev->dev), d_args); \
-} while(0)
-
-#define MESSAGE_LOG(d_loglevel,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
-} while(0)
 
 /* Macro to calculate number of blocks per page */
 #define BLOCKS_PER_PAGE(blksize) (PAGE_SIZE / blksize)
@@ -322,6 +293,7 @@ struct dasd_discipline {
 	struct module *owner;
 	char ebcname[8];	/* a name used for tagging and printks */
 	char name[8];		/* a name used for tagging and printks */
+	bool has_discard;
 
 	struct list_head list;	/* used for list of disciplines */
 
@@ -360,10 +332,7 @@ struct dasd_discipline {
 	int (*online_to_ready) (struct dasd_device *);
 	int (*basic_to_known)(struct dasd_device *);
 
-	/*
-	 * Initialize block layer request queue.
-	 */
-	void (*setup_blk_queue)(struct dasd_block *);
+	unsigned int (*max_sectors)(struct dasd_block *);
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and

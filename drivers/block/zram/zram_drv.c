@@ -2177,6 +2177,28 @@ ATTRIBUTE_GROUPS(zram_disk);
  */
 static int zram_add(void)
 {
+	struct queue_limits lim = {
+		.logical_block_size		= ZRAM_LOGICAL_BLOCK_SIZE,
+		/*
+		 * To ensure that we always get PAGE_SIZE aligned and
+		 * n*PAGE_SIZED sized I/O requests.
+		 */
+		.physical_block_size		= PAGE_SIZE,
+		.io_min				= PAGE_SIZE,
+		.io_opt				= PAGE_SIZE,
+		.max_hw_discard_sectors		= UINT_MAX,
+		/*
+		 * zram_bio_discard() will clear all logical blocks if logical
+		 * block size is identical with physical block size(PAGE_SIZE).
+		 * But if it is different, we will skip discarding some parts of
+		 * logical blocks in the part of the request range which isn't
+		 * aligned to physical block size.  So we can't ensure that all
+		 * discarded logical blocks are zeroed.
+		 */
+#if ZRAM_LOGICAL_BLOCK_SIZE == PAGE_SIZE
+		.max_write_zeroes_sectors	= UINT_MAX,
+#endif
+	};
 	struct zram *zram;
 	int ret, device_id;
 
@@ -2195,11 +2217,11 @@ static int zram_add(void)
 #endif
 
 	/* gendisk structure */
-	zram->disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!zram->disk) {
+	zram->disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(zram->disk)) {
 		pr_err("Error allocating disk structure for device %d\n",
 			device_id);
-		ret = -ENOMEM;
+		ret = PTR_ERR(zram->disk);
 		goto out_free_idr;
 	}
 
@@ -2216,29 +2238,6 @@ static int zram_add(void)
 	/* zram devices sort of resembles non-rotational disks */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, zram->disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, zram->disk->queue);
-
-	/*
-	 * To ensure that we always get PAGE_SIZE aligned
-	 * and n*PAGE_SIZED sized I/O requests.
-	 */
-	blk_queue_physical_block_size(zram->disk->queue, PAGE_SIZE);
-	blk_queue_logical_block_size(zram->disk->queue,
-					ZRAM_LOGICAL_BLOCK_SIZE);
-	blk_queue_io_min(zram->disk->queue, PAGE_SIZE);
-	blk_queue_io_opt(zram->disk->queue, PAGE_SIZE);
-	blk_queue_max_discard_sectors(zram->disk->queue, UINT_MAX);
-
-	/*
-	 * zram_bio_discard() will clear all logical blocks if logical block
-	 * size is identical with physical block size(PAGE_SIZE). But if it is
-	 * different, we will skip discarding some parts of logical blocks in
-	 * the part of the request range which isn't aligned to physical block
-	 * size.  So we can't ensure that all discarded logical blocks are
-	 * zeroed.
-	 */
-	if (ZRAM_LOGICAL_BLOCK_SIZE == PAGE_SIZE)
-		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
-
 	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, zram->disk->queue);
 	ret = device_add_disk(NULL, zram->disk, zram_disk_groups);
 	if (ret)

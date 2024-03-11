@@ -348,6 +348,9 @@ static int calc_disk_capacity(struct ubi_volume_info *vi, u64 *disk_capacity)
 
 int ubiblock_create(struct ubi_volume_info *vi)
 {
+	struct queue_limits lim = {
+		.max_segments		= UBI_MAX_SG_COUNT,
+	};
 	struct ubiblock *dev;
 	struct gendisk *gd;
 	u64 disk_capacity;
@@ -393,7 +396,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 
 
 	/* Initialize the gendisk of this ubiblock device */
-	gd = blk_mq_alloc_disk(&dev->tag_set, dev);
+	gd = blk_mq_alloc_disk(&dev->tag_set, &lim, dev);
 	if (IS_ERR(gd)) {
 		ret = PTR_ERR(gd);
 		goto out_free_tags;
@@ -416,7 +419,6 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	dev->gd = gd;
 
 	dev->rq = gd->queue;
-	blk_queue_max_segments(dev->rq, UBI_MAX_SG_COUNT);
 
 	list_add_tail(&dev->list, &ubiblock_devices);
 

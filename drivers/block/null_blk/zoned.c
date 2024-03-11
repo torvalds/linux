@@ -58,7 +58,8 @@ static inline void null_unlock_zone(struct nullb_device *dev,
 		mutex_unlock(&zone->mutex);
 }
 
-int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
+int null_init_zoned_dev(struct nullb_device *dev,
+			struct queue_limits *lim)
 {
 	sector_t dev_capacity_sects, zone_capacity_sects;
 	struct nullb_zone *zone;
@@ -151,27 +152,22 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		sector += dev->zone_size_sects;
 	}
 
+	lim->zoned = true;
+	lim->chunk_sectors = dev->zone_size_sects;
+	lim->max_zone_append_sectors = dev->zone_size_sects;
+	lim->max_open_zones = dev->zone_max_open;
+	lim->max_active_zones = dev->zone_max_active;
 	return 0;
 }
 
 int null_register_zoned_dev(struct nullb *nullb)
 {
-	struct nullb_device *dev = nullb->dev;
 	struct request_queue *q = nullb->q;
 
-	disk_set_zoned(nullb->disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
 	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
-	blk_queue_chunk_sectors(q, dev->zone_size_sects);
 	nullb->disk->nr_zones = bdev_nr_zones(nullb->disk->part0);
-	blk_queue_max_zone_append_sectors(q, dev->zone_size_sects);
-	disk_set_max_open_zones(nullb->disk, dev->zone_max_open);
-	disk_set_max_active_zones(nullb->disk, dev->zone_max_active);
-
-	if (queue_is_mq(q))
-		return blk_revalidate_disk_zones(nullb->disk, NULL);
-
-	return 0;
+	return blk_revalidate_disk_zones(nullb->disk, NULL);
 }
 
 void null_free_zoned_dev(struct nullb_device *dev)
@@ -394,10 +390,7 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	 */
 	if (append) {
 		sector = zone->wp;
-		if (dev->queue_mode == NULL_Q_MQ)
-			cmd->rq->__sector = sector;
-		else
-			cmd->bio->bi_iter.bi_sector = sector;
+		blk_mq_rq_from_pdu(cmd)->__sector = sector;
 	} else if (sector != zone->wp) {
 		ret = BLK_STS_IOERR;
 		goto unlock;

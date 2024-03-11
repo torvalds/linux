@@ -900,9 +900,23 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	struct request_queue *q;
 	const size_t max_stripes = min_t(size_t, INT_MAX,
 					 SIZE_MAX / sizeof(atomic_t));
+	struct queue_limits lim = {
+		.max_hw_sectors		= UINT_MAX,
+		.max_sectors		= UINT_MAX,
+		.max_segment_size	= UINT_MAX,
+		.max_segments		= BIO_MAX_VECS,
+		.max_hw_discard_sectors	= UINT_MAX,
+		.io_min			= block_size,
+		.logical_block_size	= block_size,
+		.physical_block_size	= block_size,
+	};
 	uint64_t n;
 	int idx;
 
+	if (cached_bdev) {
+		d->stripe_size = bdev_io_opt(cached_bdev) >> SECTOR_SHIFT;
+		lim.io_opt = umax(block_size, bdev_io_opt(cached_bdev));
+	}
 	if (!d->stripe_size)
 		d->stripe_size = 1 << 31;
 	else if (d->stripe_size < BCH_MIN_STRIPE_SZ)
@@ -935,8 +949,21 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER))
 		goto out_ida_remove;
 
-	d->disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!d->disk)
+	if (lim.logical_block_size > PAGE_SIZE && cached_bdev) {
+		/*
+		 * This should only happen with BCACHE_SB_VERSION_BDEV.
+		 * Block/page size is checked for BCACHE_SB_VERSION_CDEV.
+		 */
+		pr_info("bcache%i: sb/logical block size (%u) greater than page size (%lu) falling back to device logical block size (%u)\n",
+			idx, lim.logical_block_size,
+			PAGE_SIZE, bdev_logical_block_size(cached_bdev));
+
+		/* This also adjusts physical block size/min io size if needed */
+		lim.logical_block_size = bdev_logical_block_size(cached_bdev);
+	}
+
+	d->disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(d->disk))
 		goto out_bioset_exit;
 
 	set_capacity(d->disk, sectors);
@@ -949,27 +976,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	d->disk->private_data	= d;
 
 	q = d->disk->queue;
-	q->limits.max_hw_sectors	= UINT_MAX;
-	q->limits.max_sectors		= UINT_MAX;
-	q->limits.max_segment_size	= UINT_MAX;
-	q->limits.max_segments		= BIO_MAX_VECS;
-	blk_queue_max_discard_sectors(q, UINT_MAX);
-	q->limits.io_min		= block_size;
-	q->limits.logical_block_size	= block_size;
-	q->limits.physical_block_size	= block_size;
-
-	if (q->limits.logical_block_size > PAGE_SIZE && cached_bdev) {
-		/*
-		 * This should only happen with BCACHE_SB_VERSION_BDEV.
-		 * Block/page size is checked for BCACHE_SB_VERSION_CDEV.
-		 */
-		pr_info("%s: sb/logical block size (%u) greater than page size (%lu) falling back to device logical block size (%u)\n",
-			d->disk->disk_name, q->limits.logical_block_size,
-			PAGE_SIZE, bdev_logical_block_size(cached_bdev));
-
-		/* This also adjusts physical block size/min io size if needed */
-		blk_queue_logical_block_size(q, bdev_logical_block_size(cached_bdev));
-	}
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
 
@@ -1416,9 +1422,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 		hlist_add_head(&io->hash, dc->io_hash + RECENT_IO);
 	}
 
-	dc->disk.stripe_size = q->limits.io_opt >> 9;
-
-	if (dc->disk.stripe_size)
+	if (bdev_io_opt(dc->bdev))
 		dc->partial_stripes_expensive =
 			q->limits.raid_partial_stripes_expensive;
 
@@ -1427,9 +1431,6 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 			 dc->bdev, &bcache_cached_ops);
 	if (ret)
 		return ret;
-
-	blk_queue_io_opt(dc->disk.disk->queue,
-		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
 
 	atomic_set(&dc->io_errors, 0);
 	dc->io_disable = false;
