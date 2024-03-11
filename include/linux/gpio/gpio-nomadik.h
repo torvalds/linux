@@ -253,6 +253,8 @@ nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc)
 
 struct platform_device;
 
+#ifdef CONFIG_DEBUG_FS
+
 /*
  * Symbols declared in gpio-nomadik used by pinctrl-nomadik. If pinctrl-nomadik
  * is enabled, then gpio-nomadik is enabled as well; the reverse if not always
@@ -261,6 +263,19 @@ struct platform_device;
 void nmk_gpio_dbg_show_one(struct seq_file *s, struct pinctrl_dev *pctldev,
 			   struct gpio_chip *chip, unsigned int offset,
 			   unsigned int gpio);
+
+#else
+
+static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
+					 struct pinctrl_dev *pctldev,
+					 struct gpio_chip *chip,
+					 unsigned int offset,
+					 unsigned int gpio)
+{
+}
+
+#endif
+
 void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
 			    unsigned int offset, int val);
 void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip, unsigned int offset,
