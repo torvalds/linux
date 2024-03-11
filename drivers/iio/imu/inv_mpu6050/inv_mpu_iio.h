@@ -185,6 +185,7 @@ struct inv_mpu6050_hw {
  *  @magn_orient:       magnetometer sensor chip orientation if available.
  *  @suspended_sensors:	sensors mask of sensors turned off for suspend
  *  @data:		read buffer used for bulk reads.
+ *  @it_timestamp:	interrupt timestamp.
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -210,6 +211,7 @@ struct inv_mpu6050_state {
 	unsigned int suspended_sensors;
 	bool level_shifter;
 	u8 *data;
+	s64 it_timestamp;
 };
 
 /*register and associated bit definition*/
