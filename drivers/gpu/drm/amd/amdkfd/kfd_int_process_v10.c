@@ -369,18 +369,23 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
 		uint32_t node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
 		uint32_t vmid_type = SOC15_VMID_TYPE_FROM_IH_ENTRY(ih_ring_entry);
-		int xcc_id = 0;
+		int hub_inst = 0;
 		struct kfd_hsa_memory_exception_data exception_data;
 
+		/* gfxhub */
 		if (!vmid_type && dev->adev->gfx.funcs->ih_node_to_logical_xcc) {
-			xcc_id = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
+			hub_inst = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
 				node_id);
-			if (xcc_id < 0)
-				xcc_id = 0;
+			if (hub_inst < 0)
+				hub_inst = 0;
 		}
 
-		if (client_id == SOC15_IH_CLIENTID_UTCL2 && !vmid_type &&
-		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev, xcc_id)) {
+		/* mmhub */
+		if (vmid_type && client_id == SOC15_IH_CLIENTID_VMC)
+			hub_inst = node_id / 4;
+
+		if (amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev,
+					hub_inst, vmid_type)) {
 			event_interrupt_poison_consumption(dev, pasid, client_id);
 			return;
 		}
