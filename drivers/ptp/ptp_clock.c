@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
  */
-#include <linux/idr.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -16,6 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/xarray.h>
 #include <uapi/linux/sched/types.h>
 
 #include "ptp_private.h"
@@ -34,7 +34,7 @@ const struct class ptp_class = {
 
 static dev_t ptp_devt;
 
-static DEFINE_IDA(ptp_clocks_map);
+static DEFINE_XARRAY_ALLOC(ptp_clocks_map);
 
 /* time stamp event queue operations */
 
@@ -204,7 +204,7 @@ static void ptp_clock_release(struct device *dev)
 	bitmap_free(tsevq->mask);
 	kfree(tsevq);
 	debugfs_remove(ptp->debugfs_root);
-	ida_free(&ptp_clocks_map, ptp->index);
+	xa_erase(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
 }
 
@@ -236,7 +236,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 {
 	struct ptp_clock *ptp;
 	struct timestamp_event_queue *queue = NULL;
-	int err = 0, index, major = MAJOR(ptp_devt);
+	int err, index, major = MAJOR(ptp_devt);
 	char debugfsname[16];
 	size_t size;
 
@@ -244,16 +244,16 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		return ERR_PTR(-EINVAL);
 
 	/* Initialize a clock structure. */
-	err = -ENOMEM;
 	ptp = kzalloc(sizeof(struct ptp_clock), GFP_KERNEL);
-	if (ptp == NULL)
+	if (!ptp) {
+		err = -ENOMEM;
 		goto no_memory;
-
-	index = ida_alloc_max(&ptp_clocks_map, MINORMASK, GFP_KERNEL);
-	if (index < 0) {
-		err = index;
-		goto no_slot;
 	}
+
+	err = xa_alloc(&ptp_clocks_map, &index, ptp, xa_limit_31b,
+		       GFP_KERNEL);
+	if (err)
+		goto no_slot;
 
 	ptp->clock.ops = ptp_clock_ops;
 	ptp->info = info;
@@ -261,13 +261,17 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	ptp->index = index;
 	INIT_LIST_HEAD(&ptp->tsevqs);
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
-	if (!queue)
+	if (!queue) {
+		err = -ENOMEM;
 		goto no_memory_queue;
+	}
 	list_add_tail(&queue->qlist, &ptp->tsevqs);
 	spin_lock_init(&ptp->tsevqs_lock);
 	queue->mask = bitmap_alloc(PTP_MAX_CHANNELS, GFP_KERNEL);
-	if (!queue->mask)
+	if (!queue->mask) {
+		err = -ENOMEM;
 		goto no_memory_bitmap;
+	}
 	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
 	spin_lock_init(&queue->lock);
 	mutex_init(&ptp->pincfg_mux);
@@ -381,7 +385,7 @@ no_memory_bitmap:
 	list_del(&queue->qlist);
 	kfree(queue);
 no_memory_queue:
-	ida_free(&ptp_clocks_map, index);
+	xa_erase(&ptp_clocks_map, index);
 no_slot:
 	kfree(ptp);
 no_memory:
@@ -514,7 +518,7 @@ static void __exit ptp_exit(void)
 {
 	class_unregister(&ptp_class);
 	unregister_chrdev_region(ptp_devt, MINORMASK + 1);
-	ida_destroy(&ptp_clocks_map);
+	xa_destroy(&ptp_clocks_map);
 }
 
 static int __init ptp_init(void)
