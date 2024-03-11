@@ -2228,7 +2228,15 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->gfxclk_lock_status = GET_METRIC_FIELD(GfxLockXCDMak) >> GET_INST(GC, 0);
 
 	if (!(adev->flags & AMD_IS_APU)) {
-		if (!amdgpu_sriov_vf(adev)) {
+		/*Check smu version, PCIE link speed and width will be reported from pmfw metric
+		 * table for both pf & one vf for smu version 85.99.0 or higher else report only
+		 * for pf from registers
+		 */
+		if (smu->smc_fw_version >= 0x556300) {
+			gpu_metrics->pcie_link_width = metrics_x->PCIeLinkWidth;
+			gpu_metrics->pcie_link_speed =
+				pcie_gen_to_speed(metrics_x->PCIeLinkSpeed);
+		} else if (!amdgpu_sriov_vf(adev)) {
 			link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
 			if (link_width_level > MAX_LINK_WIDTH)
 				link_width_level = 0;
@@ -2238,6 +2246,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 			gpu_metrics->pcie_link_speed =
 				smu_v13_0_6_get_current_pcie_link_speed(smu);
 		}
+
 		gpu_metrics->pcie_bandwidth_acc =
 				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
 		gpu_metrics->pcie_bandwidth_inst =
