@@ -222,6 +222,66 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	}
 }
 
+static int umc_v12_0_convert_err_addr(struct amdgpu_device *adev,
+				struct ta_ras_query_address_input *addr_in,
+				uint64_t *pfns, int len)
+{
+	uint32_t col, row, row_xor, bank, channel_index;
+	uint64_t soc_pa, retired_page, column, err_addr;
+	struct ta_ras_query_address_output addr_out;
+	uint32_t pos = 0;
+
+	err_addr = addr_in->ma.err_addr;
+	addr_in->addr_type = TA_RAS_MCA_TO_PA;
+	if (psp_ras_query_address(&adev->psp, addr_in, &addr_out)) {
+		dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
+			err_addr);
+		return 0;
+	}
+
+	soc_pa = addr_out.pa.pa;
+	bank = addr_out.pa.bank;
+	channel_index = addr_out.pa.channel_idx;
+
+	col = (err_addr >> 1) & 0x1fULL;
+	row = (err_addr >> 10) & 0x3fffULL;
+	row_xor = row ^ (0x1ULL << 13);
+	/* clear [C3 C2] in soc physical address */
+	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
+	/* clear [C4] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+
+	/* loop for all possibilities of [C4 C3 C2] */
+	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
+		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+
+		if (pos >= len)
+			return 0;
+		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+
+		/* include column bit 0 and 1 */
+		col &= 0x3;
+		col |= (column << 2);
+		dev_info(adev->dev,
+			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
+			retired_page, row, col, bank, channel_index);
+
+		/* shift R13 bit */
+		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
+
+		if (pos >= len)
+			return 0;
+		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+
+		dev_info(adev->dev,
+			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
+			retired_page, row_xor, col, bank, channel_index);
+	}
+
+	return pos;
+}
+
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 					uint32_t node_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
@@ -482,8 +542,12 @@ static int umc_v12_0_ras_late_init(struct amdgpu_device *adev, struct ras_common
 static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 			uint64_t status, uint64_t ipid, uint64_t addr)
 {
-	uint16_t hwid, mcatype;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint16_t hwid, mcatype;
+	struct ta_ras_query_address_input addr_in;
+	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
+	uint64_t err_addr;
+	int count;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
 	mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
@@ -496,6 +560,34 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 
 	if (!umc_v12_0_is_deferred_error(adev, status))
 		return 0;
+
+	err_addr = REG_GET_FIELD(addr,
+				MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+
+	dev_info(adev->dev,
+		"UMC:IPID:0x%llx, socket:%llu, aid:%llu, inst:%llu, ch:%llu, err_addr:0x%llx\n",
+		ipid,
+		MCA_IPID_2_SOCKET_ID(ipid),
+		MCA_IPID_2_DIE_ID(ipid),
+		MCA_IPID_2_UMC_INST(ipid),
+		MCA_IPID_2_UMC_CH(ipid),
+		err_addr);
+
+	memset(page_pfn, 0, sizeof(page_pfn));
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.ma.err_addr = err_addr;
+	addr_in.ma.ch_inst = MCA_IPID_2_UMC_CH(ipid);
+	addr_in.ma.umc_inst = MCA_IPID_2_UMC_INST(ipid);
+	addr_in.ma.node_inst = MCA_IPID_2_DIE_ID(ipid);
+	addr_in.ma.socket_id = MCA_IPID_2_SOCKET_ID(ipid);
+
+	count = umc_v12_0_convert_err_addr(adev,
+				&addr_in, page_pfn, ARRAY_SIZE(page_pfn));
+	if (count <= 0) {
+		dev_warn(adev->dev, "Fail to convert error address! count:%d\n", count);
+		return 0;
+	}
 
 	con->umc_ecc_log.de_updated = true;
 
