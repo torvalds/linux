@@ -18,6 +18,7 @@
 #include <linux/coresight.h>
 #include "coresight-qmi.h"
 #include "coresight-priv.h"
+#include <linux/suspend.h>
 
 #define REMOTE_ETM_TRACE_ID_START	192
 
@@ -423,12 +424,45 @@ static const struct of_device_id remote_etm_match[] = {
 	{}
 };
 
+#ifdef CONFIG_DEEPSLEEP
+static int remote_etm_suspend(struct device *dev)
+{
+	struct remote_etm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (pm_suspend_via_firmware())
+		coresight_disable(drvdata->csdev);
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_HIBERNATION
+static int remote_etm_freeze(struct device *dev)
+{
+	struct remote_etm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	coresight_disable(drvdata->csdev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops remote_etm_dev_pm_ops = {
+#ifdef CONFIG_DEEPSLEEP
+	.suspend = remote_etm_suspend,
+#endif
+#ifdef CONFIG_HIBERNATION
+	.freeze  = remote_etm_freeze,
+#endif
+};
+
 static struct platform_driver remote_etm_driver = {
 	.probe          = remote_etm_probe,
 	.remove         = remote_etm_remove,
 	.driver         = {
 		.name   = "coresight-remote-etm",
 		.of_match_table = remote_etm_match,
+		.pm = &remote_etm_dev_pm_ops,
 	},
 };
 
