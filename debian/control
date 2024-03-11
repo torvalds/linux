@@ -43,7 +43,6 @@ Build-Depends:
  pahole [amd64 arm64 armhf ppc64el s390x riscv64] | dwarves (>= 1.21) [amd64 arm64 armhf ppc64el s390x riscv64] <!stage1>,
  rustc-1.62 [amd64],
  rust-1.62-src [amd64],
- rustfmt-1.62 [amd64],
  bindgen-0.56 [amd64],
  llvm-15 [amd64],
  clang-15 [amd64],
