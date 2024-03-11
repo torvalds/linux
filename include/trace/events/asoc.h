@@ -17,71 +17,76 @@ struct snd_soc_card;
 struct snd_soc_dapm_widget;
 struct snd_soc_dapm_path;
 
-DECLARE_EVENT_CLASS(snd_soc_card,
+DECLARE_EVENT_CLASS(snd_soc_dapm,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val),
+	TP_ARGS(dapm, val),
 
 	TP_STRUCT__entry(
-		__string(	name,		card->name	)
-		__field(	int,		val		)
+		__string(	card_name,	dapm->card->name)
+		__string(	comp_name,	dapm->component ? dapm->component->name : "(none)")
+		__field(	int,		val)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, card->name);
+		__assign_str(card_name, dapm->card->name);
+		__assign_str(comp_name, dapm->component ? dapm->component->name : "(none)");
 		__entry->val = val;
 	),
 
-	TP_printk("card=%s val=%d", __get_str(name), (int)__entry->val)
+	TP_printk("card=%s component=%s val=%d",
+		  __get_str(card_name), __get_str(comp_name), (int)__entry->val)
 );
 
-DEFINE_EVENT(snd_soc_card, snd_soc_bias_level_start,
+DEFINE_EVENT(snd_soc_dapm, snd_soc_bias_level_start,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val)
+	TP_ARGS(dapm, val)
 
 );
 
-DEFINE_EVENT(snd_soc_card, snd_soc_bias_level_done,
+DEFINE_EVENT(snd_soc_dapm, snd_soc_bias_level_done,
 
-	TP_PROTO(struct snd_soc_card *card, int val),
+	TP_PROTO(struct snd_soc_dapm_context *dapm, int val),
 
-	TP_ARGS(card, val)
+	TP_ARGS(dapm, val)
 
 );
 
 DECLARE_EVENT_CLASS(snd_soc_dapm_basic,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card),
+	TP_ARGS(card, event),
 
 	TP_STRUCT__entry(
 		__string(	name,	card->name	)
+		__field(	int,	event		)
 	),
 
 	TP_fast_assign(
 		__assign_str(name, card->name);
+		__entry->event = event;
 	),
 
-	TP_printk("card=%s", __get_str(name))
+	TP_printk("card=%s event=%d", __get_str(name), (int)__entry->event)
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_start,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_done,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 

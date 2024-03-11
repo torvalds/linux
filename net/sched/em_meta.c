@@ -1006,6 +1006,7 @@ static void __exit exit_em_meta(void)
 	tcf_em_unregister(&em_meta_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier for various internal kernel metadata, skb metadata and sk metadata");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_meta);

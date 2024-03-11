@@ -10,6 +10,29 @@
 #include "sof_hdmi_common.h"
 #include "sof_ssp_common.h"
 
+enum {
+	SOF_LINK_NONE = 0,
+	SOF_LINK_CODEC,
+	SOF_LINK_DMIC01,
+	SOF_LINK_DMIC16K,
+	SOF_LINK_IDISP_HDMI,
+	SOF_LINK_AMP,
+	SOF_LINK_BT_OFFLOAD,
+	SOF_LINK_HDMI_IN,
+};
+
+#define SOF_LINK_ORDER_MASK	(0xF)
+#define SOF_LINK_ORDER_SHIFT	(4)
+
+#define SOF_LINK_ORDER(k1, k2, k3, k4, k5, k6, k7) \
+	((((k1) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 0)) | \
+	 (((k2) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 1)) | \
+	 (((k3) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 2)) | \
+	 (((k4) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 3)) | \
+	 (((k5) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 4)) | \
+	 (((k6) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 5)) | \
+	 (((k7) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 6)))
+
 /*
  * sof_rt5682_private: private data for rt5682 machine driver
  *
@@ -37,6 +60,7 @@ struct sof_rt5682_private {
  * @bt_offload_present: true to create BT offload BE link
  * @codec_link: pointer to headset codec dai link
  * @amp_link: pointer to speaker amplifier dai link
+ * @link_order_overwrite: custom DAI link order
  * @rt5682: private data for rt5682 machine driver
  */
 struct sof_card_private {
@@ -58,6 +82,8 @@ struct sof_card_private {
 
 	struct snd_soc_dai_link *codec_link;
 	struct snd_soc_dai_link *amp_link;
+
+	unsigned long link_order_overwrite;
 
 	union {
 		struct sof_rt5682_private rt5682;
@@ -91,5 +117,8 @@ int sof_intel_board_set_bt_link(struct device *dev,
 int sof_intel_board_set_hdmi_in_link(struct device *dev,
 				     struct snd_soc_dai_link *link, int be_id,
 				     int ssp_hdmi);
+
+struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
+					  const char * const dai_name[], int num_dais);
 
 #endif /* __SOF_INTEL_BOARD_HELPERS_H */

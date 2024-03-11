@@ -501,7 +501,7 @@ static ssize_t exfat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	struct inode *inode = mapping->host;
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	loff_t pos = iocb->ki_pos;
-	loff_t size = iocb->ki_pos + iov_iter_count(iter);
+	loff_t size = pos + iov_iter_count(iter);
 	int rw = iov_iter_rw(iter);
 	ssize_t ret;
 
@@ -525,11 +525,10 @@ static ssize_t exfat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	 */
 	ret = blockdev_direct_IO(iocb, inode, iter, exfat_get_block);
 	if (ret < 0) {
-		if (rw == WRITE)
+		if (rw == WRITE && ret != -EIOCBQUEUED)
 			exfat_write_failed(mapping, size);
 
-		if (ret != -EIOCBQUEUED)
-			return ret;
+		return ret;
 	} else
 		size = pos + ret;
 

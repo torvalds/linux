@@ -181,4 +181,4 @@ hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enabl
 {
 	return 0;
 }
-#endif /* CONFIG_SND_SOC_SOF_HDA */
+#endif /* CONFIG_SND_SOC_SOF_HDA_MLINK */

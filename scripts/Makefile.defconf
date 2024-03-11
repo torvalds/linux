@@ -9,8 +9,8 @@
 # Input config fragments without '.config' suffix
 define merge_into_defconfig
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
-		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/$(1) \
-		$(foreach config,$(2),$(srctree)/arch/$(ARCH)/configs/$(config).config)
+		-m -O $(objtree) $(srctree)/arch/$(SRCARCH)/configs/$(1) \
+		$(foreach config,$(2),$(srctree)/arch/$(SRCARCH)/configs/$(config).config)
 	+$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 endef
 
@@ -23,7 +23,7 @@ endef
 # Input config fragments without '.config' suffix
 define merge_into_defconfig_override
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
-		-Q -m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/$(1) \
-		$(foreach config,$(2),$(srctree)/arch/$(ARCH)/configs/$(config).config)
+		-Q -m -O $(objtree) $(srctree)/arch/$(SRCARCH)/configs/$(1) \
+		$(foreach config,$(2),$(srctree)/arch/$(SRCARCH)/configs/$(config).config)
 	+$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 endef

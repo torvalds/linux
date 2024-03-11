@@ -84,7 +84,7 @@ static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
 
 		TEST_ASSERT(e1->function == e2->function &&
 			    e1->index == e2->index && e1->flags == e2->flags,
-			    "CPUID entries[%d] mismtach: 0x%x.%d.%x vs. 0x%x.%d.%x\n",
+			    "CPUID entries[%d] mismtach: 0x%x.%d.%x vs. 0x%x.%d.%x",
 			    i, e1->function, e1->index, e1->flags,
 			    e2->function, e2->index, e2->flags);
 
@@ -170,7 +170,7 @@ static void test_get_cpuid2(struct kvm_vcpu *vcpu)
 
 	vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
 	TEST_ASSERT(cpuid->nent == vcpu->cpuid->nent,
-		    "KVM didn't update nent on success, wanted %u, got %u\n",
+		    "KVM didn't update nent on success, wanted %u, got %u",
 		    vcpu->cpuid->nent, cpuid->nent);
 
 	for (i = 0; i < vcpu->cpuid->nent; i++) {

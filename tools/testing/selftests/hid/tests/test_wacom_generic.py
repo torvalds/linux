@@ -880,8 +880,8 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         does not overlap with other contacts. The value of `t` may be
         incremented over time to move the point along a linear path.
         """
-        x = 50 + 10 * contact_id + t
-        y = 100 + 100 * contact_id + t
+        x = 50 + 10 * contact_id + t * 11
+        y = 100 + 100 * contact_id + t * 11
         return test_multitouch.Touch(contact_id, x, y)
 
     def make_contacts(self, n, t=0):
@@ -902,8 +902,8 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         tracking_id = contact_ids.tracking_id
         slot_num = contact_ids.slot_num
 
-        x = 50 + 10 * contact_id + t
-        y = 100 + 100 * contact_id + t
+        x = 50 + 10 * contact_id + t * 11
+        y = 100 + 100 * contact_id + t * 11
 
         # If the data isn't supposed to be stored in any slots, there is
         # nothing we can check for in the evdev stream.

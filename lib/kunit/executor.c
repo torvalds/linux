@@ -146,6 +146,10 @@ void kunit_free_suite_set(struct kunit_suite_set suite_set)
 	kfree(suite_set.start);
 }
 
+/*
+ * Filter and reallocate test suites. Must return the filtered test suites set
+ * allocated at a valid virtual address or NULL in case of error.
+ */
 struct kunit_suite_set
 kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		    const char *filter_glob,

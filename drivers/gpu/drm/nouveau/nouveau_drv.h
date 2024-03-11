@@ -98,7 +98,7 @@ struct nouveau_cli {
 		bool disabled;
 	} uvmm;
 
-	struct nouveau_sched sched;
+	struct nouveau_sched *sched;
 
 	const struct nvif_mclass *mem;
 

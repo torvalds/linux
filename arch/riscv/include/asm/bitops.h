@@ -39,7 +39,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
 {
 	int num;
 
-	asm_volatile_goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -95,7 +95,7 @@ static __always_inline unsigned long variable__fls(unsigned long word)
 {
 	int num;
 
-	asm_volatile_goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -154,7 +154,7 @@ static __always_inline int variable_ffs(int x)
 	if (!x)
 		return 0;
 
-	asm_volatile_goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 
@@ -209,7 +209,7 @@ static __always_inline int variable_fls(unsigned int x)
 	if (!x)
 		return 0;
 
-	asm_volatile_goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
+	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
 				      RISCV_ISA_EXT_ZBB, 1)
 			  : : : : legacy);
 

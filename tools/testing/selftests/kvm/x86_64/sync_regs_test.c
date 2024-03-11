@@ -46,7 +46,7 @@ static void compare_regs(struct kvm_regs *left, struct kvm_regs *right)
 #define REG_COMPARE(reg) \
 	TEST_ASSERT(left->reg == right->reg, \
 		    "Register " #reg \
-		    " values did not match: 0x%llx, 0x%llx\n", \
+		    " values did not match: 0x%llx, 0x%llx", \
 		    left->reg, right->reg)
 	REG_COMPARE(rax);
 	REG_COMPARE(rbx);
@@ -230,14 +230,14 @@ int main(int argc, char *argv[])
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
+		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
+		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_valid_regs = 0;
 
@@ -245,14 +245,14 @@ int main(int argc, char *argv[])
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
 	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
+		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
-		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
+		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d",
 		    rv);
 	run->kvm_dirty_regs = 0;
 

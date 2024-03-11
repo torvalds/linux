@@ -574,7 +574,7 @@ svm_migrate_copy_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms, prange->start,
 		 prange->last);
 
-	addr = prange->start << PAGE_SHIFT;
+	addr = migrate->start;
 
 	src = (uint64_t *)(scratch + npages);
 	dst = scratch;

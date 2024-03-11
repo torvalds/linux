@@ -361,7 +361,7 @@ bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const un
 	struct dc_link *dpia_link[MAX_DPIA_NUM] = {0};
 	int num_dpias = 0;
 
-	for (uint8_t i = 0; i < num_streams; ++i) {
+	for (unsigned int i = 0; i < num_streams; ++i) {
 		if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT) {
 			/* new dpia sst stream, check whether it exceeds max dpia */
 			if (num_dpias >= MAX_DPIA_NUM)

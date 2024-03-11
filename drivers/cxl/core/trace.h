@@ -338,7 +338,7 @@ TRACE_EVENT(cxl_general_media,
 
 	TP_fast_assign(
 		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
-		memcpy(&__entry->hdr_uuid, &CXL_EVENT_GEN_MEDIA_UUID, sizeof(uuid_t));
+		__entry->hdr_uuid = CXL_EVENT_GEN_MEDIA_UUID;
 
 		/* General Media */
 		__entry->dpa = le64_to_cpu(rec->phys_addr);
@@ -425,7 +425,7 @@ TRACE_EVENT(cxl_dram,
 
 	TP_fast_assign(
 		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
-		memcpy(&__entry->hdr_uuid, &CXL_EVENT_DRAM_UUID, sizeof(uuid_t));
+		__entry->hdr_uuid = CXL_EVENT_DRAM_UUID;
 
 		/* DRAM */
 		__entry->dpa = le64_to_cpu(rec->phys_addr);
@@ -573,7 +573,7 @@ TRACE_EVENT(cxl_memory_module,
 
 	TP_fast_assign(
 		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
-		memcpy(&__entry->hdr_uuid, &CXL_EVENT_MEM_MODULE_UUID, sizeof(uuid_t));
+		__entry->hdr_uuid = CXL_EVENT_MEM_MODULE_UUID;
 
 		/* Memory Module Event */
 		__entry->event_type = rec->event_type;

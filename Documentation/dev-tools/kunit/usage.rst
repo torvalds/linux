@@ -671,8 +671,23 @@ Testing Static Functions
 ------------------------
 
 If we do not want to expose functions or variables for testing, one option is to
-conditionally ``#include`` the test file at the end of your .c file. For
-example:
+conditionally export the used symbol. For example:
+
+.. code-block:: c
+
+	/* In my_file.c */
+
+	VISIBLE_IF_KUNIT int do_interesting_thing();
+	EXPORT_SYMBOL_IF_KUNIT(do_interesting_thing);
+
+	/* In my_file.h */
+
+	#if IS_ENABLED(CONFIG_KUNIT)
+		int do_interesting_thing(void);
+	#endif
+
+Alternatively, you could conditionally ``#include`` the test file at the end of
+your .c file. For example:
 
 .. code-block:: c
 

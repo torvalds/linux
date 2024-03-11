@@ -236,6 +236,16 @@ else
   SHELLCHECK := $(shell which shellcheck 2> /dev/null)
 endif
 
+# shellcheck is using in tools/perf/tests/Build with option -a/--check-sourced (
+# introduced in v0.4.7) and -S/--severity (introduced in v0.6.0). So make the
+# minimal shellcheck version as v0.6.0.
+ifneq ($(SHELLCHECK),)
+  ifeq ($(shell expr $(shell $(SHELLCHECK) --version | grep version: | \
+        sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 060), 1)
+    SHELLCHECK :=
+  endif
+endif
+
 export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
 export HOSTCC HOSTLD HOSTAR HOSTCFLAGS SHELLCHECK
 
