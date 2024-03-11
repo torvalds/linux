@@ -1601,7 +1601,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream)
 {
-	int bpp, pbn, branch_max_throughput_mps = 0;
+	int pbn, branch_max_throughput_mps = 0;
 	struct dc_link_settings cur_link_settings;
 	unsigned int end_to_end_bw_in_kbps = 0;
 	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
@@ -1651,11 +1651,36 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 			}
 		}
 	} else {
-		/* check if mode could be supported within full_pbn */
-		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
-		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp << 4);
-		if (pbn > aconnector->mst_output_port->full_pbn)
+		/* Check if mode could be supported within max slot
+		 * number of current mst link and full_pbn of mst links.
+		 */
+		int pbn_div, slot_num, max_slot_num;
+		enum dc_link_encoding_format link_encoding;
+		uint16_t fec_overhead_multiplier_x1000 =
+			get_fec_overhead_multiplier(stream->link);
+		uint32_t stream_kbps =
+			dc_bandwidth_in_kbps_from_timing(&stream->timing,
+				dc_link_get_highest_encoding_format(stream->link));
+
+		pbn = kbps_to_peak_pbn(stream_kbps, fec_overhead_multiplier_x1000);
+		pbn_div = dm_mst_get_pbn_divider(stream->link);
+		slot_num = DIV_ROUND_UP(pbn, pbn_div);
+
+		link_encoding = dc_link_get_highest_encoding_format(stream->link);
+		if (link_encoding == DC_LINK_ENCODING_DP_8b_10b)
+			max_slot_num = 63;
+		else if (link_encoding == DC_LINK_ENCODING_DP_128b_132b)
+			max_slot_num = 64;
+		else {
+			DRM_DEBUG_DRIVER("Invalid link encoding format\n");
 			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+
+		if (slot_num > max_slot_num ||
+			pbn > aconnector->mst_output_port->full_pbn) {
+			DRM_DEBUG_DRIVER("Mode can not be supported within mst links!");
+			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
 	}
 
 	/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
