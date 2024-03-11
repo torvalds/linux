@@ -2515,7 +2515,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 		vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
 		if (unlikely((u16)(vq->avail_idx - last_avail_idx) > vq->num)) {
-			vq_err(vq, "Guest moved used index from %u to %u",
+			vq_err(vq, "Guest moved avail index from %u to %u",
 				last_avail_idx, vq->avail_idx);
 			return -EFAULT;
 		}
