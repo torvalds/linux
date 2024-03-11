@@ -533,6 +533,11 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	}
 
 #ifdef CONFIG_PINCTRL_NOMADIK
+	if (id >= ARRAY_SIZE(nmk_gpio_chips)) {
+		dev_err(dev, "populate: invalid id: %u\n", id);
+		platform_device_put(gpio_pdev);
+		return ERR_PTR(-EINVAL);
+	}
 	/* Already populated? */
 	nmk_chip = nmk_gpio_chips[id];
 	if (nmk_chip) {
@@ -606,7 +611,6 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	}
 
 #ifdef CONFIG_PINCTRL_NOMADIK
-	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 	nmk_gpio_chips[id] = nmk_chip;
 #endif
 	return nmk_chip;
