@@ -50,14 +50,6 @@ config BCACHEFS_POSIX_ACL
 	depends on BCACHEFS_FS
 	select FS_POSIX_ACL
 
-config BCACHEFS_DEBUG_TRANSACTIONS
-	bool "bcachefs runtime info"
-	depends on BCACHEFS_FS
-	help
-	This makes the list of running btree transactions available in debugfs.
-
-	This is a highly useful debugging feature but does add a small amount of overhead.
-
 config BCACHEFS_DEBUG
 	bool "bcachefs debugging"
 	depends on BCACHEFS_FS
@@ -84,6 +76,16 @@ config BCACHEFS_NO_LATENCY_ACCT
 	depends on BCACHEFS_FS
 	help
 	This disables device latency tracking and time stats, only for performance testing
+
+config BCACHEFS_SIX_OPTIMISTIC_SPIN
+	bool "Optimistic spinning for six locks"
+	depends on BCACHEFS_FS
+	depends on SMP
+	default y
+	help
+	Instead of immediately sleeping when attempting to take a six lock that
+	is held by another thread, spin for a short while, as long as the
+	thread owning the lock is running.
 
 config MEAN_AND_VARIANCE_UNIT_TEST
 	tristate "mean_and_variance unit tests" if !KUNIT_ALL_TESTS

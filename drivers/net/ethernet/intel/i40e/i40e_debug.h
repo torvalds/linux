@@ -37,6 +37,7 @@ struct i40e_hw;
 struct device *i40e_hw_to_dev(struct i40e_hw *hw);
 
 #define hw_dbg(hw, S, A...) dev_dbg(i40e_hw_to_dev(hw), S, ##A)
+#define hw_warn(hw, S, A...) dev_warn(i40e_hw_to_dev(hw), S, ##A)
 
 #define i40e_debug(h, m, s, ...)				\
 do {								\

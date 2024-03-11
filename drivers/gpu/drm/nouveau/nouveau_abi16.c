@@ -127,20 +127,15 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
-	/* When a client exits without waiting for it's queued up jobs to
-	 * finish it might happen that we fault the channel. This is due to
-	 * drm_file_free() calling drm_gem_release() before the postclose()
-	 * callback. Hence, we can't tear down this scheduler entity before
-	 * uvmm mappings are unmapped. Currently, we can't detect this case.
-	 *
-	 * However, this should be rare and harmless, since the channel isn't
-	 * needed anymore.
-	 */
-	nouveau_sched_entity_fini(&chan->sched_entity);
+	/* Cancel all jobs from the entity's queue. */
+	if (chan->sched)
+		drm_sched_entity_fini(&chan->sched->entity);
 
-	/* wait for all activity to stop before cleaning up */
 	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
+
+	if (chan->sched)
+		nouveau_sched_destroy(&chan->sched);
 
 	/* cleanup notifier state */
 	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
@@ -204,6 +199,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
+	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
 	struct nvkm_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -266,6 +262,14 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		int ib_max = getparam_dma_ib_max(device);
 
 		getparam->value = nouveau_exec_push_max_from_ib_max(ib_max);
+		break;
+	}
+	case NOUVEAU_GETPARAM_VRAM_BAR_SIZE:
+		getparam->value = nvkm_device->func->resource_size(nvkm_device, 1);
+		break;
+	case NOUVEAU_GETPARAM_VRAM_USED: {
+		struct ttm_resource_manager *vram_mgr = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
+		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr);
 		break;
 	}
 	default:
@@ -344,10 +348,16 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nouveau_sched_entity_init(&chan->sched_entity, &drm->sched,
-					drm->sched_wq);
-	if (ret)
-		goto done;
+	/* If we're not using the VM_BIND uAPI, we don't need a scheduler.
+	 *
+	 * The client lock is already acquired by nouveau_abi16_get().
+	 */
+	if (nouveau_cli_uvmm(cli)) {
+		ret = nouveau_sched_create(&chan->sched, drm, drm->sched_wq,
+					   chan->chan->dma.ib_max);
+		if (ret)
+			goto done;
+	}
 
 	init->channel = chan->chan->chid;
 

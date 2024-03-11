@@ -384,6 +384,17 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		dev_dbg(component->dev, "AMD_DMIC channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
+	case SOF_DAI_IMX_MICFIL:
+		rate->min = private->dai_config->micfil.pdm_rate;
+		rate->max = private->dai_config->micfil.pdm_rate;
+		channels->min = private->dai_config->micfil.pdm_ch;
+		channels->max = private->dai_config->micfil.pdm_ch;
+
+		dev_dbg(component->dev,
+			"MICFIL PDM rate_min: %d rate_max: %d\n", rate->min, rate->max);
+		dev_dbg(component->dev, "MICFIL PDM channels_min: %d channels_max: %d\n",
+			channels->min, channels->max);
+		break;
 	default:
 		dev_err(component->dev, "Invalid DAI type %d\n", private->dai_config->type);
 		break;

@@ -14,9 +14,12 @@
 #include "xfs_btree.h"
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_quota.h"
+#include "xfs_quota_defs.h"
 #include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
+#include "scrub/quota.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t

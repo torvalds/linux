@@ -3117,7 +3117,6 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 	struct request_queue *q = sdkp->disk->queue;
 	struct scsi_vpd *vpd;
 	u16 rot;
-	u8 zoned;
 
 	rcu_read_lock();
 	vpd = rcu_dereference(sdkp->device->vpd_pgb1);
@@ -3128,7 +3127,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 	}
 
 	rot = get_unaligned_be16(&vpd->data[4]);
-	zoned = (vpd->data[8] >> 4) & 3;
+	sdkp->zoned = (vpd->data[8] >> 4) & 3;
 	rcu_read_unlock();
 
 	if (rot == 1) {
@@ -3136,39 +3135,37 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
+
+#ifdef CONFIG_BLK_DEV_ZONED /* sd_probe rejects ZBD devices early otherwise */
 	if (sdkp->device->type == TYPE_ZBC) {
 		/*
-		 * Host-managed: Per ZBC and ZAC specifications, writes in
-		 * sequential write required zones of host-managed devices must
-		 * be aligned to the device physical block size.
+		 * Host-managed.
 		 */
-		disk_set_zoned(sdkp->disk, BLK_ZONED_HM);
+		disk_set_zoned(sdkp->disk);
+
+		/*
+		 * Per ZBC and ZAC specifications, writes in sequential write
+		 * required zones of host-managed devices must be aligned to
+		 * the device physical block size.
+		 */
 		blk_queue_zone_write_granularity(q, sdkp->physical_block_size);
 	} else {
-		sdkp->zoned = zoned;
-		if (sdkp->zoned == 1) {
-			/* Host-aware */
-			disk_set_zoned(sdkp->disk, BLK_ZONED_HA);
-		} else {
-			/* Regular disk or drive managed disk */
-			disk_set_zoned(sdkp->disk, BLK_ZONED_NONE);
-		}
+		/*
+		 * Host-aware devices are treated as conventional.
+		 */
+		WARN_ON_ONCE(blk_queue_is_zoned(q));
 	}
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 	if (!sdkp->first_scan)
 		return;
 
-	if (blk_queue_is_zoned(q)) {
-		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
-		      q->limits.zoned == BLK_ZONED_HM ? "managed" : "aware");
-	} else {
-		if (sdkp->zoned == 1)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Host-aware SMR disk used as regular disk\n");
-		else if (sdkp->zoned == 2)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Drive-managed SMR disk\n");
-	}
+	if (blk_queue_is_zoned(q))
+		sd_printk(KERN_NOTICE, sdkp, "Host-managed zoned block device\n");
+	else if (sdkp->zoned == 1)
+		sd_printk(KERN_NOTICE, sdkp, "Host-aware SMR disk used as regular disk\n");
+	else if (sdkp->zoned == 2)
+		sd_printk(KERN_NOTICE, sdkp, "Drive-managed SMR disk\n");
 }
 
 /**
@@ -3410,6 +3407,24 @@ static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
 	return true;
 }
 
+static void sd_read_block_zero(struct scsi_disk *sdkp)
+{
+	unsigned int buf_len = sdkp->device->sector_size;
+	char *buffer, cmd[10] = { };
+
+	buffer = kmalloc(buf_len, GFP_KERNEL);
+	if (!buffer)
+		return;
+
+	cmd[0] = READ_10;
+	put_unaligned_be32(0, &cmd[2]); /* Logical block address 0 */
+	put_unaligned_be16(1, &cmd[7]);	/* Transfer 1 logical block */
+
+	scsi_execute_cmd(sdkp->device, cmd, REQ_OP_DRV_IN, buffer, buf_len,
+			 SD_TIMEOUT, sdkp->max_retries, NULL);
+	kfree(buffer);
+}
+
 /**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
@@ -3449,7 +3464,13 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	if (sdkp->media_present) {
 		sd_read_capacity(sdkp, buffer);
-
+		/*
+		 * Some USB/UAS devices return generic values for mode pages
+		 * until the media has been accessed. Trigger a READ operation
+		 * to force the device to populate mode pages.
+		 */
+		if (sdp->read_before_ms)
+			sd_read_block_zero(sdkp);
 		/*
 		 * set the default to rotational.  All non-rotational devices
 		 * support the block characteristics VPD page, which will
@@ -3502,7 +3523,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	} else {
 		q->limits.io_opt = 0;
 		rw_max = min_not_zero(logical_to_sectors(sdp, dev_max),
-				      (sector_t)BLK_DEF_MAX_SECTORS);
+				      (sector_t)BLK_DEF_MAX_SECTORS_CAP);
 	}
 
 	/*

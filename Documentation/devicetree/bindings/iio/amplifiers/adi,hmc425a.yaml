@@ -12,6 +12,9 @@ maintainers:
 description: |
   Digital Step Attenuator IIO devices with gpio interface.
   Offer various frequency and attenuation ranges.
+  ADRF5750 2 dB LSB, 4-Bit, Silicon Digital Attenuator, 10 MHz to 60 GHz
+    https://www.analog.com/media/en/technical-documentation/data-sheets/adrf5740.pdf
+
   HMC425A 0.5 dB LSB GaAs MMIC 6-BIT DIGITAL POSITIVE CONTROL ATTENUATOR, 2.2 - 8.0 GHz
     https://www.analog.com/media/en/technical-documentation/data-sheets/hmc425A.pdf
 
@@ -22,6 +25,7 @@ description: |
 properties:
   compatible:
     enum:
+      - adi,adrf5740
       - adi,hmc425a
       - adi,hmc540s
 

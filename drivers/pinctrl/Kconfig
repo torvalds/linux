@@ -366,6 +366,21 @@ config PINCTRL_PALMAS
 	  open drain configuration for the Palmas series devices like
 	  TPS65913, TPS80036 etc.
 
+config PINCTRL_PEF2256
+	tristate "Lantiq PEF2256 (FALC56) pin controller driver"
+	depends on OF && FRAMER_PEF2256
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  This option enables the pin controller support for the Lantiq PEF2256
+	  framer, also known as FALC56.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pinctrl-pef2256.
+
 config PINCTRL_PIC32
 	bool "Microchip PIC32 pin controller driver"
 	depends on OF
@@ -468,6 +483,22 @@ config PINCTRL_TB10X
 	bool
 	depends on OF && ARC_PLAT_TB10X
 	select GPIOLIB
+
+config PINCTRL_TPS6594
+	tristate "Pinctrl and GPIO driver for TI TPS6594 PMIC"
+	depends on OF && MFD_TPS6594
+	default MFD_TPS6594
+	select PINMUX
+	select GPIOLIB
+	select REGMAP
+	select GPIO_REGMAP
+	select GENERIC_PINCONF
+	help
+	  Say Y to select the pinmuxing and GPIOs driver for the TPS6594
+	  PMICs chip family.
+
+	  This driver can also be built as a module
+	  called tps6594-pinctrl.
 
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"

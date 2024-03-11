@@ -48,7 +48,6 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/screen_info.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -927,8 +926,8 @@ static phys_addr_t hvfb_get_phymem(struct hv_device *hdev,
 	if (request_size == 0)
 		return -1;
 
-	if (order <= MAX_ORDER) {
-		/* Call alloc_pages if the size is less than 2^MAX_ORDER */
+	if (order <= MAX_PAGE_ORDER) {
+		/* Call alloc_pages if the size is less than 2^MAX_PAGE_ORDER */
 		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 		if (!page)
 			return -1;
@@ -958,7 +957,7 @@ static void hvfb_release_phymem(struct hv_device *hdev,
 {
 	unsigned int order = get_order(size);
 
-	if (order <= MAX_ORDER)
+	if (order <= MAX_PAGE_ORDER)
 		__free_pages(pfn_to_page(paddr >> PAGE_SHIFT), order);
 	else
 		dma_free_coherent(&hdev->device,
@@ -975,7 +974,8 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	struct pci_dev *pdev  = NULL;
 	void __iomem *fb_virt;
 	int gen2vm = efi_enabled(EFI_BOOT);
-	resource_size_t base, size;
+	resource_size_t base = 0;
+	resource_size_t size = 0;
 	phys_addr_t paddr;
 	int ret;
 
@@ -1010,11 +1010,6 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 			goto getmem_done;
 		}
 		pr_info("Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead.\n");
-	} else if (IS_ENABLED(CONFIG_SYSFB)) {
-		base = screen_info.lfb_base;
-		size = screen_info.lfb_size;
-	} else {
-		goto err1;
 	}
 
 	/*
@@ -1056,16 +1051,13 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	info->screen_size = dio_fb_size;
 
 getmem_done:
-	aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
+	if (base && size)
+		aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
+	else
+		aperture_remove_all_conflicting_devices(KBUILD_MODNAME);
 
-	if (!gen2vm) {
+	if (!gen2vm)
 		pci_dev_put(pdev);
-	} else if (IS_ENABLED(CONFIG_SYSFB)) {
-		/* framebuffer is reallocated, clear screen_info to avoid misuse from kexec */
-		screen_info.lfb_size = 0;
-		screen_info.lfb_base = 0;
-		screen_info.orig_video_isVGA = 0;
-	}
 
 	return 0;
 

@@ -152,6 +152,16 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	mvm->lar_regdom_set = true;
 	mvm->mcc_src = src_id;
 
+	/* Some kind of regulatory mess means we need to currently disallow
+	 * puncturing in the US and Canada. Do that here, at least until we
+	 * figure out the new chanctx APIs for puncturing.
+	 */
+	if (resp->mcc == cpu_to_le16(IWL_MCC_US) ||
+	    resp->mcc == cpu_to_le16(IWL_MCC_CANADA))
+		ieee80211_hw_set(mvm->hw, DISALLOW_PUNCTURING);
+	else
+		__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING, mvm->hw->flags);
+
 	iwl_mei_set_country_code(__le16_to_cpu(resp->mcc));
 
 out:
@@ -288,7 +298,7 @@ int iwl_mvm_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	/* This has been tested on those devices only */
 	if (mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
 	    mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_22000)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!mvm->nvm_data)
 		return -EBUSY;
@@ -516,6 +526,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	else
 		hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 					       REGULATORY_DISABLE_BEACON_HINTS;
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_DFS_CONCURRENT);
 
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
@@ -1586,7 +1600,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-		iwl_mvm_vif_dbgfs_add_link(mvm, vif);
+		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+			iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 		ret = 0;
 		goto out;
 	}
@@ -1626,7 +1641,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			iwl_mvm_chandef_get_primary_80(&vif->bss_conf.chandef);
 	}
 
-	iwl_mvm_vif_dbgfs_add_link(mvm, vif);
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
@@ -3670,6 +3686,9 @@ iwl_mvm_sta_state_notexist_to_none(struct iwl_mvm *mvm,
 		iwl_mvm_tdls_check_trigger(mvm, vif, sta->addr,
 					   NL80211_TDLS_SETUP);
 	}
+
+	if (ret)
+		return ret;
 
 	for_each_sta_active_link(vif, sta, link_sta, i)
 		link_sta->agg.max_rc_amsdu_len = 1;

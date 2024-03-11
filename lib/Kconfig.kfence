@@ -5,7 +5,7 @@ config HAVE_ARCH_KFENCE
 
 menuconfig KFENCE
 	bool "KFENCE: low-overhead sampling-based memory safety error detector"
-	depends on HAVE_ARCH_KFENCE && (SLAB || SLUB)
+	depends on HAVE_ARCH_KFENCE
 	select STACKTRACE
 	select IRQ_WORK
 	help

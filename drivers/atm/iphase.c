@@ -90,6 +90,7 @@ module_param(IA_RX_BUF, int, 0);
 module_param(IA_RX_BUF_SZ, int, 0);
 module_param(IADebugFlag, uint, 0644);
 
+MODULE_DESCRIPTION("Driver for Interphase ATM PCI NICs");
 MODULE_LICENSE("GPL");
 
 /**************************** IA_LIB **********************************/

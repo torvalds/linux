@@ -16,10 +16,12 @@
  * |reserved (4 bytes)                         |
  * |-------------------------------------------|
  * |host version (8 bytes)                     |
+ * |    low 32 bits                            |
  * |host status (8 bytes)                      |
  * |host reserved (104 bytes)                  |
  * |-------------------------------------------|
- * |fw version (8 bytes)                       |
+ * |fw version's (8 bytes)                     |
+ * |    min=high 32 bits, max=low 32 bits      |
  * |fw status (8 bytes)                        |
  * |fw reserved (104 bytes)                    |
  * |===========================================|

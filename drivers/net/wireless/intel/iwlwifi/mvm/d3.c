@@ -1130,14 +1130,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 			return ret;
 	}
 
-	/*
-	 * This needs to be unlocked due to lock ordering
-	 * constraints. Since we're in the suspend path
-	 * that isn't really a problem though.
-	 */
-	mutex_unlock(&mvm->mutex);
 	ret = iwl_mvm_wowlan_config_key_params(mvm, vif);
-	mutex_lock(&mvm->mutex);
 	if (ret)
 		return ret;
 
@@ -1286,7 +1279,9 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 		mvm->net_detect = true;
 	} else {
-		struct iwl_wowlan_config_cmd wowlan_config_cmd = {};
+		struct iwl_wowlan_config_cmd wowlan_config_cmd = {
+			.offloading_tid = 0,
+		};
 
 		wowlan_config_cmd.sta_id = mvmvif->deflink.ap_sta_id;
 
@@ -1297,6 +1292,11 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			ret = -EINVAL;
 			goto out_noreset;
 		}
+
+		ret = iwl_mvm_sta_ensure_queue(
+			mvm, ap_sta->txq[wowlan_config_cmd.offloading_tid]);
+		if (ret)
+			goto out_noreset;
 
 		ret = iwl_mvm_get_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
 						vif, mvmvif, ap_sta);
@@ -2497,7 +2497,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 					 struct iwl_wowlan_status_data *status)
 {
 	int i;
-	bool keep;
+	bool keep = false;
 	struct iwl_mvm_sta *mvm_ap_sta;
 
 	if (!status)
@@ -2525,18 +2525,12 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 				     mvm_ap_sta->tid_data[i].seq_number >> 4);
 	}
 
-	/* now we have all the data we need, unlock to avoid mac80211 issues */
-	mutex_unlock(&mvm->mutex);
-
 	iwl_mvm_report_wakeup_reasons(mvm, vif, status);
 
 	keep = iwl_mvm_setup_connection_keep(mvm, vif, status);
-
-	return keep;
-
 out_unlock:
 	mutex_unlock(&mvm->mutex);
-	return false;
+	return keep;
 }
 
 #define ND_QUERY_BUF_LEN (sizeof(struct iwl_scan_offload_profile_match) * \

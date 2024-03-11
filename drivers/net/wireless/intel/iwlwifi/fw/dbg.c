@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -19,7 +19,6 @@
  * @fwrt_ptr: pointer to the buffer coming from fwrt
  * @trans_ptr: pointer to struct %iwl_trans_dump_data which contains the
  *	transport's data.
- * @trans_len: length of the valid data in trans_ptr
  * @fwrt_len: length of the valid data in fwrt_ptr
  */
 struct iwl_fw_dump_ptrs {
@@ -880,10 +879,10 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(fwrt->trans->hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
-		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
-			sizeof(dump_info->dev_human_readable) - 1);
-		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
-			sizeof(dump_info->bus_human_readable) - 1);
+		strscpy_pad(dump_info->dev_human_readable, fwrt->trans->name,
+			sizeof(dump_info->dev_human_readable));
+		strscpy_pad(dump_info->bus_human_readable, fwrt->dev->bus->name,
+			sizeof(dump_info->bus_human_readable));
 		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
 		dump_info->lmac_err_id[0] =
 			cpu_to_le32(fwrt->dump.lmac_err_id[0]);
@@ -3395,3 +3394,22 @@ void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
 	iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_disable_dbg_asserts);
+
+void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dbg_params params = {0};
+
+	iwl_fw_dbg_stop_sync(fwrt);
+
+	if (fw_has_api(&fwrt->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR)) {
+		struct iwl_host_cmd hcmd = {
+			.id = WIDE_ID(DEBUG_GROUP, FW_CLEAR_BUFFER),
+		};
+		iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	}
+
+	iwl_dbg_tlv_init_cfg(fwrt);
+	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_clear_monitor_buf);

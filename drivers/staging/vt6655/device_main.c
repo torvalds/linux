@@ -454,7 +454,7 @@ static void device_init_registers(struct vnt_private *priv)
 	}
 
 	if (priv->hw_radio_off || priv->bRadioControlOff)
-		CARDbRadioPowerOff(priv);
+		card_radio_power_off(priv);
 
 	/* get Permanent network address */
 	SROMvReadEtherAddress(priv->port_offset, priv->abyCurrentNetAddr);
@@ -463,7 +463,7 @@ static void device_init_registers(struct vnt_private *priv)
 	/* reset Tx pointer */
 	CARDvSafeResetRx(priv);
 	/* reset Rx pointer */
-	CARDvSafeResetTx(priv);
+	card_safe_reset_tx(priv);
 
 	if (priv->local_id <= REV_ID_VT3253_A1)
 		vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_RCR, RCR_WPAERR);
@@ -737,7 +737,7 @@ static int device_init_td0_ring(struct vnt_private *priv)
 
 	if (i > 0)
 		priv->apTD0Rings[i - 1].next_desc = cpu_to_le32(priv->td0_pool_dma);
-	priv->apTailTD[0] = priv->apCurrTD[0] = &priv->apTD0Rings[0];
+	priv->tail_td[0] = priv->apCurrTD[0] = &priv->apTD0Rings[0];
 
 	return 0;
 
@@ -777,7 +777,7 @@ static int device_init_td1_ring(struct vnt_private *priv)
 
 	if (i > 0)
 		priv->apTD1Rings[i - 1].next_desc = cpu_to_le32(priv->td1_pool_dma);
-	priv->apTailTD[1] = priv->apCurrTD[1] = &priv->apTD1Rings[0];
+	priv->tail_td[1] = priv->apCurrTD[1] = &priv->apTD1Rings[0];
 
 	return 0;
 
@@ -969,7 +969,7 @@ static int device_tx_srv(struct vnt_private *priv, unsigned int idx)
 	unsigned char byTsr0;
 	unsigned char byTsr1;
 
-	for (desc = priv->apTailTD[idx]; priv->iTDUsed[idx] > 0; desc = desc->next) {
+	for (desc = priv->tail_td[idx]; priv->iTDUsed[idx] > 0; desc = desc->next) {
 		if (desc->td0.owner == OWNED_BY_NIC)
 			break;
 		if (works++ > 15)
@@ -1007,7 +1007,7 @@ static int device_tx_srv(struct vnt_private *priv, unsigned int idx)
 		}
 	}
 
-	priv->apTailTD[idx] = desc;
+	priv->tail_td[idx] = desc;
 
 	return works;
 }
@@ -1349,7 +1349,7 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	MACbShutdown(priv);
 	MACbSoftwareReset(priv);
-	CARDbRadioPowerOff(priv);
+	card_radio_power_off(priv);
 
 	device_free_td0_ring(priv);
 	device_free_td1_ring(priv);
@@ -1537,7 +1537,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			card_update_tsf(priv, conf->beacon_rate->hw_value,
 				       conf->sync_tsf);
 
-			CARDbSetBeaconPeriod(priv, conf->beacon_int);
+			card_set_beacon_period(priv, conf->beacon_int);
 
 			CARDvSetFirstNextTBTT(priv, conf->beacon_int);
 		} else {
@@ -1712,7 +1712,7 @@ static int vnt_init(struct vnt_private *priv)
 
 	priv->mac_hw = true;
 
-	CARDbRadioPowerOff(priv);
+	card_radio_power_off(priv);
 
 	return 0;
 }

@@ -247,15 +247,23 @@ static int avs_rt298_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_rt298_driver_ids[] = {
+	{
+		.name = "avs_rt298",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_rt298_driver_ids);
+
 static struct platform_driver avs_rt298_driver = {
 	.probe = avs_rt298_probe,
 	.driver = {
 		.name = "avs_rt298",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_rt298_driver_ids,
 };
 
 module_platform_driver(avs_rt298_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_rt298");

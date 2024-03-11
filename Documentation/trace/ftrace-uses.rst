@@ -182,7 +182,7 @@ FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED
 
 FTRACE_OPS_FL_RECURSION
 	By default, it is expected that the callback can handle recursion.
-	But if the callback is not that worried about overehead, then
+	But if the callback is not that worried about overhead, then
 	setting this bit will add the recursion protection around the
 	callback by calling a helper function that will do the recursion
 	protection and only call the callback if it did not recurse.
@@ -190,7 +190,7 @@ FTRACE_OPS_FL_RECURSION
 	Note, if this flag is not set, and recursion does occur, it could
 	cause the system to crash, and possibly reboot via a triple fault.
 
-	Not, if this flag is set, then the callback will always be called
+	Note, if this flag is set, then the callback will always be called
 	with preemption disabled. If it is not set, then it is possible
 	(but not guaranteed) that the callback will be called in
 	preemptable context.

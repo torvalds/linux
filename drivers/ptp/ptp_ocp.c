@@ -1716,20 +1716,6 @@ ptp_ocp_get_mem(struct ptp_ocp *bp, struct ocp_resource *r)
 	return __ptp_ocp_get_mem(bp, start, r->size);
 }
 
-static void
-ptp_ocp_set_irq_resource(struct resource *res, int irq)
-{
-	struct resource r = DEFINE_RES_IRQ(irq);
-	*res = r;
-}
-
-static void
-ptp_ocp_set_mem_resource(struct resource *res, resource_size_t start, int size)
-{
-	struct resource r = DEFINE_RES_MEM(start, size);
-	*res = r;
-}
-
 static int
 ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r)
 {
@@ -1741,15 +1727,15 @@ ptp_ocp_register_spi(struct ptp_ocp *bp, struct ocp_resource *r)
 	int id;
 
 	start = pci_resource_start(pdev, 0) + r->offset;
-	ptp_ocp_set_mem_resource(&res[0], start, r->size);
-	ptp_ocp_set_irq_resource(&res[1], pci_irq_vector(pdev, r->irq_vec));
+	res[0] = DEFINE_RES_MEM(start, r->size);
+	res[1] = DEFINE_RES_IRQ(pci_irq_vector(pdev, r->irq_vec));
 
 	info = r->extra;
 	id = pci_dev_id(pdev) << 1;
 	id += info->pci_offset;
 
 	p = platform_device_register_resndata(&pdev->dev, info->name, id,
-					      res, 2, info->data,
+					      res, ARRAY_SIZE(res), info->data,
 					      info->data_size);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
@@ -1768,11 +1754,11 @@ ptp_ocp_i2c_bus(struct pci_dev *pdev, struct ocp_resource *r, int id)
 
 	info = r->extra;
 	start = pci_resource_start(pdev, 0) + r->offset;
-	ptp_ocp_set_mem_resource(&res[0], start, r->size);
-	ptp_ocp_set_irq_resource(&res[1], pci_irq_vector(pdev, r->irq_vec));
+	res[0] = DEFINE_RES_MEM(start, r->size);
+	res[1] = DEFINE_RES_IRQ(pci_irq_vector(pdev, r->irq_vec));
 
 	return platform_device_register_resndata(&pdev->dev, info->name,
-						 id, res, 2,
+						 id, res, ARRAY_SIZE(res),
 						 info->data, info->data_size);
 }
 
@@ -4260,13 +4246,6 @@ static int ptp_ocp_dpll_mode_get(const struct dpll_device *dpll, void *priv,
 	return 0;
 }
 
-static bool ptp_ocp_dpll_mode_supported(const struct dpll_device *dpll,
-					void *priv, const enum dpll_mode mode,
-					struct netlink_ext_ack *extack)
-{
-	return mode == DPLL_MODE_AUTOMATIC;
-}
-
 static int ptp_ocp_dpll_direction_get(const struct dpll_pin *pin,
 				      void *pin_priv,
 				      const struct dpll_device *dpll,
@@ -4350,7 +4329,6 @@ static int ptp_ocp_dpll_frequency_get(const struct dpll_pin *pin,
 static const struct dpll_device_ops dpll_ops = {
 	.lock_status_get = ptp_ocp_dpll_lock_status_get,
 	.mode_get = ptp_ocp_dpll_mode_get,
-	.mode_supported = ptp_ocp_dpll_mode_supported,
 };
 
 static const struct dpll_pin_ops dpll_pins_ops = {

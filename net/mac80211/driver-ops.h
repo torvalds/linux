@@ -805,7 +805,7 @@ drv_cancel_remain_on_channel(struct ieee80211_local *local,
 static inline int drv_set_ringparam(struct ieee80211_local *local,
 				    u32 tx, u32 rx)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1662,6 +1662,26 @@ static inline int drv_net_setup_tc(struct ieee80211_local *local,
 		ret = local->ops->net_setup_tc(&local->hw, &sdata->vif, dev,
 					       type, type_data);
 	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline bool drv_can_activate_links(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  u16 active_links)
+{
+	bool ret = true;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (!check_sdata_in_driver(sdata))
+		return false;
+
+	trace_drv_can_activate_links(local, sdata, active_links);
+	if (local->ops->can_activate_links)
+		ret = local->ops->can_activate_links(&local->hw, &sdata->vif,
+						     active_links);
+	trace_drv_return_bool(local, ret);
 
 	return ret;
 }

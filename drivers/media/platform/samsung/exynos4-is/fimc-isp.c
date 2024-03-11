@@ -126,7 +126,7 @@ static int fimc_isp_subdev_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*mf = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		*mf = *v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		return 0;
 	}
 
@@ -172,9 +172,8 @@ static void __isp_subdev_try_format(struct fimc_isp *isp,
 		mf->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	} else {
 		if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-			format = v4l2_subdev_get_try_format(&isp->subdev,
-							    sd_state,
-							    FIMC_ISP_SD_PAD_SINK);
+			format = v4l2_subdev_state_get_format(sd_state,
+							      FIMC_ISP_SD_PAD_SINK);
 		else
 			format = &isp->sink_fmt;
 
@@ -207,7 +206,7 @@ static int fimc_isp_subdev_set_fmt(struct v4l2_subdev *sd,
 	__isp_subdev_try_format(isp, sd_state, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*mf = fmt->format;
 
 		/* Propagate format to the source pads */
@@ -220,8 +219,8 @@ static int fimc_isp_subdev_set_fmt(struct v4l2_subdev *sd,
 				format.pad = pad;
 				__isp_subdev_try_format(isp, sd_state,
 							&format);
-				mf = v4l2_subdev_get_try_format(sd, sd_state,
-								pad);
+				mf = v4l2_subdev_state_get_format(sd_state,
+								  pad);
 				*mf = format.format;
 			}
 		}
@@ -374,18 +373,17 @@ static int fimc_isp_subdev_open(struct v4l2_subdev *sd,
 		.field = V4L2_FIELD_NONE,
 	};
 
-	format = v4l2_subdev_get_try_format(sd, fh->state,
-					    FIMC_ISP_SD_PAD_SINK);
+	format = v4l2_subdev_state_get_format(fh->state, FIMC_ISP_SD_PAD_SINK);
 	*format = fmt;
 
-	format = v4l2_subdev_get_try_format(sd, fh->state,
-					    FIMC_ISP_SD_PAD_SRC_FIFO);
+	format = v4l2_subdev_state_get_format(fh->state,
+					      FIMC_ISP_SD_PAD_SRC_FIFO);
 	fmt.width = DEFAULT_PREVIEW_STILL_WIDTH;
 	fmt.height = DEFAULT_PREVIEW_STILL_HEIGHT;
 	*format = fmt;
 
-	format = v4l2_subdev_get_try_format(sd, fh->state,
-					    FIMC_ISP_SD_PAD_SRC_DMA);
+	format = v4l2_subdev_state_get_format(fh->state,
+					      FIMC_ISP_SD_PAD_SRC_DMA);
 	*format = fmt;
 
 	return 0;

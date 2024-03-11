@@ -226,12 +226,6 @@ static int stm32_usart_config_rs485(struct uart_port *port, struct ktermios *ter
 
 	stm32_usart_clr_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
 
-	if (port->rs485_rx_during_tx_gpio)
-		gpiod_set_value_cansleep(port->rs485_rx_during_tx_gpio,
-					 !!(rs485conf->flags & SER_RS485_RX_DURING_TX));
-	else
-		rs485conf->flags |= SER_RS485_RX_DURING_TX;
-
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		cr1 = readl_relaxed(port->membase + ofs->cr1);
 		cr3 = readl_relaxed(port->membase + ofs->cr3);
@@ -256,6 +250,10 @@ static int stm32_usart_config_rs485(struct uart_port *port, struct ktermios *ter
 
 		writel_relaxed(cr3, port->membase + ofs->cr3);
 		writel_relaxed(cr1, port->membase + ofs->cr1);
+
+		if (!port->rs485_rx_during_tx_gpio)
+			rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
 	} else {
 		stm32_usart_clr_bits(port, ofs->cr3,
 				     USART_CR3_DEM | USART_CR3_DEP);
@@ -1822,7 +1820,7 @@ err_dma_rx:
 	return ret;
 }
 
-static int stm32_usart_serial_remove(struct platform_device *pdev)
+static void stm32_usart_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct stm32_port *stm32_port = to_stm32_port(port);
@@ -1861,8 +1859,6 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 	}
 
 	stm32_usart_deinit_port(stm32_port);
-
-	return 0;
 }
 
 static void __maybe_unused stm32_usart_console_putchar(struct uart_port *port, unsigned char ch)
@@ -2146,7 +2142,7 @@ static const struct dev_pm_ops stm32_serial_pm_ops = {
 
 static struct platform_driver stm32_serial_driver = {
 	.probe		= stm32_usart_serial_probe,
-	.remove		= stm32_usart_serial_remove,
+	.remove_new	= stm32_usart_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &stm32_serial_pm_ops,

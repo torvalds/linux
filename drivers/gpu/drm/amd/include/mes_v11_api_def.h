@@ -232,6 +232,7 @@ union MESAPI_SET_HW_RESOURCES {
 		};
 		uint32_t	oversubscription_timer;
 		uint64_t        doorbell_info;
+		uint64_t        event_intr_history_gpu_mc_ptr;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -571,7 +572,8 @@ struct SET_SHADER_DEBUGGER {
 		struct {
 			uint32_t single_memop : 1;  /* SQ_DEBUG.single_memop */
 			uint32_t single_alu_op : 1; /* SQ_DEBUG.single_alu_op */
-			uint32_t reserved : 30;
+			uint32_t reserved : 29;
+			uint32_t process_ctx_flush : 1;
 		};
 		uint32_t u32all;
 	} flags;

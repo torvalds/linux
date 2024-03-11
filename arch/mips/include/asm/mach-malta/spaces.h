@@ -23,13 +23,13 @@
  * The kernel is still located in 0x80000000(kseg0). However,
  * the physical mask has been shifted to 0x80000000 which exploits the alias
  * on the Malta board. As a result of which, we override the __pa_symbol
- * to peform direct mapping from virtual to physical addresses. In other
+ * to perform direct mapping from virtual to physical addresses. In other
  * words, the 0x80000000 virtual address maps to 0x80000000 physical address
  * which in turn aliases to 0x0. We do this in order to be able to use a flat
  * 2GB of memory (0x80000000 - 0xffffffff) so we can avoid the I/O hole in
  * 0x10000000 - 0x1fffffff.
  * The last 64KB of physical memory are reserved for correct HIGHMEM
- * macros arithmetics.
+ * macros arithmetic.
  *
  */
 

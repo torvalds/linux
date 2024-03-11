@@ -68,7 +68,6 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	ibdev_dbg(&dev->ib_dev, "mdev=%p id=%d num_ports=%d\n", mdev,
 		  mdev->dev_id.as_uint32, dev->ib_dev.phys_port_cnt);
 
-	dev->gdma_dev = mdev;
 	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
 
 	/*
@@ -78,16 +77,35 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = mdev->gdma_context->dev;
 
+	ret = mana_gd_register_device(&mdev->gdma_context->mana_ib);
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to register device, ret %d",
+			  ret);
+		goto free_ib_device;
+	}
+	dev->gdma_dev = &mdev->gdma_context->mana_ib;
+
+	ret = mana_ib_gd_query_adapter_caps(dev);
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to query device caps, ret %d",
+			  ret);
+		goto deregister_device;
+	}
+
 	ret = ib_register_device(&dev->ib_dev, "mana_%d",
 				 mdev->gdma_context->dev);
-	if (ret) {
-		ib_dealloc_device(&dev->ib_dev);
-		return ret;
-	}
+	if (ret)
+		goto deregister_device;
 
 	dev_set_drvdata(&adev->dev, dev);
 
 	return 0;
+
+deregister_device:
+	mana_gd_deregister_device(dev->gdma_dev);
+free_ib_device:
+	ib_dealloc_device(&dev->ib_dev);
+	return ret;
 }
 
 static void mana_ib_remove(struct auxiliary_device *adev)
@@ -95,6 +113,9 @@ static void mana_ib_remove(struct auxiliary_device *adev)
 	struct mana_ib_dev *dev = dev_get_drvdata(&adev->dev);
 
 	ib_unregister_device(&dev->ib_dev);
+
+	mana_gd_deregister_device(dev->gdma_dev);
+
 	ib_dealloc_device(&dev->ib_dev);
 }
 

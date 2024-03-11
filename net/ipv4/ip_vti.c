@@ -721,6 +721,7 @@ static void __exit vti_fini(void)
 
 module_init(vti_init);
 module_exit(vti_fini);
+MODULE_DESCRIPTION("Virtual (secure) IP tunneling library");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("vti");
 MODULE_ALIAS_NETDEV("ip_vti0");

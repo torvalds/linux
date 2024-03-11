@@ -243,7 +243,7 @@ fail:
 	return err;
 }
 
-static int esp_sun3x_remove(struct platform_device *dev)
+static void esp_sun3x_remove(struct platform_device *dev)
 {
 	struct esp *esp = dev_get_drvdata(&dev->dev);
 	unsigned int irq = esp->host->irq;
@@ -261,13 +261,11 @@ static int esp_sun3x_remove(struct platform_device *dev)
 			  esp->command_block_dma);
 
 	scsi_host_put(esp->host);
-
-	return 0;
 }
 
 static struct platform_driver esp_sun3x_driver = {
 	.probe          = esp_sun3x_probe,
-	.remove         = esp_sun3x_remove,
+	.remove_new     = esp_sun3x_remove,
 	.driver = {
 		.name   = "sun3x_esp",
 	},

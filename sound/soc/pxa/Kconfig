@@ -35,7 +35,6 @@ config SND_MMP_SOC_SSPA
 	tristate "SoC Audio via MMP SSPA ports"
 	depends on ARCH_MMP
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_ARM
 	help
 	  Say Y if you want to add support for codecs attached to
 	  the MMP SSPA interface.

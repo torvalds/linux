@@ -562,6 +562,7 @@ static struct spi_driver wl1271_spi_driver = {
 };
 
 module_spi_driver(wl1271_spi_driver);
+MODULE_DESCRIPTION("TI WLAN SPI helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

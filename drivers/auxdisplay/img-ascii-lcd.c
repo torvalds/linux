@@ -8,9 +8,9 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -225,17 +225,11 @@ MODULE_DEVICE_TABLE(of, img_ascii_lcd_matches);
  */
 static int img_ascii_lcd_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
-	const struct img_ascii_lcd_config *cfg;
 	struct device *dev = &pdev->dev;
+	const struct img_ascii_lcd_config *cfg = device_get_match_data(dev);
 	struct img_ascii_lcd_ctx *ctx;
 	int err;
 
-	match = of_match_device(img_ascii_lcd_matches, dev);
-	if (!match)
-		return -ENODEV;
-
-	cfg = match->data;
 	ctx = devm_kzalloc(dev, sizeof(*ctx) + cfg->num_chars, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;

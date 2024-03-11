@@ -1261,7 +1261,7 @@ static void weight_updated(struct ioc_gq *iocg, struct ioc_now *now)
 static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
-	u64 last_period, cur_period;
+	u64 __maybe_unused last_period, cur_period;
 	u64 vtime, vtarget;
 	int i;
 
@@ -1352,6 +1352,13 @@ static bool iocg_kick_delay(struct ioc_gq *iocg, struct ioc_now *now)
 	u32 hwa;
 
 	lockdep_assert_held(&iocg->waitq.lock);
+
+	/*
+	 * If the delay is set by another CPU, we may be in the past. No need to
+	 * change anything if so. This avoids decay calculation underflow.
+	 */
+	if (time_before64(now->now, iocg->delay_at))
+		return false;
 
 	/* calculate the current delay in effect - 1/2 every second */
 	tdelta = now->now - iocg->delay_at;

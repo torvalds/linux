@@ -42,13 +42,26 @@ struct ivpu_ipc_hdr {
 	u8 status;
 } __packed __aligned(IVPU_IPC_ALIGNMENT);
 
+typedef void (*ivpu_ipc_rx_callback_t)(struct ivpu_device *vdev,
+				       struct ivpu_ipc_hdr *ipc_hdr,
+				       struct vpu_jsm_msg *jsm_msg);
+
+struct ivpu_ipc_rx_msg {
+	struct list_head link;
+	struct ivpu_ipc_hdr *ipc_hdr;
+	struct vpu_jsm_msg *jsm_msg;
+	ivpu_ipc_rx_callback_t callback;
+};
+
 struct ivpu_ipc_consumer {
 	struct list_head link;
 	u32 channel;
 	u32 tx_vpu_addr;
 	u32 request_id;
+	bool aborted;
+	ivpu_ipc_rx_callback_t rx_callback;
 
-	spinlock_t rx_msg_lock; /* Protects rx_msg_list */
+	spinlock_t rx_lock; /* Protects rx_msg_list and aborted */
 	struct list_head rx_msg_list;
 	wait_queue_head_t rx_msg_wq;
 };
@@ -60,8 +73,9 @@ struct ivpu_ipc_info {
 
 	atomic_t rx_msg_count;
 
-	spinlock_t cons_list_lock; /* Protects cons_list */
+	spinlock_t cons_lock; /* Protects cons_list and cb_msg_list */
 	struct list_head cons_list;
+	struct list_head cb_msg_list;
 
 	atomic_t request_id;
 	struct mutex lock; /* Lock on status */
@@ -75,19 +89,22 @@ void ivpu_ipc_enable(struct ivpu_device *vdev);
 void ivpu_ipc_disable(struct ivpu_device *vdev);
 void ivpu_ipc_reset(struct ivpu_device *vdev);
 
-int ivpu_ipc_irq_handler(struct ivpu_device *vdev);
+void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread);
+irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev);
 
 void ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
-			   u32 channel);
+			   u32 channel, ivpu_ipc_rx_callback_t callback);
 void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons);
 
 int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
-		     struct ivpu_ipc_hdr *ipc_buf, struct vpu_jsm_msg *ipc_payload,
+		     struct ivpu_ipc_hdr *ipc_buf, struct vpu_jsm_msg *jsm_msg,
 		     unsigned long timeout_ms);
 
+int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
+				 enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
+				 u32 channel, unsigned long timeout_ms);
 int ivpu_ipc_send_receive(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
-			  enum vpu_ipc_msg_type expected_resp_type,
-			  struct vpu_jsm_msg *resp, u32 channel,
-			  unsigned long timeout_ms);
+			  enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
+			  u32 channel, unsigned long timeout_ms);
 
 #endif /* __IVPU_IPC_H__ */

@@ -214,51 +214,6 @@ __kernel_size_t __fortify_strlen(const char * const POS p)
 	return ret;
 }
 
-/* Defined after fortified strlen() to reuse it. */
-extern size_t __real_strlcpy(char *, const char *, size_t) __RENAME(strlcpy);
-/**
- * strlcpy - Copy a string into another string buffer
- *
- * @p: pointer to destination of copy
- * @q: pointer to NUL-terminated source string to copy
- * @size: maximum number of bytes to write at @p
- *
- * If strlen(@q) >= @size, the copy of @q will be truncated at
- * @size - 1 bytes. @p will always be NUL-terminated.
- *
- * Do not use this function. While FORTIFY_SOURCE tries to avoid
- * over-reads when calculating strlen(@q), it is still possible.
- * Prefer strscpy(), though note its different return values for
- * detecting truncation.
- *
- * Returns total number of bytes written to @p, including terminating NUL.
- *
- */
-__FORTIFY_INLINE size_t strlcpy(char * const POS p, const char * const POS q, size_t size)
-{
-	const size_t p_size = __member_size(p);
-	const size_t q_size = __member_size(q);
-	size_t q_len;	/* Full count of source string length. */
-	size_t len;	/* Count of characters going into destination. */
-
-	if (p_size == SIZE_MAX && q_size == SIZE_MAX)
-		return __real_strlcpy(p, q, size);
-	q_len = strlen(q);
-	len = (q_len >= size) ? size - 1 : q_len;
-	if (__builtin_constant_p(size) && __builtin_constant_p(q_len) && size) {
-		/* Write size is always larger than destination. */
-		if (len >= p_size)
-			__write_overflow();
-	}
-	if (size) {
-		if (len >= p_size)
-			fortify_panic(__func__);
-		__underlying_memcpy(p, q, len);
-		p[len] = '\0';
-	}
-	return q_len;
-}
-
 /* Defined after fortified strnlen() to reuse it. */
 extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
 /**
@@ -271,12 +226,6 @@ extern ssize_t __real_strscpy(char *, const char *, size_t) __RENAME(strscpy);
  * Copy the source string @q, or as much of it as fits, into the destination
  * @p buffer. The behavior is undefined if the string buffers overlap. The
  * destination @p buffer is always NUL terminated, unless it's zero-sized.
- *
- * Preferred to strlcpy() since the API doesn't require reading memory
- * from the source @q string beyond the specified @size bytes, and since
- * the return value is easier to error-check than strlcpy()'s.
- * In addition, the implementation is robust to the string changing out
- * from underneath it, unlike the current strlcpy() implementation.
  *
  * Preferred to strncpy() since it always returns a valid string, and
  * doesn't unnecessarily force the tail of the destination buffer to be

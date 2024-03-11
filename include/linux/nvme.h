@@ -20,7 +20,6 @@
 #define NVMF_TRSVCID_SIZE	32
 #define NVMF_TRADDR_SIZE	256
 #define NVMF_TSAS_SIZE		256
-#define NVMF_AUTH_HASH_LEN	64
 
 #define NVME_DISC_SUBSYS_NAME	"nqn.2014-08.org.nvmexpress.discovery"
 
@@ -647,6 +646,7 @@ enum {
 	NVME_CMD_EFFECTS_NCC		= 1 << 2,
 	NVME_CMD_EFFECTS_NIC		= 1 << 3,
 	NVME_CMD_EFFECTS_CCC		= 1 << 4,
+	NVME_CMD_EFFECTS_CSER_MASK	= GENMASK(15, 14),
 	NVME_CMD_EFFECTS_CSE_MASK	= GENMASK(18, 16),
 	NVME_CMD_EFFECTS_UUID_SEL	= 1 << 19,
 	NVME_CMD_EFFECTS_SCOPE_MASK	= GENMASK(31, 20),
@@ -815,12 +815,6 @@ struct nvme_reservation_status_ext {
 	__u8	resv10[14];
 	__u8	rsvd24[40];
 	struct nvme_registered_ctrl_ext regctl_eds[];
-};
-
-enum nvme_async_event_type {
-	NVME_AER_TYPE_ERROR	= 0,
-	NVME_AER_TYPE_SMART	= 1,
-	NVME_AER_TYPE_NOTICE	= 2,
 };
 
 /* I/O commands */
@@ -1819,7 +1813,7 @@ struct nvme_command {
 	};
 };
 
-static inline bool nvme_is_fabrics(struct nvme_command *cmd)
+static inline bool nvme_is_fabrics(const struct nvme_command *cmd)
 {
 	return cmd->common.opcode == nvme_fabrics_command;
 }
@@ -1838,7 +1832,7 @@ struct nvme_error_slot {
 	__u8		resv2[24];
 };
 
-static inline bool nvme_is_write(struct nvme_command *cmd)
+static inline bool nvme_is_write(const struct nvme_command *cmd)
 {
 	/*
 	 * What a mess...

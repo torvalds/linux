@@ -12,25 +12,6 @@ config WLAN_VENDOR_ZYDAS
 
 if WLAN_VENDOR_ZYDAS
 
-config USB_ZD1201
-	tristate "USB ZD1201 based Wireless device support"
-	depends on CFG80211 && USB
-	select WIRELESS_EXT
-	select WEXT_PRIV
-	select FW_LOADER
-	help
-	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
-	  ZD1201 chip.
-
-	  This driver makes the adapter appear as a normal Ethernet interface,
-	  typically on wlan0.
-
-	  The zd1201 device requires external firmware to be loaded.
-	  This can be found at http://linux-lc100020.sourceforge.net/
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zd1201.
-
 source "drivers/net/wireless/zydas/zd1211rw/Kconfig"
 
 endif # WLAN_VENDOR_ZYDAS

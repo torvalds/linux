@@ -264,6 +264,7 @@
 		dsp_reserved: dsp@92400000 {
 			reg = <0 0x92400000 0 0x2000000>;
 			no-map;
+			status = "disabled";
 		};
 	};
 
@@ -726,6 +727,8 @@
 			clk: clock-controller@30380000 {
 				compatible = "fsl,imx8mp-ccm";
 				reg = <0x30380000 0x10000>;
+				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 				#clock-cells = <1>;
 				clocks = <&osc_32k>, <&osc_24m>, <&clk_ext1>, <&clk_ext2>,
 					 <&clk_ext3>, <&clk_ext4>;
@@ -793,8 +796,8 @@
 							 <&clk IMX8MP_CLK_AUDIO_AXI>;
 						assigned-clocks = <&clk IMX8MP_CLK_AUDIO_AHB>,
 								  <&clk IMX8MP_CLK_AUDIO_AXI_SRC>;
-						assigned-clock-parents =  <&clk IMX8MP_SYS_PLL1_800M>,
-									  <&clk IMX8MP_SYS_PLL1_800M>;
+						assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+									 <&clk IMX8MP_SYS_PLL1_800M>;
 						assigned-clock-rates = <400000000>,
 								       <600000000>;
 					};
@@ -887,6 +890,15 @@
 						clocks = <&clk IMX8MP_CLK_ML_AXI>,
 							 <&clk IMX8MP_CLK_ML_AHB>,
 							 <&clk IMX8MP_CLK_NPU_ROOT>;
+						assigned-clocks = <&clk IMX8MP_CLK_ML_CORE>,
+								  <&clk IMX8MP_CLK_ML_AXI>,
+								  <&clk IMX8MP_CLK_ML_AHB>;
+						assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_800M>,
+									 <&clk IMX8MP_SYS_PLL1_800M>,
+									 <&clk IMX8MP_SYS_PLL1_800M>;
+						assigned-clock-rates = <800000000>,
+								       <800000000>,
+								       <300000000>;
 					};
 				};
 			};
@@ -1808,7 +1820,7 @@
 					compatible = "fsl,imx8mp-ldb";
 					reg = <0x5c 0x4>, <0x128 0x4>;
 					reg-names = "ldb", "lvds";
-					clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
+					clocks = <&clk IMX8MP_CLK_MEDIA_LDB_ROOT>;
 					clock-names = "ldb";
 					assigned-clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
 					assigned-clock-parents = <&clk IMX8MP_VIDEO_PLL1_OUT>;
@@ -2010,6 +2022,18 @@
 					<&noc IMX8MP_ICM_VPU_G2 &noc IMX8MP_ICN_VIDEO>,
 					<&noc IMX8MP_ICM_VPU_H1 &noc IMX8MP_ICN_VIDEO>;
 			interconnect-names = "g1", "g2", "vc8000e";
+		};
+
+		npu: npu@38500000 {
+			compatible = "vivante,gc";
+			reg = <0x38500000 0x200000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk IMX8MP_CLK_NPU_ROOT>,
+				 <&clk IMX8MP_CLK_NPU_ROOT>,
+				 <&clk IMX8MP_CLK_ML_AXI>,
+				 <&clk IMX8MP_CLK_ML_AHB>;
+			clock-names = "core", "shader", "bus", "reg";
+			power-domains = <&pgc_mlmix>;
 		};
 
 		gic: interrupt-controller@38800000 {

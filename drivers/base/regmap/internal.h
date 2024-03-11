@@ -318,6 +318,7 @@ struct regmap_ram_data {
 	bool *read;
 	bool *written;
 	enum regmap_endian reg_endian;
+	bool (*noinc_reg)(struct regmap_ram_data *data, unsigned int reg);
 };
 
 /*

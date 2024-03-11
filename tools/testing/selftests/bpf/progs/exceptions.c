@@ -210,7 +210,7 @@ __noinline int assert_zero_gfunc(u64 c)
 {
 	volatile u64 cookie = c;
 
-	bpf_assert_eq(cookie, 0);
+	bpf_assert(bpf_cmp_unlikely(cookie, ==, 0));
 	return 0;
 }
 
@@ -218,7 +218,7 @@ __noinline int assert_neg_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_lt(cookie, 0);
+	bpf_assert(bpf_cmp_unlikely(cookie, <, 0));
 	return 0;
 }
 
@@ -226,7 +226,7 @@ __noinline int assert_pos_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_gt(cookie, 0);
+	bpf_assert(bpf_cmp_unlikely(cookie, >, 0));
 	return 0;
 }
 
@@ -234,7 +234,7 @@ __noinline int assert_negeq_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_le(cookie, -1);
+	bpf_assert(bpf_cmp_unlikely(cookie, <=, -1));
 	return 0;
 }
 
@@ -242,7 +242,7 @@ __noinline int assert_poseq_gfunc(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_ge(cookie, 1);
+	bpf_assert(bpf_cmp_unlikely(cookie, >=, 1));
 	return 0;
 }
 
@@ -258,7 +258,7 @@ __noinline int assert_zero_gfunc_with(u64 c)
 {
 	volatile u64 cookie = c;
 
-	bpf_assert_eq_with(cookie, 0, cookie + 100);
+	bpf_assert_with(bpf_cmp_unlikely(cookie, ==, 0), cookie + 100);
 	return 0;
 }
 
@@ -266,7 +266,7 @@ __noinline int assert_neg_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_lt_with(cookie, 0, cookie + 100);
+	bpf_assert_with(bpf_cmp_unlikely(cookie, <, 0), cookie + 100);
 	return 0;
 }
 
@@ -274,7 +274,7 @@ __noinline int assert_pos_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_gt_with(cookie, 0, cookie + 100);
+	bpf_assert_with(bpf_cmp_unlikely(cookie, >, 0), cookie + 100);
 	return 0;
 }
 
@@ -282,7 +282,7 @@ __noinline int assert_negeq_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_le_with(cookie, -1, cookie + 100);
+	bpf_assert_with(bpf_cmp_unlikely(cookie, <=, -1), cookie + 100);
 	return 0;
 }
 
@@ -290,7 +290,7 @@ __noinline int assert_poseq_gfunc_with(s64 c)
 {
 	volatile s64 cookie = c;
 
-	bpf_assert_ge_with(cookie, 1, cookie + 100);
+	bpf_assert_with(bpf_cmp_unlikely(cookie, >=, 1), cookie + 100);
 	return 0;
 }
 

@@ -188,7 +188,7 @@ static int test__attr(struct test_suite *test __maybe_unused, int subtest __mayb
 	if (perf_pmus__num_core_pmus() > 1) {
 		/*
 		 * TODO: Attribute tests hard code the PMU type. If there are >1
-		 * core PMU then each PMU will have a different type whic
+		 * core PMU then each PMU will have a different type which
 		 * requires additional support.
 		 */
 		pr_debug("Skip test on hybrid systems");

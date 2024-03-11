@@ -64,9 +64,7 @@ typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
 enum i40e_mac_type {
 	I40E_MAC_UNKNOWN = 0,
 	I40E_MAC_XL710,
-	I40E_MAC_VF,
 	I40E_MAC_X722,
-	I40E_MAC_X722_VF,
 	I40E_MAC_GENERIC,
 };
 
@@ -272,9 +270,7 @@ struct i40e_mac_info {
 	enum i40e_mac_type type;
 	u8 addr[ETH_ALEN];
 	u8 perm_addr[ETH_ALEN];
-	u8 san_addr[ETH_ALEN];
 	u8 port_addr[ETH_ALEN];
-	u16 max_fcoeq;
 };
 
 enum i40e_aq_resources_ids {
@@ -482,6 +478,36 @@ struct i40e_dcbx_config {
 	struct i40e_dcb_app_priority_table app[I40E_DCBX_MAX_APPS];
 };
 
+enum i40e_hw_flags {
+	I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE,
+	I40E_HW_CAP_802_1AD,
+	I40E_HW_CAP_AQ_PHY_ACCESS,
+	I40E_HW_CAP_NVM_READ_REQUIRES_LOCK,
+	I40E_HW_CAP_FW_LLDP_STOPPABLE,
+	I40E_HW_CAP_FW_LLDP_PERSISTENT,
+	I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED,
+	I40E_HW_CAP_X722_FEC_REQUEST,
+	I40E_HW_CAP_RSS_AQ,
+	I40E_HW_CAP_128_QP_RSS,
+	I40E_HW_CAP_ATR_EVICT,
+	I40E_HW_CAP_WB_ON_ITR,
+	I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE,
+	I40E_HW_CAP_NO_PCI_LINK_CHECK,
+	I40E_HW_CAP_100M_SGMII,
+	I40E_HW_CAP_NO_DCB_SUPPORT,
+	I40E_HW_CAP_USE_SET_LLDP_MIB,
+	I40E_HW_CAP_GENEVE_OFFLOAD,
+	I40E_HW_CAP_PTP_L4,
+	I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE,
+	I40E_HW_CAP_CRT_RETIMER,
+	I40E_HW_CAP_OUTER_UDP_CSUM,
+	I40E_HW_CAP_PHY_CONTROLS_LEDS,
+	I40E_HW_CAP_STOP_FW_LLDP,
+	I40E_HW_CAP_PORT_ID_VALID,
+	I40E_HW_CAP_RESTART_AUTONEG,
+	I40E_HW_CAPS_NBITS,
+};
+
 /* Port hardware description */
 struct i40e_hw {
 	u8 __iomem *hw_addr;
@@ -546,16 +572,7 @@ struct i40e_hw {
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
-#define I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE BIT_ULL(0)
-#define I40E_HW_FLAG_802_1AD_CAPABLE        BIT_ULL(1)
-#define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
-#define I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK BIT_ULL(3)
-#define I40E_HW_FLAG_FW_LLDP_STOPPABLE      BIT_ULL(4)
-#define I40E_HW_FLAG_FW_LLDP_PERSISTENT     BIT_ULL(5)
-#define I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED BIT_ULL(6)
-#define I40E_HW_FLAG_DROP_MODE              BIT_ULL(7)
-#define I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE BIT_ULL(8)
-	u64 flags;
+	DECLARE_BITMAP(caps, I40E_HW_CAPS_NBITS);
 
 	/* Used in set switch config AQ command */
 	u16 switch_tag;
@@ -566,12 +583,6 @@ struct i40e_hw {
 	u32 debug_mask;
 	char err_str[16];
 };
-
-static inline bool i40e_is_vf(struct i40e_hw *hw)
-{
-	return (hw->mac.type == I40E_MAC_VF ||
-		hw->mac.type == I40E_MAC_X722_VF);
-}
 
 struct i40e_driver_version {
 	u8 major_version;

@@ -510,9 +510,8 @@ cleanup:
 		return chip_info->init_core_mask;
 
 	/* disable DSP */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
-				SOF_HDA_REG_PP_PPCTL,
-				SOF_HDA_PPCTL_GPROCEN, 0);
+	hda_dsp_ctrl_ppcap_enable(sdev, false);
+
 	return ret;
 }
 
@@ -520,14 +519,15 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 			      struct sof_ipc4_fw_library *fw_lib, bool reload)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
 	struct sof_ipc4_msg msg = {};
 	struct snd_dma_buffer dmab;
 	int ret, ret1;
 
-	/* IMR booting will restore the libraries as well, skip the loading */
-	if (reload && hda->booted_from_imr)
+	/* if IMR booting is enabled and fw context is saved for D3 state, skip the loading */
+	if (reload && hda->booted_from_imr && ipc4_data->fw_context_save)
 		return 0;
 
 	/* the fw_lib has been verified during loading, we can trust the validity here */

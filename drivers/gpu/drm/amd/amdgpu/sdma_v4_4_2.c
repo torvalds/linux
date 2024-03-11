@@ -2156,7 +2156,7 @@ static void sdma_v4_4_2_inst_query_ras_error_count(struct amdgpu_device *adev,
 					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
 					&ue_count);
 
-	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, ue_count);
+	amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, NULL, ue_count);
 }
 
 static void sdma_v4_4_2_query_ras_error_count(struct amdgpu_device *adev,

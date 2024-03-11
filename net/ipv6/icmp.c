@@ -584,9 +584,9 @@ void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	tmp_hdr.icmp6_pointer = htonl(info);
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->mcast_oif);
 	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->ucast_oif);
 
 	ipcm6_init_sk(&ipc6, sk);
 	ipc6.sockc.mark = mark;
@@ -770,9 +770,9 @@ static enum skb_drop_reason icmpv6_echo_reply(struct sk_buff *skb)
 	np = inet6_sk(sk);
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->mcast_oif);
 	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->ucast_oif);
 
 	if (ip6_dst_lookup(net, sk, &dst, &fl6))
 		goto out;

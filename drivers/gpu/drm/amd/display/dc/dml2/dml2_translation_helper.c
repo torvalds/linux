@@ -398,7 +398,6 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	/* Copy clocks tables entries, if available */
 	if (dml2->config.bbox_overrides.clks_table.num_states) {
 		p->in_states->num_states = dml2->config.bbox_overrides.clks_table.num_states;
-
 		for (i = 0; i < dml2->config.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels; i++) {
 			p->in_states->state_array[i].dcfclk_mhz = dml2->config.bbox_overrides.clks_table.clk_entries[i].dcfclk_mhz;
 		}
@@ -437,6 +436,14 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	}
 
 	dml2_policy_build_synthetic_soc_states(s, p);
+	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
+		dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
+		// Override last out_state with data from last in_state
+		// This will ensure that out_state contains max fclk
+		memcpy(&p->out_states->state_array[p->out_states->num_states - 1],
+				&p->in_states->state_array[p->in_states->num_states - 1],
+				sizeof(struct soc_state_bounding_box_st));
+	}
 }
 
 void dml2_translate_ip_params(const struct dc *in, struct ip_params_st *out)
@@ -624,8 +631,8 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 		if (is_dp2p0_output_encoder(pipe))
 			out->OutputEncoder[location] = dml_dp2p0;
 		break;
-		out->OutputEncoder[location] = dml_edp;
 	case SIGNAL_TYPE_EDP:
+		out->OutputEncoder[location] = dml_edp;
 		break;
 	case SIGNAL_TYPE_HDMI_TYPE_A:
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
@@ -791,35 +798,28 @@ static void populate_dml_surface_cfg_from_plane_state(enum dml_project_id dml2_p
 	}
 }
 
-/*TODO no support for mpc combine, need rework - should calculate scaling params based on plane+stream*/
-static struct scaler_data get_scaler_data_for_plane(const struct dc_plane_state *in, const struct dc_state *context)
+static struct scaler_data get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc_state *context)
 {
 	int i;
-	struct scaler_data data = { 0 };
+	struct pipe_ctx *temp_pipe = &context->res_ctx.temp_pipe;
+
+	memset(temp_pipe, 0, sizeof(struct pipe_ctx));
 
 	for (i = 0; i < MAX_PIPES; i++)	{
 		const struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe->plane_state == in && !pipe->prev_odm_pipe) {
-			const struct pipe_ctx *next_pipe = pipe->next_odm_pipe;
+			temp_pipe->stream = pipe->stream;
+			temp_pipe->plane_state = pipe->plane_state;
+			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
 
-			data = context->res_ctx.pipe_ctx[i].plane_res.scl_data;
-			while (next_pipe) {
-				data.h_active += next_pipe->plane_res.scl_data.h_active;
-				data.recout.width += next_pipe->plane_res.scl_data.recout.width;
-				if (in->rotation == ROTATION_ANGLE_0 || in->rotation == ROTATION_ANGLE_180) {
-					data.viewport.width += next_pipe->plane_res.scl_data.viewport.width;
-				} else {
-					data.viewport.height += next_pipe->plane_res.scl_data.viewport.height;
-				}
-				next_pipe = next_pipe->next_odm_pipe;
-			}
+			resource_build_scaling_params(temp_pipe);
 			break;
 		}
 	}
 
 	ASSERT(i < MAX_PIPES);
-	return data;
+	return temp_pipe->plane_res.scl_data;
 }
 
 static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_stream_state *in)
@@ -864,7 +864,7 @@ static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned 
 	out->ScalerEnabled[location] = false;
 }
 
-static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_plane_state *in, const struct dc_state *context)
+static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_plane_state *in, struct dc_state *context)
 {
 	const struct scaler_data scaler_data = get_scaler_data_for_plane(in, context);
 
@@ -1047,8 +1047,10 @@ static void dml2_populate_pipe_to_plane_index_mapping(struct dml2_context *dml2,
 
 void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_state *context, struct dml_display_cfg_st *dml_dispcfg)
 {
-	int i = 0, j = 0;
+	int i = 0, j = 0, k = 0;
 	int disp_cfg_stream_location, disp_cfg_plane_location;
+	enum mall_stream_type stream_mall_type;
+	struct pipe_ctx *current_pipe_context;
 
 	for (i = 0; i < __DML2_WRAPPER_MAX_STREAMS_PLANES__; i++) {
 		dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_stream_id_valid[i] = false;
@@ -1068,7 +1070,17 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 	dml2_populate_pipe_to_plane_index_mapping(dml2, context);
 
 	for (i = 0; i < context->stream_count; i++) {
+		current_pipe_context = NULL;
+		for (k = 0; k < MAX_PIPES; k++) {
+			/* find one pipe allocated to this stream for the purpose of getting
+			info about the link later */
+			if (context->streams[i] == context->res_ctx.pipe_ctx[k].stream) {
+				current_pipe_context = &context->res_ctx.pipe_ctx[k];
+				break;
+			}
+		}
 		disp_cfg_stream_location = map_stream_to_dml_display_cfg(dml2, context->streams[i], dml_dispcfg);
+		stream_mall_type = dc_state_get_stream_subvp_type(context, context->streams[i]);
 
 		if (disp_cfg_stream_location < 0)
 			disp_cfg_stream_location = dml_dispcfg->num_timings++;
@@ -1076,7 +1088,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 
 		populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_stream_location, context->streams[i]);
-		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], &context->res_ctx.pipe_ctx[i]);
+		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context);
 		switch (context->streams[i]->debug.force_odm_combine_segments) {
 		case 2:
 			dml2->v20.dml_core_ctx.policy.ODMUse[disp_cfg_stream_location] = dml_odm_use_policy_combine_2to1;
@@ -1113,10 +1125,10 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 				populate_dml_surface_cfg_from_plane_state(dml2->v20.dml_core_ctx.project, &dml_dispcfg->surface, disp_cfg_plane_location, context->stream_status[i].plane_states[j]);
 				populate_dml_plane_cfg_from_plane_state(&dml_dispcfg->plane, disp_cfg_plane_location, context->stream_status[i].plane_states[j], context);
 
-				if (context->streams[i]->mall_stream_config.type == SUBVP_MAIN) {
+				if (stream_mall_type == SUBVP_MAIN) {
 					dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_sub_viewport;
 					dml_dispcfg->plane.UseMALLForStaticScreen[disp_cfg_plane_location] = dml_use_mall_static_screen_optimize;
-				} else if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM) {
+				} else if (stream_mall_type == SUBVP_PHANTOM) {
 					dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_phantom_pipe;
 					dml_dispcfg->plane.UseMALLForStaticScreen[disp_cfg_plane_location] = dml_use_mall_static_screen_disable;
 					dml2->v20.dml_core_ctx.policy.ImmediateFlipRequirement[disp_cfg_plane_location] = dml_immediate_flip_not_required;
@@ -1133,7 +1145,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 
 				if (j >= 1) {
 					populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_plane_location, context->streams[i]);
-					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], &context->res_ctx.pipe_ctx[i]);
+					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], current_pipe_context);
 					switch (context->streams[i]->debug.force_odm_combine_segments) {
 					case 2:
 						dml2->v20.dml_core_ctx.policy.ODMUse[disp_cfg_plane_location] = dml_odm_use_policy_combine_2to1;
@@ -1145,9 +1157,9 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 						break;
 					}
 
-					if (context->streams[i]->mall_stream_config.type == SUBVP_MAIN)
+					if (stream_mall_type == SUBVP_MAIN)
 						dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_sub_viewport;
-					else if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
+					else if (stream_mall_type == SUBVP_PHANTOM)
 						dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_phantom_pipe;
 
 					dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_stream_id[disp_cfg_plane_location] = context->streams[i]->stream_id;

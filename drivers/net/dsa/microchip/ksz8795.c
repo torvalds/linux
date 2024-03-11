@@ -49,9 +49,9 @@ static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 	mutex_lock(&dev->alu_mutex);
 
 	ctrl_addr = IND_ACC_TABLE(table) | addr;
-	ret = ksz_write8(dev, regs[REG_IND_BYTE], data);
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 	if (!ret)
-		ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+		ret = ksz_write8(dev, regs[REG_IND_BYTE], data);
 
 	mutex_unlock(&dev->alu_mutex);
 
@@ -1358,6 +1358,9 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p = &dev->ports[port];
 
+	if (!ksz_is_ksz87xx(dev))
+		return;
+
 	if (!p->interface && dev->compat_interface) {
 		dev_warn(dev->dev,
 			 "Using legacy switch \"phy-mode\" property, because it is missing on port %d node. "
@@ -1391,16 +1394,27 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable 802.1p priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_ENABLE, true);
 
-	if (cpu_port) {
-		if (!ksz_is_ksz88x3(dev))
-			ksz8795_cpu_interface_select(dev, port);
-
+	if (cpu_port)
 		member = dsa_user_ports(ds);
-	} else {
+	else
 		member = BIT(dsa_upstream_port(ds, port));
-	}
 
 	ksz8_cfg_port_member(dev, port, member);
+}
+
+static void ksz88x3_config_rmii_clk(struct ksz_device *dev)
+{
+	struct dsa_port *cpu_dp = dsa_to_port(dev->ds, dev->cpu_port);
+	bool rmii_clk_internal;
+
+	if (!ksz_is_ksz88x3(dev))
+		return;
+
+	rmii_clk_internal = of_property_read_bool(cpu_dp->dn,
+						  "microchip,rmii-clk-internal");
+
+	ksz_cfg(dev, KSZ88X3_REG_FVID_AND_HOST_MODE,
+		KSZ88X3_PORT3_RMII_CLK_INTERNAL, rmii_clk_internal);
 }
 
 void ksz8_config_cpu_port(struct dsa_switch *ds)
@@ -1418,6 +1432,9 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	ksz_cfg(dev, regs[S_TAIL_TAG_CTRL], masks[SW_TAIL_TAG_ENABLE], true);
 
 	ksz8_port_setup(dev, dev->cpu_port, true);
+
+	ksz8795_cpu_interface_select(dev, dev->cpu_port);
+	ksz88x3_config_rmii_clk(dev);
 
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
@@ -1437,6 +1454,127 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
 				     PORT_FORCE_FLOW_CTRL, false);
 	}
+}
+
+/**
+ * ksz8_phy_port_link_up - Configures ports with integrated PHYs
+ * @dev: The KSZ device instance.
+ * @port: The port number to configure.
+ * @duplex: The desired duplex mode.
+ * @tx_pause: If true, enables transmit pause.
+ * @rx_pause: If true, enables receive pause.
+ *
+ * Description:
+ * The function configures flow control settings for a given port based on the
+ * desired settings and current duplex mode.
+ *
+ * According to the KSZ8873 datasheet, the PORT_FORCE_FLOW_CTRL bit in the
+ * Port Control 2 register (0x1A for Port 1, 0x22 for Port 2, 0x32 for Port 3)
+ * determines how flow control is handled on the port:
+ *    "1 = will always enable full-duplex flow control on the port, regardless
+ *         of AN result.
+ *     0 = full-duplex flow control is enabled based on AN result."
+ *
+ * This means that the flow control behavior depends on the state of this bit:
+ * - If PORT_FORCE_FLOW_CTRL is set to 1, the switch will ignore AN results and
+ *   force flow control on the port.
+ * - If PORT_FORCE_FLOW_CTRL is set to 0, the switch will enable or disable
+ *   flow control based on the AN results.
+ *
+ * However, there is a potential limitation in this configuration. It is
+ * currently not possible to force disable flow control on a port if we still
+ * advertise pause support. While such a configuration is not currently
+ * supported by Linux, and may not make practical sense, it's important to be
+ * aware of this limitation when working with the KSZ8873 and similar devices.
+ */
+static void ksz8_phy_port_link_up(struct ksz_device *dev, int port, int duplex,
+				  bool tx_pause, bool rx_pause)
+{
+	const u16 *regs = dev->info->regs;
+	u8 sctrl = 0;
+
+	/* The KSZ8795 switch differs from the KSZ8873 by supporting
+	 * asymmetric pause control. However, since a single bit is used to
+	 * control both RX and TX pause, we can't enforce asymmetric pause
+	 * control - both TX and RX pause will be either enabled or disabled
+	 * together.
+	 *
+	 * If auto-negotiation is enabled, we usually allow the flow control to
+	 * be determined by the auto-negotiation process based on the
+	 * capabilities of both link partners. However, for KSZ8873, the
+	 * PORT_FORCE_FLOW_CTRL bit may be set by the hardware bootstrap,
+	 * ignoring the auto-negotiation result. Thus, even in auto-negotiation
+	 * mode, we need to ensure that the PORT_FORCE_FLOW_CTRL bit is
+	 * properly cleared.
+	 *
+	 * In the absence of pause auto-negotiation, we will enforce symmetric
+	 * pause control for both variants of switches - KSZ8873 and KSZ8795.
+	 *
+	 * Autoneg Pause Autoneg      rx,tx	PORT_FORCE_FLOW_CTRL
+	 * 1		1		x	0
+	 * 0		1		x	0 (flow control probably disabled)
+	 * x		0		1	1 (flow control force enabled)
+	 * 1		0		0	0 (flow control still depends on
+	 *					   aneg result due to hardware)
+	 * 0		0		0	0 (flow control probably disabled)
+	 */
+	if (dev->ports[port].manual_flow && tx_pause)
+		sctrl |= PORT_FORCE_FLOW_CTRL;
+
+	ksz_prmw8(dev, port, regs[P_STP_CTRL], PORT_FORCE_FLOW_CTRL, sctrl);
+}
+
+/**
+ * ksz8_cpu_port_link_up - Configures the CPU port of the switch.
+ * @dev: The KSZ device instance.
+ * @speed: The desired link speed.
+ * @duplex: The desired duplex mode.
+ * @tx_pause: If true, enables transmit pause.
+ * @rx_pause: If true, enables receive pause.
+ *
+ * Description:
+ * The function configures flow control and speed settings for the CPU
+ * port of the switch based on the desired settings, current duplex mode, and
+ * speed.
+ */
+static void ksz8_cpu_port_link_up(struct ksz_device *dev, int speed, int duplex,
+				  bool tx_pause, bool rx_pause)
+{
+	const u16 *regs = dev->info->regs;
+	u8 ctrl = 0;
+
+	/* SW_FLOW_CTRL, SW_HALF_DUPLEX, and SW_10_MBIT bits are bootstrappable
+	 * at least on KSZ8873. They can have different values depending on your
+	 * board setup.
+	 */
+	if (tx_pause || rx_pause)
+		ctrl |= SW_FLOW_CTRL;
+
+	if (duplex == DUPLEX_HALF)
+		ctrl |= SW_HALF_DUPLEX;
+
+	/* This hardware only supports SPEED_10 and SPEED_100. For SPEED_10
+	 * we need to set the SW_10_MBIT bit. Otherwise, we can leave it 0.
+	 */
+	if (speed == SPEED_10)
+		ctrl |= SW_10_MBIT;
+
+	ksz_rmw8(dev, regs[S_BROADCAST_CTRL], SW_HALF_DUPLEX | SW_FLOW_CTRL |
+		 SW_10_MBIT, ctrl);
+}
+
+void ksz8_phylink_mac_link_up(struct ksz_device *dev, int port,
+			      unsigned int mode, phy_interface_t interface,
+			      struct phy_device *phydev, int speed, int duplex,
+			      bool tx_pause, bool rx_pause)
+{
+	/* If the port is the CPU port, apply special handling. Only the CPU
+	 * port is configured via global registers.
+	 */
+	if (dev->cpu_port == port)
+		ksz8_cpu_port_link_up(dev, speed, duplex, tx_pause, rx_pause);
+	else if (dev->info->internal_phy[port])
+		ksz8_phy_port_link_up(dev, port, duplex, tx_pause, rx_pause);
 }
 
 static int ksz8_handle_global_errata(struct dsa_switch *ds)
@@ -1486,8 +1624,6 @@ int ksz8_setup(struct dsa_switch *ds)
 	 * Enable flag
 	 */
 	ds->vlan_filtering_is_global = true;
-
-	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_FLOW_CTRL, true);
 
 	/* Enable automatic fast aging when link changed detected. */
 	ksz_cfg(dev, S_LINK_AGING_CTRL, SW_LINK_AUTO_AGING, true);

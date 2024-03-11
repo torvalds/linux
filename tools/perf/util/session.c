@@ -115,6 +115,11 @@ static int perf_session__open(struct perf_session *session, int repipe_fd)
 		return -1;
 	}
 
+	if (perf_header__has_feat(&session->header, HEADER_AUXTRACE)) {
+		/* Auxiliary events may reference exited threads, hold onto dead ones. */
+		symbol_conf.keep_exited_threads = true;
+	}
+
 	if (perf_data__is_pipe(data))
 		return 0;
 
@@ -1150,9 +1155,13 @@ static void callchain__printf(struct evsel *evsel,
 		       i, callchain->ips[i]);
 }
 
-static void branch_stack__printf(struct perf_sample *sample, bool callstack)
+static void branch_stack__printf(struct perf_sample *sample,
+				 struct evsel *evsel)
 {
 	struct branch_entry *entries = perf_sample__branch_entries(sample);
+	bool callstack = evsel__has_branch_callstack(evsel);
+	u64 *branch_stack_cntr = sample->branch_stack_cntr;
+	struct perf_env *env = evsel__env(evsel);
 	uint64_t i;
 
 	if (!callstack) {
@@ -1193,6 +1202,13 @@ static void branch_stack__printf(struct perf_sample *sample, bool callstack)
 				printf("..... %2"PRIu64": %016" PRIx64 "\n", i+1, e->from);
 			}
 		}
+	}
+
+	if (branch_stack_cntr) {
+		printf("... branch stack counters: nr:%" PRIu64 " (counter width: %u max counter nr:%u)\n",
+			sample->branch_stack->nr, env->br_cntr_width, env->br_cntr_nr);
+		for (i = 0; i < sample->branch_stack->nr; i++)
+			printf("..... %2"PRIu64": %016" PRIx64 "\n", i, branch_stack_cntr[i]);
 	}
 }
 
@@ -1355,7 +1371,7 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 		callchain__printf(evsel, sample);
 
 	if (evsel__has_br_stack(evsel))
-		branch_stack__printf(sample, evsel__has_branch_callstack(evsel));
+		branch_stack__printf(sample, evsel);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)
 		regs_user__printf(sample, arch);

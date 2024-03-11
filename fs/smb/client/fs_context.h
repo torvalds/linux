@@ -118,6 +118,7 @@ enum cifs_param {
 	Opt_file_mode,
 	Opt_dirmode,
 	Opt_min_enc_offload,
+	Opt_retrans,
 	Opt_blocksize,
 	Opt_rasize,
 	Opt_rsize,
@@ -245,6 +246,7 @@ struct smb3_fs_context {
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int min_offload;
+	unsigned int retrans;
 	bool sockopt_tcp_nodelay:1;
 	/* attribute cache timemout for files and directories in jiffies */
 	unsigned long acregmax;

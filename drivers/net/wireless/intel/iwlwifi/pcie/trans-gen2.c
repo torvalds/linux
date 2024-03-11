@@ -290,6 +290,16 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
 		pos = scnprintf(buf, buflen, "MS");
 		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_FM):
+		pos = scnprintf(buf, buflen, "FM");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_WP):
+		if (SILICON_Z_STEP ==
+		    CSR_HW_RFID_STEP(trans->hw_rf_id))
+			pos = scnprintf(buf, buflen, "WHTC");
+		else
+			pos = scnprintf(buf, buflen, "WH");
+		break;
 	default:
 		return;
 	}

@@ -42,8 +42,6 @@ struct wm2200_micbias {
 };
 
 struct wm2200_pdata {
-	int reset;      /** GPIO controlling /RESET, if any */
-	int ldo_ena;    /** GPIO controlling LODENA, if any */
 	int irq_flags;
 
 	int gpio_defaults[4];

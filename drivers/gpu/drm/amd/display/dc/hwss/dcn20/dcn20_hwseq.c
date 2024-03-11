@@ -55,6 +55,7 @@
 #include "inc/link_enc_cfg.h"
 #include "link_hwss.h"
 #include "link.h"
+#include "dc_state_priv.h"
 
 #define DC_LOGGER \
 	dc_logger
@@ -623,9 +624,9 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 }
 
 
-void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
-	bool is_phantom = pipe_ctx->plane_state && pipe_ctx->plane_state->is_phantom;
+	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -847,7 +848,7 @@ enum dc_status dcn20_enable_stream_timing(
 	/* TODO enable stream if timing changed */
 	/* TODO unblank stream if DP */
 
-	if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+	if (pipe_ctx->stream && dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
 		if (pipe_ctx->stream_res.tg && pipe_ctx->stream_res.tg->funcs->phantom_crtc_post_enable)
 			pipe_ctx->stream_res.tg->funcs->phantom_crtc_post_enable(pipe_ctx->stream_res.tg);
 	}
@@ -1368,8 +1369,14 @@ void dcn20_pipe_control_lock(
 	}
 }
 
-static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx *new_pipe)
+static void dcn20_detect_pipe_changes(struct dc_state *old_state,
+		struct dc_state *new_state,
+		struct pipe_ctx *old_pipe,
+		struct pipe_ctx *new_pipe)
 {
+	bool old_is_phantom = dc_state_get_pipe_subvp_type(old_state, old_pipe) == SUBVP_PHANTOM;
+	bool new_is_phantom = dc_state_get_pipe_subvp_type(new_state, new_pipe) == SUBVP_PHANTOM;
+
 	new_pipe->update_flags.raw = 0;
 
 	/* If non-phantom pipe is being transitioned to a phantom pipe,
@@ -1379,8 +1386,8 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	 * be different). The post_unlock sequence will set the correct
 	 * update flags to enable the phantom pipe.
 	 */
-	if (old_pipe->plane_state && !old_pipe->plane_state->is_phantom &&
-			new_pipe->plane_state && new_pipe->plane_state->is_phantom) {
+	if (old_pipe->plane_state && !old_is_phantom &&
+			new_pipe->plane_state && new_is_phantom) {
 		new_pipe->update_flags.bits.disable = 1;
 		return;
 	}
@@ -1400,6 +1407,10 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 		new_pipe->update_flags.bits.scaler = 1;
 		new_pipe->update_flags.bits.viewport = 1;
 		new_pipe->update_flags.bits.det_size = 1;
+		if (new_pipe->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE &&
+				new_pipe->stream_res.test_pattern_params.width != 0 &&
+				new_pipe->stream_res.test_pattern_params.height != 0)
+			new_pipe->update_flags.bits.test_pattern_changed = 1;
 		if (!new_pipe->top_pipe && !new_pipe->prev_odm_pipe) {
 			new_pipe->update_flags.bits.odm = 1;
 			new_pipe->update_flags.bits.global_sync = 1;
@@ -1412,14 +1423,14 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	 * The remove-add sequence of the phantom pipe always results in the pipe
 	 * being blanked in enable_stream_timing (DPG).
 	 */
-	if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
+	if (new_pipe->stream && dc_state_get_pipe_subvp_type(new_state, new_pipe) == SUBVP_PHANTOM)
 		new_pipe->update_flags.bits.enable = 1;
 
 	/* Phantom pipes are effectively disabled, if the pipe was previously phantom
 	 * we have to enable
 	 */
-	if (old_pipe->plane_state && old_pipe->plane_state->is_phantom &&
-			new_pipe->plane_state && !new_pipe->plane_state->is_phantom)
+	if (old_pipe->plane_state && old_is_phantom &&
+			new_pipe->plane_state && !new_is_phantom)
 		new_pipe->update_flags.bits.enable = 1;
 
 	if (old_pipe->plane_state && !new_pipe->plane_state) {
@@ -1556,6 +1567,7 @@ static void dcn20_update_dchubp_dpp(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dccg *dccg = dc->res_pool->dccg;
 	bool viewport_changed = false;
+	enum mall_stream_type pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe_ctx);
 
 	if (pipe_ctx->update_flags.bits.dppclk)
 		dpp->funcs->dpp_dppclk_control(dpp, false, true);
@@ -1701,7 +1713,7 @@ static void dcn20_update_dchubp_dpp(
 		pipe_ctx->update_flags.bits.plane_changed ||
 		plane_state->update_flags.bits.addr_update) {
 		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) &&
-				pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN) {
+				pipe_mall_type == SUBVP_MAIN) {
 			union block_sequence_params params;
 
 			params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
@@ -1715,7 +1727,7 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable)
 		hubp->funcs->set_blank(hubp, false);
 	/* If the stream paired with this plane is phantom, the plane is also phantom */
-	if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM
+	if (pipe_ctx->stream && pipe_mall_type == SUBVP_PHANTOM
 			&& hubp->funcs->phantom_hubp_post_enable)
 		hubp->funcs->phantom_hubp_post_enable(hubp);
 }
@@ -1773,7 +1785,7 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
-		if (pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM)
+		if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM)
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
@@ -1877,6 +1889,8 @@ void dcn20_program_front_end_for_ctx(
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx->logger);
+	unsigned int prev_hubp_count = 0;
+	unsigned int hubp_count = 0;
 
 	if (resource_is_pipe_topology_changed(dc->current_state, context))
 		resource_log_pipe_topology_update(dc, context);
@@ -1894,9 +1908,23 @@ void dcn20_program_front_end_for_ctx(
 		}
 	}
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
+			prev_hubp_count++;
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			hubp_count++;
+	}
+
+	if (prev_hubp_count == 0 && hubp_count > 0) {
+		if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+			dc->res_pool->hubbub->funcs->force_pstate_change_control(
+					dc->res_pool->hubbub, true, false);
+		udelay(500);
+	}
+
 	/* Set pipe update flags and lock pipes */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
+		dcn20_detect_pipe_changes(dc->current_state, context, &dc->current_state->res_ctx.pipe_ctx[i],
 				&context->res_ctx.pipe_ctx[i]);
 
 	/* When disabling phantom pipes, turn on phantom OTG first (so we can get double
@@ -1906,15 +1934,16 @@ void dcn20_program_front_end_for_ctx(
 		struct dc_stream_state *stream = dc->current_state->res_ctx.pipe_ctx[i].stream;
 
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable && stream &&
-			dc->current_state->res_ctx.pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+				dc_state_get_pipe_subvp_type(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]) == SUBVP_PHANTOM) {
 			struct timing_generator *tg = dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg;
 
 			if (tg->funcs->enable_crtc) {
 				if (dc->hwss.blank_phantom) {
 					int main_pipe_width, main_pipe_height;
+					struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(dc->current_state, dc->current_state->res_ctx.pipe_ctx[i].stream);
 
-					main_pipe_width = dc->current_state->res_ctx.pipe_ctx[i].stream->mall_stream_config.paired_stream->dst.width;
-					main_pipe_height = dc->current_state->res_ctx.pipe_ctx[i].stream->mall_stream_config.paired_stream->dst.height;
+					main_pipe_width = phantom_stream->dst.width;
+					main_pipe_height = phantom_stream->dst.height;
 					dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 				}
 				tg->funcs->enable_crtc(tg);
@@ -1943,9 +1972,9 @@ void dcn20_program_front_end_for_ctx(
 			 * DET allocation.
 			 */
 			if (hubbub->funcs->program_det_size && (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
-					(context->res_ctx.pipe_ctx[i].plane_state && context->res_ctx.pipe_ctx[i].plane_state->is_phantom)))
+					(context->res_ctx.pipe_ctx[i].plane_state && dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[i]) == SUBVP_PHANTOM)))
 				hubbub->funcs->program_det_size(hubbub, dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
-			hws->funcs.plane_atomic_disconnect(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			hws->funcs.plane_atomic_disconnect(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 			DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);
 		}
 
@@ -1968,7 +1997,7 @@ void dcn20_program_front_end_for_ctx(
 					 * but the MPO still exists until the double buffered update of the main pipe so we
 					 * will get a frame of underflow if the phantom pipe is programmed here.
 					 */
-					if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_PHANTOM)
+					if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM)
 						dcn20_program_pipe(dc, pipe, context);
 				}
 
@@ -2018,7 +2047,7 @@ void dcn20_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
-			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	/*
 	 * If we are enabling a pipe, we need to wait for pending clear as this is a critical
@@ -2030,7 +2059,7 @@ void dcn20_post_unlock_program_front_end(
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		// Don't check flip pending on phantom pipes
 		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable &&
-				pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+				dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 			int j = 0;
 			for (j = 0; j < TIMEOUT_FOR_PIPE_ENABLE_US / polling_interval_us
@@ -2038,6 +2067,10 @@ void dcn20_post_unlock_program_front_end(
 				udelay(polling_interval_us);
 		}
 	}
+
+	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		dc->res_pool->hubbub->funcs->force_pstate_change_control(
+				dc->res_pool->hubbub, false, false);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -2049,7 +2082,7 @@ void dcn20_post_unlock_program_front_end(
 			 * programming sequence).
 			 */
 			while (pipe) {
-				if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+				if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 					/* When turning on the phantom pipe we want to run through the
 					 * entire enable sequence, so apply all the "enable" flags.
 					 */
@@ -2119,7 +2152,7 @@ void dcn20_prepare_bandwidth(
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// At optimize don't restore the original watermark value
-		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE) {
 			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
 			break;
 		}
@@ -2163,7 +2196,7 @@ void dcn20_optimize_bandwidth(
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// At optimize don't need  to restore the original watermark value
-		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE) {
 			context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
 			break;
 		}
@@ -2197,7 +2230,8 @@ void dcn20_optimize_bandwidth(
 			dc->clk_mgr,
 			context,
 			true);
-	if (context->bw_ctx.bw.dcn.clk.zstate_support == DCN_ZSTATE_SUPPORT_ALLOW) {
+	if (context->bw_ctx.bw.dcn.clk.zstate_support == DCN_ZSTATE_SUPPORT_ALLOW &&
+		!dc->debug.disable_extblankadj) {
 		for (i = 0; i < dc->res_pool->pipe_count; ++i) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
@@ -2527,7 +2561,7 @@ void dcn20_setup_vupdate_interrupt(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		tg->funcs->setup_vertical_interrupt2(tg, start_line);
 }
 
-static void dcn20_reset_back_end_for_pipe(
+void dcn20_reset_back_end_for_pipe(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
@@ -2590,7 +2624,8 @@ static void dcn20_reset_back_end_for_pipe(
 		 * the case where the same symclk is shared across multiple otg
 		 * instances
 		 */
-		link->phy_state.symclk_ref_cnts.otg = 0;
+		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+			link->phy_state.symclk_ref_cnts.otg = 0;
 		if (link->phy_state.symclk_state == SYMCLK_ON_TX_OFF) {
 			link_hwss->disable_link_output(link,
 					&pipe_ctx->link_res, pipe_ctx->stream->signal);
@@ -2755,18 +2790,17 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	}
 
 	if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
-		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
-		dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, dp_hpo_inst);
-
-		phyd32clk = get_phyd32clk_src(link);
-		dccg->funcs->enable_symclk32_se(dccg, dp_hpo_inst, phyd32clk);
-
 		dto_params.otg_inst = tg->inst;
 		dto_params.pixclk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
 		dto_params.num_odm_segments = get_odm_segment_count(pipe_ctx);
 		dto_params.timing = &pipe_ctx->stream->timing;
 		dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
 		dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
+		dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, dp_hpo_inst);
+
+		phyd32clk = get_phyd32clk_src(link);
+		dccg->funcs->enable_symclk32_se(dccg, dp_hpo_inst, phyd32clk);
 	} else {
 		if (dccg->funcs->enable_symclk_se)
 			dccg->funcs->enable_symclk_se(dccg, stream_enc->stream_enc_inst,
@@ -2923,7 +2957,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 		/*to do*/
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 	}
 
 	/* initialize DWB pointer to MCIF_WB */
@@ -2940,7 +2974,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;

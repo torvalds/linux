@@ -404,14 +404,12 @@ err_unload:
 	return ret;
 }
 
-static int arcpgu_remove(struct platform_device *pdev)
+static void arcpgu_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(drm);
 	arcpgu_unload(drm);
-
-	return 0;
 }
 
 static const struct of_device_id arcpgu_of_table[] = {
@@ -423,7 +421,7 @@ MODULE_DEVICE_TABLE(of, arcpgu_of_table);
 
 static struct platform_driver arcpgu_platform_driver = {
 	.probe = arcpgu_probe,
-	.remove = arcpgu_remove,
+	.remove_new = arcpgu_remove,
 	.driver = {
 		   .name = "arcpgu",
 		   .of_match_table = arcpgu_of_table,

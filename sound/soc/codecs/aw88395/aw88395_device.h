@@ -146,6 +146,7 @@ struct aw_device {
 
 	unsigned int channel;
 	unsigned int fade_step;
+	unsigned int prof_data_type;
 
 	struct i2c_client *i2c;
 	struct device *dev;

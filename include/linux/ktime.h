@@ -21,12 +21,10 @@
 #ifndef _LINUX_KTIME_H
 #define _LINUX_KTIME_H
 
-#include <linux/time.h>
-#include <linux/jiffies.h>
 #include <asm/bug.h>
-
-/* Nanosecond scalar representation for kernel time values */
-typedef s64	ktime_t;
+#include <linux/jiffies.h>
+#include <linux/time.h>
+#include <linux/types.h>
 
 /**
  * ktime_set - Set a ktime_t variable from a seconds/nanoseconds value

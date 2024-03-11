@@ -165,7 +165,7 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	struct opp_table **required_opp_tables;
 	struct device_node *required_np, *np;
 	bool lazy = false;
-	int count, i;
+	int count, i, size;
 
 	/* Traversing the first OPP node is all we need */
 	np = of_get_next_available_child(opp_np, NULL);
@@ -179,12 +179,13 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	if (count <= 0)
 		goto put_np;
 
-	required_opp_tables = kcalloc(count, sizeof(*required_opp_tables),
-				      GFP_KERNEL);
+	size = sizeof(*required_opp_tables) + sizeof(*opp_table->required_devs);
+	required_opp_tables = kcalloc(count, size, GFP_KERNEL);
 	if (!required_opp_tables)
 		goto put_np;
 
 	opp_table->required_opp_tables = required_opp_tables;
+	opp_table->required_devs = (void *)(required_opp_tables + count);
 	opp_table->required_opp_count = count;
 
 	for (i = 0; i < count; i++) {
@@ -208,8 +209,6 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		mutex_lock(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
 		mutex_unlock(&opp_table_lock);
-	} else {
-		_update_set_required_opps(opp_table);
 	}
 
 	goto put_np;
@@ -296,7 +295,7 @@ void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	of_node_put(opp->np);
 }
 
-static int _link_required_opps(struct dev_pm_opp *opp,
+static int _link_required_opps(struct dev_pm_opp *opp, struct opp_table *opp_table,
 			       struct opp_table *required_table, int index)
 {
 	struct device_node *np;
@@ -312,6 +311,39 @@ static int _link_required_opps(struct dev_pm_opp *opp,
 		pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
 		       __func__, opp->np, index);
 		return -ENODEV;
+	}
+
+	/*
+	 * There are two genpd (as required-opp) cases that we need to handle,
+	 * devices with a single genpd and ones with multiple genpds.
+	 *
+	 * The single genpd case requires special handling as we need to use the
+	 * same `dev` structure (instead of a virtual one provided by genpd
+	 * core) for setting the performance state.
+	 *
+	 * It doesn't make sense for a device's DT entry to have both
+	 * "opp-level" and single "required-opps" entry pointing to a genpd's
+	 * OPP, as that would make the OPP core call
+	 * dev_pm_domain_set_performance_state() for two different values for
+	 * the same device structure. Lets treat single genpd configuration as a
+	 * case where the OPP's level is directly available without required-opp
+	 * link in the DT.
+	 *
+	 * Just update the `level` with the right value, which
+	 * dev_pm_opp_set_opp() will take care of in the normal path itself.
+	 *
+	 * There is another case though, where a genpd's OPP table has
+	 * required-opps set to a parent genpd. The OPP core expects the user to
+	 * set the respective required `struct device` pointer via
+	 * dev_pm_opp_set_config().
+	 */
+	if (required_table->is_genpd && opp_table->required_opp_count == 1 &&
+	    !opp_table->required_devs[0]) {
+		/* Genpd core takes care of propagation to parent genpd */
+		if (!opp_table->is_genpd) {
+			if (!WARN_ON(opp->level != OPP_LEVEL_UNSET))
+				opp->level = opp->required_opps[0]->level;
+		}
 	}
 
 	return 0;
@@ -338,7 +370,7 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 		if (IS_ERR_OR_NULL(required_table))
 			continue;
 
-		ret = _link_required_opps(opp, required_table, i);
+		ret = _link_required_opps(opp, opp_table, required_table, i);
 		if (ret)
 			goto free_required_opps;
 	}
@@ -359,7 +391,7 @@ static int lazy_link_required_opps(struct opp_table *opp_table,
 	int ret;
 
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		ret = _link_required_opps(opp, new_table, index);
+		ret = _link_required_opps(opp, opp_table, new_table, index);
 		if (ret)
 			return ret;
 	}
@@ -422,7 +454,6 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 
 		/* All required opp-tables found, remove from lazy list */
 		if (!lazy) {
-			_update_set_required_opps(opp_table);
 			list_del_init(&opp_table->lazy);
 
 			list_for_each_entry(opp, &opp_table->opp_list, node)
@@ -1393,8 +1424,14 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 
 	opp = _find_opp_of_np(opp_table, required_np);
 	if (opp) {
-		pstate = opp->level;
+		if (opp->level == OPP_LEVEL_UNSET) {
+			pr_err("%s: OPP levels aren't available for %pOF\n",
+			       __func__, np);
+		} else {
+			pstate = opp->level;
+		}
 		dev_pm_opp_put(opp);
+
 	}
 
 	dev_pm_opp_put_opp_table(opp_table);

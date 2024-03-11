@@ -13,12 +13,16 @@ description: |
   Qualcomm TCSR clock control module provides the clocks, resets and
   power domains on SM8550
 
-  See also:: include/dt-bindings/clock/qcom,sm8550-tcsr.h
+  See also:
+  - include/dt-bindings/clock/qcom,sm8550-tcsr.h
+  - include/dt-bindings/clock/qcom,sm8650-tcsr.h
 
 properties:
   compatible:
     items:
-      - const: qcom,sm8550-tcsr
+      - enum:
+          - qcom,sm8550-tcsr
+          - qcom,sm8650-tcsr
       - const: syscon
 
   clocks:

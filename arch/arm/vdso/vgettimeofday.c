@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <asm/vdso.h>
 #include <asm/unwind.h>
+#include <vdso/gettime.h>
 
 int __vdso_clock_gettime(clockid_t clock,
 			 struct old_timespec32 *ts)

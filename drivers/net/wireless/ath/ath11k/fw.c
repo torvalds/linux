@@ -133,7 +133,7 @@ static int ath11k_fw_request_firmware_api_n(struct ath11k_base *ab,
 
 		len -= ie_len;
 		data += ie_len;
-	};
+	}
 
 	return 0;
 

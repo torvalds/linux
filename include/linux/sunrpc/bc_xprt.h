@@ -20,7 +20,8 @@
 #ifdef CONFIG_SUNRPC_BACKCHANNEL
 struct rpc_rqst *xprt_lookup_bc_request(struct rpc_xprt *xprt, __be32 xid);
 void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied);
-void xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task);
+void xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task,
+		const struct rpc_timeout *to);
 void xprt_free_bc_request(struct rpc_rqst *req);
 int xprt_setup_backchannel(struct rpc_xprt *, unsigned int min_reqs);
 void xprt_destroy_backchannel(struct rpc_xprt *, unsigned int max_reqs);

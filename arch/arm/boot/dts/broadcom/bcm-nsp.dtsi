@@ -180,6 +180,7 @@
 			gpio-controller;
 			ngpios = <32>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&pinctrl 0 0 32>;
 		};
@@ -352,6 +353,7 @@
 			gpio-controller;
 			ngpios = <4>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

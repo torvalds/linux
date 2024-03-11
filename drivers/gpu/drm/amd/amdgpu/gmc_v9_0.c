@@ -883,7 +883,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	 * GRBM interface.
 	 */
 	if ((vmhub == AMDGPU_GFXHUB(0)) &&
-	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 4, 2)))
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 4, 2)))
 		RREG32_NO_KIQ(req);
 
 	for (j = 0; j < adev->usec_timeout; j++) {
@@ -1947,13 +1947,6 @@ static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
 
 static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 {
-	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
-	u32 vram_info;
-
-	if (!amdgpu_sriov_vf(adev)) {
-		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
-		adev->gmc.vram_vendor = vram_info & 0xF;
-	}
 	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 	adev->gmc.vram_width = 128 * 64;
 }
@@ -2340,8 +2333,8 @@ static int gmc_v9_0_hw_init(void *handle)
 
 	if (amdgpu_emu_mode == 1)
 		return amdgpu_gmc_vram_checking(adev);
-	else
-		return r;
+
+	return 0;
 }
 
 /**
@@ -2379,6 +2372,10 @@ static int gmc_v9_0_hw_fini(void *handle)
 		adev->mmhub.funcs->update_power_gating(adev, false);
 
 	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
+
+	if (adev->gmc.ecc_irq.funcs &&
+		amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+		amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
 
 	return 0;
 }

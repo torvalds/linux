@@ -15,9 +15,13 @@ description: |
 
 properties:
   compatible:
-    items:
+    oneOf:
       - enum:
           - mediatek,mt8183-mdp3-rsz
+      - items:
+          - enum:
+              - mediatek,mt8195-mdp3-rsz
+          - const: mediatek,mt8183-mdp3-rsz
 
   reg:
     maxItems: 1

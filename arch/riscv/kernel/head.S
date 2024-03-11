@@ -11,7 +11,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/csr.h>
-#include <asm/cpu_ops_sbi.h>
 #include <asm/hwcap.h>
 #include <asm/image.h>
 #include <asm/scs.h>
@@ -89,6 +88,7 @@ relocate_enable_mmu:
 	/* Compute satp for kernel page tables, but don't load it yet */
 	srl a2, a0, PAGE_SHIFT
 	la a1, satp_mode
+	XIP_FIXUP_OFFSET a1
 	REG_L a1, 0(a1)
 	or a2, a2, a1
 
@@ -265,10 +265,12 @@ SYM_CODE_START(_start_kernel)
 	la sp, _end + THREAD_SIZE
 	XIP_FIXUP_OFFSET sp
 	mv s0, a0
+	mv s1, a1
 	call __copy_data
 
-	/* Restore a0 copy */
+	/* Restore a0 & a1 copy */
 	mv a0, s0
+	mv a1, s1
 #endif
 
 #ifndef CONFIG_XIP_KERNEL

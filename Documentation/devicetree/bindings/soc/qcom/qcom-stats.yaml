@@ -31,9 +31,23 @@ properties:
   reg:
     maxItems: 1
 
+  qcom,qmp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Reference to the AOSS side-channel message RAM
+
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            const: qcom,rpmh-stats
+    then:
+      properties:
+        qcom,qmp: false
 
 additionalProperties: false
 

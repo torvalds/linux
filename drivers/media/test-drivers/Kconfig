@@ -12,7 +12,6 @@ config VIDEO_VIM2M
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select MEDIA_CONTROLLER
-	select MEDIA_CONTROLLER_REQUEST_API
 	help
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.

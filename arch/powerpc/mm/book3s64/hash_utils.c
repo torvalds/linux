@@ -310,9 +310,16 @@ unsigned long htab_convert_pte_flags(unsigned long pteflags, unsigned long flags
 			else
 				rflags |= 0x3;
 		}
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
 	} else {
 		if (pteflags & _PAGE_RWX)
 			rflags |= 0x2;
+		/*
+		 * We should never hit this in normal fault handling because
+		 * a permission check (check_pte_access()) will bubble this
+		 * to higher level linux handler even for PAGE_NONE.
+		 */
+		VM_WARN_ONCE(!(pteflags & _PAGE_RWX), "no-access mapping request");
 		if (!((pteflags & _PAGE_WRITE) && (pteflags & _PAGE_DIRTY)))
 			rflags |= 0x1;
 	}

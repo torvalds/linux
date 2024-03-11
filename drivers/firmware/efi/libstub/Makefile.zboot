@@ -5,8 +5,8 @@
 # EFI_ZBOOT_FORWARD_CFI
 
 quiet_cmd_copy_and_pad = PAD     $@
-      cmd_copy_and_pad = cp $< $@ && \
-			 truncate -s $(shell hexdump -s16 -n4 -e '"%u"' $<) $@
+      cmd_copy_and_pad = cp $< $@; \
+			 truncate -s $$(hexdump -s16 -n4 -e '"%u"' $<) $@
 
 # Pad the file to the size of the uncompressed image in memory, including BSS
 $(obj)/vmlinux.bin: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE

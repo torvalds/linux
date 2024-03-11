@@ -219,6 +219,7 @@
 };
 
 &sdhci0 {
+	status = "okay";
 	non-removable;
 	disable-wp;
 	no-sdio;

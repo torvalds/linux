@@ -497,17 +497,13 @@ static int tmag5273_set_operating_mode(struct tmag5273_data *data,
 static void tmag5273_read_device_property(struct tmag5273_data *data)
 {
 	struct device *dev = data->dev;
-	const char *str;
 	int ret;
 
 	data->angle_measurement = TMAG5273_ANGLE_EN_X_Y;
 
-	ret = device_property_read_string(dev, "ti,angle-measurement", &str);
-	if (ret)
-		return;
-
-	ret = match_string(tmag5273_angle_names,
-			   ARRAY_SIZE(tmag5273_angle_names), str);
+	ret = device_property_match_property_string(dev, "ti,angle-measurement",
+						    tmag5273_angle_names,
+						    ARRAY_SIZE(tmag5273_angle_names));
 	if (ret >= 0)
 		data->angle_measurement = ret;
 }

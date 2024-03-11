@@ -173,7 +173,7 @@ err_pm_get:
 	return ret;
 }
 
-static int exynos_trng_remove(struct platform_device *pdev)
+static void exynos_trng_remove(struct platform_device *pdev)
 {
 	struct exynos_trng_dev *trng =  platform_get_drvdata(pdev);
 
@@ -181,8 +181,6 @@ static int exynos_trng_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int exynos_trng_suspend(struct device *dev)
@@ -223,7 +221,7 @@ static struct platform_driver exynos_trng_driver = {
 		.of_match_table = exynos_trng_dt_match,
 	},
 	.probe = exynos_trng_probe,
-	.remove = exynos_trng_remove,
+	.remove_new = exynos_trng_remove,
 };
 
 module_platform_driver(exynos_trng_driver);

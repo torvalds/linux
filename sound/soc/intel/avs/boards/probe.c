@@ -50,15 +50,23 @@ static int avs_probe_mb_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_probe_mb_driver_ids[] = {
+	{
+		.name = "avs_probe_mb",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_probe_mb_driver_ids);
+
 static struct platform_driver avs_probe_mb_driver = {
 	.probe = avs_probe_mb_probe,
 	.driver = {
 		.name = "avs_probe_mb",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_probe_mb_driver_ids,
 };
 
 module_platform_driver(avs_probe_mb_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_probe_mb");

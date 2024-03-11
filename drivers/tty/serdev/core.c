@@ -77,7 +77,7 @@ static bool is_serdev_device(const struct device *dev)
 static void serdev_ctrl_release(struct device *dev)
 {
 	struct serdev_controller *ctrl = to_serdev_controller(dev);
-	ida_simple_remove(&ctrl_ida, ctrl->nr);
+	ida_free(&ctrl_ida, ctrl->nr);
 	kfree(ctrl);
 }
 
@@ -225,8 +225,7 @@ EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
  * Return: The number of bytes written (less than count if not enough room in
  * the write buffer), or a negative errno on errors.
  */
-int serdev_device_write_buf(struct serdev_device *serdev,
-			    const unsigned char *buf, size_t count)
+int serdev_device_write_buf(struct serdev_device *serdev, const u8 *buf, size_t count)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
 
@@ -259,13 +258,12 @@ EXPORT_SYMBOL_GPL(serdev_device_write_buf);
  * -ETIMEDOUT or -ERESTARTSYS if interrupted before any bytes were written, or
  * a negative errno on errors.
  */
-int serdev_device_write(struct serdev_device *serdev,
-			const unsigned char *buf, size_t count,
-			long timeout)
+ssize_t serdev_device_write(struct serdev_device *serdev, const u8 *buf,
+			    size_t count, long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
-	int written = 0;
-	int ret;
+	size_t written = 0;
+	ssize_t ret;
 
 	if (!ctrl || !ctrl->ops->write_buf || !serdev->ops->write_wakeup)
 		return -EINVAL;
@@ -468,6 +466,7 @@ EXPORT_SYMBOL_GPL(serdev_device_alloc);
 
 /**
  * serdev_controller_alloc() - Allocate a new serdev controller
+ * @host:	serial port hardware controller device
  * @parent:	parent device
  * @size:	size of private data
  *
@@ -476,8 +475,9 @@ EXPORT_SYMBOL_GPL(serdev_device_alloc);
  * The allocated private data region may be accessed via
  * serdev_controller_get_drvdata()
  */
-struct serdev_controller *serdev_controller_alloc(struct device *parent,
-					      size_t size)
+struct serdev_controller *serdev_controller_alloc(struct device *host,
+						  struct device *parent,
+						  size_t size)
 {
 	struct serdev_controller *ctrl;
 	int id;
@@ -489,7 +489,7 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	if (!ctrl)
 		return NULL;
 
-	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&ctrl_ida, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(parent,
 			"unable to allocate serdev controller identifier.\n");
@@ -502,7 +502,8 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	ctrl->dev.type = &serdev_ctrl_type;
 	ctrl->dev.bus = &serdev_bus_type;
 	ctrl->dev.parent = parent;
-	device_set_node(&ctrl->dev, dev_fwnode(parent));
+	ctrl->host = host;
+	device_set_node(&ctrl->dev, dev_fwnode(host));
 	serdev_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	dev_set_name(&ctrl->dev, "serial%d", id);
@@ -665,7 +666,7 @@ static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
 		acpi_get_parent(adev->handle, &lookup.controller_handle);
 
 	/* Make sure controller and ResourceSource handle match */
-	if (!device_match_acpi_handle(ctrl->dev.parent, lookup.controller_handle))
+	if (!device_match_acpi_handle(ctrl->host, lookup.controller_handle))
 		return -ENODEV;
 
 	return 0;
@@ -730,7 +731,7 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 	bool skip;
 	int ret;
 
-	if (!has_acpi_companion(ctrl->dev.parent))
+	if (!has_acpi_companion(ctrl->host))
 		return -ENODEV;
 
 	/*
@@ -739,7 +740,7 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 	 * succeed in this case, so that the proper serdev devices can be
 	 * added "manually" later.
 	 */
-	ret = acpi_quirk_skip_serdev_enumeration(ctrl->dev.parent, &skip);
+	ret = acpi_quirk_skip_serdev_enumeration(ctrl->host, &skip);
 	if (ret)
 		return ret;
 	if (skip)

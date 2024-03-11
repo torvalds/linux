@@ -1698,7 +1698,7 @@ static enum bp_result bios_parser_enable_disp_power_gating(
 static enum bp_result bios_parser_enable_lvtma_control(
 	struct dc_bios *dcb,
 	uint8_t uc_pwr_on,
-	uint8_t panel_instance,
+	uint8_t pwrseq_instance,
 	uint8_t bypass_panel_control_wait)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
@@ -1706,7 +1706,7 @@ static enum bp_result bios_parser_enable_lvtma_control(
 	if (!bp->cmd_tbl.enable_lvtma_control)
 		return BP_RESULT_FAILURE;
 
-	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on, panel_instance, bypass_panel_control_wait);
+	return bp->cmd_tbl.enable_lvtma_control(bp, uc_pwr_on, pwrseq_instance, bypass_panel_control_wait);
 }
 
 static bool bios_parser_is_accelerated_mode(
@@ -1850,18 +1850,20 @@ static enum bp_result get_firmware_info_v3_2(
 		/* Vega12 */
 		smu_info_v3_2 = GET_IMAGE(struct atom_smu_info_v3_2,
 							DATA_TABLES(smu_info));
-		DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", smu_info_v3_2->gpuclk_ss_percentage);
 		if (!smu_info_v3_2)
 			return BP_RESULT_BADBIOSTABLE;
+
+		DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", smu_info_v3_2->gpuclk_ss_percentage);
 
 		info->default_engine_clk = smu_info_v3_2->bootup_dcefclk_10khz * 10;
 	} else if (revision.minor == 3) {
 		/* Vega20 */
 		smu_info_v3_3 = GET_IMAGE(struct atom_smu_info_v3_3,
 							DATA_TABLES(smu_info));
-		DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", smu_info_v3_3->gpuclk_ss_percentage);
 		if (!smu_info_v3_3)
 			return BP_RESULT_BADBIOSTABLE;
+
+		DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", smu_info_v3_3->gpuclk_ss_percentage);
 
 		info->default_engine_clk = smu_info_v3_3->bootup_dcefclk_10khz * 10;
 	}
@@ -2221,22 +2223,22 @@ static enum bp_result bios_parser_get_disp_connector_caps_info(
 
 	switch (bp->object_info_tbl.revision.minor) {
 	case 4:
-	    default:
-		    object = get_bios_object(bp, object_id);
+		default:
+			object = get_bios_object(bp, object_id);
 
-		    if (!object)
-			    return BP_RESULT_BADINPUT;
+			if (!object)
+				return BP_RESULT_BADINPUT;
 
-		    record = get_disp_connector_caps_record(bp, object);
-		    if (!record)
-			    return BP_RESULT_NORECORD;
+			record = get_disp_connector_caps_record(bp, object);
+			if (!record)
+				return BP_RESULT_NORECORD;
 
-		    info->INTERNAL_DISPLAY =
-			    (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY) ? 1 : 0;
-		    info->INTERNAL_DISPLAY_BL =
-			    (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL) ? 1 : 0;
-		    break;
-	    case 5:
+			info->INTERNAL_DISPLAY =
+				(record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY) ? 1 : 0;
+			info->INTERNAL_DISPLAY_BL =
+				(record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL) ? 1 : 0;
+			break;
+	case 5:
 		object_path_v3 = get_bios_object_from_path_v3(bp, object_id);
 
 		if (!object_path_v3)
@@ -2398,7 +2400,6 @@ static enum bp_result get_vram_info_v30(
 	return result;
 }
 
-
 /*
  * get_integrated_info_v11
  *
@@ -2423,9 +2424,10 @@ static enum bp_result get_integrated_info_v11(
 	info_v11 = GET_IMAGE(struct atom_integrated_system_info_v1_11,
 					DATA_TABLES(integratedsysteminfo));
 
-	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v11->gpuclk_ss_percentage);
 	if (info_v11 == NULL)
 		return BP_RESULT_BADBIOSTABLE;
+
+	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v11->gpuclk_ss_percentage);
 
 	info->gpu_cap_info =
 	le32_to_cpu(info_v11->gpucapinfo);
@@ -2638,10 +2640,11 @@ static enum bp_result get_integrated_info_v2_1(
 
 	info_v2_1 = GET_IMAGE(struct atom_integrated_system_info_v2_1,
 					DATA_TABLES(integratedsysteminfo));
-	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v2_1->gpuclk_ss_percentage);
 
 	if (info_v2_1 == NULL)
 		return BP_RESULT_BADBIOSTABLE;
+
+	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v2_1->gpuclk_ss_percentage);
 
 	info->gpu_cap_info =
 	le32_to_cpu(info_v2_1->gpucapinfo);
@@ -2800,10 +2803,10 @@ static enum bp_result get_integrated_info_v2_2(
 	info_v2_2 = GET_IMAGE(struct atom_integrated_system_info_v2_2,
 					DATA_TABLES(integratedsysteminfo));
 
-	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v2_2->gpuclk_ss_percentage);
-
 	if (info_v2_2 == NULL)
 		return BP_RESULT_BADBIOSTABLE;
+
+	DC_LOG_BIOS("gpuclk_ss_percentage (unit of 0.001 percent): %d\n", info_v2_2->gpuclk_ss_percentage);
 
 	info->gpu_cap_info =
 	le32_to_cpu(info_v2_2->gpucapinfo);
@@ -3332,27 +3335,28 @@ static enum bp_result get_bracket_layout_record(
 		DC_LOG_DETECTION_EDID_PARSER("Invalid slot_layout_info\n");
 		return BP_RESULT_BADINPUT;
 	}
+
 	tbl = &bp->object_info_tbl;
 	v1_4 = tbl->v1_4;
 	v1_5 = tbl->v1_5;
 
 	result = BP_RESULT_NORECORD;
 	switch (bp->object_info_tbl.revision.minor) {
-		case 4:
-		default:
-			for (i = 0; i < v1_4->number_of_path; ++i)	{
-				if (bracket_layout_id ==
-					v1_4->display_path[i].display_objid) {
-					result = update_slot_layout_info(dcb, i, slot_layout_info);
-					break;
-				}
+	case 4:
+	default:
+		for (i = 0; i < v1_4->number_of_path; ++i) {
+			if (bracket_layout_id == v1_4->display_path[i].display_objid) {
+				result = update_slot_layout_info(dcb, i, slot_layout_info);
+				break;
 			}
-		    break;
-		case 5:
-			for (i = 0; i < v1_5->number_of_path; ++i)
-				result = update_slot_layout_info_v2(dcb, i, slot_layout_info);
-			break;
+		}
+		break;
+	case 5:
+		for (i = 0; i < v1_5->number_of_path; ++i)
+			result = update_slot_layout_info_v2(dcb, i, slot_layout_info);
+		break;
 	}
+
 	return result;
 }
 
@@ -3361,9 +3365,7 @@ static enum bp_result bios_get_board_layout_info(
 	struct board_layout_info *board_layout_info)
 {
 	unsigned int i;
-
 	struct bios_parser *bp;
-
 	static enum bp_result record_result;
 	unsigned int max_slots;
 
@@ -3372,7 +3374,6 @@ static enum bp_result bios_get_board_layout_info(
 		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2,
 		0, 0
 	};
-
 
 	bp = BP_FROM_DCB(dcb);
 
@@ -3554,7 +3555,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.bios_parser_destroy = firmware_parser_destroy,
 
 	.get_board_layout_info = bios_get_board_layout_info,
-	/* TODO: use this fn in hw init?*/
 	.pack_data_tables = bios_parser_pack_data_tables,
 
 	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table,

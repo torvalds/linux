@@ -78,6 +78,26 @@ config BLK_DEV_INTEGRITY_T10
 	select CRC_T10DIF
 	select CRC64_ROCKSOFT
 
+config BLK_DEV_WRITE_MOUNTED
+	bool "Allow writing to mounted block devices"
+	default y
+	help
+	When a block device is mounted, writing to its buffer cache is very
+	likely going to cause filesystem corruption. It is also rather easy to
+	crash the kernel in this way since the filesystem has no practical way
+	of detecting these writes to buffer cache and verifying its metadata
+	integrity. However there are some setups that need this capability
+	like running fsck on read-only mounted root device, modifying some
+	features on mounted ext4 filesystem, and similar. If you say N, the
+	kernel will prevent processes from writing to block devices that are
+	mounted by filesystems which provides some more protection from runaway
+	privileged processes and generally makes it much harder to crash
+	filesystem drivers. Note however that this does not prevent
+	underlying device(s) from being modified by other means, e.g. by
+	directly submitting SCSI commands or through access to lower layers of
+	storage stack. If in doubt, say Y. The configuration can be overridden
+	with the bdev_allow_write_mounted boot option.
+
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
 	select MQ_IOSCHED_DEADLINE

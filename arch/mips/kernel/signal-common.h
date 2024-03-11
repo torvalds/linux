@@ -40,4 +40,7 @@ _restore_fp_context(void __user *fpregs, void __user *csr);
 extern asmlinkage int _save_msa_all_upper(void __user *buf);
 extern asmlinkage int _restore_msa_all_upper(void __user *buf);
 
+extern int setup_sigcontext(struct pt_regs *, struct sigcontext __user *);
+extern int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
+
 #endif	/* __SIGNAL_COMMON_H */

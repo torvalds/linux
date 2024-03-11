@@ -348,3 +348,56 @@ u8 mt792x_acpi_get_flags(struct mt792x_phy *phy)
 	return flags;
 }
 EXPORT_SYMBOL_GPL(mt792x_acpi_get_flags);
+
+static u8
+mt792x_acpi_get_mtcl_map(int row, int column, struct mt792x_asar_cl *cl)
+{
+	u8 config = 0;
+
+	if (cl->cl6g[row] & BIT(column))
+		config |= (cl->mode_6g & 0x3) << 2;
+	if (cl->version > 1 && cl->cl5g9[row] & BIT(column))
+		config |= (cl->mode_5g9 & 0x3);
+
+	return config;
+}
+
+u8 mt792x_acpi_get_mtcl_conf(struct mt792x_phy *phy, char *alpha2)
+{
+	static const char * const cc_list_all[] = {
+		"00", "EU", "AR", "AU", "AZ", "BY", "BO", "BR",
+		"CA", "CL", "CN", "ID", "JP", "MY", "MX", "ME",
+		"MA", "NZ", "NG", "PH", "RU", "RS", "SG", "KR",
+		"TW", "TH", "UA", "GB", "US", "VN", "KH", "PY",
+	};
+	static const char * const cc_list_eu[] = {
+		"AT", "BE", "BG", "CY", "CZ", "HR", "DK", "EE",
+		"FI", "FR", "DE", "GR", "HU", "IS", "IE", "IT",
+		"LV", "LI", "LT", "LU", "MT", "NL", "NO", "PL",
+		"PT", "RO", "MT", "SK", "SI", "ES", "CH",
+	};
+	struct mt792x_acpi_sar *sar = phy->acpisar;
+	struct mt792x_asar_cl *cl;
+	int col, row, i;
+
+	if (!sar)
+		return 0xf;
+
+	cl = sar->countrylist;
+	if (!cl)
+		return 0xc;
+
+	for (i = 0; i < ARRAY_SIZE(cc_list_all); i++) {
+		col = 7 - i % 8;
+		row = i / 8;
+		if (!memcmp(cc_list_all[i], alpha2, 2))
+			return mt792x_acpi_get_mtcl_map(row, col, cl);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cc_list_eu); i++)
+		if (!memcmp(cc_list_eu[i], alpha2, 2))
+			return mt792x_acpi_get_mtcl_map(0, 6, cl);
+
+	return mt792x_acpi_get_mtcl_map(0, 7, cl);
+}
+EXPORT_SYMBOL_GPL(mt792x_acpi_get_mtcl_conf);

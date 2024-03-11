@@ -460,6 +460,7 @@ static const struct {
 	BNXT_RX_STATS_EXT_DISCARD_COS_ENTRIES,
 	BNXT_RX_STATS_EXT_ENTRY(rx_fec_corrected_blocks),
 	BNXT_RX_STATS_EXT_ENTRY(rx_fec_uncorrectable_blocks),
+	BNXT_RX_STATS_EXT_ENTRY(rx_filter_miss),
 };
 
 static const struct {
@@ -510,9 +511,9 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 {
 	if (BNXT_SUPPORTS_TPA(bp)) {
 		if (bp->max_tpa_v2) {
-			if (BNXT_CHIP_P5_THOR(bp))
+			if (BNXT_CHIP_P5(bp))
 				return BNXT_NUM_TPA_RING_STATS_P5;
-			return BNXT_NUM_TPA_RING_STATS_P5_SR2;
+			return BNXT_NUM_TPA_RING_STATS_P7;
 		}
 		return BNXT_NUM_TPA_RING_STATS;
 	}
@@ -527,7 +528,8 @@ static int bnxt_get_num_ring_stats(struct bnxt *bp)
 	     bnxt_get_num_tpa_ring_stats(bp);
 	tx = NUM_RING_TX_HW_STATS;
 	cmn = NUM_RING_CMN_SW_STATS;
-	return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
+	return rx * bp->rx_nr_rings +
+	       tx * (bp->tx_nr_rings_xdp + bp->tx_nr_rings_per_tc) +
 	       cmn * bp->cp_nr_rings;
 }
 
@@ -882,7 +884,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	if (max_tx_sch_inputs)
 		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
 
-	tcs = netdev_get_num_tc(dev);
+	tcs = bp->num_tc;
 	tx_grps = max(tcs, 1);
 	if (bp->tx_nr_rings_xdp)
 		tx_grps++;
@@ -922,6 +924,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	bool sh = false;
 	int tx_xdp = 0;
 	int rc = 0;
+	int tx_cp;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -941,7 +944,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (channel->combined_count)
 		sh = true;
 
-	tcs = netdev_get_num_tc(dev);
+	tcs = bp->num_tc;
 
 	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
 	req_rx_rings = sh ? channel->combined_count : channel->rx_count;
@@ -988,8 +991,9 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (tcs > 1)
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
-	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
-			       bp->tx_nr_rings + bp->rx_nr_rings;
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
+			       tx_cp + bp->rx_nr_rings;
 
 	/* After changing number of rx channels, update NTUPLE feature. */
 	netdev_update_features(dev);
@@ -1007,29 +1011,60 @@ static int bnxt_set_channels(struct net_device *dev,
 	return rc;
 }
 
-#ifdef CONFIG_RFS_ACCEL
+static u32 bnxt_get_all_fltr_ids_rcu(struct bnxt *bp, struct hlist_head tbl[],
+				     int tbl_size, u32 *ids, u32 start,
+				     u32 id_cnt)
+{
+	int i, j = start;
+
+	if (j >= id_cnt)
+		return j;
+	for (i = 0; i < tbl_size; i++) {
+		struct hlist_head *head;
+		struct bnxt_filter_base *fltr;
+
+		head = &tbl[i];
+		hlist_for_each_entry_rcu(fltr, head, hash) {
+			if (!fltr->flags ||
+			    test_bit(BNXT_FLTR_FW_DELETED, &fltr->state))
+				continue;
+			ids[j++] = fltr->sw_id;
+			if (j == id_cnt)
+				return j;
+		}
+	}
+	return j;
+}
+
+static struct bnxt_filter_base *bnxt_get_one_fltr_rcu(struct bnxt *bp,
+						      struct hlist_head tbl[],
+						      int tbl_size, u32 id)
+{
+	int i;
+
+	for (i = 0; i < tbl_size; i++) {
+		struct hlist_head *head;
+		struct bnxt_filter_base *fltr;
+
+		head = &tbl[i];
+		hlist_for_each_entry_rcu(fltr, head, hash) {
+			if (fltr->flags && fltr->sw_id == id)
+				return fltr;
+		}
+	}
+	return NULL;
+}
+
 static int bnxt_grxclsrlall(struct bnxt *bp, struct ethtool_rxnfc *cmd,
 			    u32 *rule_locs)
 {
-	int i, j = 0;
-
 	cmd->data = bp->ntp_fltr_count;
-	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
-		struct hlist_head *head;
-		struct bnxt_ntuple_filter *fltr;
+	rcu_read_lock();
+	cmd->rule_cnt = bnxt_get_all_fltr_ids_rcu(bp, bp->ntp_fltr_hash_tbl,
+						  BNXT_NTP_FLTR_HASH_SIZE,
+						  rule_locs, 0, cmd->rule_cnt);
+	rcu_read_unlock();
 
-		head = &bp->ntp_fltr_hash_tbl[i];
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
-			if (j == cmd->rule_cnt)
-				break;
-			rule_locs[j++] = fltr->sw_id;
-		}
-		rcu_read_unlock();
-		if (j == cmd->rule_cnt)
-			break;
-	}
-	cmd->rule_cnt = j;
 	return 0;
 }
 
@@ -1037,27 +1072,24 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fs =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct bnxt_filter_base *fltr_base;
 	struct bnxt_ntuple_filter *fltr;
 	struct flow_keys *fkeys;
-	int i, rc = -EINVAL;
+	int rc = -EINVAL;
 
 	if (fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
 		return rc;
 
-	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
-		struct hlist_head *head;
-
-		head = &bp->ntp_fltr_hash_tbl[i];
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
-			if (fltr->sw_id == fs->location)
-				goto fltr_found;
-		}
+	rcu_read_lock();
+	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
+					  BNXT_NTP_FLTR_HASH_SIZE,
+					  fs->location);
+	if (!fltr_base) {
 		rcu_read_unlock();
+		return rc;
 	}
-	return rc;
+	fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
 
-fltr_found:
 	fkeys = &fltr->fkeys;
 	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
 		if (fkeys->basic.ip_proto == IPPROTO_TCP)
@@ -1067,20 +1099,23 @@ fltr_found:
 		else
 			goto fltr_err;
 
-		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-		fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
-
-		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-		fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
-
-		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
-
-		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
+			fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+			fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
+			fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+			fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
+			fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+			fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
+			fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+			fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		}
 	} else {
-		int i;
-
 		if (fkeys->basic.ip_proto == IPPROTO_TCP)
 			fs->flow_type = TCP_V6_FLOW;
 		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
@@ -1088,22 +1123,27 @@ fltr_found:
 		else
 			goto fltr_err;
 
-		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
-			fkeys->addrs.v6addrs.src;
-		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
-			fkeys->addrs.v6addrs.dst;
-		for (i = 0; i < 4; i++) {
-			fs->m_u.tcp_ip6_spec.ip6src[i] = cpu_to_be32(~0);
-			fs->m_u.tcp_ip6_spec.ip6dst[i] = cpu_to_be32(~0);
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
+			*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+				fkeys->addrs.v6addrs.src;
+			bnxt_fill_ipv6_mask(fs->m_u.tcp_ip6_spec.ip6src);
 		}
-		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
-		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
-
-		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
-		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
+			*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+				fkeys->addrs.v6addrs.dst;
+			bnxt_fill_ipv6_mask(fs->m_u.tcp_ip6_spec.ip6dst);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
+			fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+			fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
+			fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+			fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+		}
 	}
 
-	fs->ring_cookie = fltr->rxq;
+	fs->ring_cookie = fltr->base.rxq;
 	rc = 0;
 
 fltr_err:
@@ -1111,7 +1151,221 @@ fltr_err:
 
 	return rc;
 }
-#endif
+
+#define IPV4_ALL_MASK		((__force __be32)~0)
+#define L4_PORT_ALL_MASK	((__force __be16)~0)
+
+static bool ipv6_mask_is_full(__be32 mask[4])
+{
+	return (mask[0] & mask[1] & mask[2] & mask[3]) == IPV4_ALL_MASK;
+}
+
+static bool ipv6_mask_is_zero(__be32 mask[4])
+{
+	return !(mask[0] | mask[1] | mask[2] | mask[3]);
+}
+
+static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
+				    struct ethtool_rx_flow_spec *fs)
+{
+	u8 vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	u32 ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	struct bnxt_ntuple_filter *new_fltr, *fltr;
+	struct bnxt_l2_filter *l2_fltr;
+	u32 flow_type = fs->flow_type;
+	struct flow_keys *fkeys;
+	u32 idx;
+	int rc;
+
+	if (!bp->vnic_info)
+		return -EAGAIN;
+
+	if ((flow_type & (FLOW_MAC_EXT | FLOW_EXT)) || vf)
+		return -EOPNOTSUPP;
+
+	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
+	if (!new_fltr)
+		return -ENOMEM;
+
+	l2_fltr = bp->vnic_info[0].l2_filters[0];
+	atomic_inc(&l2_fltr->refcnt);
+	new_fltr->l2_fltr = l2_fltr;
+	fkeys = &new_fltr->fkeys;
+
+	rc = -EOPNOTSUPP;
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW: {
+		struct ethtool_tcpip4_spec *ip_spec = &fs->h_u.tcp_ip4_spec;
+		struct ethtool_tcpip4_spec *ip_mask = &fs->m_u.tcp_ip4_spec;
+
+		fkeys->basic.ip_proto = IPPROTO_TCP;
+		if (flow_type == UDP_V4_FLOW)
+			fkeys->basic.ip_proto = IPPROTO_UDP;
+		fkeys->basic.n_proto = htons(ETH_P_IP);
+
+		if (ip_mask->ip4src == IPV4_ALL_MASK) {
+			fkeys->addrs.v4addrs.src = ip_spec->ip4src;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
+		} else if (ip_mask->ip4src) {
+			goto ntuple_err;
+		}
+		if (ip_mask->ip4dst == IPV4_ALL_MASK) {
+			fkeys->addrs.v4addrs.dst = ip_spec->ip4dst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
+		} else if (ip_mask->ip4dst) {
+			goto ntuple_err;
+		}
+
+		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
+			fkeys->ports.src = ip_spec->psrc;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
+		} else if (ip_mask->psrc) {
+			goto ntuple_err;
+		}
+		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
+			fkeys->ports.dst = ip_spec->pdst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
+		} else if (ip_mask->pdst) {
+			goto ntuple_err;
+		}
+		break;
+	}
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW: {
+		struct ethtool_tcpip6_spec *ip_spec = &fs->h_u.tcp_ip6_spec;
+		struct ethtool_tcpip6_spec *ip_mask = &fs->m_u.tcp_ip6_spec;
+
+		fkeys->basic.ip_proto = IPPROTO_TCP;
+		if (flow_type == UDP_V6_FLOW)
+			fkeys->basic.ip_proto = IPPROTO_UDP;
+		fkeys->basic.n_proto = htons(ETH_P_IPV6);
+
+		if (ipv6_mask_is_full(ip_mask->ip6src)) {
+			fkeys->addrs.v6addrs.src =
+				*(struct in6_addr *)&ip_spec->ip6src;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
+		} else if (!ipv6_mask_is_zero(ip_mask->ip6src)) {
+			goto ntuple_err;
+		}
+		if (ipv6_mask_is_full(ip_mask->ip6dst)) {
+			fkeys->addrs.v6addrs.dst =
+				*(struct in6_addr *)&ip_spec->ip6dst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
+		} else if (!ipv6_mask_is_zero(ip_mask->ip6dst)) {
+			goto ntuple_err;
+		}
+
+		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
+			fkeys->ports.src = ip_spec->psrc;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
+		} else if (ip_mask->psrc) {
+			goto ntuple_err;
+		}
+		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
+			fkeys->ports.dst = ip_spec->pdst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
+		} else if (ip_mask->pdst) {
+			goto ntuple_err;
+		}
+		break;
+	}
+	default:
+		rc = -EOPNOTSUPP;
+		goto ntuple_err;
+	}
+	if (!new_fltr->ntuple_flags)
+		goto ntuple_err;
+
+	idx = bnxt_get_ntp_filter_idx(bp, fkeys, NULL);
+	rcu_read_lock();
+	fltr = bnxt_lookup_ntp_filter_from_idx(bp, new_fltr, idx);
+	if (fltr) {
+		rcu_read_unlock();
+		rc = -EEXIST;
+		goto ntuple_err;
+	}
+	rcu_read_unlock();
+
+	new_fltr->base.rxq = ring;
+	new_fltr->base.flags = BNXT_ACT_NO_AGING;
+	__set_bit(BNXT_FLTR_VALID, &new_fltr->base.state);
+	rc = bnxt_insert_ntp_filter(bp, new_fltr, idx);
+	if (!rc) {
+		rc = bnxt_hwrm_cfa_ntuple_filter_alloc(bp, new_fltr);
+		if (rc) {
+			bnxt_del_ntp_filter(bp, new_fltr);
+			return rc;
+		}
+		fs->location = new_fltr->base.sw_id;
+		return 0;
+	}
+
+ntuple_err:
+	atomic_dec(&l2_fltr->refcnt);
+	kfree(new_fltr);
+	return rc;
+}
+
+static int bnxt_srxclsrlins(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	u32 ring, flow_type;
+	int rc;
+	u8 vf;
+
+	if (!netif_running(bp->dev))
+		return -EAGAIN;
+	if (!(bp->flags & BNXT_FLAG_RFS))
+		return -EPERM;
+	if (fs->location != RX_CLS_LOC_ANY)
+		return -EINVAL;
+
+	ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	if (BNXT_VF(bp) && vf)
+		return -EINVAL;
+	if (BNXT_PF(bp) && vf > bp->pf.active_vfs)
+		return -EINVAL;
+	if (!vf && ring >= bp->rx_nr_rings)
+		return -EINVAL;
+
+	flow_type = fs->flow_type;
+	if (flow_type & (FLOW_MAC_EXT | FLOW_RSS))
+		return -EINVAL;
+	flow_type &= ~FLOW_EXT;
+	if (flow_type == ETHER_FLOW)
+		rc = -EOPNOTSUPP;
+	else
+		rc = bnxt_add_ntuple_cls_rule(bp, fs);
+	return rc;
+}
+
+static int bnxt_srxclsrldel(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	struct bnxt_filter_base *fltr_base;
+	struct bnxt_ntuple_filter *fltr;
+
+	rcu_read_lock();
+	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
+					  BNXT_NTP_FLTR_HASH_SIZE,
+					  fs->location);
+	if (!fltr_base) {
+		rcu_read_unlock();
+		return -ENOENT;
+	}
+
+	fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
+	if (!(fltr->base.flags & BNXT_ACT_NO_AGING)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	rcu_read_unlock();
+	bnxt_hwrm_cfa_ntuple_filter_free(bp, fltr);
+	bnxt_del_ntp_filter(bp, fltr);
+	return 0;
+}
 
 static u64 get_ethtool_ipv4_rss(struct bnxt *bp)
 {
@@ -1194,7 +1448,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4;
 	} else if (cmd->flow_type == UDP_V4_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4;
 		if (tuple == 4)
@@ -1204,7 +1458,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
 	} else if (cmd->flow_type == UDP_V6_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 		if (tuple == 4)
@@ -1244,7 +1498,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	if (bp->rss_hash_cfg == rss_hash_cfg)
 		return 0;
 
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bp->rss_hash_delta = bp->rss_hash_cfg ^ rss_hash_cfg;
 	bp->rss_hash_cfg = rss_hash_cfg;
 	if (netif_running(bp->dev)) {
@@ -1261,14 +1515,13 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int rc = 0;
 
 	switch (cmd->cmd) {
-#ifdef CONFIG_RFS_ACCEL
 	case ETHTOOL_GRXRINGS:
 		cmd->data = bp->rx_nr_rings;
 		break;
 
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->ntp_fltr_count;
-		cmd->data = BNXT_NTP_FLTR_MAX_FLTR;
+		cmd->data = BNXT_NTP_FLTR_MAX_FLTR | RX_CLS_LOC_SPECIAL;
 		break;
 
 	case ETHTOOL_GRXCLSRLALL:
@@ -1278,7 +1531,6 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	case ETHTOOL_GRXCLSRULE:
 		rc = bnxt_grxclsrule(bp, cmd);
 		break;
-#endif
 
 	case ETHTOOL_GRXFH:
 		rc = bnxt_grxfh(bp, cmd);
@@ -1302,6 +1554,14 @@ static int bnxt_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 		rc = bnxt_srxfh(bp, cmd);
 		break;
 
+	case ETHTOOL_SRXCLSRLINS:
+		rc = bnxt_srxclsrlins(bp, cmd);
+		break;
+
+	case ETHTOOL_SRXCLSRLDEL:
+		rc = bnxt_srxclsrldel(bp, cmd);
+		break;
+
 	default:
 		rc = -EOPNOTSUPP;
 		break;
@@ -1313,8 +1573,9 @@ u32 bnxt_get_rxfh_indir_size(struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		return ALIGN(bp->rx_nr_rings, BNXT_RSS_TABLE_ENTRIES_P5);
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+		return bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) *
+		       BNXT_RSS_TABLE_ENTRIES_P5;
 	return HW_HASH_INDEX_SIZE;
 }
 
@@ -1323,49 +1584,49 @@ static u32 bnxt_get_rxfh_key_size(struct net_device *dev)
 	return HW_HASH_KEY_SIZE;
 }
 
-static int bnxt_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+static int bnxt_get_rxfh(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_vnic_info *vnic;
 	u32 i, tbl_size;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
 	if (!bp->vnic_info)
 		return 0;
 
 	vnic = &bp->vnic_info[0];
-	if (indir && bp->rss_indir_tbl) {
+	if (rxfh->indir && bp->rss_indir_tbl) {
 		tbl_size = bnxt_get_rxfh_indir_size(dev);
 		for (i = 0; i < tbl_size; i++)
-			indir[i] = bp->rss_indir_tbl[i];
+			rxfh->indir[i] = bp->rss_indir_tbl[i];
 	}
 
-	if (key && vnic->rss_hash_key)
-		memcpy(key, vnic->rss_hash_key, HW_HASH_KEY_SIZE);
+	if (rxfh->key && vnic->rss_hash_key)
+		memcpy(rxfh->key, vnic->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	return 0;
 }
 
-static int bnxt_set_rxfh(struct net_device *dev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int bnxt_set_rxfh(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
-	if (hfunc && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (key)
+	if (rxfh->key)
 		return -EOPNOTSUPP;
 
-	if (indir) {
+	if (rxfh->indir) {
 		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(dev);
 
 		for (i = 0; i < tbl_size; i++)
-			bp->rss_indir_tbl[i] = indir[i];
+			bp->rss_indir_tbl[i] = rxfh->indir[i];
 		pad = bp->rss_indir_tbl_entries - tbl_size;
 		if (pad)
 			memset(&bp->rss_indir_tbl[i], 0, pad * sizeof(u16));
@@ -1568,6 +1829,22 @@ static const enum bnxt_media_type bnxt_phy_types[] = {
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASESR2] = BNXT_MEDIA_SR,
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASELR2] = BNXT_MEDIA_LR_ER_FR,
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASEER2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASECR] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASESR] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASELR] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASEER] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASECR2] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASESR2] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASELR2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASEER2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASECR8] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASESR8] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASELR8] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASEER8] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASECR4] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASESR4] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASELR4] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASEER4] = BNXT_MEDIA_LR_ER_FR,
 };
 
 static enum bnxt_media_type
@@ -1595,6 +1872,7 @@ enum bnxt_link_speed_indices {
 	BNXT_LINK_SPEED_50GB_IDX,
 	BNXT_LINK_SPEED_100GB_IDX,
 	BNXT_LINK_SPEED_200GB_IDX,
+	BNXT_LINK_SPEED_400GB_IDX,
 	__BNXT_LINK_SPEED_END
 };
 
@@ -1606,9 +1884,21 @@ static enum bnxt_link_speed_indices bnxt_fw_speed_idx(u16 speed)
 	case BNXT_LINK_SPEED_10GB: return BNXT_LINK_SPEED_10GB_IDX;
 	case BNXT_LINK_SPEED_25GB: return BNXT_LINK_SPEED_25GB_IDX;
 	case BNXT_LINK_SPEED_40GB: return BNXT_LINK_SPEED_40GB_IDX;
-	case BNXT_LINK_SPEED_50GB: return BNXT_LINK_SPEED_50GB_IDX;
-	case BNXT_LINK_SPEED_100GB: return BNXT_LINK_SPEED_100GB_IDX;
-	case BNXT_LINK_SPEED_200GB: return BNXT_LINK_SPEED_200GB_IDX;
+	case BNXT_LINK_SPEED_50GB:
+	case BNXT_LINK_SPEED_50GB_PAM4:
+		return BNXT_LINK_SPEED_50GB_IDX;
+	case BNXT_LINK_SPEED_100GB:
+	case BNXT_LINK_SPEED_100GB_PAM4:
+	case BNXT_LINK_SPEED_100GB_PAM4_112:
+		return BNXT_LINK_SPEED_100GB_IDX;
+	case BNXT_LINK_SPEED_200GB:
+	case BNXT_LINK_SPEED_200GB_PAM4:
+	case BNXT_LINK_SPEED_200GB_PAM4_112:
+		return BNXT_LINK_SPEED_200GB_IDX;
+	case BNXT_LINK_SPEED_400GB:
+	case BNXT_LINK_SPEED_400GB_PAM4:
+	case BNXT_LINK_SPEED_400GB_PAM4_112:
+		return BNXT_LINK_SPEED_400GB_IDX;
 	default: return BNXT_LINK_SPEED_UNKNOWN;
 	}
 }
@@ -1681,6 +1971,12 @@ bnxt_link_modes[__BNXT_LINK_SPEED_END][BNXT_SIG_MODE_MAX][__BNXT_MEDIA_END] = {
 			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
 			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
 		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_100000baseCR_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_100000baseSR_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_100000baseKR_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT,
+		},
 	},
 	[BNXT_LINK_SPEED_200GB_IDX] = {
 		[BNXT_SIG_MODE_PAM4] = {
@@ -1688,6 +1984,26 @@ bnxt_link_modes[__BNXT_LINK_SPEED_END][BNXT_SIG_MODE_MAX][__BNXT_MEDIA_END] = {
 			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
 			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
 			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
+		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT,
+		},
+	},
+	[BNXT_LINK_SPEED_400GB_IDX] = {
+		[BNXT_SIG_MODE_PAM4] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT,
+		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
 		},
 	},
 };
@@ -1753,7 +2069,8 @@ static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
 				 lk_ksettings->link_modes.supported);
 	}
 
-	if (link_info->support_auto_speeds || link_info->support_pam4_auto_speeds)
+	if (link_info->support_auto_speeds || link_info->support_auto_speeds2 ||
+	    link_info->support_pam4_auto_speeds)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.supported);
 
@@ -1789,22 +2106,60 @@ static const u16 bnxt_pam4_speed_masks[] = {
 	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_50GB,
 	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_100GB,
 	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_200GB,
+	[__BNXT_LINK_SPEED_END - 1] = 0 /* make any legal speed a valid index */
+};
+
+static const u16 bnxt_nrz_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_1GB_IDX] = BNXT_LINK_SPEEDS2_MSK_1GB,
+	[BNXT_LINK_SPEED_10GB_IDX] = BNXT_LINK_SPEEDS2_MSK_10GB,
+	[BNXT_LINK_SPEED_25GB_IDX] = BNXT_LINK_SPEEDS2_MSK_25GB,
+	[BNXT_LINK_SPEED_40GB_IDX] = BNXT_LINK_SPEEDS2_MSK_40GB,
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_SPEEDS2_MSK_50GB,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB,
+	[__BNXT_LINK_SPEED_END - 1] = 0 /* make any legal speed a valid index */
+};
+
+static const u16 bnxt_pam4_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_SPEEDS2_MSK_50GB_PAM4,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB_PAM4,
+	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_SPEEDS2_MSK_200GB_PAM4,
+	[BNXT_LINK_SPEED_400GB_IDX] = BNXT_LINK_SPEEDS2_MSK_400GB_PAM4,
+};
+
+static const u16 bnxt_pam4_112_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB_PAM4_112,
+	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_SPEEDS2_MSK_200GB_PAM4_112,
+	[BNXT_LINK_SPEED_400GB_IDX] = BNXT_LINK_SPEEDS2_MSK_400GB_PAM4_112,
 };
 
 static enum bnxt_link_speed_indices
-bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
+bnxt_encoding_speed_idx(u8 sig_mode, u16 phy_flags, u16 speed_msk)
 {
 	const u16 *speeds;
 	int idx, len;
 
 	switch (sig_mode) {
 	case BNXT_SIG_MODE_NRZ:
-		speeds = bnxt_nrz_speed_masks;
-		len = ARRAY_SIZE(bnxt_nrz_speed_masks);
+		if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			speeds = bnxt_nrz_speeds2_masks;
+			len = ARRAY_SIZE(bnxt_nrz_speeds2_masks);
+		} else {
+			speeds = bnxt_nrz_speed_masks;
+			len = ARRAY_SIZE(bnxt_nrz_speed_masks);
+		}
 		break;
 	case BNXT_SIG_MODE_PAM4:
-		speeds = bnxt_pam4_speed_masks;
-		len = ARRAY_SIZE(bnxt_pam4_speed_masks);
+		if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			speeds = bnxt_pam4_speeds2_masks;
+			len = ARRAY_SIZE(bnxt_pam4_speeds2_masks);
+		} else {
+			speeds = bnxt_pam4_speed_masks;
+			len = ARRAY_SIZE(bnxt_pam4_speed_masks);
+		}
+		break;
+	case BNXT_SIG_MODE_PAM4_112:
+		speeds = bnxt_pam4_112_speeds2_masks;
+		len = ARRAY_SIZE(bnxt_pam4_112_speeds2_masks);
 		break;
 	default:
 		return BNXT_LINK_SPEED_UNKNOWN;
@@ -1822,14 +2177,14 @@ bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
 
 static void
 __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			  u8 sig_mode, unsigned long *et_mask)
+			  u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	enum ethtool_link_mode_bit_indices link_mode;
 	enum bnxt_link_speed_indices speed;
 	u8 bit;
 
 	for_each_set_bit(bit, &fw_mask, BNXT_FW_SPEED_MSK_BITS) {
-		speed = bnxt_encoding_speed_idx(sig_mode, 1 << bit);
+		speed = bnxt_encoding_speed_idx(sig_mode, phy_flags, 1 << bit);
 		if (!speed)
 			continue;
 
@@ -1843,16 +2198,83 @@ __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
 
 static void
 bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			u8 sig_mode, unsigned long *et_mask)
+			u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	if (media) {
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
 		return;
 	}
 
 	/* list speeds for all media if unknown */
 	for (media = 1; media < __BNXT_MEDIA_END; media++)
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
+}
+
+static void
+bnxt_get_all_ethtool_support_speeds(struct bnxt_link_info *link_info,
+				    enum bnxt_media_type media,
+				    struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 sp_nrz, sp_pam4, sp_pam4_112 = 0;
+	u16 phy_flags = bp->phy_flags;
+
+	if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		sp_nrz = link_info->support_speeds2;
+		sp_pam4 = link_info->support_speeds2;
+		sp_pam4_112 = link_info->support_speeds2;
+	} else {
+		sp_nrz = link_info->support_speeds;
+		sp_pam4 = link_info->support_pam4_speeds;
+	}
+	bnxt_get_ethtool_speeds(sp_nrz, media, BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(sp_pam4, media, BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(sp_pam4_112, media, BNXT_SIG_MODE_PAM4_112,
+				phy_flags, lk_ksettings->link_modes.supported);
+}
+
+static void
+bnxt_get_all_ethtool_adv_speeds(struct bnxt_link_info *link_info,
+				enum bnxt_media_type media,
+				struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 sp_nrz, sp_pam4, sp_pam4_112 = 0;
+	u16 phy_flags = bp->phy_flags;
+
+	sp_nrz = link_info->advertising;
+	if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		sp_pam4 = link_info->advertising;
+		sp_pam4_112 = link_info->advertising;
+	} else {
+		sp_pam4 = link_info->advertising_pam4;
+	}
+	bnxt_get_ethtool_speeds(sp_nrz, media, BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.advertising);
+	bnxt_get_ethtool_speeds(sp_pam4, media, BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.advertising);
+	bnxt_get_ethtool_speeds(sp_pam4_112, media, BNXT_SIG_MODE_PAM4_112,
+				phy_flags, lk_ksettings->link_modes.advertising);
+}
+
+static void
+bnxt_get_all_ethtool_lp_speeds(struct bnxt_link_info *link_info,
+			       enum bnxt_media_type media,
+			       struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 phy_flags = bp->phy_flags;
+
+	bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds, media,
+				BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
+	bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds, media,
+				BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
 }
 
 static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
@@ -1881,22 +2303,42 @@ static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
 static void bnxt_set_ethtool_speeds(struct bnxt_link_info *link_info,
 				    const unsigned long *et_mask)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 const *sp_msks, *sp_pam4_msks, *sp_pam4_112_msks;
 	enum bnxt_media_type media = bnxt_get_media(link_info);
+	u16 *adv, *adv_pam4, *adv_pam4_112 = NULL;
+	u32 delta_pam4_112 = 0;
 	u32 delta_pam4 = 0;
 	u32 delta_nrz = 0;
 	int i, m;
 
+	adv = &link_info->advertising;
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		adv_pam4 = &link_info->advertising;
+		adv_pam4_112 = &link_info->advertising;
+		sp_msks = bnxt_nrz_speeds2_masks;
+		sp_pam4_msks = bnxt_pam4_speeds2_masks;
+		sp_pam4_112_msks = bnxt_pam4_112_speeds2_masks;
+	} else {
+		adv_pam4 = &link_info->advertising_pam4;
+		sp_msks = bnxt_nrz_speed_masks;
+		sp_pam4_msks = bnxt_pam4_speed_masks;
+	}
 	for (i = 1; i < __BNXT_LINK_SPEED_END; i++) {
 		/* accept any legal media from user */
 		for (m = 1; m < __BNXT_MEDIA_END; m++) {
 			bnxt_update_speed(&delta_nrz, m == media,
-					  &link_info->advertising,
-					  bnxt_nrz_speed_masks[i], et_mask,
+					  adv, sp_msks[i], et_mask,
 					  bnxt_link_modes[i][BNXT_SIG_MODE_NRZ][m]);
 			bnxt_update_speed(&delta_pam4, m == media,
-					  &link_info->advertising_pam4,
-					  bnxt_pam4_speed_masks[i], et_mask,
+					  adv_pam4, sp_pam4_msks[i], et_mask,
 					  bnxt_link_modes[i][BNXT_SIG_MODE_PAM4][m]);
+			if (!adv_pam4_112)
+				continue;
+
+			bnxt_update_speed(&delta_pam4_112, m == media,
+					  adv_pam4_112, sp_pam4_112_msks[i], et_mask,
+					  bnxt_link_modes[i][BNXT_SIG_MODE_PAM4_112][m]);
 		}
 	}
 }
@@ -1961,11 +2403,20 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 	case BNXT_LINK_SPEED_40GB:
 		return SPEED_40000;
 	case BNXT_LINK_SPEED_50GB:
+	case BNXT_LINK_SPEED_50GB_PAM4:
 		return SPEED_50000;
 	case BNXT_LINK_SPEED_100GB:
+	case BNXT_LINK_SPEED_100GB_PAM4:
+	case BNXT_LINK_SPEED_100GB_PAM4_112:
 		return SPEED_100000;
 	case BNXT_LINK_SPEED_200GB:
+	case BNXT_LINK_SPEED_200GB_PAM4:
+	case BNXT_LINK_SPEED_200GB_PAM4_112:
 		return SPEED_200000;
+	case BNXT_LINK_SPEED_400GB:
+	case BNXT_LINK_SPEED_400GB_PAM4:
+	case BNXT_LINK_SPEED_400GB_PAM4_112:
+		return SPEED_400000;
 	default:
 		return SPEED_UNKNOWN;
 	}
@@ -1981,6 +2432,7 @@ static void bnxt_get_default_speeds(struct ethtool_link_ksettings *lk_ksettings,
 		base->duplex = DUPLEX_HALF;
 		if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
 			base->duplex = DUPLEX_FULL;
+		lk_ksettings->lanes = link_info->active_lanes;
 	} else if (!link_info->autoneg) {
 		base->speed = bnxt_fw_to_ethtool_speed(link_info->req_link_speed);
 		base->duplex = DUPLEX_HALF;
@@ -2008,12 +2460,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	mutex_lock(&bp->link_lock);
 	bnxt_get_ethtool_modes(link_info, lk_ksettings);
 	media = bnxt_get_media(link_info);
-	bnxt_get_ethtool_speeds(link_info->support_speeds,
-				media, BNXT_SIG_MODE_NRZ,
-				lk_ksettings->link_modes.supported);
-	bnxt_get_ethtool_speeds(link_info->support_pam4_speeds,
-				media, BNXT_SIG_MODE_PAM4,
-				lk_ksettings->link_modes.supported);
+	bnxt_get_all_ethtool_support_speeds(link_info, media, lk_ksettings);
 	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 	link_mode = bnxt_get_link_mode(link_info);
 	if (link_mode != BNXT_LINK_MODE_UNKNOWN)
@@ -2026,20 +2473,10 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.advertising);
 		base->autoneg = AUTONEG_ENABLE;
-		bnxt_get_ethtool_speeds(link_info->advertising,
-					media, BNXT_SIG_MODE_NRZ,
-					lk_ksettings->link_modes.advertising);
-		bnxt_get_ethtool_speeds(link_info->advertising_pam4,
-					media, BNXT_SIG_MODE_PAM4,
-					lk_ksettings->link_modes.advertising);
-		if (link_info->phy_link_status == BNXT_LINK_LINK) {
-			bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds,
-						media, BNXT_SIG_MODE_NRZ,
-						lk_ksettings->link_modes.lp_advertising);
-			bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds,
-						media, BNXT_SIG_MODE_PAM4,
-						lk_ksettings->link_modes.lp_advertising);
-		}
+		bnxt_get_all_ethtool_adv_speeds(link_info, media, lk_ksettings);
+		if (link_info->phy_link_status == BNXT_LINK_LINK)
+			bnxt_get_all_ethtool_lp_speeds(link_info, media,
+						       lk_ksettings);
 	} else {
 		base->autoneg = AUTONEG_DISABLE;
 	}
@@ -2074,6 +2511,7 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	u16 support_pam4_spds = link_info->support_pam4_speeds;
+	u16 support_spds2 = link_info->support_speeds2;
 	u16 support_spds = link_info->support_speeds;
 	u8 sig_mode = BNXT_SIG_MODE_NRZ;
 	u32 lanes_needed = 1;
@@ -2085,7 +2523,8 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100MB;
 		break;
 	case SPEED_1000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_1GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_1GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_1GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_1GB;
 		break;
 	case SPEED_2500:
@@ -2093,7 +2532,8 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_2_5GB;
 		break;
 	case SPEED_10000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_10GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_10GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_10GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10GB;
 		break;
 	case SPEED_20000:
@@ -2103,26 +2543,34 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 		}
 		break;
 	case SPEED_25000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_25GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_25GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_25GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_25GB;
 		break;
 	case SPEED_40000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_40GB) {
+		if ((support_spds & BNXT_LINK_SPEED_MSK_40GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_40GB)) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB;
 			lanes_needed = 4;
 		}
 		break;
 	case SPEED_50000:
-		if ((support_spds & BNXT_LINK_SPEED_MSK_50GB) && lanes != 1) {
+		if (((support_spds & BNXT_LINK_SPEED_MSK_50GB) ||
+		     (support_spds2 & BNXT_LINK_SPEEDS2_MSK_50GB)) &&
+		    lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB;
 			lanes_needed = 2;
 		} else if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_50GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_50GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_50GB_PAM4) {
+			fw_speed = BNXT_LINK_SPEED_50GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
 		}
 		break;
 	case SPEED_100000:
-		if ((support_spds & BNXT_LINK_SPEED_MSK_100GB) &&
+		if (((support_spds & BNXT_LINK_SPEED_MSK_100GB) ||
+		     (support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB)) &&
 		    lanes != 2 && lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100GB;
 			lanes_needed = 4;
@@ -2130,12 +2578,41 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_100GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
 			lanes_needed = 2;
+		} else if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB_PAM4) &&
+			   lanes != 1) {
+			fw_speed = BNXT_LINK_SPEED_100GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 2;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_100GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
 		}
 		break;
 	case SPEED_200000:
 		if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_200GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_200GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 4;
+		} else if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_200GB_PAM4) &&
+			   lanes != 2) {
+			fw_speed = BNXT_LINK_SPEED_200GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 4;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_200GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_200GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
+			lanes_needed = 2;
+		}
+		break;
+	case SPEED_400000:
+		if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_400GB_PAM4) &&
+		    lanes != 4) {
+			fw_speed = BNXT_LINK_SPEED_400GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 8;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_400GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_400GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
 			lanes_needed = 4;
 		}
 		break;
@@ -3910,7 +4387,8 @@ static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
+		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP ||
+		    TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_V3_CMP) {
 			rc = bnxt_rx_loopback(bp, cpr, raw_cons, pkt_size);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
@@ -3934,8 +4412,8 @@ static int bnxt_run_loopback(struct bnxt *bp)
 	int rc;
 
 	cpr = &rxr->bnapi->cp_ring;
-	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		cpr = cpr->cp_ring_arr[BNXT_RX_HDL];
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+		cpr = rxr->rx_cpr;
 	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)

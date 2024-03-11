@@ -161,13 +161,12 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 	refcount_set(&cell->ref, 1);
 	atomic_set(&cell->active, 0);
 	INIT_WORK(&cell->manager, afs_manage_cell_work);
+	init_rwsem(&cell->vs_lock);
 	cell->volumes = RB_ROOT;
 	INIT_HLIST_HEAD(&cell->proc_volumes);
 	seqlock_init(&cell->volume_lock);
 	cell->fs_servers = RB_ROOT;
 	seqlock_init(&cell->fs_lock);
-	INIT_LIST_HEAD(&cell->fs_open_mmaps);
-	init_rwsem(&cell->fs_open_mmaps_lock);
 	rwlock_init(&cell->vl_servers_lock);
 	cell->flags = (1 << AFS_CELL_FL_CHECK_ALIAS);
 
@@ -817,7 +816,7 @@ done:
 
 final_destruction:
 	/* The root volume is pinning the cell */
-	afs_put_volume(cell->net, cell->root_volume, afs_volume_trace_put_cell_root);
+	afs_put_volume(cell->root_volume, afs_volume_trace_put_cell_root);
 	cell->root_volume = NULL;
 	afs_put_cell(cell, afs_cell_trace_put_destroy);
 }

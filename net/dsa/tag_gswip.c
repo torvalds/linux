@@ -107,6 +107,7 @@ static const struct dsa_device_ops gswip_netdev_ops = {
 	.needed_headroom = GSWIP_RX_HEADER_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Lantiq / Intel GSWIP switches");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_GSWIP, GSWIP_NAME);
 

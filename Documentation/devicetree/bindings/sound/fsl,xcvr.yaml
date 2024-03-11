@@ -38,7 +38,10 @@ properties:
       - const: txfifo
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: WAKEUPMIX Audio XCVR Interrupt 1
+      - description: WAKEUPMIX Audio XCVR Interrupt 2
+    minItems: 1
 
   clocks:
     items:
@@ -77,6 +80,23 @@ required:
   - dmas
   - dma-names
   - resets
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx93-xcvr
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+          maxItems: 2
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
 
 additionalProperties: false
 

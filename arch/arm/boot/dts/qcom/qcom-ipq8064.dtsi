@@ -366,7 +366,7 @@
 			};
 		};
 
-		qcom,ssbi@500000 {
+		ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x00500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
@@ -1076,7 +1076,7 @@
 			status = "disabled";
 		};
 
-		pcie0: pci@1b500000 {
+		pcie0: pcie@1b500000 {
 			compatible = "qcom,pcie-ipq8064";
 			reg = <0x1b500000 0x1000
 			       0x1b502000 0x80
@@ -1127,7 +1127,7 @@
 			perst-gpios = <&qcom_pinmux 3 GPIO_ACTIVE_LOW>;
 		};
 
-		pcie1: pci@1b700000 {
+		pcie1: pcie@1b700000 {
 			compatible = "qcom,pcie-ipq8064";
 			reg = <0x1b700000 0x1000
 			       0x1b702000 0x80
@@ -1178,7 +1178,7 @@
 			perst-gpios = <&qcom_pinmux 48 GPIO_ACTIVE_LOW>;
 		};
 
-		pcie2: pci@1b900000 {
+		pcie2: pcie@1b900000 {
 			compatible = "qcom,pcie-ipq8064";
 			reg = <0x1b900000 0x1000
 			       0x1b902000 0x80

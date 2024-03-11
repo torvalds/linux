@@ -64,7 +64,7 @@ static void umc_v6_7_query_error_status_helper(struct amdgpu_device *adev,
 	uint64_t reg_value;
 
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Deferred) == 1)
-		dev_info(adev->dev, "Deferred error, no user action is needed.\n");
+		dev_info(adev->dev, "Deferred error\n");
 
 	if (mc_umc_status)
 		dev_info(adev->dev, "MCA STATUS 0x%llx, umc_reg_offset 0x%x\n", mc_umc_status, umc_reg_offset);

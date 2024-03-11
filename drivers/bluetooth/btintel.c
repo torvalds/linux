@@ -535,6 +535,8 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 	bt_dev_info(hdev, "%s timestamp %u.%u buildtype %u build %u", variant,
 		    2000 + (version->timestamp >> 8), version->timestamp & 0xff,
 		    version->build_type, version->build_num);
+	if (version->img_type == 0x03)
+		bt_dev_info(hdev, "Firmware SHA1: 0x%8.8x", version->git_sha1);
 
 	return 0;
 }
@@ -629,6 +631,9 @@ static int btintel_parse_version_tlv(struct hci_dev *hdev,
 		case INTEL_TLV_OTP_BDADDR:
 			memcpy(&version->otp_bd_addr, tlv->val,
 							sizeof(bdaddr_t));
+			break;
+		case INTEL_TLV_GIT_SHA1:
+			version->git_sha1 = get_unaligned_le32(tlv->val);
 			break;
 		default:
 			/* Ignore rest of information */

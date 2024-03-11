@@ -1039,7 +1039,10 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	ssize_t host_err;
 
 	trace_nfsd_read_splice(rqstp, fhp, offset, *count);
-	host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
+	host_err = rw_verify_area(READ, file, &offset, *count);
+	if (!host_err)
+		host_err = splice_direct_to_actor(file, &sd,
+						  nfsd_direct_splice_actor);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
@@ -1176,9 +1179,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
 		nfsd_copy_write_verifier(verf, nn);
-	file_start_write(file);
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
-	file_end_write(file);
 	if (host_err < 0) {
 		commit_reset_write_verifier(nn, rqstp, host_err);
 		goto out_nfserr;
@@ -1210,6 +1211,30 @@ out_nfserr:
 }
 
 /**
+ * nfsd_read_splice_ok - check if spliced reading is supported
+ * @rqstp: RPC transaction context
+ *
+ * Return values:
+ *   %true: nfsd_splice_read() may be used
+ *   %false: nfsd_splice_read() must not be used
+ *
+ * NFS READ normally uses splice to send data in-place. However the
+ * data in cache can change after the reply's MIC is computed but
+ * before the RPC reply is sent. To prevent the client from
+ * rejecting the server-computed MIC in this somewhat rare case, do
+ * not use splice with the GSS integrity and privacy services.
+ */
+bool nfsd_read_splice_ok(struct svc_rqst *rqstp)
+{
+	switch (svc_auth_flavor(rqstp)) {
+	case RPC_AUTH_GSS_KRB5I:
+	case RPC_AUTH_GSS_KRB5P:
+		return false;
+	}
+	return true;
+}
+
+/**
  * nfsd_read - Read data from a file
  * @rqstp: RPC transaction context
  * @fhp: file handle of file to be read
@@ -1238,7 +1263,7 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 
 	file = nf->nf_file;
-	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
+	if (file->f_op->splice_read && nfsd_read_splice_ok(rqstp))
 		err = nfsd_splice_read(rqstp, fhp, file, offset, count, eof);
 	else
 		err = nfsd_iter_read(rqstp, fhp, file, offset, count, 0, eof);
@@ -1806,6 +1831,10 @@ retry:
 	}
 
 	trap = lock_rename(tdentry, fdentry);
+	if (IS_ERR(trap)) {
+		err = (rqstp->rq_vers == 2) ? nfserr_acces : nfserr_xdev;
+		goto out;
+	}
 	err = fh_fill_pre_attrs(ffhp);
 	if (err != nfs_ok)
 		goto out_unlock;
@@ -2102,9 +2131,23 @@ static __be32 nfsd_buffered_readdir(struct file *file, struct svc_fh *fhp,
 	return cdp->err;
 }
 
-/*
- * Read entries from a directory.
- * The  NFSv3/4 verifier we ignore for now.
+/**
+ * nfsd_readdir - Read entries from a directory
+ * @rqstp: RPC transaction context
+ * @fhp: NFS file handle of directory to be read
+ * @offsetp: OUT: seek offset of final entry that was read
+ * @cdp: OUT: an eof error value
+ * @func: entry filler actor
+ *
+ * This implementation ignores the NFSv3/4 verifier cookie.
+ *
+ * NB: normal system calls hold file->f_pos_lock when calling
+ * ->iterate_shared and ->llseek, but nfsd_readdir() does not.
+ * Because the struct file acquired here is not visible to other
+ * threads, it's internal state does not need mutex protection.
+ *
+ * Returns nfs_ok on success, otherwise an nfsstat code is
+ * returned.
  */
 __be32
 nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp, 

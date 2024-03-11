@@ -69,11 +69,8 @@ const char * const bch2_watermarks[] = {
 
 void bch2_reset_alloc_cursors(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL)
+	for_each_member_device_rcu(c, ca, NULL)
 		ca->alloc_cursor = 0;
 	rcu_read_unlock();
 }
@@ -239,9 +236,8 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
-		if (!c->blocked_allocate_open_bucket)
-			c->blocked_allocate_open_bucket = local_clock();
-
+		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
+				   &c->blocked_allocate_open_bucket, true);
 		spin_unlock(&c->freelist_lock);
 		return ERR_PTR(-BCH_ERR_open_buckets_empty);
 	}
@@ -267,19 +263,11 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	ca->nr_open_buckets++;
 	bch2_open_bucket_hash_add(c, ob);
 
-	if (c->blocked_allocate_open_bucket) {
-		bch2_time_stats_update(
-			&c->times[BCH_TIME_blocked_allocate_open_bucket],
-			c->blocked_allocate_open_bucket);
-		c->blocked_allocate_open_bucket = 0;
-	}
+	track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
+			   &c->blocked_allocate_open_bucket, false);
 
-	if (c->blocked_allocate) {
-		bch2_time_stats_update(
-			&c->times[BCH_TIME_blocked_allocate],
-			c->blocked_allocate);
-		c->blocked_allocate = 0;
-	}
+	track_event_change(&c->times[BCH_TIME_blocked_allocate],
+			   &c->blocked_allocate, false);
 
 	spin_unlock(&c->freelist_lock);
 	return ob;
@@ -377,9 +365,9 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	ob = __try_alloc_bucket(c, ca, b, watermark, a, s, cl);
 	if (!ob)
-		iter.path->preserve = false;
+		set_btree_iter_dontneed(&iter);
 err:
-	if (iter.trans && iter.path)
+	if (iter.path)
 		set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
@@ -447,7 +435,7 @@ again:
 
 		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, watermark, a, s, cl);
 next:
-		citer.path->preserve = false;
+		set_btree_iter_dontneed(&citer);
 		bch2_trans_iter_exit(trans, &citer);
 		if (ob)
 			break;
@@ -502,7 +490,7 @@ again:
 			ob = try_alloc_bucket(trans, ca, watermark,
 					      alloc_cursor, s, k, cl);
 			if (ob) {
-				iter.path->preserve = false;
+				set_btree_iter_dontneed(&iter);
 				break;
 			}
 		}
@@ -567,8 +555,8 @@ again:
 			goto again;
 		}
 
-		if (!c->blocked_allocate)
-			c->blocked_allocate = local_clock();
+		track_event_change(&c->times[BCH_TIME_blocked_allocate],
+				   &c->blocked_allocate, true);
 
 		ob = ERR_PTR(-BCH_ERR_freelist_empty);
 		goto err;
@@ -697,11 +685,9 @@ static int add_new_bucket(struct bch_fs *c,
 		bch_dev_bkey_exists(c, ob->dev)->mi.durability;
 
 	BUG_ON(*nr_effective >= nr_replicas);
-	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
 
 	__clear_bit(ob->dev, devs_may_alloc->d);
-	*nr_effective	+= (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)
-		? durability : 1;
+	*nr_effective	+= durability;
 	*have_cache	|= !durability;
 
 	ob_push(c, ptrs, ob);
@@ -972,8 +958,8 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 	devs = target_rw_devs(c, wp->data_type, target);
 
 	/* Don't allocate from devices we already have pointers to: */
-	for (i = 0; i < devs_have->nr; i++)
-		__clear_bit(devs_have->devs[i], devs.d);
+	darray_for_each(*devs_have, i)
+		__clear_bit(*i, devs.d);
 
 	open_bucket_for_each(c, ptrs, ob, i)
 		__clear_bit(ob->dev, devs.d);
@@ -1539,10 +1525,11 @@ static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, str
 	unsigned data_type = ob->data_type;
 	barrier(); /* READ_ONCE() doesn't work on bitfields */
 
-	prt_printf(out, "%zu ref %u %s %u:%llu gen %u allocated %u/%u",
+	prt_printf(out, "%zu ref %u ",
 		   ob - c->open_buckets,
-		   atomic_read(&ob->pin),
-		   data_type < BCH_DATA_NR ? bch2_data_types[data_type] : "invalid data type",
+		   atomic_read(&ob->pin));
+	bch2_prt_data_type(out, data_type);
+	prt_printf(out, " %u:%llu gen %u allocated %u/%u",
 		   ob->dev, ob->bucket, ob->gen,
 		   ca->mi.bucket_size - ob->sectors_free, ca->mi.bucket_size);
 	if (ob->ec)

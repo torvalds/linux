@@ -277,6 +277,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.mirror_add = ksz8_port_mirror_add,
 	.mirror_del = ksz8_port_mirror_del,
 	.get_caps = ksz8_get_caps,
+	.phylink_mac_link_up = ksz8_phylink_mac_link_up,
 	.config_cpu_port = ksz8_config_cpu_port,
 	.enable_stp_addr = ksz8_enable_stp_addr,
 	.reset = ksz8_reset_switch,
@@ -1672,15 +1673,23 @@ static const struct ksz_chip_data *ksz_lookup_info(unsigned int prod_num)
 
 static int ksz_check_device_id(struct ksz_device *dev)
 {
-	const struct ksz_chip_data *dt_chip_data;
+	const struct ksz_chip_data *expected_chip_data;
+	u32 expected_chip_id;
 
-	dt_chip_data = of_device_get_match_data(dev->dev);
+	if (dev->pdata) {
+		expected_chip_id = dev->pdata->chip_id;
+		expected_chip_data = ksz_lookup_info(expected_chip_id);
+		if (WARN_ON(!expected_chip_data))
+			return -ENODEV;
+	} else {
+		expected_chip_data = of_device_get_match_data(dev->dev);
+		expected_chip_id = expected_chip_data->chip_id;
+	}
 
-	/* Check for Device Tree and Chip ID */
-	if (dt_chip_data->chip_id != dev->chip_id) {
+	if (expected_chip_id != dev->chip_id) {
 		dev_err(dev->dev,
 			"Device tree specifies chip %s but found %s, please fix it!\n",
-			dt_chip_data->dev_name, dev->info->dev_name);
+			expected_chip_data->dev_name, dev->info->dev_name);
 		return -ENODEV;
 	}
 
@@ -2703,7 +2712,7 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 		proto = DSA_TAG_PROTO_KSZ9477;
 
 	if (is_lan937x(dev))
-		proto = DSA_TAG_PROTO_LAN937X_VALUE;
+		proto = DSA_TAG_PROTO_LAN937X;
 
 	return proto;
 }
@@ -2974,8 +2983,10 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev)) {
+		dev->ports[port].manual_flow = !(state->pause & MLO_PAUSE_AN);
 		return;
+	}
 
 	/* Internal PHYs */
 	if (dev->info->internal_phy[port])
@@ -3118,10 +3129,8 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (dev->dev_ops->phylink_mac_link_up)
-		dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface,
-						  phydev, speed, duplex,
-						  tx_pause, rx_pause);
+	dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface, phydev,
+					  speed, duplex, tx_pause, rx_pause);
 }
 
 static int ksz_switch_detect(struct ksz_device *dev)
@@ -4162,9 +4171,6 @@ int ksz_switch_register(struct ksz_device *dev)
 	unsigned int port_num;
 	int ret;
 	int i;
-
-	if (dev->pdata)
-		dev->chip_id = dev->pdata->chip_id;
 
 	dev->reset_gpio = devm_gpiod_get_optional(dev->dev, "reset",
 						  GPIOD_OUT_LOW);

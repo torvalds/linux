@@ -54,12 +54,12 @@ void page_writeback_init(void);
 
 /*
  * If a 16GB hugetlb folio were mapped by PTEs of all of its 4kB pages,
- * its nr_pages_mapped would be 0x400000: choose the COMPOUND_MAPPED bit
+ * its nr_pages_mapped would be 0x400000: choose the ENTIRELY_MAPPED bit
  * above that range, instead of 2*(PMD_SIZE/PAGE_SIZE).  Hugetlb currently
  * leaves nr_pages_mapped at 0, but avoid surprise if it participates later.
  */
-#define COMPOUND_MAPPED		0x800000
-#define FOLIO_PAGES_MAPPED	(COMPOUND_MAPPED - 1)
+#define ENTIRELY_MAPPED		0x800000
+#define FOLIO_PAGES_MAPPED	(ENTIRELY_MAPPED - 1)
 
 /*
  * Flags passed to __show_mem() and show_free_areas() to suppress output in
@@ -138,7 +138,7 @@ void filemap_free_folio(struct address_space *mapping, struct folio *folio);
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
 bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
 		loff_t end);
-long invalidate_inode_page(struct page *page);
+long mapping_evict_folio(struct address_space *mapping, struct folio *folio);
 unsigned long mapping_try_invalidate(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_failed);
 
@@ -335,7 +335,7 @@ static inline bool page_is_buddy(struct page *page, struct page *buddy,
  * satisfies the following equation:
  *     P = B & ~(1 << O)
  *
- * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
+ * Assumption: *_mem_map is contiguous at least up to MAX_PAGE_ORDER
  */
 static inline unsigned long
 __find_buddy_pfn(unsigned long page_pfn, unsigned int order)
@@ -616,7 +616,7 @@ folio_within_range(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
 	pgoff_t pgoff, addr;
-	unsigned long vma_pglen = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	unsigned long vma_pglen = vma_pages(vma);
 
 	VM_WARN_ON_FOLIO(folio_test_ksm(folio), folio);
 	if (start > end)
@@ -650,8 +650,8 @@ folio_within_vma(struct folio *folio, struct vm_area_struct *vma)
  * should be called with vma's mmap_lock held for read or write,
  * under page table lock for the pte/pmd being added or removed.
  *
- * mlock is usually called at the end of page_add_*_rmap(), munlock at
- * the end of page_remove_rmap(); but new anon folios are managed by
+ * mlock is usually called at the end of folio_add_*_rmap_*(), munlock at
+ * the end of folio_remove_rmap_*(); but new anon folios are managed by
  * folio_add_lru_vma() calling mlock_new_folio().
  */
 void mlock_folio(struct folio *folio);
@@ -1047,7 +1047,7 @@ enum {
  * * Ordinary GUP: Using the PT lock
  * * GUP-fast and fork(): mm->write_protect_seq
  * * GUP-fast and KSM or temporary unmapping (swap, migration): see
- *    page_try_share_anon_rmap()
+ *    folio_try_share_anon_rmap_*()
  *
  * Must be called with the (sub)page that's actually referenced via the
  * page table entry, which might not necessarily be the head page for a
@@ -1090,7 +1090,7 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 		return is_cow_mapping(vma->vm_flags);
 	}
 
-	/* Paired with a memory barrier in page_try_share_anon_rmap(). */
+	/* Paired with a memory barrier in folio_try_share_anon_rmap_*(). */
 	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP))
 		smp_rmb();
 
@@ -1135,8 +1135,6 @@ static inline bool vma_soft_dirty_enabled(struct vm_area_struct *vma)
 static inline void vma_iter_config(struct vma_iterator *vmi,
 		unsigned long index, unsigned long last)
 {
-	MAS_BUG_ON(&vmi->mas, vmi->mas.node != MAS_START &&
-		   (vmi->mas.index > index || vmi->mas.last < index));
 	__mas_set_range(&vmi->mas, index, last - 1);
 }
 
@@ -1154,17 +1152,6 @@ static inline void vma_iter_clear(struct vma_iterator *vmi)
 	mas_store_prealloc(&vmi->mas, NULL);
 }
 
-static inline int vma_iter_clear_gfp(struct vma_iterator *vmi,
-			unsigned long start, unsigned long end, gfp_t gfp)
-{
-	__mas_set_range(&vmi->mas, start, end - 1);
-	mas_store_gfp(&vmi->mas, NULL, gfp);
-	if (unlikely(mas_is_err(&vmi->mas)))
-		return -ENOMEM;
-
-	return 0;
-}
-
 static inline struct vm_area_struct *vma_iter_load(struct vma_iterator *vmi)
 {
 	return mas_walk(&vmi->mas);
@@ -1176,13 +1163,13 @@ static inline void vma_iter_store(struct vma_iterator *vmi,
 {
 
 #if defined(CONFIG_DEBUG_VM_MAPLE_TREE)
-	if (MAS_WARN_ON(&vmi->mas, vmi->mas.node != MAS_START &&
+	if (MAS_WARN_ON(&vmi->mas, vmi->mas.status != ma_start &&
 			vmi->mas.index > vma->vm_start)) {
 		pr_warn("%lx > %lx\n store vma %lx-%lx\n into slot %lx-%lx\n",
 			vmi->mas.index, vma->vm_start, vma->vm_start,
 			vma->vm_end, vmi->mas.index, vmi->mas.last);
 	}
-	if (MAS_WARN_ON(&vmi->mas, vmi->mas.node != MAS_START &&
+	if (MAS_WARN_ON(&vmi->mas, vmi->mas.status != ma_start &&
 			vmi->mas.last <  vma->vm_start)) {
 		pr_warn("%lx < %lx\nstore vma %lx-%lx\ninto slot %lx-%lx\n",
 		       vmi->mas.last, vma->vm_start, vma->vm_start, vma->vm_end,
@@ -1190,7 +1177,7 @@ static inline void vma_iter_store(struct vma_iterator *vmi,
 	}
 #endif
 
-	if (vmi->mas.node != MAS_START &&
+	if (vmi->mas.status != ma_start &&
 	    ((vmi->mas.index > vma->vm_start) || (vmi->mas.last < vma->vm_start)))
 		vma_iter_invalidate(vmi);
 
@@ -1201,7 +1188,7 @@ static inline void vma_iter_store(struct vma_iterator *vmi,
 static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 			struct vm_area_struct *vma, gfp_t gfp)
 {
-	if (vmi->mas.node != MAS_START &&
+	if (vmi->mas.status != ma_start &&
 	    ((vmi->mas.index > vma->vm_start) || (vmi->mas.last < vma->vm_start)))
 		vma_iter_invalidate(vmi);
 

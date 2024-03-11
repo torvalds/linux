@@ -74,6 +74,14 @@ struct vxlan_mdb_config {
 	u8 rt_protocol;
 };
 
+struct vxlan_mdb_flush_desc {
+	union vxlan_addr remote_ip;
+	__be32 src_vni;
+	__be32 remote_vni;
+	__be16 remote_port;
+	u8 rt_protocol;
+};
+
 static const struct rhashtable_params vxlan_mdb_rht_params = {
 	.head_offset = offsetof(struct vxlan_mdb_entry, rhnode),
 	.key_offset = offsetof(struct vxlan_mdb_entry, key),
@@ -1306,6 +1314,145 @@ int vxlan_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	return err;
 }
 
+static const struct nla_policy
+vxlan_mdbe_attrs_del_bulk_pol[MDBE_ATTR_MAX + 1] = {
+	[MDBE_ATTR_RTPROT] = NLA_POLICY_MIN(NLA_U8, RTPROT_STATIC),
+	[MDBE_ATTR_DST] = NLA_POLICY_RANGE(NLA_BINARY,
+					   sizeof(struct in_addr),
+					   sizeof(struct in6_addr)),
+	[MDBE_ATTR_DST_PORT] = { .type = NLA_U16 },
+	[MDBE_ATTR_VNI] = NLA_POLICY_FULL_RANGE(NLA_U32, &vni_range),
+	[MDBE_ATTR_SRC_VNI] = NLA_POLICY_FULL_RANGE(NLA_U32, &vni_range),
+	[MDBE_ATTR_STATE_MASK] = NLA_POLICY_MASK(NLA_U8, MDB_PERMANENT),
+};
+
+static int vxlan_mdb_flush_desc_init(struct vxlan_dev *vxlan,
+				     struct vxlan_mdb_flush_desc *desc,
+				     struct nlattr *tb[],
+				     struct netlink_ext_ack *extack)
+{
+	struct br_mdb_entry *entry = nla_data(tb[MDBA_SET_ENTRY]);
+	struct nlattr *mdbe_attrs[MDBE_ATTR_MAX + 1];
+	int err;
+
+	if (entry->ifindex && entry->ifindex != vxlan->dev->ifindex) {
+		NL_SET_ERR_MSG_MOD(extack, "Invalid port net device");
+		return -EINVAL;
+	}
+
+	if (entry->vid) {
+		NL_SET_ERR_MSG_MOD(extack, "VID must not be specified");
+		return -EINVAL;
+	}
+
+	if (!tb[MDBA_SET_ENTRY_ATTRS])
+		return 0;
+
+	err = nla_parse_nested(mdbe_attrs, MDBE_ATTR_MAX,
+			       tb[MDBA_SET_ENTRY_ATTRS],
+			       vxlan_mdbe_attrs_del_bulk_pol, extack);
+	if (err)
+		return err;
+
+	if (mdbe_attrs[MDBE_ATTR_STATE_MASK]) {
+		u8 state_mask = nla_get_u8(mdbe_attrs[MDBE_ATTR_STATE_MASK]);
+
+		if ((state_mask & MDB_PERMANENT) && !(entry->state & MDB_PERMANENT)) {
+			NL_SET_ERR_MSG_MOD(extack, "Only permanent MDB entries are supported");
+			return -EINVAL;
+		}
+	}
+
+	if (mdbe_attrs[MDBE_ATTR_RTPROT])
+		desc->rt_protocol = nla_get_u8(mdbe_attrs[MDBE_ATTR_RTPROT]);
+
+	if (mdbe_attrs[MDBE_ATTR_DST])
+		vxlan_nla_get_addr(&desc->remote_ip, mdbe_attrs[MDBE_ATTR_DST]);
+
+	if (mdbe_attrs[MDBE_ATTR_DST_PORT])
+		desc->remote_port =
+			cpu_to_be16(nla_get_u16(mdbe_attrs[MDBE_ATTR_DST_PORT]));
+
+	if (mdbe_attrs[MDBE_ATTR_VNI])
+		desc->remote_vni =
+			cpu_to_be32(nla_get_u32(mdbe_attrs[MDBE_ATTR_VNI]));
+
+	if (mdbe_attrs[MDBE_ATTR_SRC_VNI])
+		desc->src_vni =
+			cpu_to_be32(nla_get_u32(mdbe_attrs[MDBE_ATTR_SRC_VNI]));
+
+	return 0;
+}
+
+static void vxlan_mdb_remotes_flush(struct vxlan_dev *vxlan,
+				    struct vxlan_mdb_entry *mdb_entry,
+				    const struct vxlan_mdb_flush_desc *desc)
+{
+	struct vxlan_mdb_remote *remote, *tmp;
+
+	list_for_each_entry_safe(remote, tmp, &mdb_entry->remotes, list) {
+		struct vxlan_rdst *rd = rtnl_dereference(remote->rd);
+		__be32 remote_vni;
+
+		if (desc->remote_ip.sa.sa_family &&
+		    !vxlan_addr_equal(&desc->remote_ip, &rd->remote_ip))
+			continue;
+
+		/* Encapsulation is performed with source VNI if remote VNI
+		 * is not set.
+		 */
+		remote_vni = rd->remote_vni ? : mdb_entry->key.vni;
+		if (desc->remote_vni && desc->remote_vni != remote_vni)
+			continue;
+
+		if (desc->remote_port && desc->remote_port != rd->remote_port)
+			continue;
+
+		if (desc->rt_protocol &&
+		    desc->rt_protocol != remote->rt_protocol)
+			continue;
+
+		vxlan_mdb_remote_del(vxlan, mdb_entry, remote);
+	}
+}
+
+static void vxlan_mdb_flush(struct vxlan_dev *vxlan,
+			    const struct vxlan_mdb_flush_desc *desc)
+{
+	struct vxlan_mdb_entry *mdb_entry;
+	struct hlist_node *tmp;
+
+	/* The removal of an entry cannot trigger the removal of another entry
+	 * since entries are always added to the head of the list.
+	 */
+	hlist_for_each_entry_safe(mdb_entry, tmp, &vxlan->mdb_list, mdb_node) {
+		if (desc->src_vni && desc->src_vni != mdb_entry->key.vni)
+			continue;
+
+		vxlan_mdb_remotes_flush(vxlan, mdb_entry, desc);
+		/* Entry will only be removed if its remotes list is empty. */
+		vxlan_mdb_entry_put(vxlan, mdb_entry);
+	}
+}
+
+int vxlan_mdb_del_bulk(struct net_device *dev, struct nlattr *tb[],
+		       struct netlink_ext_ack *extack)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_mdb_flush_desc desc = {};
+	int err;
+
+	ASSERT_RTNL();
+
+	err = vxlan_mdb_flush_desc_init(vxlan, &desc, tb, extack);
+	if (err)
+		return err;
+
+	vxlan_mdb_flush(vxlan, &desc);
+
+	return 0;
+}
+
 static const struct nla_policy vxlan_mdbe_attrs_get_pol[MDBE_ATTR_MAX + 1] = {
 	[MDBE_ATTR_SOURCE] = NLA_POLICY_RANGE(NLA_BINARY,
 					      sizeof(struct in_addr),
@@ -1575,29 +1722,6 @@ static void vxlan_mdb_check_empty(void *ptr, void *arg)
 	WARN_ON_ONCE(1);
 }
 
-static void vxlan_mdb_remotes_flush(struct vxlan_dev *vxlan,
-				    struct vxlan_mdb_entry *mdb_entry)
-{
-	struct vxlan_mdb_remote *remote, *tmp;
-
-	list_for_each_entry_safe(remote, tmp, &mdb_entry->remotes, list)
-		vxlan_mdb_remote_del(vxlan, mdb_entry, remote);
-}
-
-static void vxlan_mdb_entries_flush(struct vxlan_dev *vxlan)
-{
-	struct vxlan_mdb_entry *mdb_entry;
-	struct hlist_node *tmp;
-
-	/* The removal of an entry cannot trigger the removal of another entry
-	 * since entries are always added to the head of the list.
-	 */
-	hlist_for_each_entry_safe(mdb_entry, tmp, &vxlan->mdb_list, mdb_node) {
-		vxlan_mdb_remotes_flush(vxlan, mdb_entry);
-		vxlan_mdb_entry_put(vxlan, mdb_entry);
-	}
-}
-
 int vxlan_mdb_init(struct vxlan_dev *vxlan)
 {
 	int err;
@@ -1613,7 +1737,9 @@ int vxlan_mdb_init(struct vxlan_dev *vxlan)
 
 void vxlan_mdb_fini(struct vxlan_dev *vxlan)
 {
-	vxlan_mdb_entries_flush(vxlan);
+	struct vxlan_mdb_flush_desc desc = {};
+
+	vxlan_mdb_flush(vxlan, &desc);
 	WARN_ON_ONCE(vxlan->cfg.flags & VXLAN_F_MDB);
 	rhashtable_free_and_destroy(&vxlan->mdb_tbl, vxlan_mdb_check_empty,
 				    NULL);

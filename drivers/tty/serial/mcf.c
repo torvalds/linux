@@ -627,7 +627,7 @@ static int mcf_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int mcf_remove(struct platform_device *pdev)
+static void mcf_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;
@@ -637,15 +637,13 @@ static int mcf_remove(struct platform_device *pdev)
 		if (port)
 			uart_remove_one_port(&mcf_driver, port);
 	}
-
-	return 0;
 }
 
 /****************************************************************************/
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove		= mcf_remove,
+	.remove_new	= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 	},

@@ -717,11 +717,19 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 	return 0;
 }
 
-static int ov772x_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov772x_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_fract *tpf = &ival->interval;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	tpf->numerator = 1;
 	tpf->denominator = priv->fps;
@@ -729,13 +737,21 @@ static int ov772x_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov772x_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov772x_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_fract *tpf = &ival->interval;
 	unsigned int fps;
 	int ret = 0;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&priv->lock);
 
@@ -1220,7 +1236,7 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	mf->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *mf;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *mf;
 		return 0;
 	}
 
@@ -1349,8 +1365,6 @@ static int ov772x_enum_mbus_code(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream		= ov772x_s_stream,
-	.s_frame_interval	= ov772x_s_frame_interval,
-	.g_frame_interval	= ov772x_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
@@ -1359,6 +1373,8 @@ static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
 	.get_selection		= ov772x_get_selection,
 	.get_fmt		= ov772x_get_fmt,
 	.set_fmt		= ov772x_set_fmt,
+	.get_frame_interval	= ov772x_get_frame_interval,
+	.set_frame_interval	= ov772x_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov772x_subdev_ops = {

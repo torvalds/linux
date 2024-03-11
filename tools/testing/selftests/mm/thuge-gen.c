@@ -3,7 +3,8 @@
 
    Before running this huge pages for each huge page size must have been
    reserved.
-   For large pages beyond MAX_ORDER (like 1GB on x86) boot options must be used.
+   For large pages beyond MAX_PAGE_ORDER (like 1GB on x86) boot options must
+   be used.
    Also shmmax must be increased.
    And you need to run as root to work around some weird permissions in shm.
    And nothing using huge pages should run in parallel.

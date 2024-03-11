@@ -73,13 +73,14 @@ static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 
 static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	enum rtw89_mac_fwd_target fwd_target = enable ?
 					       RTW89_FWD_DONT_CARE :
 					       RTW89_FWD_TO_HOST;
 
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_MGNT, fwd_target, RTW89_MAC_0);
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_CTRL, fwd_target, RTW89_MAC_0);
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_DATA, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_MGNT, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_CTRL, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_DATA, fwd_target, RTW89_MAC_0);
 }
 
 static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)

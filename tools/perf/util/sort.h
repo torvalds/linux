@@ -15,6 +15,7 @@
 
 struct option;
 struct thread;
+struct annotated_data_type;
 
 extern regex_t parent_regex;
 extern const char *sort_order;
@@ -34,6 +35,7 @@ extern struct sort_entry sort_dso_to;
 extern struct sort_entry sort_sym_from;
 extern struct sort_entry sort_sym_to;
 extern struct sort_entry sort_srcline;
+extern struct sort_entry sort_type;
 extern const char default_mem_sort_order[];
 extern bool chk_double_cl;
 
@@ -111,6 +113,7 @@ struct hist_entry {
 	u64			p_stage_cyc;
 	u8			cpumode;
 	u8			depth;
+	int			mem_type_off;
 	struct simd_flags	simd_flags;
 
 	/* We are added by hists__add_dummy_entry. */
@@ -154,6 +157,7 @@ struct hist_entry {
 	struct perf_hpp_list	*hpp_list;
 	struct hist_entry	*parent_he;
 	struct hist_entry_ops	*ops;
+	struct annotated_data_type *mem_type;
 	union {
 		/* this is for hierarchical entry structure */
 		struct {
@@ -243,6 +247,9 @@ enum sort_type {
 	SORT_LOCAL_RETIRE_LAT,
 	SORT_GLOBAL_RETIRE_LAT,
 	SORT_SIMD,
+	SORT_ANNOTATE_DATA_TYPE,
+	SORT_ANNOTATE_DATA_TYPE_OFFSET,
+	SORT_SYM_OFFSET,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

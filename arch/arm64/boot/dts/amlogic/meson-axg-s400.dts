@@ -66,7 +66,6 @@
 		VDDA-supply = <&vcc_3v3>;
 		VDDP-supply = <&vcc_3v3>;
 		VDDD-supply = <&vcc_3v3>;
-		status = "okay";
 		sound-name-prefix = "Linein";
 	};
 
@@ -75,14 +74,12 @@
 		compatible = "everest,es7154";
 		VDD-supply = <&vcc_3v3>;
 		PVDD-supply = <&vcc_5v>;
-		status = "okay";
 		sound-name-prefix = "Lineout";
 	};
 
 	spdif_dit: audio-codec-2 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
-		status = "okay";
 		sound-name-prefix = "DIT";
 	};
 
@@ -91,14 +88,12 @@
 		compatible = "dmic-codec";
 		num-channels = <7>;
 		wakeup-delay-ms = <50>;
-		status = "okay";
 		sound-name-prefix = "MIC";
 	};
 
 	spdif_dir: audio-codec-4 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dir";
-		status = "okay";
 		sound-name-prefix = "DIR";
 	};
 

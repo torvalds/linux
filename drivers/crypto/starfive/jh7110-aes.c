@@ -262,12 +262,7 @@ static int starfive_aes_hw_init(struct starfive_cryp_ctx *ctx)
 	rctx->csr.aes.mode  = hw_mode;
 	rctx->csr.aes.cmode = !is_encrypt(cryp);
 	rctx->csr.aes.ie = 1;
-
-	if (hw_mode == STARFIVE_AES_MODE_CFB ||
-	    hw_mode == STARFIVE_AES_MODE_OFB)
-		rctx->csr.aes.stmode = STARFIVE_AES_MODE_XFB_128;
-	else
-		rctx->csr.aes.stmode = STARFIVE_AES_MODE_XFB_1;
+	rctx->csr.aes.stmode = STARFIVE_AES_MODE_XFB_1;
 
 	if (cryp->side_chan) {
 		rctx->csr.aes.delay_aes = 1;
@@ -294,8 +289,6 @@ static int starfive_aes_hw_init(struct starfive_cryp_ctx *ctx)
 		starfive_aes_ccm_init(ctx);
 		starfive_aes_aead_hw_start(ctx, hw_mode);
 		break;
-	case STARFIVE_AES_MODE_OFB:
-	case STARFIVE_AES_MODE_CFB:
 	case STARFIVE_AES_MODE_CBC:
 	case STARFIVE_AES_MODE_CTR:
 		starfive_aes_write_iv(ctx, (void *)cryp->req.sreq->iv);
@@ -500,7 +493,7 @@ static int starfive_aes_prepare_req(struct skcipher_request *req,
 	scatterwalk_start(&cryp->out_walk, rctx->out_sg);
 
 	if (cryp->assoclen) {
-		rctx->adata = kzalloc(ALIGN(cryp->assoclen, AES_BLOCK_SIZE), GFP_KERNEL);
+		rctx->adata = kzalloc(cryp->assoclen + AES_BLOCK_SIZE, GFP_KERNEL);
 		if (!rctx->adata)
 			return dev_err_probe(cryp->dev, -ENOMEM,
 					     "Failed to alloc memory for adata");
@@ -569,7 +562,7 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	struct starfive_cryp_ctx *ctx =
 		crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct starfive_cryp_dev *cryp = ctx->cryp;
-	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
+	struct starfive_cryp_request_ctx *rctx;
 	u32 block[AES_BLOCK_32];
 	u32 stat;
 	int err;
@@ -578,6 +571,8 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	err = starfive_aes_prepare_req(NULL, req);
 	if (err)
 		return err;
+
+	rctx = ctx->rctx;
 
 	if (!cryp->assoclen)
 		goto write_text;
@@ -783,26 +778,6 @@ static int starfive_aes_cbc_decrypt(struct skcipher_request *req)
 	return starfive_aes_crypt(req, STARFIVE_AES_MODE_CBC);
 }
 
-static int starfive_aes_cfb_encrypt(struct skcipher_request *req)
-{
-	return starfive_aes_crypt(req, STARFIVE_AES_MODE_CFB | FLG_ENCRYPT);
-}
-
-static int starfive_aes_cfb_decrypt(struct skcipher_request *req)
-{
-	return starfive_aes_crypt(req, STARFIVE_AES_MODE_CFB);
-}
-
-static int starfive_aes_ofb_encrypt(struct skcipher_request *req)
-{
-	return starfive_aes_crypt(req, STARFIVE_AES_MODE_OFB | FLG_ENCRYPT);
-}
-
-static int starfive_aes_ofb_decrypt(struct skcipher_request *req)
-{
-	return starfive_aes_crypt(req, STARFIVE_AES_MODE_OFB);
-}
-
 static int starfive_aes_ctr_encrypt(struct skcipher_request *req)
 {
 	return starfive_aes_crypt(req, STARFIVE_AES_MODE_CTR | FLG_ENCRYPT);
@@ -898,48 +873,6 @@ static struct skcipher_engine_alg skcipher_algs[] = {
 	.base.base = {
 		.cra_name		= "ctr(aes)",
 		.cra_driver_name	= "starfive-ctr-aes",
-		.cra_priority		= 200,
-		.cra_flags		= CRYPTO_ALG_ASYNC,
-		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-		.cra_alignmask		= 0xf,
-		.cra_module		= THIS_MODULE,
-	},
-	.op = {
-		.do_one_request = starfive_aes_do_one_req,
-	},
-}, {
-	.base.init			= starfive_aes_init_tfm,
-	.base.setkey			= starfive_aes_setkey,
-	.base.encrypt			= starfive_aes_cfb_encrypt,
-	.base.decrypt			= starfive_aes_cfb_decrypt,
-	.base.min_keysize		= AES_MIN_KEY_SIZE,
-	.base.max_keysize		= AES_MAX_KEY_SIZE,
-	.base.ivsize			= AES_BLOCK_SIZE,
-	.base.base = {
-		.cra_name		= "cfb(aes)",
-		.cra_driver_name	= "starfive-cfb-aes",
-		.cra_priority		= 200,
-		.cra_flags		= CRYPTO_ALG_ASYNC,
-		.cra_blocksize		= 1,
-		.cra_ctxsize		= sizeof(struct starfive_cryp_ctx),
-		.cra_alignmask		= 0xf,
-		.cra_module		= THIS_MODULE,
-	},
-	.op = {
-		.do_one_request = starfive_aes_do_one_req,
-	},
-}, {
-	.base.init			= starfive_aes_init_tfm,
-	.base.setkey			= starfive_aes_setkey,
-	.base.encrypt			= starfive_aes_ofb_encrypt,
-	.base.decrypt			= starfive_aes_ofb_decrypt,
-	.base.min_keysize		= AES_MIN_KEY_SIZE,
-	.base.max_keysize		= AES_MAX_KEY_SIZE,
-	.base.ivsize			= AES_BLOCK_SIZE,
-	.base.base = {
-		.cra_name		= "ofb(aes)",
-		.cra_driver_name	= "starfive-ofb-aes",
 		.cra_priority		= 200,
 		.cra_flags		= CRYPTO_ALG_ASYNC,
 		.cra_blocksize		= 1,

@@ -188,6 +188,10 @@ struct dwbc_funcs {
 	bool (*is_enabled)(
 		struct dwbc *dwbc);
 
+	void (*set_fc_enable)(
+		struct dwbc *dwbc,
+		enum dwb_frame_capture_enable enable);
+
 	void (*set_stereo)(
 		struct dwbc *dwbc,
 		struct dwb_stereo_params *stereo_params);

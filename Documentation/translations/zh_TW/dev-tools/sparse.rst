@@ -6,19 +6,19 @@ communicating in English you can also ask the Chinese maintainer for
 help.  Contact the Chinese maintainer if this translation is outdated
 or if there is a problem with the translation.
 
-Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
----------------------------------------------------------------------
+Traditional Chinese maintainer: Hu Haowen <2023002089@link.tyut.edu.cn>
+-------------------------------------------------------------------------
 Documentation/dev-tools/sparse.rst 的繁體中文翻譯
 
 如果想評論或更新本文的內容，請直接聯繫原文檔的維護者。如果你使用英文
 交流有困難的話，也可以向繁體中文版維護者求助。如果本翻譯更新不及時或
 者翻譯存在問題，請聯繫繁體中文版維護者。
 
-繁體中文版維護者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
-繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版維護者： 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 以下爲正文
----------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 Copyright 2004 Linus Torvalds
 Copyright 2004 Pavel Machek <pavel@ucw.cz>

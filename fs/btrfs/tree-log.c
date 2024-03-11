@@ -2575,7 +2575,6 @@ static int clean_log_buffer(struct btrfs_trans_handle *trans,
 		ret = btrfs_pin_reserved_extent(trans, eb);
 		if (ret)
 			return ret;
-		btrfs_redirty_list_add(trans->transaction, eb);
 	} else {
 		unaccount_log_buffer(eb->fs_info, eb->start);
 	}
@@ -4520,7 +4519,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	if (inode->flags & BTRFS_INODE_NODATASUM ||
-	    test_bit(EXTENT_FLAG_PREALLOC, &em->flags) ||
+	    (em->flags & EXTENT_FLAG_PREALLOC) ||
 	    em->block_start == EXTENT_MAP_HOLE)
 		return 0;
 
@@ -4583,7 +4582,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 		return 0;
 
 	/* If we're compressed we have to save the entire range of csums. */
-	if (em->compress_type) {
+	if (extent_map_is_compressed(em)) {
 		csum_offset = 0;
 		csum_len = max(em->block_len, em->orig_block_len);
 	} else {
@@ -4623,18 +4622,20 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item fi = { 0 };
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
+	enum btrfs_compression_type compress_type;
 	u64 extent_offset = em->start - em->orig_start;
 	u64 block_len;
 	int ret;
 
 	btrfs_set_stack_file_extent_generation(&fi, trans->transid);
-	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+	if (em->flags & EXTENT_FLAG_PREALLOC)
 		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_PREALLOC);
 	else
 		btrfs_set_stack_file_extent_type(&fi, BTRFS_FILE_EXTENT_REG);
 
 	block_len = max(em->block_len, em->orig_block_len);
-	if (em->compress_type != BTRFS_COMPRESS_NONE) {
+	compress_type = extent_map_compression(em);
+	if (compress_type != BTRFS_COMPRESS_NONE) {
 		btrfs_set_stack_file_extent_disk_bytenr(&fi, em->block_start);
 		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
 	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
@@ -4646,7 +4647,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_offset(&fi, extent_offset);
 	btrfs_set_stack_file_extent_num_bytes(&fi, em->len);
 	btrfs_set_stack_file_extent_ram_bytes(&fi, em->ram_bytes);
-	btrfs_set_stack_file_extent_compression(&fi, em->compress_type);
+	btrfs_set_stack_file_extent_compression(&fi, compress_type);
 
 	ret = log_extent_csums(trans, inode, log, em, ctx);
 	if (ret)
@@ -4859,13 +4860,13 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 			continue;
 
 		/* We log prealloc extents beyond eof later. */
-		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) &&
+		if ((em->flags & EXTENT_FLAG_PREALLOC) &&
 		    em->start >= i_size_read(&inode->vfs_inode))
 			continue;
 
 		/* Need a ref to keep it from getting evicted from cache */
 		refcount_inc(&em->refs);
-		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
+		em->flags |= EXTENT_FLAG_LOGGING;
 		list_add_tail(&em->list, &extents);
 		num++;
 	}

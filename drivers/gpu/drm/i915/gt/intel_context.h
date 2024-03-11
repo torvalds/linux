@@ -212,7 +212,7 @@ static inline void intel_context_enter(struct intel_context *ce)
 		return;
 
 	ce->ops->enter(ce);
-	intel_gt_pm_get(ce->vm->gt);
+	ce->wakeref = intel_gt_pm_get(ce->vm->gt);
 }
 
 static inline void intel_context_mark_active(struct intel_context *ce)
@@ -229,7 +229,7 @@ static inline void intel_context_exit(struct intel_context *ce)
 	if (--ce->active_count)
 		return;
 
-	intel_gt_pm_put_async(ce->vm->gt);
+	intel_gt_pm_put_async(ce->vm->gt, ce->wakeref);
 	ce->ops->exit(ce);
 }
 

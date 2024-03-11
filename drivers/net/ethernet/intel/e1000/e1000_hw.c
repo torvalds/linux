@@ -5,6 +5,7 @@
  * Shared functions for accessing and configuring the MAC
  */
 
+#include <linux/bitfield.h>
 #include "e1000.h"
 
 static s32 e1000_check_downshift(struct e1000_hw *hw);
@@ -3260,8 +3261,7 @@ static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 		return ret_val;
 
 	phy_info->mdix_mode =
-	    (e1000_auto_x_mode) ((phy_data & IGP01E1000_PSSR_MDIX) >>
-				 IGP01E1000_PSSR_MDIX_SHIFT);
+	    (e1000_auto_x_mode)FIELD_GET(IGP01E1000_PSSR_MDIX, phy_data);
 
 	if ((phy_data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
@@ -3272,11 +3272,11 @@ static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 		if (ret_val)
 			return ret_val;
 
-		phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
-				      SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
+		phy_info->local_rx = FIELD_GET(SR_1000T_LOCAL_RX_STATUS,
+					       phy_data) ?
 		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
-		phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
-				       SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
+		phy_info->remote_rx = FIELD_GET(SR_1000T_REMOTE_RX_STATUS,
+						phy_data) ?
 		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 
 		/* Get cable length */
@@ -3326,14 +3326,12 @@ static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 		return ret_val;
 
 	phy_info->extended_10bt_distance =
-	    ((phy_data & M88E1000_PSCR_10BT_EXT_DIST_ENABLE) >>
-	     M88E1000_PSCR_10BT_EXT_DIST_ENABLE_SHIFT) ?
+	    FIELD_GET(M88E1000_PSCR_10BT_EXT_DIST_ENABLE, phy_data) ?
 	    e1000_10bt_ext_dist_enable_lower :
 	    e1000_10bt_ext_dist_enable_normal;
 
 	phy_info->polarity_correction =
-	    ((phy_data & M88E1000_PSCR_POLARITY_REVERSAL) >>
-	     M88E1000_PSCR_POLARITY_REVERSAL_SHIFT) ?
+	    FIELD_GET(M88E1000_PSCR_POLARITY_REVERSAL, phy_data) ?
 	    e1000_polarity_reversal_disabled : e1000_polarity_reversal_enabled;
 
 	/* Check polarity status */
@@ -3347,27 +3345,25 @@ static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 		return ret_val;
 
 	phy_info->mdix_mode =
-	    (e1000_auto_x_mode) ((phy_data & M88E1000_PSSR_MDIX) >>
-				 M88E1000_PSSR_MDIX_SHIFT);
+	    (e1000_auto_x_mode)FIELD_GET(M88E1000_PSSR_MDIX, phy_data);
 
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
 		/* Cable Length Estimation and Local/Remote Receiver Information
 		 * are only valid at 1000 Mbps.
 		 */
 		phy_info->cable_length =
-		    (e1000_cable_length) ((phy_data &
-					   M88E1000_PSSR_CABLE_LENGTH) >>
-					  M88E1000_PSSR_CABLE_LENGTH_SHIFT);
+		    (e1000_cable_length)FIELD_GET(M88E1000_PSSR_CABLE_LENGTH,
+						  phy_data);
 
 		ret_val = e1000_read_phy_reg(hw, PHY_1000T_STATUS, &phy_data);
 		if (ret_val)
 			return ret_val;
 
-		phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
-				      SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
+		phy_info->local_rx = FIELD_GET(SR_1000T_LOCAL_RX_STATUS,
+					       phy_data) ?
 		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
-		phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
-				       SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
+		phy_info->remote_rx = FIELD_GET(SR_1000T_REMOTE_RX_STATUS,
+						phy_data) ?
 		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
 	}
 
@@ -3515,7 +3511,7 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 		eeprom_size =
-		    (eeprom_size & EEPROM_SIZE_MASK) >> EEPROM_SIZE_SHIFT;
+		    FIELD_GET(EEPROM_SIZE_MASK, eeprom_size);
 		/* 256B eeprom size was not supported in earlier hardware, so we
 		 * bump eeprom_size up one to ensure that "1" (which maps to
 		 * 256B) is never the result used in the shifting logic below.
@@ -4891,8 +4887,7 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
 					     &phy_data);
 		if (ret_val)
 			return ret_val;
-		cable_length = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-		    M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+		cable_length = FIELD_GET(M88E1000_PSSR_CABLE_LENGTH, phy_data);
 
 		/* Convert the enum value to ranged values */
 		switch (cable_length) {
@@ -5001,8 +4996,7 @@ static s32 e1000_check_polarity(struct e1000_hw *hw,
 					     &phy_data);
 		if (ret_val)
 			return ret_val;
-		*polarity = ((phy_data & M88E1000_PSSR_REV_POLARITY) >>
-			     M88E1000_PSSR_REV_POLARITY_SHIFT) ?
+		*polarity = FIELD_GET(M88E1000_PSSR_REV_POLARITY, phy_data) ?
 		    e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
 
 	} else if (hw->phy_type == e1000_phy_igp) {
@@ -5072,8 +5066,8 @@ static s32 e1000_check_downshift(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		hw->speed_downgraded = (phy_data & M88E1000_PSSR_DOWNSHIFT) >>
-		    M88E1000_PSSR_DOWNSHIFT_SHIFT;
+		hw->speed_downgraded = FIELD_GET(M88E1000_PSSR_DOWNSHIFT,
+						 phy_data);
 	}
 
 	return E1000_SUCCESS;

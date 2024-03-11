@@ -193,6 +193,24 @@ ice_info_pending_netlist_build(struct ice_pf __always_unused *pf,
 		snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", netlist->hash);
 }
 
+static void ice_info_cgu_fw_build(struct ice_pf *pf, struct ice_info_ctx *ctx)
+{
+	u32 id, cfg_ver, fw_ver;
+
+	if (!ice_is_feature_supported(pf, ICE_F_CGU))
+		return;
+	if (ice_aq_get_cgu_info(&pf->hw, &id, &cfg_ver, &fw_ver))
+		return;
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u", id, cfg_ver, fw_ver);
+}
+
+static void ice_info_cgu_id(struct ice_pf *pf, struct ice_info_ctx *ctx)
+{
+	if (!ice_is_feature_supported(pf, ICE_F_CGU))
+		return;
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u", pf->hw.cgu_part_number);
+}
+
 #define fixed(key, getter) { ICE_VERSION_FIXED, key, getter, NULL }
 #define running(key, getter) { ICE_VERSION_RUNNING, key, getter, NULL }
 #define stored(key, getter, fallback) { ICE_VERSION_STORED, key, getter, fallback }
@@ -235,6 +253,8 @@ static const struct ice_devlink_version {
 	running("fw.app.bundle_id", ice_info_ddp_pkg_bundle_id),
 	combined("fw.netlist", ice_info_netlist_ver, ice_info_pending_netlist_ver),
 	combined("fw.netlist.build", ice_info_netlist_build, ice_info_pending_netlist_build),
+	fixed("cgu.id", ice_info_cgu_id),
+	running("fw.cgu", ice_info_cgu_fw_build),
 };
 
 /**
@@ -810,6 +830,10 @@ static void ice_traverse_tx_tree(struct devlink *devlink, struct ice_sched_node 
 	struct ice_vf *vf;
 	int i;
 
+	if (node->rate_node)
+		/* already added, skip to the next */
+		goto traverse_children;
+
 	if (node->parent == tc_node) {
 		/* create root node */
 		rate_node = devl_rate_node_create(devlink, node, node->name, NULL);
@@ -831,6 +855,7 @@ static void ice_traverse_tx_tree(struct devlink *devlink, struct ice_sched_node 
 	if (rate_node && !IS_ERR(rate_node))
 		node->rate_node = rate_node;
 
+traverse_children:
 	for (i = 0; i < node->num_children; i++)
 		ice_traverse_tx_tree(devlink, node->children[i], tc_node, pf);
 }
@@ -859,6 +884,30 @@ int ice_devlink_rate_init_tx_topology(struct devlink *devlink, struct ice_vsi *v
 	mutex_unlock(&pi->sched_lock);
 
 	return 0;
+}
+
+static void ice_clear_rate_nodes(struct ice_sched_node *node)
+{
+	node->rate_node = NULL;
+
+	for (int i = 0; i < node->num_children; i++)
+		ice_clear_rate_nodes(node->children[i]);
+}
+
+/**
+ * ice_devlink_rate_clear_tx_topology - clear node->rate_node
+ * @vsi: main vsi struct
+ *
+ * Clear rate_node to cleanup creation of Tx topology.
+ *
+ */
+void ice_devlink_rate_clear_tx_topology(struct ice_vsi *vsi)
+{
+	struct ice_port_info *pi = vsi->port_info;
+
+	mutex_lock(&pi->sched_lock);
+	ice_clear_rate_nodes(pi->root->children[0]);
+	mutex_unlock(&pi->sched_lock);
 }
 
 /**

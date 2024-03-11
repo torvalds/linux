@@ -5,9 +5,10 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-SEC("tc")
+SEC("socket")
 __description("raw_stack: no skb_load_bytes")
-__failure __msg("invalid read from stack R6 off=-8 size=8")
+__success
+__failure_unpriv __msg_unpriv("invalid read from stack R6 off=-8 size=8")
 __naked void stack_no_skb_load_bytes(void)
 {
 	asm volatile ("					\
@@ -63,7 +64,7 @@ __naked void load_bytes_negative_len_2(void)
 
 SEC("tc")
 __description("raw_stack: skb_load_bytes, zero len")
-__failure __msg("invalid zero-sized read")
+__failure __msg("R4 invalid zero-sized read: u64=[0,0]")
 __naked void skb_load_bytes_zero_len(void)
 {
 	asm volatile ("					\

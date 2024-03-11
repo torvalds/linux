@@ -177,15 +177,52 @@
 #define MMC_XGMAC_RX_DISCARD_OCT_GB	0x1b4
 #define MMC_XGMAC_RX_ALIGN_ERR_PKT	0x1bc
 
+#define MMC_XGMAC_SGF_PASS_PKT		0x1f0
+#define MMC_XGMAC_SGF_FAIL_PKT		0x1f4
 #define MMC_XGMAC_TX_FPE_INTR_MASK	0x204
 #define MMC_XGMAC_TX_FPE_FRAG		0x208
 #define MMC_XGMAC_TX_HOLD_REQ		0x20c
+#define MMC_XGMAC_TX_GATE_OVERRUN	0x210
 #define MMC_XGMAC_RX_FPE_INTR_MASK	0x224
 #define MMC_XGMAC_RX_PKT_ASSEMBLY_ERR	0x228
 #define MMC_XGMAC_RX_PKT_SMD_ERR	0x22c
 #define MMC_XGMAC_RX_PKT_ASSEMBLY_OK	0x230
 #define MMC_XGMAC_RX_FPE_FRAG		0x234
 #define MMC_XGMAC_RX_IPC_INTR_MASK	0x25c
+
+#define MMC_XGMAC_RX_IPV4_GD		0x264
+#define MMC_XGMAC_RX_IPV4_HDERR		0x26c
+#define MMC_XGMAC_RX_IPV4_NOPAY		0x274
+#define MMC_XGMAC_RX_IPV4_FRAG		0x27c
+#define MMC_XGMAC_RX_IPV4_UDSBL		0x284
+
+#define MMC_XGMAC_RX_IPV6_GD		0x28c
+#define MMC_XGMAC_RX_IPV6_HDERR		0x294
+#define MMC_XGMAC_RX_IPV6_NOPAY		0x29c
+
+#define MMC_XGMAC_RX_UDP_GD		0x2a4
+#define MMC_XGMAC_RX_UDP_ERR		0x2ac
+#define MMC_XGMAC_RX_TCP_GD		0x2b4
+#define MMC_XGMAC_RX_TCP_ERR		0x2bc
+#define MMC_XGMAC_RX_ICMP_GD		0x2c4
+#define MMC_XGMAC_RX_ICMP_ERR		0x2cc
+
+#define MMC_XGMAC_RX_IPV4_GD_OCTETS	0x2d4
+#define MMC_XGMAC_RX_IPV4_HDERR_OCTETS	0x2dc
+#define MMC_XGMAC_RX_IPV4_NOPAY_OCTETS	0x2e4
+#define MMC_XGMAC_RX_IPV4_FRAG_OCTETS	0x2ec
+#define MMC_XGMAC_RX_IPV4_UDSBL_OCTETS	0x2f4
+
+#define MMC_XGMAC_RX_IPV6_GD_OCTETS	0x2fc
+#define MMC_XGMAC_RX_IPV6_HDERR_OCTETS	0x304
+#define MMC_XGMAC_RX_IPV6_NOPAY_OCTETS	0x30c
+
+#define MMC_XGMAC_RX_UDP_GD_OCTETS	0x314
+#define MMC_XGMAC_RX_UDP_ERR_OCTETS	0x31c
+#define MMC_XGMAC_RX_TCP_GD_OCTETS	0x324
+#define MMC_XGMAC_RX_TCP_ERR_OCTETS	0x32c
+#define MMC_XGMAC_RX_ICMP_GD_OCTETS	0x334
+#define MMC_XGMAC_RX_ICMP_ERR_OCTETS	0x33c
 
 static void dwmac_mmc_ctrl(void __iomem *mmcaddr, unsigned int mode)
 {
@@ -414,6 +451,8 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 			     &mmc->mmc_tx_pause_frame);
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_TX_VLAN_PKT_G,
 			     &mmc->mmc_tx_vlan_frame_g);
+	mmc->mmc_tx_lpi_usec += readl(mmcaddr + MMC_XGMAC_TX_LPI_USEC);
+	mmc->mmc_tx_lpi_tran += readl(mmcaddr + MMC_XGMAC_TX_LPI_TRAN);
 
 	/* MMC RX counter registers */
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_PKT_GB,
@@ -459,9 +498,23 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_VLAN_PKT_GB,
 			     &mmc->mmc_rx_vlan_frames_gb);
 	mmc->mmc_rx_watchdog_error += readl(mmcaddr + MMC_XGMAC_RX_WATCHDOG_ERR);
+	mmc->mmc_rx_lpi_usec += readl(mmcaddr + MMC_XGMAC_RX_LPI_USEC);
+	mmc->mmc_rx_lpi_tran += readl(mmcaddr + MMC_XGMAC_RX_LPI_TRAN);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_DISCARD_PKT_GB,
+			     &mmc->mmc_rx_discard_frames_gb);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_DISCARD_OCT_GB,
+			     &mmc->mmc_rx_discard_octets_gb);
+	mmc->mmc_rx_align_err_frames +=
+		readl(mmcaddr + MMC_XGMAC_RX_ALIGN_ERR_PKT);
 
+	mmc->mmc_sgf_pass_fragment_cntr +=
+		readl(mmcaddr + MMC_XGMAC_SGF_PASS_PKT);
+	mmc->mmc_sgf_fail_fragment_cntr +=
+		readl(mmcaddr + MMC_XGMAC_SGF_FAIL_PKT);
 	mmc->mmc_tx_fpe_fragment_cntr += readl(mmcaddr + MMC_XGMAC_TX_FPE_FRAG);
 	mmc->mmc_tx_hold_req_cntr += readl(mmcaddr + MMC_XGMAC_TX_HOLD_REQ);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_TX_GATE_OVERRUN,
+			     &mmc->mmc_tx_gate_overrun_cntr);
 	mmc->mmc_rx_packet_assembly_err_cntr +=
 		readl(mmcaddr + MMC_XGMAC_RX_PKT_ASSEMBLY_ERR);
 	mmc->mmc_rx_packet_smd_err_cntr +=
@@ -470,6 +523,68 @@ static void dwxgmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 		readl(mmcaddr + MMC_XGMAC_RX_PKT_ASSEMBLY_OK);
 	mmc->mmc_rx_fpe_fragment_cntr +=
 		readl(mmcaddr + MMC_XGMAC_RX_FPE_FRAG);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_GD,
+			     &mmc->mmc_rx_ipv4_gd);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_HDERR,
+			     &mmc->mmc_rx_ipv4_hderr);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_NOPAY,
+			     &mmc->mmc_rx_ipv4_nopay);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_FRAG,
+			     &mmc->mmc_rx_ipv4_frag);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_UDSBL,
+			     &mmc->mmc_rx_ipv4_udsbl);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_GD,
+			     &mmc->mmc_rx_ipv6_gd);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_HDERR,
+			     &mmc->mmc_rx_ipv6_hderr);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_NOPAY,
+			     &mmc->mmc_rx_ipv6_nopay);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_GD,
+			     &mmc->mmc_rx_udp_gd);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_ERR,
+			     &mmc->mmc_rx_udp_err);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_TCP_GD,
+			     &mmc->mmc_rx_tcp_gd);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_TCP_ERR,
+			     &mmc->mmc_rx_tcp_err);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_ICMP_GD,
+			     &mmc->mmc_rx_icmp_gd);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_ICMP_ERR,
+			     &mmc->mmc_rx_icmp_err);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_GD_OCTETS,
+			     &mmc->mmc_rx_ipv4_gd_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_HDERR_OCTETS,
+			     &mmc->mmc_rx_ipv4_hderr_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_NOPAY_OCTETS,
+			     &mmc->mmc_rx_ipv4_nopay_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_FRAG_OCTETS,
+			     &mmc->mmc_rx_ipv4_frag_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV4_UDSBL_OCTETS,
+			     &mmc->mmc_rx_ipv4_udsbl_octets);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_GD_OCTETS,
+			     &mmc->mmc_rx_ipv6_gd_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_HDERR_OCTETS,
+			     &mmc->mmc_rx_ipv6_hderr_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_IPV6_NOPAY_OCTETS,
+			     &mmc->mmc_rx_ipv6_nopay_octets);
+
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_GD_OCTETS,
+			     &mmc->mmc_rx_udp_gd_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_UDP_ERR_OCTETS,
+			     &mmc->mmc_rx_udp_err_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_TCP_GD_OCTETS,
+			     &mmc->mmc_rx_tcp_gd_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_TCP_ERR_OCTETS,
+			     &mmc->mmc_rx_tcp_err_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_ICMP_GD_OCTETS,
+			     &mmc->mmc_rx_icmp_gd_octets);
+	dwxgmac_read_mmc_reg(mmcaddr, MMC_XGMAC_RX_ICMP_ERR_OCTETS,
+			     &mmc->mmc_rx_icmp_err_octets);
 }
 
 const struct stmmac_mmc_ops dwxgmac_mmc_ops = {

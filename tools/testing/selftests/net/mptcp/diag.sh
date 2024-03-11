@@ -20,7 +20,7 @@ flush_pids()
 
 	ip netns pids "${ns}" | xargs --no-run-if-empty kill -SIGUSR1 &>/dev/null
 
-	for _ in $(seq 10); do
+	for _ in $(seq $((timeout_poll * 10))); do
 		[ -z "$(ip netns pids "${ns}")" ] && break
 		sleep 0.1
 	done
@@ -56,20 +56,20 @@ __chk_nr()
 	local command="$1"
 	local expected=$2
 	local msg="$3"
-	local skip="${4:-SKIP}"
+	local skip="${4-SKIP}"
 	local nr
 
 	nr=$(eval $command)
 
 	printf "%-50s" "$msg"
-	if [ $nr != $expected ]; then
-		if [ $nr = "$skip" ] && ! mptcp_lib_expect_all_features; then
+	if [ "$nr" != "$expected" ]; then
+		if [ "$nr" = "$skip" ] && ! mptcp_lib_expect_all_features; then
 			echo "[ skip ] Feature probably not supported"
 			mptcp_lib_result_skip "${msg}"
 		else
 			echo "[ fail ] expected $expected found $nr"
 			mptcp_lib_result_fail "${msg}"
-			ret=$test_cnt
+			ret=${KSFT_FAIL}
 		fi
 	else
 		echo "[  ok  ]"
@@ -89,6 +89,15 @@ __chk_msk_nr()
 chk_msk_nr()
 {
 	__chk_msk_nr "grep -c token:" "$@"
+}
+
+chk_listener_nr()
+{
+	local expected=$1
+	local msg="$2"
+
+	__chk_nr "ss -nlHMON $ns | wc -l" "$expected" "$msg - mptcp" 0
+	__chk_nr "ss -nlHtON $ns | wc -l" "$expected" "$msg - subflows"
 }
 
 wait_msk_nr()
@@ -115,11 +124,11 @@ wait_msk_nr()
 	if [ $i -ge $timeout ]; then
 		echo "[ fail ] timeout while expecting $expected max $max last $nr"
 		mptcp_lib_result_fail "${msg} # timeout"
-		ret=$test_cnt
+		ret=${KSFT_FAIL}
 	elif [ $nr != $expected ]; then
 		echo "[ fail ] expected $expected found $nr"
 		mptcp_lib_result_fail "${msg} # unexpected result"
-		ret=$test_cnt
+		ret=${KSFT_FAIL}
 	else
 		echo "[  ok  ]"
 		mptcp_lib_result_pass "${msg}"
@@ -166,8 +175,12 @@ chk_msk_listen()
 chk_msk_inuse()
 {
 	local expected=$1
-	local msg="$2"
+	local msg="....chk ${2:-${expected}} msk in use"
 	local listen_nr
+
+	if [ "${expected}" -eq 0 ]; then
+		msg+=" after flush"
+	fi
 
 	listen_nr=$(ss -N "${ns}" -Ml | grep -c LISTEN)
 	expected=$((expected + listen_nr))
@@ -179,24 +192,21 @@ chk_msk_inuse()
 		sleep 0.1
 	done
 
-	__chk_nr get_msk_inuse $expected "$msg" 0
+	__chk_nr get_msk_inuse $expected "${msg}" 0
 }
 
-# $1: ns, $2: port
-wait_local_port_listen()
+# $1: cestab nr
+chk_msk_cestab()
 {
-	local listener_ns="${1}"
-	local port="${2}"
+	local expected=$1
+	local msg="....chk ${2:-${expected}} cestab"
 
-	local port_hex i
+	if [ "${expected}" -eq 0 ]; then
+		msg+=" after flush"
+	fi
 
-	port_hex="$(printf "%04X" "${port}")"
-	for i in $(seq 10); do
-		ip netns exec "${listener_ns}" cat /proc/net/tcp | \
-			awk "BEGIN {rc=1} {if (\$2 ~ /:${port_hex}\$/ && \$4 ~ /0A/) {rc=0; exit}} END {exit rc}" &&
-			break
-		sleep 0.1
-	done
+	__chk_nr "mptcp_lib_get_counter ${ns} MPTcpExtMPCurrEstab" \
+		 "${expected}" "${msg}" ""
 }
 
 wait_connected()
@@ -222,7 +232,7 @@ echo "a" | \
 		ip netns exec $ns \
 			./mptcp_connect -p 10000 -l -t ${timeout_poll} -w 20 \
 				0.0.0.0 >/dev/null &
-wait_local_port_listen $ns 10000
+mptcp_lib_wait_local_port_listen $ns 10000
 chk_msk_nr 0 "no msk on netns creation"
 chk_msk_listen 10000
 
@@ -235,17 +245,19 @@ wait_connected $ns 10000
 chk_msk_nr 2 "after MPC handshake "
 chk_msk_remote_key_nr 2 "....chk remote_key"
 chk_msk_fallback_nr 0 "....chk no fallback"
-chk_msk_inuse 2 "....chk 2 msk in use"
+chk_msk_inuse 2
+chk_msk_cestab 2
 flush_pids
 
-chk_msk_inuse 0 "....chk 0 msk in use after flush"
+chk_msk_inuse 0 "2->0"
+chk_msk_cestab 0 "2->0"
 
 echo "a" | \
 	timeout ${timeout_test} \
 		ip netns exec $ns \
 			./mptcp_connect -p 10001 -l -s TCP -t ${timeout_poll} -w 20 \
 				0.0.0.0 >/dev/null &
-wait_local_port_listen $ns 10001
+mptcp_lib_wait_local_port_listen $ns 10001
 echo "b" | \
 	timeout ${timeout_test} \
 		ip netns exec $ns \
@@ -253,10 +265,12 @@ echo "b" | \
 				127.0.0.1 >/dev/null &
 wait_connected $ns 10001
 chk_msk_fallback_nr 1 "check fallback"
-chk_msk_inuse 1 "....chk 1 msk in use"
+chk_msk_inuse 1
+chk_msk_cestab 1
 flush_pids
 
-chk_msk_inuse 0 "....chk 0 msk in use after flush"
+chk_msk_inuse 0 "1->0"
+chk_msk_cestab 0 "1->0"
 
 NR_CLIENTS=100
 for I in `seq 1 $NR_CLIENTS`; do
@@ -266,7 +280,7 @@ for I in `seq 1 $NR_CLIENTS`; do
 				./mptcp_connect -p $((I+10001)) -l -w 20 \
 					-t ${timeout_poll} 0.0.0.0 >/dev/null &
 done
-wait_local_port_listen $ns $((NR_CLIENTS + 10001))
+mptcp_lib_wait_local_port_listen $ns $((NR_CLIENTS + 10001))
 
 for I in `seq 1 $NR_CLIENTS`; do
 	echo "b" | \
@@ -277,10 +291,28 @@ for I in `seq 1 $NR_CLIENTS`; do
 done
 
 wait_msk_nr $((NR_CLIENTS*2)) "many msk socket present"
-chk_msk_inuse $((NR_CLIENTS*2)) "....chk many msk in use"
+chk_msk_inuse $((NR_CLIENTS*2)) "many"
+chk_msk_cestab $((NR_CLIENTS*2)) "many"
 flush_pids
 
-chk_msk_inuse 0 "....chk 0 msk in use after flush"
+chk_msk_inuse 0 "many->0"
+chk_msk_cestab 0 "many->0"
+
+chk_listener_nr 0 "no listener sockets"
+NR_SERVERS=100
+for I in $(seq 1 $NR_SERVERS); do
+	ip netns exec $ns ./mptcp_connect -p $((I + 20001)) \
+		-t ${timeout_poll} -l 0.0.0.0 >/dev/null 2>&1 &
+done
+mptcp_lib_wait_local_port_listen $ns $((NR_SERVERS + 20001))
+
+chk_listener_nr $NR_SERVERS "many listener sockets"
+
+# graceful termination
+for I in $(seq 1 $NR_SERVERS); do
+	echo a | ip netns exec $ns ./mptcp_connect -p $((I + 20001)) 127.0.0.1 >/dev/null 2>&1 &
+done
+flush_pids
 
 mptcp_lib_result_print_all_tap
 exit $ret

@@ -342,14 +342,24 @@ bool bch2_is_zero(const void *, size_t);
 
 u64 bch2_read_flag_list(char *, const char * const[]);
 
-void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2(struct printbuf *, u64);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *);
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
 void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
-int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *);
+int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned, gfp_t);
+
+static inline void prt_bdevname(struct printbuf *out, struct block_device *bdev)
+{
+#ifdef __KERNEL__
+	prt_printf(out, "%pg", bdev);
+#else
+	prt_str(out, bdev->name);
+#endif
+}
 
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
@@ -374,8 +384,9 @@ struct bch2_time_stat_buffer {
 struct bch2_time_stats {
 	spinlock_t	lock;
 	/* all fields are in nanoseconds */
-	u64		max_duration;
 	u64             min_duration;
+	u64		max_duration;
+	u64		total_duration;
 	u64             max_freq;
 	u64             min_freq;
 	u64		last_event;
@@ -390,14 +401,38 @@ struct bch2_time_stats {
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64, u64);
-#else
-static inline void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end) {}
-#endif
 
 static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start)
 {
 	__bch2_time_stats_update(stats, start, local_clock());
 }
+
+static inline bool track_event_change(struct bch2_time_stats *stats,
+				      u64 *start, bool v)
+{
+	if (v != !!*start) {
+		if (!v) {
+			bch2_time_stats_update(stats, *start);
+			*start = 0;
+		} else {
+			*start = local_clock() ?: 1;
+			return true;
+		}
+	}
+
+	return false;
+}
+#else
+static inline void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end) {}
+static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start) {}
+static inline bool track_event_change(struct bch2_time_stats *stats,
+				      u64 *start, bool v)
+{
+	bool ret = v && !*start;
+	*start = v;
+	return ret;
+}
+#endif
 
 void bch2_time_stats_to_text(struct printbuf *, struct bch2_time_stats *);
 
@@ -830,5 +865,15 @@ static inline int cmp_le32(__le32 l, __le32 r)
 }
 
 #include <linux/uuid.h>
+
+#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
+
+static inline bool qstr_eq(const struct qstr l, const struct qstr r)
+{
+	return l.len == r.len && !memcmp(l.name, r.name, l.len);
+}
+
+void bch2_darray_str_exit(darray_str *);
+int bch2_split_devs(const char *, darray_str *);
 
 #endif /* _BCACHEFS_UTIL_H */

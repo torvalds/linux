@@ -10,7 +10,7 @@
 #include <linux/poll.h>
 #include <linux/nospec.h>
 #include <linux/compat.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 
 #include <uapi/linux/io_uring.h>
 
@@ -18,6 +18,7 @@
 #include "opdef.h"
 #include "kbuf.h"
 #include "rsrc.h"
+#include "poll.h"
 #include "rw.h"
 
 struct io_rw {
@@ -166,27 +167,6 @@ void io_readv_writev_cleanup(struct io_kiocb *req)
 	struct io_async_rw *io = req->async_data;
 
 	kfree(io->free_iovec);
-}
-
-static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
-{
-	switch (ret) {
-	case -EIOCBQUEUED:
-		break;
-	case -ERESTARTSYS:
-	case -ERESTARTNOINTR:
-	case -ERESTARTNOHAND:
-	case -ERESTART_RESTARTBLOCK:
-		/*
-		 * We can't just restart the syscall, since previously
-		 * submitted sqes may already be in progress. Just fail this
-		 * IO with EINTR.
-		 */
-		ret = -EINTR;
-		fallthrough;
-	default:
-		kiocb->ki_complete(kiocb, ret);
-	}
 }
 
 static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
@@ -369,6 +349,33 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
 
 	/* order with io_iopoll_complete() checking ->iopoll_completed */
 	smp_store_release(&req->iopoll_completed, 1);
+}
+
+static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
+{
+	/* IO was queued async, completion will happen later */
+	if (ret == -EIOCBQUEUED)
+		return;
+
+	/* transform internal restart error codes */
+	if (unlikely(ret < 0)) {
+		switch (ret) {
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
+		case -ERESTARTNOHAND:
+		case -ERESTART_RESTARTBLOCK:
+			/*
+			 * We can't just restart the syscall, since previously
+			 * submitted sqes may already be in progress. Just fail
+			 * this IO with EINTR.
+			 */
+			ret = -EINTR;
+			break;
+		}
+	}
+
+	INDIRECT_CALL_2(kiocb->ki_complete, io_complete_rw_iopoll,
+			io_complete_rw, kiocb, ret);
 }
 
 static int kiocb_done(struct io_kiocb *req, ssize_t ret,
@@ -589,15 +596,19 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 	struct iovec *iov;
 	int ret;
 
+	iorw->bytes_done = 0;
+	iorw->free_iovec = NULL;
+
 	/* submission path, ->uring_lock should already be taken */
 	ret = io_import_iovec(rw, req, &iov, &iorw->s, 0);
 	if (unlikely(ret < 0))
 		return ret;
 
-	iorw->bytes_done = 0;
-	iorw->free_iovec = iov;
-	if (iov)
+	if (iov) {
+		iorw->free_iovec = iov;
 		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+
 	return 0;
 }
 
@@ -952,8 +963,15 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		if (io_fill_cqe_req_aux(req,
 					issue_flags & IO_URING_F_COMPLETE_DEFER,
 					ret, cflags | IORING_CQE_F_MORE)) {
-			if (issue_flags & IO_URING_F_MULTISHOT)
+			if (issue_flags & IO_URING_F_MULTISHOT) {
+				/*
+				 * Force retry, as we might have more data to
+				 * be read and otherwise it won't get retried
+				 * until (if ever) another poll is triggered.
+				 */
+				io_poll_multishot_retry(req);
 				return IOU_ISSUE_SKIP_COMPLETE;
+			}
 			return -EAGAIN;
 		}
 	}

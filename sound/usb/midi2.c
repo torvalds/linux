@@ -1085,7 +1085,7 @@ int snd_usb_midi_v2_create(struct snd_usb_audio *chip,
 	}
 	if ((quirk && quirk->type != QUIRK_MIDI_STANDARD_INTERFACE) ||
 	    iface->num_altsetting < 2) {
-		usb_audio_info(chip, "Quirk or no altest; falling back to MIDI 1.0\n");
+		usb_audio_info(chip, "Quirk or no altset; falling back to MIDI 1.0\n");
 		goto fallback_to_midi1;
 	}
 	hostif = &iface->altsetting[1];

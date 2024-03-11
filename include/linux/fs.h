@@ -352,6 +352,8 @@ enum rw_hint {
  * unrelated IO (like cache flushing, new IO generation, etc).
  */
 #define IOCB_DIO_CALLER_COMP	(1 << 22)
+/* kiocb is a read or write operation submitted by fs/aio.c. */
+#define IOCB_AIO_RW		(1 << 23)
 
 /* for use in trace events */
 #define TRACE_IOCB_STRINGS \
@@ -434,7 +436,7 @@ struct address_space_operations {
 	bool (*is_partially_uptodate) (struct folio *, size_t from,
 			size_t count);
 	void (*is_dirty_writeback) (struct folio *, bool *dirty, bool *wb);
-	int (*error_remove_page)(struct address_space *, struct page *);
+	int (*error_remove_folio)(struct address_space *, struct folio *);
 
 	/* swapfile support */
 	int (*swap_activate)(struct swap_info_struct *sis, struct file *file,
@@ -463,9 +465,9 @@ extern const struct address_space_operations empty_aops;
  * @a_ops: Methods.
  * @flags: Error bits and flags (AS_*).
  * @wb_err: The most recent error which has occurred.
- * @private_lock: For use by the owner of the address_space.
- * @private_list: For use by the owner of the address_space.
- * @private_data: For use by the owner of the address_space.
+ * @i_private_lock: For use by the owner of the address_space.
+ * @i_private_list: For use by the owner of the address_space.
+ * @i_private_data: For use by the owner of the address_space.
  */
 struct address_space {
 	struct inode		*host;
@@ -484,9 +486,9 @@ struct address_space {
 	unsigned long		flags;
 	struct rw_semaphore	i_mmap_rwsem;
 	errseq_t		wb_err;
-	spinlock_t		private_lock;
-	struct list_head	private_list;
-	void			*private_data;
+	spinlock_t		i_private_lock;
+	struct list_head	i_private_list;
+	void *			i_private_data;
 } __attribute__((aligned(sizeof(long)))) __randomize_layout;
 	/*
 	 * On most architectures that alignment is already the case; but
@@ -991,8 +993,10 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  */
 struct file {
 	union {
+		/* fput() uses task work when closing and freeing file (default). */
+		struct callback_head 	f_task_work;
+		/* fput() must use workqueue (most kernel threads). */
 		struct llist_node	f_llist;
-		struct rcu_head 	f_rcuhead;
 		unsigned int 		f_iocb_flags;
 	};
 
@@ -1164,6 +1168,7 @@ extern int send_sigurg(struct fown_struct *fown);
 #define SB_I_USERNS_VISIBLE		0x00000010 /* fstype already mounted */
 #define SB_I_IMA_UNVERIFIABLE_SIGNATURE	0x00000020
 #define SB_I_UNTRUSTED_MOUNTER		0x00000040
+#define SB_I_EVM_UNSUPPORTED		0x00000080
 
 #define SB_I_SKIP_SYNC	0x00000100	/* Skip superblock at global sync */
 #define SB_I_PERSB_BDI	0x00000200	/* has a per-sb bdi */
@@ -1185,7 +1190,8 @@ enum {
 
 struct sb_writers {
 	unsigned short			frozen;		/* Is sb frozen? */
-	unsigned short			freeze_holders;	/* Who froze fs? */
+	int				freeze_kcount;	/* How many kernel freeze requests? */
+	int				freeze_ucount;	/* How many userspace freeze requests? */
 	struct percpu_rw_semaphore	rw_sem[SB_FREEZE_LEVELS];
 };
 
@@ -1645,9 +1651,70 @@ static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
 #define __sb_writers_release(sb, lev)	\
 	percpu_rwsem_release(&(sb)->s_writers.rw_sem[(lev)-1], 1, _THIS_IP_)
 
+/**
+ * __sb_write_started - check if sb freeze level is held
+ * @sb: the super we write to
+ * @level: the freeze level
+ *
+ * * > 0 - sb freeze level is held
+ * *   0 - sb freeze level is not held
+ * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
+ */
+static inline int __sb_write_started(const struct super_block *sb, int level)
+{
+	return lockdep_is_held_type(sb->s_writers.rw_sem + level - 1, 1);
+}
+
+/**
+ * sb_write_started - check if SB_FREEZE_WRITE is held
+ * @sb: the super we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ */
 static inline bool sb_write_started(const struct super_block *sb)
 {
-	return lockdep_is_held_type(sb->s_writers.rw_sem + SB_FREEZE_WRITE - 1, 1);
+	return __sb_write_started(sb, SB_FREEZE_WRITE);
+}
+
+/**
+ * sb_write_not_started - check if SB_FREEZE_WRITE is not held
+ * @sb: the super we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ */
+static inline bool sb_write_not_started(const struct super_block *sb)
+{
+	return __sb_write_started(sb, SB_FREEZE_WRITE) <= 0;
+}
+
+/**
+ * file_write_started - check if SB_FREEZE_WRITE is held
+ * @file: the file we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !S_ISREG, because file_start_write() has
+ * no effect on !S_ISREG.
+ */
+static inline bool file_write_started(const struct file *file)
+{
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return true;
+	return sb_write_started(file_inode(file)->i_sb);
+}
+
+/**
+ * file_write_not_started - check if SB_FREEZE_WRITE is not held
+ * @file: the file we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !S_ISREG, because file_start_write() has
+ * no effect on !S_ISREG.
+ */
+static inline bool file_write_not_started(const struct file *file)
+{
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return true;
+	return sb_write_not_started(file_inode(file)->i_sb);
 }
 
 /**
@@ -2029,9 +2096,6 @@ extern ssize_t vfs_read(struct file *, char __user *, size_t, loff_t *);
 extern ssize_t vfs_write(struct file *, const char __user *, size_t, loff_t *);
 extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
-extern ssize_t generic_copy_file_range(struct file *file_in, loff_t pos_in,
-				       struct file *file_out, loff_t pos_out,
-				       size_t len, unsigned int flags);
 int __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    loff_t *len, unsigned int remap_flags,
@@ -2039,9 +2103,6 @@ int __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				  struct file *file_out, loff_t pos_out,
 				  loff_t *count, unsigned int remap_flags);
-extern loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
-				  struct file *file_out, loff_t pos_out,
-				  loff_t len, unsigned int remap_flags);
 extern loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 				   struct file *file_out, loff_t pos_out,
 				   loff_t len, unsigned int remap_flags);
@@ -2051,9 +2112,24 @@ extern loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 					struct file *dst_file, loff_t dst_pos,
 					loff_t len, unsigned int remap_flags);
 
+/**
+ * enum freeze_holder - holder of the freeze
+ * @FREEZE_HOLDER_KERNEL: kernel wants to freeze or thaw filesystem
+ * @FREEZE_HOLDER_USERSPACE: userspace wants to freeze or thaw filesystem
+ * @FREEZE_MAY_NEST: whether nesting freeze and thaw requests is allowed
+ *
+ * Indicate who the owner of the freeze or thaw request is and whether
+ * the freeze needs to be exclusive or can nest.
+ * Without @FREEZE_MAY_NEST, multiple freeze and thaw requests from the
+ * same holder aren't allowed. It is however allowed to hold a single
+ * @FREEZE_HOLDER_USERSPACE and a single @FREEZE_HOLDER_KERNEL freeze at
+ * the same time. This is relied upon by some filesystems during online
+ * repair or similar.
+ */
 enum freeze_holder {
 	FREEZE_HOLDER_KERNEL	= (1U << 0),
 	FREEZE_HOLDER_USERSPACE	= (1U << 1),
+	FREEZE_MAY_NEST		= (1U << 2),
 };
 
 struct super_operations {
@@ -2294,7 +2370,7 @@ static inline void kiocb_clone(struct kiocb *kiocb, struct kiocb *kiocb_src,
 #define I_CREATING		(1 << 15)
 #define I_DONTCACHE		(1 << 16)
 #define I_SYNC_QUEUED		(1 << 17)
-#define I_PINNING_FSCACHE_WB	(1 << 18)
+#define I_PINNING_NETFS_WB	(1 << 18)
 
 #define I_DIRTY_INODE (I_DIRTY_SYNC | I_DIRTY_DATASYNC)
 #define I_DIRTY (I_DIRTY_INODE | I_DIRTY_PAGES)
@@ -2517,25 +2593,30 @@ struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *creds);
 struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 			   const struct cred *cred);
-struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred);
 struct path *backing_file_user_path(struct file *f);
 
 /*
- * file_user_path - get the path to display for memory mapped file
- *
  * When mmapping a file on a stackable filesystem (e.g., overlayfs), the file
  * stored in ->vm_file is a backing file whose f_inode is on the underlying
- * filesystem.  When the mapped file path is displayed to user (e.g. via
- * /proc/<pid>/maps), this helper should be used to get the path to display
- * to the user, which is the path of the fd that user has requested to map.
+ * filesystem.  When the mapped file path and inode number are displayed to
+ * user (e.g. via /proc/<pid>/maps), these helpers should be used to get the
+ * path and inode number to display to the user, which is the path of the fd
+ * that user has requested to map and the inode number that would be returned
+ * by fstat() on that same fd.
  */
+/* Get the path to display in /proc/<pid>/maps */
 static inline const struct path *file_user_path(struct file *f)
 {
 	if (unlikely(f->f_mode & FMODE_BACKING))
 		return backing_file_user_path(f);
 	return &f->f_path;
+}
+/* Get the inode whose inode number to display in /proc/<pid>/maps */
+static inline const struct inode *file_user_inode(struct file *f)
+{
+	if (unlikely(f->f_mode & FMODE_BACKING))
+		return d_inode(backing_file_user_path(f)->dentry);
+	return file_inode(f);
 }
 
 static inline struct file *file_clone_open(struct file *file)
@@ -2991,8 +3072,6 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 			 size_t len, unsigned int flags);
 extern ssize_t iter_file_splice_write(struct pipe_inode_info *,
 		struct file *, loff_t *, size_t, unsigned int);
-extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
-		loff_t *opos, size_t len, unsigned int flags);
 
 
 extern void
@@ -3121,7 +3200,6 @@ extern int vfs_readlink(struct dentry *, char __user *, int);
 extern struct file_system_type *get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);
 extern struct file_system_type *get_fs_type(const char *name);
-extern struct super_block *get_active_super(struct block_device *bdev);
 extern void drop_super(struct super_block *sb);
 extern void drop_super_exclusive(struct super_block *sb);
 extern void iterate_supers(void (*)(struct super_block *, void *), void *);

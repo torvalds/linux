@@ -253,18 +253,16 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int altera_freeze_br_remove(struct platform_device *pdev)
+static void altera_freeze_br_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *br = platform_get_drvdata(pdev);
 
 	fpga_bridge_unregister(br);
-
-	return 0;
 }
 
 static struct platform_driver altera_freeze_br_driver = {
 	.probe = altera_freeze_br_probe,
-	.remove = altera_freeze_br_remove,
+	.remove_new = altera_freeze_br_remove,
 	.driver = {
 		.name	= "altera_freeze_br",
 		.of_match_table = altera_freeze_br_of_match,

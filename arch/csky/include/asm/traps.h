@@ -55,6 +55,6 @@ asmlinkage void trap_c(struct pt_regs *regs);
 asmlinkage void do_notify_resume(struct pt_regs *regs,
 			unsigned long thread_info_flags);
 
-void trap_init(void);
+asmlinkage void do_page_fault(struct pt_regs *regs);
 
 #endif /* __ASM_CSKY_TRAPS_H */

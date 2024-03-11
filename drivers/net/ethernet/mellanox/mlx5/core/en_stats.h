@@ -476,6 +476,8 @@ struct mlx5e_rep_stats {
 	u64 tx_vport_rdma_multicast_packets;
 	u64 rx_vport_rdma_multicast_bytes;
 	u64 tx_vport_rdma_multicast_bytes;
+	u64 vport_loopback_packets;
+	u64 vport_loopback_bytes;
 };
 
 struct mlx5e_stats {

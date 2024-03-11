@@ -3,16 +3,12 @@
 #ifndef __NOUVEAU_EXEC_H__
 #define __NOUVEAU_EXEC_H__
 
-#include <drm/drm_exec.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_sched.h"
 
 struct nouveau_exec_job_args {
 	struct drm_file *file_priv;
-	struct nouveau_sched_entity *sched_entity;
-
-	struct drm_exec exec;
+	struct nouveau_sched *sched;
 	struct nouveau_channel *chan;
 
 	struct {

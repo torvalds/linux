@@ -7,7 +7,6 @@
 #include <linux/hyperv.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/screen_info.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
@@ -73,11 +72,6 @@ static int hyperv_setup_vram(struct hyperv_drm_device *hv,
 	struct drm_device *dev = &hv->dev;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_SYSFB))
-		drm_aperture_remove_conflicting_framebuffers(screen_info.lfb_base,
-							     screen_info.lfb_size,
-							     &hyperv_driver);
-
 	hv->fb_size = (unsigned long)hv->mmio_megabytes * 1024 * 1024;
 
 	ret = vmbus_allocate_mmio(&hv->mem, hdev, 0, -1, hv->fb_size, 0x100000,
@@ -129,6 +123,8 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 		drm_err(dev, "Failed to connect to vmbus.\n");
 		goto err_hv_set_drv_data;
 	}
+
+	drm_aperture_remove_framebuffers(&hyperv_driver);
 
 	ret = hyperv_setup_vram(hv, hdev);
 	if (ret)

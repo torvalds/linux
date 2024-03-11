@@ -471,7 +471,7 @@ enum ata_completion_errors {
 
 /*
  * Link power management policy: If you alter this, you also need to
- * alter libata-scsi.c (for the ascii descriptions)
+ * alter libata-sata.c (for the ascii descriptions)
  */
 enum ata_lpm_policy {
 	ATA_LPM_UNKNOWN,

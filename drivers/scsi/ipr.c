@@ -77,7 +77,6 @@
 static LIST_HEAD(ipr_ioa_head);
 static unsigned int ipr_log_level = IPR_DEFAULT_LOG_LEVEL;
 static unsigned int ipr_max_speed = 1;
-static int ipr_testmode = 0;
 static unsigned int ipr_fastfail = 0;
 static unsigned int ipr_transop_timeout = 0;
 static unsigned int ipr_debug = 0;
@@ -193,8 +192,6 @@ module_param_named(max_speed, ipr_max_speed, uint, 0);
 MODULE_PARM_DESC(max_speed, "Maximum bus speed (0-2). Default: 1=U160. Speeds: 0=80 MB/s, 1=U160, 2=U320");
 module_param_named(log_level, ipr_log_level, uint, 0);
 MODULE_PARM_DESC(log_level, "Set to 0 - 4 for increasing verbosity of device driver");
-module_param_named(testmode, ipr_testmode, int, 0);
-MODULE_PARM_DESC(testmode, "DANGEROUS!!! Allows unsupported configurations");
 module_param_named(fastfail, ipr_fastfail, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fastfail, "Reduce timeouts and retries");
 module_param_named(transop_timeout, ipr_transop_timeout, int, 0);
@@ -6416,45 +6413,6 @@ static const struct scsi_host_template driver_template = {
 	.proc_name = IPR_NAME,
 };
 
-#ifdef CONFIG_PPC_PSERIES
-static const u16 ipr_blocked_processors[] = {
-	PVR_NORTHSTAR,
-	PVR_PULSAR,
-	PVR_POWER4,
-	PVR_ICESTAR,
-	PVR_SSTAR,
-	PVR_POWER4p,
-	PVR_630,
-	PVR_630p
-};
-
-/**
- * ipr_invalid_adapter - Determine if this adapter is supported on this hardware
- * @ioa_cfg:	ioa cfg struct
- *
- * Adapters that use Gemstone revision < 3.1 do not work reliably on
- * certain pSeries hardware. This function determines if the given
- * adapter is in one of these confgurations or not.
- *
- * Return value:
- * 	1 if adapter is not supported / 0 if adapter is supported
- **/
-static int ipr_invalid_adapter(struct ipr_ioa_cfg *ioa_cfg)
-{
-	int i;
-
-	if ((ioa_cfg->type == 0x5702) && (ioa_cfg->pdev->revision < 4)) {
-		for (i = 0; i < ARRAY_SIZE(ipr_blocked_processors); i++) {
-			if (pvr_version_is(ipr_blocked_processors[i]))
-				return 1;
-		}
-	}
-	return 0;
-}
-#else
-#define ipr_invalid_adapter(ioa_cfg) 0
-#endif
-
 /**
  * ipr_ioa_bringdown_done - IOA bring down completion.
  * @ipr_cmd:	ipr command struct
@@ -7384,19 +7342,6 @@ static int ipr_ioafp_page0_inquiry(struct ipr_cmnd *ipr_cmd)
 	memcpy(type, ioa_cfg->vpd_cbs->ioa_vpd.std_inq_data.vpids.product_id, 4);
 	type[4] = '\0';
 	ioa_cfg->type = simple_strtoul((char *)type, NULL, 16);
-
-	if (ipr_invalid_adapter(ioa_cfg)) {
-		dev_err(&ioa_cfg->pdev->dev,
-			"Adapter not supported in this hardware configuration.\n");
-
-		if (!ipr_testmode) {
-			ioa_cfg->reset_retries += IPR_NUM_RESET_RELOAD_RETRIES;
-			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
-			list_add_tail(&ipr_cmd->queue,
-					&ioa_cfg->hrrq->hrrq_free_q);
-			return IPR_RC_JOB_RETURN;
-		}
-	}
 
 	ipr_cmd->job_step = ipr_ioafp_page3_inquiry;
 

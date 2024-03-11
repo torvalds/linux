@@ -22,8 +22,17 @@ By default ``driver_reinit`` action is selected.
    * - ``driver-reinit``
      - Devlink driver entities re-initialization, including applying
        new values to devlink entities which are used during driver
-       load such as ``devlink-params`` in configuration mode
-       ``driverinit`` or ``devlink-resources``
+       load which are:
+
+       * ``devlink-params`` in configuration mode ``driverinit``
+       * ``devlink-resources``
+
+       Other devlink entities may stay over the re-initialization:
+
+       * ``devlink-health-reporter``
+       * ``devlink-region``
+
+       The rest of the devlink entities have to be removed and readded.
    * - ``fw_activate``
      - Firmware activate. Activates new firmware if such image is stored and
        pending activation. If no limitation specified this action may involve

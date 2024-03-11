@@ -30,6 +30,28 @@ struct mt7996_mcu_uni_event {
 	__le32 status; /* 0: success, others: fail */
 } __packed;
 
+struct mt7996_mcu_thermal_ctrl {
+	u8 ctrl_id;
+	u8 band_idx;
+	union {
+		struct {
+			u8 protect_type; /* 1: duty admit, 2: radio off */
+			u8 trigger_type; /* 0: low, 1: high */
+		} __packed type;
+		struct {
+			u8 duty_level;	/* level 0~3 */
+			u8 duty_cycle;
+		} __packed duty;
+	};
+} __packed;
+
+struct mt7996_mcu_thermal_enable {
+	__le32 trigger_temp;
+	__le32 restore_temp;
+	__le16 sustain_time;
+	u8 rsv[2];
+} __packed;
+
 struct mt7996_mcu_csa_notify {
 	struct mt7996_mcu_rxd rxd;
 
@@ -153,6 +175,27 @@ struct mt7996_mcu_mib {
 	__le64 data;
 } __packed;
 
+struct all_sta_trx_rate {
+	__le16 wlan_idx;
+	u8 __rsv1[2];
+	u8 tx_mode;
+	u8 flags;
+	u8 tx_stbc;
+	u8 tx_gi;
+	u8 tx_bw;
+	u8 tx_ldpc;
+	u8 tx_mcs;
+	u8 tx_nss;
+	u8 rx_rate;
+	u8 rx_mode;
+	u8 rx_nsts;
+	u8 rx_gi;
+	u8 rx_coding;
+	u8 rx_stbc;
+	u8 rx_bw;
+	u8 __rsv2;
+} __packed;
+
 struct mt7996_mcu_all_sta_info_event {
 	u8 rsv[4];
 	__le16 tag;
@@ -160,23 +203,75 @@ struct mt7996_mcu_all_sta_info_event {
 	u8 more;
 	u8 rsv2;
 	__le16 sta_num;
-	u8 rsv3[2];
+	u8 rsv3[4];
 
 	union {
-		struct {
+		DECLARE_FLEX_ARRAY(struct all_sta_trx_rate, rate);
+		DECLARE_FLEX_ARRAY(struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
 			__le32 tx_bytes[IEEE80211_NUM_ACS];
 			__le32 rx_bytes[IEEE80211_NUM_ACS];
-		} adm_stat[0];
+		} __packed, adm_stat);
 
-		struct {
+		DECLARE_FLEX_ARRAY(struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
 			__le32 tx_msdu_cnt;
 			__le32 rx_msdu_cnt;
-		} msdu_cnt[0];
-	};
+		} __packed, msdu_cnt);
+	} __packed;
+} __packed;
+
+struct mt7996_mcu_wed_rro_event {
+	struct mt7996_mcu_rxd rxd;
+
+	u8 __rsv1[4];
+
+	__le16 tag;
+	__le16 len;
+} __packed;
+
+struct mt7996_mcu_wed_rro_ba_event {
+	__le16 tag;
+	__le16 len;
+
+	__le16 wlan_id;
+	u8 tid;
+	u8 __rsv1;
+	__le32 status;
+	__le16 id;
+	u8 __rsv2[2];
+} __packed;
+
+struct mt7996_mcu_wed_rro_ba_delete_event {
+	__le16 tag;
+	__le16 len;
+
+	__le16 session_id;
+	u8 __rsv2[2];
+} __packed;
+
+enum  {
+	UNI_WED_RRO_BA_SESSION_STATUS,
+	UNI_WED_RRO_BA_SESSION_TBL,
+	UNI_WED_RRO_BA_SESSION_DELETE,
+};
+
+struct mt7996_mcu_thermal_notify {
+	struct mt7996_mcu_rxd rxd;
+
+	u8 __rsv1[4];
+
+	__le16 tag;
+	__le16 len;
+
+	u8 event_id;
+	u8 band_idx;
+	u8 level_idx;
+	u8 duty_percent;
+	__le32 restore_temp;
+	u8 __rsv2[4];
 } __packed;
 
 enum mt7996_chan_mib_offs {
@@ -247,7 +342,24 @@ struct bss_rate_tlv {
 	u8 short_preamble;
 	u8 bc_fixed_rate;
 	u8 mc_fixed_rate;
-	u8 __rsv2[1];
+	u8 __rsv2[9];
+} __packed;
+
+enum {
+	BP_DISABLE,
+	BP_SW_MODE,
+	BP_HW_MODE,
+};
+
+struct mt7996_mcu_bcn_prot_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 pn[6];
+	u8 enable;
+	u8 cipher_id;
+	u8 key[WLAN_MAX_KEY_LEN];
+	u8 key_id;
+	u8 __rsv[3];
 } __packed;
 
 struct bss_ra_tlv {
@@ -372,6 +484,15 @@ struct bss_mld_tlv {
 	u8 __rsv[3];
 } __packed;
 
+struct sta_rec_ht_uni {
+	__le16 tag;
+	__le16 len;
+	__le16 ht_cap;
+	__le16 ht_cap_ext;
+	u8 ampdu_param;
+	u8 _rsv[3];
+} __packed;
+
 struct sta_rec_ba_uni {
 	__le16 tag;
 	__le16 len;
@@ -419,6 +540,73 @@ struct sta_rec_sec_uni {
 	u8 rsv[2];
 
 	struct sec_key_uni key[2];
+} __packed;
+
+struct sta_phy_uni {
+	u8 type;
+	u8 flag;
+	u8 stbc;
+	u8 sgi;
+	u8 bw;
+	u8 ldpc;
+	u8 mcs;
+	u8 nss;
+	u8 he_ltf;
+	u8 rsv[3];
+};
+
+struct sta_rec_ra_uni {
+	__le16 tag;
+	__le16 len;
+
+	u8 valid;
+	u8 auto_rate;
+	u8 phy_mode;
+	u8 channel;
+	u8 bw;
+	u8 disable_cck;
+	u8 ht_mcs32;
+	u8 ht_gf;
+	u8 ht_mcs[4];
+	u8 mmps_mode;
+	u8 gband_256;
+	u8 af;
+	u8 auth_wapi_mode;
+	u8 rate_len;
+
+	u8 supp_mode;
+	u8 supp_cck_rate;
+	u8 supp_ofdm_rate;
+	__le32 supp_ht_mcs;
+	__le16 supp_vht_mcs[4];
+
+	u8 op_mode;
+	u8 op_vht_chan_width;
+	u8 op_vht_rx_nss;
+	u8 op_vht_rx_nss_type;
+
+	__le32 sta_cap;
+
+	struct sta_phy_uni phy;
+	u8 rx_rcpi[4];
+} __packed;
+
+struct sta_rec_ra_fixed_uni {
+	__le16 tag;
+	__le16 len;
+
+	__le32 field;
+	u8 op_mode;
+	u8 op_vht_chan_width;
+	u8 op_vht_rx_nss;
+	u8 op_vht_rx_nss_type;
+
+	struct sta_phy_uni phy;
+
+	u8 spe_idx;
+	u8 short_preamble;
+	u8 is_5g;
+	u8 mmps_mode;
 } __packed;
 
 struct sta_rec_hdrt {
@@ -596,17 +784,16 @@ enum {
 #define MT7996_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +		\
 					 sizeof(struct sta_rec_basic) +		\
 					 sizeof(struct sta_rec_bf) +		\
-					 sizeof(struct sta_rec_ht) +		\
+					 sizeof(struct sta_rec_ht_uni) +	\
 					 sizeof(struct sta_rec_he_v2) +		\
 					 sizeof(struct sta_rec_ba_uni) +	\
 					 sizeof(struct sta_rec_vht) +		\
 					 sizeof(struct sta_rec_uapsd) + 	\
 					 sizeof(struct sta_rec_amsdu) +		\
 					 sizeof(struct sta_rec_bfee) +		\
-					 sizeof(struct sta_rec_phy) +		\
-					 sizeof(struct sta_rec_ra) +		\
+					 sizeof(struct sta_rec_ra_uni) +	\
 					 sizeof(struct sta_rec_sec) +		\
-					 sizeof(struct sta_rec_ra_fixed) +	\
+					 sizeof(struct sta_rec_ra_fixed_uni) +	\
 					 sizeof(struct sta_rec_he_6g_capa) +	\
 					 sizeof(struct sta_rec_eht) +		\
 					 sizeof(struct sta_rec_hdrt) +		\
@@ -621,6 +808,18 @@ enum {
 					 sizeof(struct bss_bcn_mbss_tlv))
 #define MT7996_MAX_BSS_OFFLOAD_SIZE	(MT7996_MAX_BEACON_SIZE +		\
 					 MT7996_BEACON_UPDATE_SIZE)
+
+static inline s8
+mt7996_get_power_bound(struct mt7996_phy *phy, s8 txpower)
+{
+	struct mt76_phy *mphy = phy->mt76;
+	int n_chains = hweight16(mphy->chainmask);
+
+	txpower = mt76_get_sar_power(mphy, mphy->chandef.chan, txpower * 2);
+	txpower -= mt76_tx_power_nss_delta(n_chains);
+
+	return txpower;
+}
 
 enum {
 	UNI_BAND_CONFIG_RADIO_ENABLE,
@@ -669,6 +868,8 @@ enum {
 	UNI_RRO_GET_BA_SESSION_TABLE,
 	UNI_RRO_SET_BYPASS_MODE,
 	UNI_RRO_SET_TXFREE_PATH,
+	UNI_RRO_DEL_BA_SESSION,
+	UNI_RRO_SET_FLUSH_TIMEOUT
 };
 
 enum{
@@ -680,6 +881,16 @@ enum{
 	UNI_CMD_SR_SET_SRG_BITMAP = 0x80,
 	UNI_CMD_SR_SET_PARAM = 0xc1,
 	UNI_CMD_SR_SET_SIGA = 0xd0,
+};
+
+enum {
+	UNI_CMD_THERMAL_PROTECT_ENABLE = 0x6,
+	UNI_CMD_THERMAL_PROTECT_DISABLE,
+	UNI_CMD_THERMAL_PROTECT_DUTY_CONFIG,
+};
+
+enum {
+	UNI_TXPOWER_POWER_LIMIT_TABLE_CTRL = 4,
 };
 
 enum {
@@ -719,5 +930,25 @@ enum {
 #define MT7996_SEC_ENCRYPT		BIT(0)
 #define MT7996_SEC_KEY_IDX		GENMASK(2, 1)
 #define MT7996_SEC_IV			BIT(3)
+
+struct fixed_rate_table_ctrl {
+	u8 _rsv[4];
+
+	__le16 tag;
+	__le16 len;
+
+	u8 table_idx;
+	u8 antenna_idx;
+	__le16 rate_idx;
+	u8 spe_idx_sel;
+	u8 spe_idx;
+	u8 gi;
+	u8 he_ltf;
+	bool ldpc;
+	bool txbf;
+	bool dynamic_bw;
+
+	u8 _rsv2;
+} __packed;
 
 #endif

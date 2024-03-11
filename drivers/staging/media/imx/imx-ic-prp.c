@@ -82,10 +82,8 @@ static struct v4l2_mbus_framefmt *
 __prp_get_fmt(struct prp_priv *priv, struct v4l2_subdev_state *sd_state,
 	      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
-	struct imx_ic_priv *ic_priv = priv->ic_priv;
-
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ic_priv->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &priv->format_mbus;
 }
@@ -395,10 +393,18 @@ out:
 	return ret;
 }
 
-static int prp_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int prp_get_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= PRP_NUM_PADS)
 		return -EINVAL;
@@ -410,10 +416,18 @@ static int prp_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int prp_s_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int prp_set_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= PRP_NUM_PADS)
 		return -EINVAL;
@@ -450,16 +464,15 @@ static int prp_registered(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_pad_ops prp_pad_ops = {
-	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = prp_enum_mbus_code,
 	.get_fmt = prp_get_fmt,
 	.set_fmt = prp_set_fmt,
+	.get_frame_interval = prp_get_frame_interval,
+	.set_frame_interval = prp_set_frame_interval,
 	.link_validate = prp_link_validate,
 };
 
 static const struct v4l2_subdev_video_ops prp_video_ops = {
-	.g_frame_interval = prp_g_frame_interval,
-	.s_frame_interval = prp_s_frame_interval,
 	.s_stream = prp_s_stream,
 };
 
@@ -474,6 +487,7 @@ static const struct v4l2_subdev_ops prp_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops prp_internal_ops = {
+	.init_state = imx_media_init_state,
 	.registered = prp_registered,
 };
 

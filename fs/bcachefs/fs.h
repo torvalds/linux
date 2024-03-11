@@ -77,9 +77,8 @@ static inline int ptrcmp(void *l, void *r)
 }
 
 enum bch_inode_lock_op {
-	INODE_LOCK		= (1U << 0),
-	INODE_PAGECACHE_BLOCK	= (1U << 1),
-	INODE_UPDATE_LOCK	= (1U << 2),
+	INODE_PAGECACHE_BLOCK	= (1U << 0),
+	INODE_UPDATE_LOCK	= (1U << 1),
 };
 
 #define bch2_lock_inodes(_locks, ...)					\
@@ -91,8 +90,6 @@ do {									\
 									\
 	for (i = 1; i < ARRAY_SIZE(a); i++)				\
 		if (a[i] != a[i - 1]) {					\
-			if ((_locks) & INODE_LOCK)			\
-				down_write_nested(&a[i]->v.i_rwsem, i);	\
 			if ((_locks) & INODE_PAGECACHE_BLOCK)		\
 				bch2_pagecache_block_get(a[i]);\
 			if ((_locks) & INODE_UPDATE_LOCK)			\
@@ -109,8 +106,6 @@ do {									\
 									\
 	for (i = 1; i < ARRAY_SIZE(a); i++)				\
 		if (a[i] != a[i - 1]) {					\
-			if ((_locks) & INODE_LOCK)			\
-				up_write(&a[i]->v.i_rwsem);		\
 			if ((_locks) & INODE_PAGECACHE_BLOCK)		\
 				bch2_pagecache_block_put(a[i]);\
 			if ((_locks) & INODE_UPDATE_LOCK)			\

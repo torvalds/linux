@@ -371,7 +371,7 @@ static inline u32 dsu_pmu_get_reset_overflow(void)
 	return __dsu_pmu_get_reset_overflow();
 }
 
-/**
+/*
  * dsu_pmu_set_event_period: Set the period for the counter.
  *
  * All DSU PMU event counters, except the cycle counter are 32bit
@@ -602,7 +602,7 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 	return dsu_pmu;
 }
 
-/**
+/*
  * dsu_pmu_dt_get_cpus: Get the list of CPUs in the cluster
  * from device tree.
  */
@@ -632,7 +632,7 @@ static int dsu_pmu_dt_get_cpus(struct device *dev, cpumask_t *mask)
 	return 0;
 }
 
-/**
+/*
  * dsu_pmu_acpi_get_cpus: Get the list of CPUs in the cluster
  * from ACPI.
  */

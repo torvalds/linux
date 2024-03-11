@@ -29,12 +29,6 @@ static unsigned int fanotify_hash_path(const struct path *path)
 		hash_ptr(path->mnt, FANOTIFY_EVENT_HASH_BITS);
 }
 
-static inline bool fanotify_fsid_equal(__kernel_fsid_t *fsid1,
-				       __kernel_fsid_t *fsid2)
-{
-	return fsid1->val[0] == fsid2->val[0] && fsid1->val[1] == fsid2->val[1];
-}
-
 static unsigned int fanotify_hash_fsid(__kernel_fsid_t *fsid)
 {
 	return hash_32(fsid->val[0], FANOTIFY_EVENT_HASH_BITS) ^
@@ -838,9 +832,8 @@ out:
 }
 
 /*
- * Get cached fsid of the filesystem containing the object from any connector.
- * All connectors are supposed to have the same fsid, but we do not verify that
- * here.
+ * Get cached fsid of the filesystem containing the object from any mark.
+ * All marks are supposed to have the same fsid, but we do not verify that here.
  */
 static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 {
@@ -849,18 +842,11 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 	__kernel_fsid_t fsid = {};
 
 	fsnotify_foreach_iter_mark_type(iter_info, mark, type) {
-		struct fsnotify_mark_connector *conn;
-
-		conn = READ_ONCE(mark->connector);
-		/* Mark is just getting destroyed or created? */
-		if (!conn)
+		if (!(mark->flags & FSNOTIFY_MARK_FLAG_HAS_FSID))
 			continue;
-		if (!(conn->flags & FSNOTIFY_CONN_FLAG_HAS_FSID))
-			continue;
-		/* Pairs with smp_wmb() in fsnotify_add_mark_list() */
-		smp_rmb();
-		fsid = conn->fsid;
-		if (WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
+		fsid = FANOTIFY_MARK(mark)->fsid;
+		if (!(mark->flags & FSNOTIFY_MARK_FLAG_WEAK_FSID) &&
+		    WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
 			continue;
 		return fsid;
 	}
@@ -942,12 +928,8 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 			return 0;
 	}
 
-	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS)) {
+	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS))
 		fsid = fanotify_get_fsid(iter_info);
-		/* Racing with mark destruction or creation? */
-		if (!fsid.val[0] && !fsid.val[1])
-			return 0;
-	}
 
 	event = fanotify_alloc_event(group, mask, data, data_type, dir,
 				     file_name, &fsid, match_mask);
@@ -1068,7 +1050,7 @@ static void fanotify_freeing_mark(struct fsnotify_mark *mark,
 
 static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)
 {
-	kmem_cache_free(fanotify_mark_cache, fsn_mark);
+	kmem_cache_free(fanotify_mark_cache, FANOTIFY_MARK(fsn_mark));
 }
 
 const struct fsnotify_ops fanotify_fsnotify_ops = {

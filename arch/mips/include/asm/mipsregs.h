@@ -98,7 +98,7 @@
 
 /*
  * R4640/R4650 cp0 register names.  These registers are listed
- * here only for completeness; without MMU these CPUs are not useable
+ * here only for completeness; without MMU these CPUs are not usable
  * by Linux.  A future ELKS port might take make Linux run on them
  * though ...
  */
@@ -461,7 +461,7 @@
 #define EXCCODE_THREAD		25	/* Thread exceptions (MT) */
 #define EXCCODE_DSPDIS		26	/* DSP disabled exception */
 #define EXCCODE_GE		27	/* Virtualized guest exception (VZ) */
-#define EXCCODE_CACHEERR	30	/* Parity/ECC occured on a core */
+#define EXCCODE_CACHEERR	30	/* Parity/ECC occurred on a core */
 
 /* Implementation specific trap codes used by MIPS cores */
 #define MIPS_EXCCODE_TLBPAR	16	/* TLB parity error exception */

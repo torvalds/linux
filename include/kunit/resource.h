@@ -391,6 +391,27 @@ void kunit_remove_resource(struct kunit *test, struct kunit_resource *res);
 typedef void (kunit_action_t)(void *);
 
 /**
+ * KUNIT_DEFINE_ACTION_WRAPPER() - Wrap a function for use as a deferred action.
+ *
+ * @wrapper: The name of the new wrapper function define.
+ * @orig: The original function to wrap.
+ * @arg_type: The type of the argument accepted by @orig.
+ *
+ * Defines a wrapper for a function which accepts a single, pointer-sized
+ * argument. This wrapper can then be passed to kunit_add_action() and
+ * similar. This should be used in preference to casting a function
+ * directly to kunit_action_t, as casting function pointers will break
+ * control flow integrity (CFI), leading to crashes.
+ */
+#define KUNIT_DEFINE_ACTION_WRAPPER(wrapper, orig, arg_type)	\
+	static void wrapper(void *in)				\
+	{							\
+		arg_type arg = (arg_type)in;			\
+		orig(arg);					\
+	}
+
+
+/**
  * kunit_add_action() - Call a function when the test ends.
  * @test: Test case to associate the action with.
  * @action: The function to run on test exit

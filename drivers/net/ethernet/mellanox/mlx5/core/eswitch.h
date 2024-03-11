@@ -618,13 +618,6 @@ static inline bool mlx5_esw_allowed(const struct mlx5_eswitch *esw)
 	return esw && MLX5_ESWITCH_MANAGER(esw->dev);
 }
 
-/* The returned number is valid only when the dev is eswitch manager. */
-static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
-{
-	return mlx5_core_is_ecpf_esw_manager(dev) ?
-		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
-}
-
 static inline bool
 mlx5_esw_is_manager_vport(const struct mlx5_eswitch *esw, u16 vport_num)
 {

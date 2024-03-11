@@ -209,13 +209,6 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct msm_gem_address_space *aspace = kms->aspace;
-	int i;
-
-	for (i = 0; i < mdp5_kms->num_hwmixers; i++)
-		mdp5_mixer_destroy(mdp5_kms->hwmixers[i]);
-
-	for (i = 0; i < mdp5_kms->num_hwpipes; i++)
-		mdp5_pipe_destroy(mdp5_kms->hwpipes[i]);
 
 	if (aspace) {
 		aspace->mmu->funcs->detach(aspace->mmu);
@@ -623,18 +616,6 @@ fail:
 
 static void mdp5_destroy(struct mdp5_kms *mdp5_kms)
 {
-	int i;
-
-	if (mdp5_kms->ctlm)
-		mdp5_ctlm_destroy(mdp5_kms->ctlm);
-	if (mdp5_kms->smp)
-		mdp5_smp_destroy(mdp5_kms->smp);
-	if (mdp5_kms->cfg)
-		mdp5_cfg_destroy(mdp5_kms->cfg);
-
-	for (i = 0; i < mdp5_kms->num_intfs; i++)
-		kfree(mdp5_kms->intfs[i]);
-
 	if (mdp5_kms->rpm_enabled)
 		pm_runtime_disable(&mdp5_kms->pdev->dev);
 
@@ -652,7 +633,7 @@ static int construct_pipes(struct mdp5_kms *mdp5_kms, int cnt,
 	for (i = 0; i < cnt; i++) {
 		struct mdp5_hw_pipe *hwpipe;
 
-		hwpipe = mdp5_pipe_init(pipes[i], offsets[i], caps);
+		hwpipe = mdp5_pipe_init(dev, pipes[i], offsets[i], caps);
 		if (IS_ERR(hwpipe)) {
 			ret = PTR_ERR(hwpipe);
 			DRM_DEV_ERROR(dev->dev, "failed to construct pipe for %s (%d)\n",
@@ -724,7 +705,7 @@ static int hwmixer_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < hw_cfg->lm.count; i++) {
 		struct mdp5_hw_mixer *mixer;
 
-		mixer = mdp5_mixer_init(&hw_cfg->lm.instances[i]);
+		mixer = mdp5_mixer_init(dev, &hw_cfg->lm.instances[i]);
 		if (IS_ERR(mixer)) {
 			ret = PTR_ERR(mixer);
 			DRM_DEV_ERROR(dev->dev, "failed to construct LM%d (%d)\n",
@@ -755,7 +736,7 @@ static int interface_init(struct mdp5_kms *mdp5_kms)
 		if (intf_types[i] == INTF_DISABLED)
 			continue;
 
-		intf = kzalloc(sizeof(*intf), GFP_KERNEL);
+		intf = devm_kzalloc(dev->dev, sizeof(*intf), GFP_KERNEL);
 		if (!intf) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct INTF%d\n", i);
 			return -ENOMEM;

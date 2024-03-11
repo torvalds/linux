@@ -295,20 +295,9 @@ typedef struct _MPI2_EXT_IMAGE_HEADER {
 /*FLASH Layout Extended Image Data */
 
 /*
- *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- *one and check RegionsPerLayout at runtime.
+ *Host code (drivers, BIOS, utilities, etc.) should check NumberOfLayouts and
+ *RegionsPerLayout at runtime before using Layout[] and Region[].
  */
-#ifndef MPI2_FLASH_NUMBER_OF_REGIONS
-#define MPI2_FLASH_NUMBER_OF_REGIONS        (1)
-#endif
-
-/*
- *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- *one and check NumberOfLayouts at runtime.
- */
-#ifndef MPI2_FLASH_NUMBER_OF_LAYOUTS
-#define MPI2_FLASH_NUMBER_OF_LAYOUTS        (1)
-#endif
 
 typedef struct _MPI2_FLASH_REGION {
 	U8 RegionType;		/*0x00 */
@@ -325,7 +314,7 @@ typedef struct _MPI2_FLASH_LAYOUT {
 	U32 Reserved1;		/*0x04 */
 	U32 Reserved2;		/*0x08 */
 	U32 Reserved3;		/*0x0C */
-	MPI2_FLASH_REGION Region[MPI2_FLASH_NUMBER_OF_REGIONS];	/*0x10 */
+	MPI2_FLASH_REGION Region[];	/*0x10 */
 } MPI2_FLASH_LAYOUT, *PTR_MPI2_FLASH_LAYOUT,
 	Mpi2FlashLayout_t, *pMpi2FlashLayout_t;
 
@@ -339,7 +328,7 @@ typedef struct _MPI2_FLASH_LAYOUT_DATA {
 	U16 MinimumSectorAlignment;	/*0x08 */
 	U16 Reserved3;		/*0x0A */
 	U32 Reserved4;		/*0x0C */
-	MPI2_FLASH_LAYOUT Layout[MPI2_FLASH_NUMBER_OF_LAYOUTS];	/*0x10 */
+	MPI2_FLASH_LAYOUT Layout[];	/*0x10 */
 } MPI2_FLASH_LAYOUT_DATA, *PTR_MPI2_FLASH_LAYOUT_DATA,
 	Mpi2FlashLayoutData_t, *pMpi2FlashLayoutData_t;
 
@@ -373,12 +362,9 @@ typedef struct _MPI2_FLASH_LAYOUT_DATA {
 /*Supported Devices Extended Image Data */
 
 /*
- *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- *one and check NumberOfDevices at runtime.
+ *Host code (drivers, BIOS, utilities, etc.) should check NumberOfDevices at
+ *runtime before using SupportedDevice[].
  */
-#ifndef MPI2_SUPPORTED_DEVICES_IMAGE_NUM_DEVICES
-#define MPI2_SUPPORTED_DEVICES_IMAGE_NUM_DEVICES    (1)
-#endif
 
 typedef struct _MPI2_SUPPORTED_DEVICE {
 	U16 DeviceID;		/*0x00 */
@@ -399,7 +385,7 @@ typedef struct _MPI2_SUPPORTED_DEVICES_DATA {
 	U8 Reserved2;		/*0x03 */
 	U32 Reserved3;		/*0x04 */
 	MPI2_SUPPORTED_DEVICE
-	SupportedDevice[MPI2_SUPPORTED_DEVICES_IMAGE_NUM_DEVICES];/*0x08 */
+	SupportedDevice[];	/*0x08 */
 } MPI2_SUPPORTED_DEVICES_DATA, *PTR_MPI2_SUPPORTED_DEVICES_DATA,
 	Mpi2SupportedDevicesData_t, *pMpi2SupportedDevicesData_t;
 
@@ -464,7 +450,7 @@ typedef struct _MPI25_ENCRYPTED_HASH_ENTRY {
 	U8		EncryptionAlgorithm;	/*0x02 */
 	U8		Reserved1;		/*0x03 */
 	U32		Reserved2;		/*0x04 */
-	U32		EncryptedHash[1];	/*0x08 */ /* variable length */
+	U32		EncryptedHash[];	/*0x08 */
 } MPI25_ENCRYPTED_HASH_ENTRY, *PTR_MPI25_ENCRYPTED_HASH_ENTRY,
 Mpi25EncryptedHashEntry_t, *pMpi25EncryptedHashEntry_t;
 
@@ -508,7 +494,7 @@ typedef struct _MPI25_ENCRYPTED_HASH_DATA {
 	U8				NumHash;		/*0x01 */
 	U16				Reserved1;		/*0x02 */
 	U32				Reserved2;		/*0x04 */
-	MPI25_ENCRYPTED_HASH_ENTRY	EncryptedHashEntry[1];  /*0x08 */
+	MPI25_ENCRYPTED_HASH_ENTRY	EncryptedHashEntry[];	/*0x08 */
 } MPI25_ENCRYPTED_HASH_DATA, *PTR_MPI25_ENCRYPTED_HASH_DATA,
 Mpi25EncryptedHashData_t, *pMpi25EncryptedHashData_t;
 

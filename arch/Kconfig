@@ -301,17 +301,13 @@ config ARCH_HAS_DMA_CLEAR_UNCACHED
 config ARCH_HAS_CPU_FINALIZE_INIT
 	bool
 
-# Select if arch init_task must go in the __init_task_data section
-config ARCH_TASK_STRUCT_ON_STACK
+# The architecture has a per-task state that includes the mm's PASID
+config ARCH_HAS_CPU_PASID
 	bool
-
-# Select if arch has its private alloc_task_struct() function
-config ARCH_TASK_STRUCT_ALLOCATOR
-	bool
+	select IOMMU_MM_DATA
 
 config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	bool
-	depends on !ARCH_TASK_STRUCT_ALLOCATOR
 	help
 	  An architecture should select this to provide hardened usercopy
 	  knowledge about what region of the thread_struct should be
@@ -319,10 +315,6 @@ config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	  FPU registers. Specifically, arch_thread_struct_whitelist()
 	  should be implemented. Without this, the entire thread_struct
 	  field in task_struct will be left whitelisted.
-
-# Select if arch has its private alloc_thread_stack() function
-config ARCH_THREAD_STACK_ALLOCATOR
-	bool
 
 # Select if arch wants to size task_struct dynamically via arch_task_struct_size:
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
@@ -681,6 +673,7 @@ config SHADOW_CALL_STACK
 	bool "Shadow Call Stack"
 	depends on ARCH_SUPPORTS_SHADOW_CALL_STACK
 	depends on DYNAMIC_FTRACE_WITH_ARGS || DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
+	depends on MMU
 	help
 	  This option enables the compiler's Shadow Call Stack, which
 	  uses a shadow stack to protect function return addresses from
@@ -1469,6 +1462,14 @@ config DYNAMIC_SIGFRAME
 # Select, if arch has a named attribute group bound to NUMA device nodes.
 config HAVE_ARCH_NODE_DEV_GROUP
 	bool
+
+config ARCH_HAS_HW_PTE_YOUNG
+	bool
+	help
+	  Architectures that select this option are capable of setting the
+	  accessed bit in PTE entries when using them as part of linear address
+	  translations. Architectures that require runtime check should select
+	  this option and override arch_has_hw_pte_young().
 
 config ARCH_HAS_NONLEAF_PMD_YOUNG
 	bool

@@ -947,36 +947,49 @@ static int
 qca8k_mdio_register(struct qca8k_priv *priv)
 {
 	struct dsa_switch *ds = priv->ds;
+	struct device *dev = ds->dev;
 	struct device_node *mdio;
 	struct mii_bus *bus;
+	int err = 0;
 
-	bus = devm_mdiobus_alloc(ds->dev);
-	if (!bus)
-		return -ENOMEM;
+	mdio = of_get_child_by_name(dev->of_node, "mdio");
+	if (mdio && !of_device_is_available(mdio))
+		goto out;
 
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus) {
+		err = -ENOMEM;
+		goto out_put_node;
+	}
+
+	priv->internal_mdio_bus = bus;
 	bus->priv = (void *)priv;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d.%d",
 		 ds->dst->index, ds->index);
-	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
-	ds->user_mii_bus = bus;
+	bus->parent = dev;
 
-	/* Check if the devicetree declare the port:phy mapping */
-	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
+	if (mdio) {
+		/* Check if the device tree declares the port:phy mapping */
 		bus->name = "qca8k user mii";
 		bus->read = qca8k_internal_mdio_read;
 		bus->write = qca8k_internal_mdio_write;
-		return devm_of_mdiobus_register(priv->dev, bus, mdio);
+	} else {
+		/* If a mapping can't be found, the legacy mapping is used,
+		 * using qca8k_port_to_phy()
+		 */
+		ds->user_mii_bus = bus;
+		bus->phy_mask = ~ds->phys_mii_mask;
+		bus->name = "qca8k-legacy user mii";
+		bus->read = qca8k_legacy_mdio_read;
+		bus->write = qca8k_legacy_mdio_write;
 	}
 
-	/* If a mapping can't be found the legacy mapping is used,
-	 * using the qca8k_port_to_phy function
-	 */
-	bus->name = "qca8k-legacy user mii";
-	bus->read = qca8k_legacy_mdio_read;
-	bus->write = qca8k_legacy_mdio_write;
-	return devm_mdiobus_register(priv->dev, bus);
+	err = devm_of_mdiobus_register(dev, bus, mdio);
+
+out_put_node:
+	of_node_put(mdio);
+out:
+	return err;
 }
 
 static int
@@ -2038,12 +2051,11 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->info = of_device_get_match_data(priv->dev);
 
 	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
-						   GPIOD_ASIS);
+						   GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset_gpio))
 		return PTR_ERR(priv->reset_gpio);
 
 	if (priv->reset_gpio) {
-		gpiod_set_value_cansleep(priv->reset_gpio, 1);
 		/* The active low duration must be greater than 10 ms
 		 * and checkpatch.pl wants 20 ms.
 		 */

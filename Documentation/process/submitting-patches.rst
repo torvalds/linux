@@ -790,10 +790,14 @@ Providing base tree information
 -------------------------------
 
 When other developers receive your patches and start the review process,
-it is often useful for them to know where in the tree history they
-should place your work. This is particularly useful for automated CI
-processes that attempt to run a series of tests in order to establish
-the quality of your submission before the maintainer starts the review.
+it is absolutely necessary for them to know what is the base
+commit/branch your work applies on, considering the sheer amount of
+maintainer trees present nowadays. Note again the **T:** entry in the
+MAINTAINERS file explained above.
+
+This is even more important for automated CI processes that attempt to
+run a series of tests in order to establish the quality of your
+submission before the maintainer starts the review.
 
 If you are using ``git format-patch`` to generate your patches, you can
 automatically include the base tree information in your submission by
@@ -836,6 +840,9 @@ letter or in the first patch of the series and it should be placed
 either below the ``---`` line or at the very bottom of all other
 content, right before your email signature.
 
+Make sure that base commit is in an official maintainer/mainline tree
+and not in some internal, accessible only to you tree - otherwise it
+would be worthless.
 
 References
 ----------

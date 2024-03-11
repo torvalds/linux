@@ -206,8 +206,6 @@
 };
 
 &usbh_ehci {
-	phys = <&usbphyc_port0>;
-	phy-names = "usb";
 	status = "okay";
 };
 

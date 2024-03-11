@@ -655,6 +655,7 @@ static inline pmd_t pmd_mkwrite_novma(pmd_t pmd)
 	return pmd;
 }
 
+#define pmd_dirty pmd_dirty
 static inline int pmd_dirty(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_MODIFIED);

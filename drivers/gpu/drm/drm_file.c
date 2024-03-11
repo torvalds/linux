@@ -47,21 +47,12 @@
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
-#include "drm_legacy.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
 
 bool drm_dev_needs_global_mutex(struct drm_device *dev)
 {
-	/*
-	 * Legacy drivers rely on all kinds of BKL locking semantics, don't
-	 * bother. They also still need BKL locking for their ioctls, so better
-	 * safe than sorry.
-	 */
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		return true;
-
 	/*
 	 * The deprecated ->load callback must be called after the driver is
 	 * already registered. This means such drivers rely on the BKL to make
@@ -107,9 +98,7 @@ bool drm_dev_needs_global_mutex(struct drm_device *dev)
  * drm_send_event() as the main starting points.
  *
  * The memory mapping implementation will vary depending on how the driver
- * manages memory. Legacy drivers will use the deprecated drm_legacy_mmap()
- * function, modern drivers should use one of the provided memory-manager
- * specific implementations. For GEM-based drivers this is drm_gem_mmap().
+ * manages memory. For GEM-based drivers this is drm_gem_mmap().
  *
  * No other file operations are supported by the DRM userspace API. Overall the
  * following is an example &file_operations structure::
@@ -254,18 +243,6 @@ void drm_file_free(struct drm_file *file)
 		     (long)old_encode_dev(file->minor->kdev->devt),
 		     atomic_read(&dev->open_count));
 
-#ifdef CONFIG_DRM_LEGACY
-	if (drm_core_check_feature(dev, DRIVER_LEGACY) &&
-	    dev->driver->preclose)
-		dev->driver->preclose(dev, file);
-#endif
-
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		drm_legacy_lock_release(dev, file->filp);
-
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		drm_legacy_reclaim_buffers(dev, file);
-
 	drm_events_release(file);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -278,8 +255,6 @@ void drm_file_free(struct drm_file *file)
 
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file);
-
-	drm_legacy_ctxbitmap_flush(dev, file);
 
 	if (drm_is_primary_client(file))
 		drm_master_release(file);
@@ -367,29 +342,6 @@ int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	list_add(&priv->lhead, &dev->filelist);
 	mutex_unlock(&dev->filelist_mutex);
 
-#ifdef CONFIG_DRM_LEGACY
-#ifdef __alpha__
-	/*
-	 * Default the hose
-	 */
-	if (!dev->hose) {
-		struct pci_dev *pci_dev;
-
-		pci_dev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
-		if (pci_dev) {
-			dev->hose = pci_dev->sysdata;
-			pci_dev_put(pci_dev);
-		}
-		if (!dev->hose) {
-			struct pci_bus *b = list_entry(pci_root_buses.next,
-				struct pci_bus, node);
-			if (b)
-				dev->hose = b->sysdata;
-		}
-	}
-#endif
-#endif
-
 	return 0;
 }
 
@@ -411,7 +363,6 @@ int drm_open(struct inode *inode, struct file *filp)
 	struct drm_device *dev;
 	struct drm_minor *minor;
 	int retcode;
-	int need_setup = 0;
 
 	minor = drm_minor_acquire(iminor(inode));
 	if (IS_ERR(minor))
@@ -421,8 +372,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_lock(&drm_global_mutex);
 
-	if (!atomic_fetch_inc(&dev->open_count))
-		need_setup = 1;
+	atomic_fetch_inc(&dev->open_count);
 
 	/* share address_space across all char-devs of a single device */
 	filp->f_mapping = dev->anon_inode->i_mapping;
@@ -430,13 +380,6 @@ int drm_open(struct inode *inode, struct file *filp)
 	retcode = drm_open_helper(filp, minor);
 	if (retcode)
 		goto err_undo;
-	if (need_setup) {
-		retcode = drm_legacy_setup(dev);
-		if (retcode) {
-			drm_close_helper(filp);
-			goto err_undo;
-		}
-	}
 
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_unlock(&drm_global_mutex);
@@ -459,9 +402,6 @@ void drm_lastclose(struct drm_device * dev)
 	if (dev->driver->lastclose)
 		dev->driver->lastclose(dev);
 	drm_dbg_core(dev, "driver lastclose completed\n");
-
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		drm_legacy_dev_reinit(dev);
 
 	drm_client_dev_restore(dev);
 }
@@ -913,7 +853,7 @@ static void print_size(struct drm_printer *p, const char *stat,
 	unsigned u;
 
 	for (u = 0; u < ARRAY_SIZE(units) - 1; u++) {
-		if (sz < SZ_1K)
+		if (sz == 0 || !IS_ALIGNED(sz, SZ_1K))
 			break;
 		sz = div_u64(sz, SZ_1K);
 	}
@@ -958,7 +898,7 @@ void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
 {
 	struct drm_gem_object *obj;
 	struct drm_memory_stats status = {};
-	enum drm_gem_object_status supported_status;
+	enum drm_gem_object_status supported_status = 0;
 	int id;
 
 	spin_lock(&file->table_lock);

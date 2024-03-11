@@ -505,11 +505,9 @@ disable_runtime_pm:
 	return ret;
 }
 
-static int miic_remove(struct platform_device *pdev)
+static void miic_remove(struct platform_device *pdev)
 {
 	pm_runtime_put(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id miic_of_mtable[] = {
@@ -525,7 +523,7 @@ static struct platform_driver miic_driver = {
 		.of_match_table = miic_of_mtable,
 	},
 	.probe = miic_probe,
-	.remove = miic_remove,
+	.remove_new = miic_remove,
 };
 module_platform_driver(miic_driver);
 

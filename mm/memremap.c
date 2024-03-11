@@ -7,6 +7,7 @@
 #include <linux/memremap.h>
 #include <linux/pfn_t.h>
 #include <linux/swap.h>
+#include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/swapops.h>
 #include <linux/types.h>
@@ -422,19 +423,6 @@ void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap)
 }
 EXPORT_SYMBOL_GPL(devm_memunmap_pages);
 
-unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
-{
-	/* number of pfns from base where pfn_to_page() is valid */
-	if (altmap)
-		return altmap->reserve + altmap->free;
-	return 0;
-}
-
-void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
-{
-	altmap->alloc -= nr_pfns;
-}
-
 /**
  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
  * @pfn: page frame number to lookup page_map
@@ -485,21 +473,11 @@ void free_zone_device_page(struct page *page)
 		__ClearPageAnonExclusive(page);
 
 	/*
-	 * When a device managed page is freed, the page->mapping field
+	 * When a device managed page is freed, the folio->mapping field
 	 * may still contain a (stale) mapping value. For example, the
-	 * lower bits of page->mapping may still identify the page as an
-	 * anonymous page. Ultimately, this entire field is just stale
-	 * and wrong, and it will cause errors if not cleared.  One
-	 * example is:
-	 *
-	 *  migrate_vma_pages()
-	 *    migrate_vma_insert_page()
-	 *      page_add_new_anon_rmap()
-	 *        __page_set_anon_rmap()
-	 *          ...checks page->mapping, via PageAnon(page) call,
-	 *            and incorrectly concludes that the page is an
-	 *            anonymous page. Therefore, it incorrectly,
-	 *            silently fails to set up the new anon rmap.
+	 * lower bits of folio->mapping may still identify the folio as an
+	 * anonymous folio. Ultimately, this entire field is just stale
+	 * and wrong, and it will cause errors if not cleared.
 	 *
 	 * For other types of ZONE_DEVICE pages, migration is either
 	 * handled differently or not done at all, so there is no need

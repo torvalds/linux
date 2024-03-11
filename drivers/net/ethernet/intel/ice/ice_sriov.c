@@ -106,10 +106,8 @@ static void ice_dis_vf_mappings(struct ice_vf *vf)
 	for (v = first; v <= last; v++) {
 		u32 reg;
 
-		reg = (((1 << GLINT_VECT2FUNC_IS_PF_S) &
-			GLINT_VECT2FUNC_IS_PF_M) |
-		       ((hw->pf_id << GLINT_VECT2FUNC_PF_NUM_S) &
-			GLINT_VECT2FUNC_PF_NUM_M));
+		reg = FIELD_PREP(GLINT_VECT2FUNC_IS_PF_M, 1) |
+		      FIELD_PREP(GLINT_VECT2FUNC_PF_NUM_M, hw->pf_id);
 		wr32(hw, GLINT_VECT2FUNC(v), reg);
 	}
 
@@ -172,13 +170,14 @@ void ice_free_vfs(struct ice_pf *pf)
 	else
 		dev_warn(dev, "VFs are assigned - not disabling SR-IOV\n");
 
-	mutex_lock(&vfs->table_lock);
+	ice_eswitch_reserve_cp_queues(pf, -ice_get_num_vfs(pf));
 
-	ice_eswitch_release(pf);
+	mutex_lock(&vfs->table_lock);
 
 	ice_for_each_vf(pf, bkt, vf) {
 		mutex_lock(&vf->cfg_lock);
 
+		ice_eswitch_detach(pf, vf);
 		ice_dis_vf_qs(vf);
 
 		if (test_bit(ICE_VF_STATE_INIT, vf->vf_states)) {
@@ -274,24 +273,20 @@ static void ice_ena_vf_msix_mappings(struct ice_vf *vf)
 		(device_based_first_msix + vf->num_msix) - 1;
 	device_based_vf_id = vf->vf_id + hw->func_caps.vf_base_id;
 
-	reg = (((device_based_first_msix << VPINT_ALLOC_FIRST_S) &
-		VPINT_ALLOC_FIRST_M) |
-	       ((device_based_last_msix << VPINT_ALLOC_LAST_S) &
-		VPINT_ALLOC_LAST_M) | VPINT_ALLOC_VALID_M);
+	reg = FIELD_PREP(VPINT_ALLOC_FIRST_M, device_based_first_msix) |
+	      FIELD_PREP(VPINT_ALLOC_LAST_M, device_based_last_msix) |
+	      VPINT_ALLOC_VALID_M;
 	wr32(hw, VPINT_ALLOC(vf->vf_id), reg);
 
-	reg = (((device_based_first_msix << VPINT_ALLOC_PCI_FIRST_S)
-		 & VPINT_ALLOC_PCI_FIRST_M) |
-	       ((device_based_last_msix << VPINT_ALLOC_PCI_LAST_S) &
-		VPINT_ALLOC_PCI_LAST_M) | VPINT_ALLOC_PCI_VALID_M);
+	reg = FIELD_PREP(VPINT_ALLOC_PCI_FIRST_M, device_based_first_msix) |
+	      FIELD_PREP(VPINT_ALLOC_PCI_LAST_M, device_based_last_msix) |
+	      VPINT_ALLOC_PCI_VALID_M;
 	wr32(hw, VPINT_ALLOC_PCI(vf->vf_id), reg);
 
 	/* map the interrupts to its functions */
 	for (v = pf_based_first_msix; v <= pf_based_last_msix; v++) {
-		reg = (((device_based_vf_id << GLINT_VECT2FUNC_VF_NUM_S) &
-			GLINT_VECT2FUNC_VF_NUM_M) |
-		       ((hw->pf_id << GLINT_VECT2FUNC_PF_NUM_S) &
-			GLINT_VECT2FUNC_PF_NUM_M));
+		reg = FIELD_PREP(GLINT_VECT2FUNC_VF_NUM_M, device_based_vf_id) |
+		      FIELD_PREP(GLINT_VECT2FUNC_PF_NUM_M, hw->pf_id);
 		wr32(hw, GLINT_VECT2FUNC(v), reg);
 	}
 
@@ -324,10 +319,8 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 		 * VFNUMQ value should be set to (number of queues - 1). A value
 		 * of 0 means 1 queue and a value of 255 means 256 queues
 		 */
-		reg = (((vsi->txq_map[0] << VPLAN_TX_QBASE_VFFIRSTQ_S) &
-			VPLAN_TX_QBASE_VFFIRSTQ_M) |
-		       (((max_txq - 1) << VPLAN_TX_QBASE_VFNUMQ_S) &
-			VPLAN_TX_QBASE_VFNUMQ_M));
+		reg = FIELD_PREP(VPLAN_TX_QBASE_VFFIRSTQ_M, vsi->txq_map[0]) |
+		      FIELD_PREP(VPLAN_TX_QBASE_VFNUMQ_M, max_txq - 1);
 		wr32(hw, VPLAN_TX_QBASE(vf->vf_id), reg);
 	} else {
 		dev_err(dev, "Scattered mode for VF Tx queues is not yet implemented\n");
@@ -342,10 +335,8 @@ static void ice_ena_vf_q_mappings(struct ice_vf *vf, u16 max_txq, u16 max_rxq)
 		 * VFNUMQ value should be set to (number of queues - 1). A value
 		 * of 0 means 1 queue and a value of 255 means 256 queues
 		 */
-		reg = (((vsi->rxq_map[0] << VPLAN_RX_QBASE_VFFIRSTQ_S) &
-			VPLAN_RX_QBASE_VFFIRSTQ_M) |
-		       (((max_rxq - 1) << VPLAN_RX_QBASE_VFNUMQ_S) &
-			VPLAN_RX_QBASE_VFNUMQ_M));
+		reg = FIELD_PREP(VPLAN_RX_QBASE_VFFIRSTQ_M, vsi->rxq_map[0]) |
+		      FIELD_PREP(VPLAN_RX_QBASE_VFNUMQ_M, max_rxq - 1);
 		wr32(hw, VPLAN_RX_QBASE(vf->vf_id), reg);
 	} else {
 		dev_err(dev, "Scattered mode for VF Rx queues is not yet implemented\n");
@@ -609,6 +600,14 @@ static int ice_start_vfs(struct ice_pf *pf)
 			goto teardown;
 		}
 
+		retval = ice_eswitch_attach(pf, vf);
+		if (retval) {
+			dev_err(ice_pf_to_dev(pf), "Failed to attach VF %d to eswitch, error %d",
+				vf->vf_id, retval);
+			ice_vf_vsi_release(vf);
+			goto teardown;
+		}
+
 		set_bit(ICE_VF_STATE_INIT, vf->vf_states);
 		ice_ena_vf_mappings(vf);
 		wr32(hw, VFGEN_RSTAT(vf->vf_id), VIRTCHNL_VFR_VFACTIVE);
@@ -763,24 +762,6 @@ static void ice_sriov_clear_reset_trigger(struct ice_vf *vf)
 }
 
 /**
- * ice_sriov_create_vsi - Create a new VSI for a VF
- * @vf: VF to create the VSI for
- *
- * This is called by ice_vf_recreate_vsi to create the new VSI after the old
- * VSI has been released.
- */
-static int ice_sriov_create_vsi(struct ice_vf *vf)
-{
-	struct ice_vsi *vsi;
-
-	vsi = ice_vf_vsi_setup(vf);
-	if (!vsi)
-		return -ENOMEM;
-
-	return 0;
-}
-
-/**
  * ice_sriov_post_vsi_rebuild - tasks to do after the VF's VSI have been rebuilt
  * @vf: VF to perform tasks on
  */
@@ -799,7 +780,6 @@ static const struct ice_vf_ops ice_sriov_vf_ops = {
 	.poll_reset_status = ice_sriov_poll_reset_status,
 	.clear_reset_trigger = ice_sriov_clear_reset_trigger,
 	.irq_close = NULL,
-	.create_vsi = ice_sriov_create_vsi,
 	.post_vsi_rebuild = ice_sriov_post_vsi_rebuild,
 };
 
@@ -918,6 +898,7 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 		goto err_unroll_sriov;
 	}
 
+	ice_eswitch_reserve_cp_queues(pf, num_vfs);
 	ret = ice_start_vfs(pf);
 	if (ret) {
 		dev_err(dev, "Failed to start %d VFs, err %d\n", num_vfs, ret);
@@ -926,12 +907,6 @@ static int ice_ena_vfs(struct ice_pf *pf, u16 num_vfs)
 	}
 
 	clear_bit(ICE_VF_DIS, pf->state);
-
-	ret = ice_eswitch_configure(pf);
-	if (ret) {
-		dev_err(dev, "Failed to configure eswitch, err %d\n", ret);
-		goto err_unroll_sriov;
-	}
 
 	/* rearm global interrupts */
 	if (test_and_clear_bit(ICE_OICR_INTR_DIS, pf->state))
@@ -1093,6 +1068,7 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	struct ice_pf *pf = pci_get_drvdata(pdev);
 	u16 prev_msix, prev_queues, queues;
 	bool needs_rebuild = false;
+	struct ice_vsi *vsi;
 	struct ice_vf *vf;
 	int id;
 
@@ -1127,6 +1103,10 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	if (!vf)
 		return -ENOENT;
 
+	vsi = ice_get_vf_vsi(vf);
+	if (!vsi)
+		return -ENOENT;
+
 	prev_msix = vf->num_msix;
 	prev_queues = vf->num_vf_qs;
 
@@ -1147,8 +1127,7 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	if (vf->first_vector_idx < 0)
 		goto unroll;
 
-	ice_vf_vsi_release(vf);
-	if (vf->vf_ops->create_vsi(vf)) {
+	if (ice_vf_reconfig_vsi(vf) || ice_vf_init_host_cfg(vf, vsi)) {
 		/* Try to rebuild with previous values */
 		needs_rebuild = true;
 		goto unroll;
@@ -1174,8 +1153,10 @@ unroll:
 	if (vf->first_vector_idx < 0)
 		return -EINVAL;
 
-	if (needs_rebuild)
-		vf->vf_ops->create_vsi(vf);
+	if (needs_rebuild) {
+		ice_vf_reconfig_vsi(vf);
+		ice_vf_init_host_cfg(vf, vsi);
+	}
 
 	ice_ena_vf_mappings(vf);
 	ice_put_vf(vf);
@@ -1324,8 +1305,7 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 	dev_dbg(ice_pf_to_dev(pf), "GLDCB_RTCTQ: 0x%08x\n", gldcb_rtctq);
 
 	/* event returns device global Rx queue number */
-	queue = (gldcb_rtctq & GLDCB_RTCTQ_RXQNUM_M) >>
-		GLDCB_RTCTQ_RXQNUM_S;
+	queue = FIELD_GET(GLDCB_RTCTQ_RXQNUM_M, gldcb_rtctq);
 
 	vf = ice_get_vf_from_pfq(pf, ice_globalq_to_pfq(pf, queue));
 	if (!vf)

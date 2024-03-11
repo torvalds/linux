@@ -68,7 +68,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		/* PTD12 ->RPIO[91] */
-		sck-gpios  = <&gpio2 27 GPIO_ACTIVE_LOW>;
+		sck-gpios = <&gpio2 27 GPIO_ACTIVE_LOW>;
 		/* PTD10 ->RPIO[89] */
 		miso-gpios = <&gpio2 25 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <0>;
@@ -79,7 +79,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			/* PTB18 -> RGPIO[40] */
-			load-gpios  = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			load-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 			spi-max-frequency = <100000>;
 		};
 	};

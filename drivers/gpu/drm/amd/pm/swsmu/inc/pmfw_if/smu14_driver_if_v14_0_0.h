@@ -24,11 +24,6 @@
 #ifndef SMU14_DRIVER_IF_V14_0_0_H
 #define SMU14_DRIVER_IF_V14_0_0_H
 
-// *** IMPORTANT ***
-// SMU TEAM: Always increment the interface version if
-// any structure is changed in this file
-#define PMFW_DRIVER_IF_VERSION 7
-
 typedef struct {
   int32_t value;
   uint32_t numFractionalBits;

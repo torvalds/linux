@@ -12,6 +12,7 @@
 	compatible = "rockchip,r88", "rockchip,rk3368";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdio0;
 		mmc1 = &emmc;
 	};

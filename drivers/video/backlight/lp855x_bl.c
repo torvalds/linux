@@ -234,7 +234,7 @@ static int lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
 	state.duty_cycle = div_u64(br * state.period, max_br);
 	state.enabled = state.duty_cycle;
 
-	return pwm_apply_state(lp->pwm, &state);
+	return pwm_apply_might_sleep(lp->pwm, &state);
 }
 
 static int lp855x_bl_update_status(struct backlight_device *bl)

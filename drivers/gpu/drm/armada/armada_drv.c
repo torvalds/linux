@@ -226,10 +226,9 @@ static int armada_drm_probe(struct platform_device *pdev)
 					       match);
 }
 
-static int armada_drm_remove(struct platform_device *pdev)
+static void armada_drm_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &armada_master_ops);
-	return 0;
 }
 
 static void armada_drm_shutdown(struct platform_device *pdev)
@@ -249,7 +248,7 @@ MODULE_DEVICE_TABLE(platform, armada_drm_platform_ids);
 
 static struct platform_driver armada_drm_platform_driver = {
 	.probe	= armada_drm_probe,
-	.remove	= armada_drm_remove,
+	.remove_new = armada_drm_remove,
 	.shutdown = armada_drm_shutdown,
 	.driver	= {
 		.name	= "armada-drm",

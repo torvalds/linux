@@ -1474,7 +1474,7 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 	rawdata->dents[AAFS_LOADDATA_REVISION] = dent;
 
 	if (aa_g_hash_policy) {
-		dent = aafs_create_file("sha1", S_IFREG | 0444, dir,
+		dent = aafs_create_file("sha256", S_IFREG | 0444, dir,
 					      rawdata, &seq_rawdata_hash_fops);
 		if (IS_ERR(dent))
 			goto fail;
@@ -1615,11 +1615,6 @@ static char *gen_symlink_name(int depth, const char *dirname, const char *fname)
 	return buffer;
 }
 
-static void rawdata_link_cb(void *arg)
-{
-	kfree(arg);
-}
-
 static const char *rawdata_get_link_base(struct dentry *dentry,
 					 struct inode *inode,
 					 struct delayed_call *done,
@@ -1643,16 +1638,16 @@ static const char *rawdata_get_link_base(struct dentry *dentry,
 	if (IS_ERR(target))
 		return target;
 
-	set_delayed_call(done, rawdata_link_cb, target);
+	set_delayed_call(done, kfree_link, target);
 
 	return target;
 }
 
-static const char *rawdata_get_link_sha1(struct dentry *dentry,
+static const char *rawdata_get_link_sha256(struct dentry *dentry,
 					 struct inode *inode,
 					 struct delayed_call *done)
 {
-	return rawdata_get_link_base(dentry, inode, done, "sha1");
+	return rawdata_get_link_base(dentry, inode, done, "sha256");
 }
 
 static const char *rawdata_get_link_abi(struct dentry *dentry,
@@ -1669,8 +1664,8 @@ static const char *rawdata_get_link_data(struct dentry *dentry,
 	return rawdata_get_link_base(dentry, inode, done, "raw_data");
 }
 
-static const struct inode_operations rawdata_link_sha1_iops = {
-	.get_link	= rawdata_get_link_sha1,
+static const struct inode_operations rawdata_link_sha256_iops = {
+	.get_link	= rawdata_get_link_sha256,
 };
 
 static const struct inode_operations rawdata_link_abi_iops = {
@@ -1743,7 +1738,7 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	profile->dents[AAFS_PROF_ATTACH] = dent;
 
 	if (profile->hash) {
-		dent = create_profile_file(dir, "sha1", profile,
+		dent = create_profile_file(dir, "sha256", profile,
 					   &seq_profile_hash_fops);
 		if (IS_ERR(dent))
 			goto fail;
@@ -1753,9 +1748,9 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 	if (profile->rawdata) {
 		if (aa_g_hash_policy) {
-			dent = aafs_create("raw_sha1", S_IFLNK | 0444, dir,
+			dent = aafs_create("raw_sha256", S_IFLNK | 0444, dir,
 					   profile->label.proxy, NULL, NULL,
-					   &rawdata_link_sha1_iops);
+					   &rawdata_link_sha256_iops);
 			if (IS_ERR(dent))
 				goto fail;
 			aa_get_proxy(profile->label.proxy);

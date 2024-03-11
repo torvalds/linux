@@ -1114,39 +1114,6 @@ static int ips_monitor(void *data)
 	return 0;
 }
 
-#if 0
-#define THM_DUMPW(reg) \
-	{ \
-	u16 val = thm_readw(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%04x\n", val); \
-	}
-#define THM_DUMPL(reg) \
-	{ \
-	u32 val = thm_readl(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%08x\n", val); \
-	}
-#define THM_DUMPQ(reg) \
-	{ \
-	u64 val = thm_readq(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%016x\n", val); \
-	}
-
-static void dump_thermal_info(struct ips_driver *ips)
-{
-	u16 ptl;
-
-	ptl = thm_readw(THM_PTL);
-	dev_dbg(ips->dev, "Processor temp limit: %d\n", ptl);
-
-	THM_DUMPW(THM_CTA);
-	THM_DUMPW(THM_TRC);
-	THM_DUMPW(THM_CTV1);
-	THM_DUMPL(THM_STS);
-	THM_DUMPW(THM_PTV);
-	THM_DUMPQ(THM_MGTV);
-}
-#endif
-
 /**
  * ips_irq_handler - handle temperature triggers and other IPS events
  * @irq: irq number

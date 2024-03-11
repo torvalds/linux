@@ -2995,8 +2995,9 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		     LPFC_SLI_INTF_IF_TYPE_2)) {
 			if (ndlp) {
 				lpfc_printf_vlog(
-					 vport, KERN_INFO, LOG_MBOX | LOG_SLI,
-					 "0010 UNREG_LOGIN vpi:%x "
+					 vport, KERN_INFO,
+					 LOG_MBOX | LOG_SLI | LOG_NODE,
+					 "0010 UNREG_LOGIN vpi:x%x "
 					 "rpi:%x DID:%x defer x%x flg x%x "
 					 "x%px\n",
 					 vport->vpi, ndlp->nlp_rpi,
@@ -3012,7 +3013,8 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				    (ndlp->nlp_defer_did !=
 				    NLP_EVT_NOTHING_PENDING)) {
 					lpfc_printf_vlog(
-						vport, KERN_INFO, LOG_DISCOVERY,
+						vport, KERN_INFO,
+						LOG_MBOX | LOG_SLI | LOG_NODE,
 						"4111 UNREG cmpl deferred "
 						"clr x%x on "
 						"NPort x%x Data: x%x x%px\n",
@@ -3936,6 +3938,9 @@ void lpfc_poll_eratt(struct timer_list *t)
 
 	phba = from_timer(phba, t, eratt_poll);
 	if (!(phba->hba_flag & HBA_SETUP))
+		return;
+
+	if (phba->pport->load_flag & FC_UNLOADING)
 		return;
 
 	/* Here we will also keep track of interrupts per sec of the hba */
@@ -4875,7 +4880,7 @@ void lpfc_reset_barrier(struct lpfc_hba *phba)
 	lockdep_assert_held(&phba->hbalock);
 
 	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
-	if (hdrtype != 0x80 ||
+	if (hdrtype != PCI_HEADER_TYPE_MFD ||
 	    (FC_JEDEC_ID(phba->vpd.rev.biuRev) != HELIOS_JEDEC_ID &&
 	     FC_JEDEC_ID(phba->vpd.rev.biuRev) != THOR_JEDEC_ID))
 		return;
@@ -10141,11 +10146,12 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
 			"(%d):0354 Mbox cmd issue - Enqueue Data: "
-			"x%x (x%x/x%x) x%x x%x x%x\n",
+			"x%x (x%x/x%x) x%x x%x x%x x%x\n",
 			mboxq->vport ? mboxq->vport->vpi : 0xffffff,
 			bf_get(lpfc_mqe_command, &mboxq->u.mqe),
 			lpfc_sli_config_mbox_subsys_get(phba, mboxq),
 			lpfc_sli_config_mbox_opcode_get(phba, mboxq),
+			mboxq->u.mb.un.varUnregLogin.rpi,
 			phba->pport->port_state,
 			psli->sli_flag, MBX_NOWAIT);
 	/* Wake up worker thread to transport mailbox command from head */
@@ -22167,6 +22173,12 @@ struct lpfc_io_buf *lpfc_get_io_buf(struct lpfc_hba *phba,
  * The data will be truncated if datasz is not large enough.
  * Version 1 is not supported with Embedded mbox cmd, so we must use version 0.
  * Returns the actual bytes read from the object.
+ *
+ * This routine is hard coded to use a poll completion.  Unlike other
+ * sli4_config mailboxes, it uses lpfc_mbuf memory which is not
+ * cleaned up in lpfc_sli4_cmd_mbox_free.  If this routine is modified
+ * to use interrupt-based completions, code is needed to fully cleanup
+ * the memory.
  */
 int
 lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,

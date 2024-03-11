@@ -27,6 +27,8 @@
 #define DC_INTERFACE_H_
 
 #include "dc_types.h"
+#include "dc_state.h"
+#include "dc_plane.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
 #include "hdcp_msg_types.h"
@@ -49,7 +51,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.259"
+#define DC_VER "3.2.266"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -432,6 +434,7 @@ struct dc_config {
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
+	unsigned int disable_ips_in_vpb;
 };
 
 enum visual_confirm {
@@ -459,6 +462,12 @@ enum dml_hostvm_override_opts {
 	DML_HOSTVM_NO_OVERRIDE = 0x0,
 	DML_HOSTVM_OVERRIDE_FALSE = 0x1,
 	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
+};
+
+enum dc_replay_power_opts {
+	replay_power_opt_invalid		= 0x0,
+	replay_power_opt_smu_opt_static_screen	= 0x1,
+	replay_power_opt_z10_static_screen	= 0x10,
 };
 
 enum dcc_option {
@@ -956,7 +965,6 @@ struct dc_debug_options {
 	unsigned int min_prefetch_in_strobe_ns;
 	bool disable_unbounded_requesting;
 	bool dig_fifo_off_in_blank;
-	bool temp_mst_deallocation_sequence;
 	bool override_dispclk_programming;
 	bool otg_crc_db;
 	bool disallow_dispclk_dppclk_ds;
@@ -979,6 +987,9 @@ struct dc_debug_options {
 	bool psp_disabled_wa;
 	unsigned int ips2_eval_delay_us;
 	unsigned int ips2_entry_delay_us;
+	bool disable_timeout;
+	bool disable_extblankadj;
+	unsigned int static_screen_wait_frames;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1389,13 +1400,6 @@ struct dc_surface_update {
 /*
  * Create a new surface with default parameters;
  */
-struct dc_plane_state *dc_create_plane_state(struct dc *dc);
-const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state);
-
-void dc_plane_state_retain(struct dc_plane_state *plane_state);
-void dc_plane_state_release(struct dc_plane_state *plane_state);
-
 void dc_gamma_retain(struct dc_gamma *dc_gamma);
 void dc_gamma_release(struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
@@ -1459,37 +1463,20 @@ enum dc_status dc_validate_global_state(
 		struct dc_state *new_ctx,
 		bool fast_validate);
 
-
-void dc_resource_state_construct(
-		const struct dc *dc,
-		struct dc_state *dst_ctx);
-
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
 		struct dc_stream_state *stream,
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
 
-void dc_resource_state_copy_construct(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx);
-
-void dc_resource_state_copy_construct_current(
-		const struct dc *dc,
-		struct dc_state *dst_ctx);
-
-void dc_resource_state_destruct(struct dc_state *context);
-
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *aud_chk);
 
 enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
 				 uint8_t stream_count);
 
-struct dc_state *dc_create_state(struct dc *dc);
-struct dc_state *dc_copy_state(struct dc_state *src_ctx);
-void dc_retain_state(struct dc_state *context);
-void dc_release_state(struct dc_state *context);
 
 struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -1541,7 +1528,13 @@ struct dc_link {
 	bool is_dig_mapping_flexible;
 	bool hpd_status; /* HPD status of link without physical HPD pin. */
 	bool is_hpd_pending; /* Indicates a new received hpd */
-	bool is_automated; /* Indicates automated testing */
+
+	/* USB4 DPIA links skip verifying link cap, instead performing the fallback method
+	 * for every link training. This is incompatible with DP LL compliance automation,
+	 * which expects the same link settings to be used every retry on a link loss.
+	 * This flag is used to skip the fallback when link loss occurs during automation.
+	 */
+	bool skip_fallback_on_link_loss;
 
 	bool edp_sink_present;
 
@@ -2092,6 +2085,20 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
+/*
+ * Communicate with DMUB to allow or disallow Panel Replay on the specified link:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @enable: enable(active) or disable(inactive) replay
+ * @wait: state transition need to wait the active set completed.
+ * @force_static: force disable(inactive) the replay
+ * @power_opts: set power optimazation parameters to DMUB.
+ *
+ * return: allow Replay active will return true, else will return false.
+ */
+bool dc_link_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
+		bool wait, bool force_static, const unsigned int *power_opts);
+
 bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
 /* On eDP links this function call will stall until T12 has elapsed.
@@ -2187,11 +2194,11 @@ int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
  *
  * @dc: pointer to dc struct
  * @stream: pointer to all possible streams
- * @num_streams: number of valid DPIA streams
+ * @count: number of valid DPIA streams
  *
  * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
  */
-bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams,
+bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams,
 		const unsigned int count);
 
 /* Sink Interfaces - A sink corresponds to a display output device */
@@ -2336,6 +2343,9 @@ void dc_hardware_release(struct dc *dc);
 void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+
+bool dc_set_replay_allow_active(struct dc *dc, bool active);
+
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 

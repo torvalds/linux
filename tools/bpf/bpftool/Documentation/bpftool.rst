@@ -20,7 +20,7 @@ SYNOPSIS
 
 	**bpftool** **version**
 
-	*OBJECT* := { **map** | **program** | **link** | **cgroup** | **perf** | **net** | **feature** |
+	*OBJECT* := { **map** | **prog** | **link** | **cgroup** | **perf** | **net** | **feature** |
 	**btf** | **gen** | **struct_ops** | **iter** }
 
 	*OPTIONS* := { { **-V** | **--version** } | |COMMON_OPTIONS| }

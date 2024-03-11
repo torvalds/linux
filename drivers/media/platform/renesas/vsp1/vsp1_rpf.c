@@ -81,10 +81,10 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 
 	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
-						 rpf->entity.config,
+						 rpf->entity.state,
 						 RWPF_PAD_SINK);
 	source_format = vsp1_entity_get_pad_format(&rpf->entity,
-						   rpf->entity.config,
+						   rpf->entity.state,
 						   RWPF_PAD_SOURCE);
 
 	infmt = VI6_RPF_INFMT_CIPM
@@ -158,7 +158,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		const struct v4l2_rect *compose;
 
 		compose = vsp1_entity_get_pad_selection(pipe->brx,
-							pipe->brx->config,
+							pipe->brx->state,
 							rpf->brx_input,
 							V4L2_SEL_TGT_COMPOSE);
 		left = compose->left;
@@ -302,7 +302,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	 * offsets are needed, as planes 2 and 3 always have identical
 	 * strides.
 	 */
-	crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+	crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.state);
 
 	/*
 	 * Partition Algorithm Control

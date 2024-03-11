@@ -75,21 +75,6 @@ int io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			  unsigned nr_args, u64 __user *tags);
 
-int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file);
-
-static inline bool io_file_need_scm(struct file *filp)
-{
-	return false;
-}
-
-static inline int io_scm_file_account(struct io_ring_ctx *ctx,
-				      struct file *file)
-{
-	if (likely(!io_file_need_scm(file)))
-		return 0;
-	return __io_scm_file_account(ctx, file);
-}
-
 int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			     unsigned nr_args);
 int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
@@ -117,17 +102,21 @@ static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
 	node->refs++;
 }
 
+static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
+					  struct io_ring_ctx *ctx)
+{
+	lockdep_assert_held(&ctx->uring_lock);
+	req->rsrc_node = ctx->rsrc_node;
+	io_charge_rsrc_node(ctx, ctx->rsrc_node);
+}
+
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 					struct io_ring_ctx *ctx,
 					unsigned int issue_flags)
 {
 	if (!req->rsrc_node) {
 		io_ring_submit_lock(ctx, issue_flags);
-
-		lockdep_assert_held(&ctx->uring_lock);
-
-		req->rsrc_node = ctx->rsrc_node;
-		io_charge_rsrc_node(ctx, ctx->rsrc_node);
+		__io_req_set_rsrc_node(req, ctx);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }

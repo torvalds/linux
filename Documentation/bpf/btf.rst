@@ -272,10 +272,8 @@ In this case, if the base type is an int type, it must be a regular int type:
   * ``BTF_INT_OFFSET()`` must be 0.
   * ``BTF_INT_BITS()`` must be equal to ``{1,2,4,8,16} * 8``.
 
-The following kernel patch introduced ``kind_flag`` and explained why both
-modes exist:
-
-  https://github.com/torvalds/linux/commit/9d5f9f701b1891466fb3dbb1806ad97716f95cc3#diff-fa650a64fdd3968396883d2fe8215ff3
+Commit 9d5f9f701b18 introduced ``kind_flag`` and explains why both modes
+exist.
 
 2.2.6 BTF_KIND_ENUM
 ~~~~~~~~~~~~~~~~~~~

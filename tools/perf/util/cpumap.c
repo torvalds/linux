@@ -672,7 +672,7 @@ struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 	static struct perf_cpu_map *online;
 
 	if (!online)
-		online = perf_cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
+		online = perf_cpu_map__new_online_cpus(); /* from /sys/devices/system/cpu/online */
 
 	return online;
 }

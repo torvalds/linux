@@ -296,7 +296,7 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 
 	/* Calculate the line rate from the pixel rate. */
 
-	fmt = v4l2_subdev_get_pad_format(&state->sd, sd_state, MIPI_CSI2_PAD_SINK);
+	fmt = v4l2_subdev_state_get_format(sd_state, MIPI_CSI2_PAD_SINK);
 	csi2_fmt = find_csi2_format(fmt->code);
 
 	link_freq = v4l2_get_link_freq(state->src_sd->ctrl_handler,
@@ -437,14 +437,15 @@ unlock:
 	return ret;
 }
 
-static int imx8mq_mipi_csi_init_cfg(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *sd_state)
+static int imx8mq_mipi_csi_init_state(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *fmt_sink;
 	struct v4l2_mbus_framefmt *fmt_source;
 
-	fmt_sink = v4l2_subdev_get_pad_format(sd, sd_state, MIPI_CSI2_PAD_SINK);
-	fmt_source = v4l2_subdev_get_pad_format(sd, sd_state, MIPI_CSI2_PAD_SOURCE);
+	fmt_sink = v4l2_subdev_state_get_format(sd_state, MIPI_CSI2_PAD_SINK);
+	fmt_source = v4l2_subdev_state_get_format(sd_state,
+						  MIPI_CSI2_PAD_SOURCE);
 
 	fmt_sink->code = MEDIA_BUS_FMT_SGBRG10_1X10;
 	fmt_sink->width = MIPI_CSI2_DEF_PIX_WIDTH;
@@ -477,7 +478,7 @@ static int imx8mq_mipi_csi_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = v4l2_subdev_get_pad_format(sd, sd_state, code->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, code->pad);
 		code->code = fmt->code;
 		return 0;
 	}
@@ -514,7 +515,7 @@ static int imx8mq_mipi_csi_set_fmt(struct v4l2_subdev *sd,
 	if (!csi2_fmt)
 		csi2_fmt = &imx8mq_mipi_csi_formats[0];
 
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, sdformat->pad);
+	fmt = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 
 	fmt->code = csi2_fmt->code;
 	fmt->width = sdformat->format.width;
@@ -523,7 +524,7 @@ static int imx8mq_mipi_csi_set_fmt(struct v4l2_subdev *sd,
 	sdformat->format = *fmt;
 
 	/* Propagate the format from sink to source. */
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, MIPI_CSI2_PAD_SOURCE);
+	fmt = v4l2_subdev_state_get_format(sd_state, MIPI_CSI2_PAD_SOURCE);
 	*fmt = sdformat->format;
 
 	return 0;
@@ -534,7 +535,6 @@ static const struct v4l2_subdev_video_ops imx8mq_mipi_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx8mq_mipi_csi_pad_ops = {
-	.init_cfg		= imx8mq_mipi_csi_init_cfg,
 	.enum_mbus_code		= imx8mq_mipi_csi_enum_mbus_code,
 	.get_fmt		= v4l2_subdev_get_fmt,
 	.set_fmt		= imx8mq_mipi_csi_set_fmt,
@@ -543,6 +543,10 @@ static const struct v4l2_subdev_pad_ops imx8mq_mipi_csi_pad_ops = {
 static const struct v4l2_subdev_ops imx8mq_mipi_csi_subdev_ops = {
 	.video	= &imx8mq_mipi_csi_video_ops,
 	.pad	= &imx8mq_mipi_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx8mq_mipi_csi_internal_ops = {
+	.init_state		= imx8mq_mipi_csi_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -759,6 +763,7 @@ static int imx8mq_mipi_csi_subdev_init(struct csi_state *state)
 	int ret;
 
 	v4l2_subdev_init(sd, &imx8mq_mipi_csi_subdev_ops);
+	sd->internal_ops = &imx8mq_mipi_csi_internal_ops;
 	sd->owner = THIS_MODULE;
 	snprintf(sd->name, sizeof(sd->name), "%s %s",
 		 MIPI_CSI2_SUBDEV_NAME, dev_name(state->dev));

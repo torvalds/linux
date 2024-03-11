@@ -21,6 +21,7 @@
 
 #include "lkc.h"
 #include "lxdialog/dialog.h"
+#include "mnconf-common.h"
 
 static const char mconf_readme[] =
 "Overview\n"
@@ -247,7 +248,7 @@ search_help[] =
 	"      -> PCI support (PCI [=y])\n"
 	"(1)     -> PCI access mode (<choice> [=y])\n"
 	"  Defined at drivers/pci/Kconfig:47\n"
-	"  Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
+	"  Depends on: X86_LOCAL_APIC && X86_IO_APIC\n"
 	"  Selects: LIBCRC32\n"
 	"  Selected by: BAR [=n]\n"
 	"-----------------------------------------------------------------\n"
@@ -286,7 +287,6 @@ static int single_menu_mode;
 static int show_all_options;
 static int save_and_exit;
 static int silent;
-static int jump_key_char;
 
 static void conf(struct menu *menu, struct menu *active_menu);
 
@@ -376,58 +376,6 @@ static void show_help(struct menu *menu)
 
 	show_helptext(menu_get_prompt(menu), str_get(&help));
 	str_free(&help);
-}
-
-struct search_data {
-	struct list_head *head;
-	struct menu *target;
-};
-
-static int next_jump_key(int key)
-{
-	if (key < '1' || key > '9')
-		return '1';
-
-	key++;
-
-	if (key > '9')
-		key = '1';
-
-	return key;
-}
-
-static int handle_search_keys(int key, size_t start, size_t end, void *_data)
-{
-	struct search_data *data = _data;
-	struct jump_key *pos;
-	int index = 0;
-
-	if (key < '1' || key > '9')
-		return 0;
-
-	list_for_each_entry(pos, data->head, entries) {
-		index = next_jump_key(index);
-
-		if (pos->offset < start)
-			continue;
-
-		if (pos->offset >= end)
-			break;
-
-		if (key == index) {
-			data->target = pos->target;
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-int get_jump_key_char(void)
-{
-	jump_key_char = next_jump_key(jump_key_char);
-
-	return jump_key_char;
 }
 
 static void search_conf(void)

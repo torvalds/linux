@@ -15,6 +15,16 @@
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
 
+typedef unsigned __bitwise bch_str_hash_flags_t;
+
+enum bch_str_hash_flags {
+	__BCH_HASH_SET_MUST_CREATE,
+	__BCH_HASH_SET_MUST_REPLACE,
+};
+
+#define BCH_HASH_SET_MUST_CREATE	(__force bch_str_hash_flags_t) BIT(__BCH_HASH_SET_MUST_CREATE)
+#define BCH_HASH_SET_MUST_REPLACE	(__force bch_str_hash_flags_t) BIT(__BCH_HASH_SET_MUST_REPLACE)
+
 static inline enum bch_str_hash_type
 bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 {
@@ -150,20 +160,15 @@ static inline bool is_visible_key(struct bch_hash_desc desc, subvol_inum inum, s
 }
 
 static __always_inline int
-bch2_hash_lookup(struct btree_trans *trans,
+bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 		 struct btree_iter *iter,
 		 const struct bch_hash_desc desc,
 		 const struct bch_hash_info *info,
 		 subvol_inum inum, const void *key,
-		 unsigned flags)
+		 unsigned flags, u32 snapshot)
 {
 	struct bkey_s_c k;
-	u32 snapshot;
 	int ret;
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		return ret;
 
 	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
@@ -182,6 +187,19 @@ bch2_hash_lookup(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, iter);
 
 	return ret ?: -BCH_ERR_ENOENT_str_hash_lookup;
+}
+
+static __always_inline int
+bch2_hash_lookup(struct btree_trans *trans,
+		 struct btree_iter *iter,
+		 const struct bch_hash_desc desc,
+		 const struct bch_hash_info *info,
+		 subvol_inum inum, const void *key,
+		 unsigned flags)
+{
+	u32 snapshot;
+	return  bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot) ?:
+		bch2_hash_lookup_in_snapshot(trans, iter, desc, info, inum, key, flags, snapshot);
 }
 
 static __always_inline int
@@ -246,7 +264,7 @@ int bch2_hash_set_snapshot(struct btree_trans *trans,
 			   const struct bch_hash_info *info,
 			   subvol_inum inum, u32 snapshot,
 			   struct bkey_i *insert,
-			   int flags,
+			   bch_str_hash_flags_t str_hash_flags,
 			   int update_flags)
 {
 	struct btree_iter iter, slot = { NULL };
@@ -269,7 +287,7 @@ int bch2_hash_set_snapshot(struct btree_trans *trans,
 		}
 
 		if (!slot.path &&
-		    !(flags & BCH_HASH_SET_MUST_REPLACE))
+		    !(str_hash_flags & BCH_HASH_SET_MUST_REPLACE))
 			bch2_trans_copy_iter(&slot, &iter);
 
 		if (k.k->type != KEY_TYPE_hash_whiteout)
@@ -287,16 +305,16 @@ found:
 	found = true;
 not_found:
 
-	if (!found && (flags & BCH_HASH_SET_MUST_REPLACE)) {
+	if (!found && (str_hash_flags & BCH_HASH_SET_MUST_REPLACE)) {
 		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
-	} else if (found && (flags & BCH_HASH_SET_MUST_CREATE)) {
+	} else if (found && (str_hash_flags & BCH_HASH_SET_MUST_CREATE)) {
 		ret = -EEXIST;
 	} else {
 		if (!found && slot.path)
 			swap(iter, slot);
 
 		insert->k.p = iter.pos;
-		ret = bch2_trans_update(trans, &iter, insert, 0);
+		ret = bch2_trans_update(trans, &iter, insert, update_flags);
 	}
 
 	goto out;
@@ -307,7 +325,8 @@ int bch2_hash_set(struct btree_trans *trans,
 		  const struct bch_hash_desc desc,
 		  const struct bch_hash_info *info,
 		  subvol_inum inum,
-		  struct bkey_i *insert, int flags)
+		  struct bkey_i *insert,
+		  bch_str_hash_flags_t str_hash_flags)
 {
 	u32 snapshot;
 	int ret;
@@ -319,7 +338,7 @@ int bch2_hash_set(struct btree_trans *trans,
 	insert->k.p.inode = inum.inum;
 
 	return bch2_hash_set_snapshot(trans, desc, info, inum,
-				      snapshot, insert, flags, 0);
+				      snapshot, insert, str_hash_flags, 0);
 }
 
 static __always_inline

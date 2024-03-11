@@ -396,31 +396,12 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 	return i915->gt[0];
 }
 
-/* Simple iterator over all initialised engines */
-#define for_each_engine(engine__, gt__, id__) \
-	for ((id__) = 0; \
-	     (id__) < I915_NUM_ENGINES; \
-	     (id__)++) \
-		for_each_if ((engine__) = (gt__)->engine[(id__)])
-
-/* Iterator over subset of engines selected by mask */
-#define for_each_engine_masked(engine__, gt__, mask__, tmp__) \
-	for ((tmp__) = (mask__) & (gt__)->info.engine_mask; \
-	     (tmp__) ? \
-	     ((engine__) = (gt__)->engine[__mask_next_bit(tmp__)]), 1 : \
-	     0;)
-
 #define rb_to_uabi_engine(rb) \
 	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
 
 #define for_each_uabi_engine(engine__, i915__) \
 	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
 	     (engine__); \
-	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
-
-#define for_each_uabi_class_engine(engine__, class__, i915__) \
-	for ((engine__) = intel_engine_lookup_user((i915__), (class__), 0); \
-	     (engine__) && (engine__)->uabi_class == (class__); \
 	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
 #define INTEL_INFO(i915)	((i915)->__info)
@@ -575,6 +556,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_DG2(i915)	IS_PLATFORM(i915, INTEL_DG2)
 #define IS_PONTEVECCHIO(i915) IS_PLATFORM(i915, INTEL_PONTEVECCHIO)
 #define IS_METEORLAKE(i915) IS_PLATFORM(i915, INTEL_METEORLAKE)
+#define IS_LUNARLAKE(i915) 0
 
 #define IS_DG2_G10(i915) \
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G10)

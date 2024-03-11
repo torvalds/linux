@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2021, 2023 Linaro Limited
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -528,7 +528,8 @@ static void optee_handle_ffa_rpc(struct tee_context *ctx, struct optee *optee,
 
 static int optee_ffa_yielding_call(struct tee_context *ctx,
 				   struct ffa_send_direct_data *data,
-				   struct optee_msg_arg *rpc_arg)
+				   struct optee_msg_arg *rpc_arg,
+				   bool system_thread)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
@@ -541,7 +542,7 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 	int rc;
 
 	/* Initialize waiter */
-	optee_cq_wait_init(&optee->call_queue, &w);
+	optee_cq_wait_init(&optee->call_queue, &w, system_thread);
 	while (true) {
 		rc = msg_ops->sync_send_receive(ffa_dev, data);
 		if (rc)
@@ -604,6 +605,7 @@ done:
  * @ctx:	calling context
  * @shm:	shared memory holding the message to pass to secure world
  * @offs:	offset of the message in @shm
+ * @system_thread: true if caller requests TEE system thread support
  *
  * Does a FF-A call to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -612,7 +614,8 @@ done:
  */
 
 static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *shm, u_int offs)
+				      struct tee_shm *shm, u_int offs,
+				      bool system_thread)
 {
 	struct ffa_send_direct_data data = {
 		.data0 = OPTEE_FFA_YIELDING_CALL_WITH_ARG,
@@ -642,7 +645,7 @@ static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
 	if (IS_ERR(rpc_arg))
 		return PTR_ERR(rpc_arg);
 
-	return optee_ffa_yielding_call(ctx, &data, rpc_arg);
+	return optee_ffa_yielding_call(ctx, &data, rpc_arg, system_thread);
 }
 
 /*
@@ -692,7 +695,8 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 				    const struct ffa_ops *ops,
 				    u32 *sec_caps,
-				    unsigned int *rpc_param_count)
+				    unsigned int *rpc_param_count,
+				    unsigned int *max_notif_value)
 {
 	struct ffa_send_direct_data data = { OPTEE_FFA_EXCHANGE_CAPABILITIES };
 	int rc;
@@ -709,8 +713,37 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 
 	*rpc_param_count = (u8)data.data1;
 	*sec_caps = data.data2;
+	if (data.data3)
+		*max_notif_value = data.data3;
+	else
+		*max_notif_value = OPTEE_DEFAULT_MAX_NOTIF_VALUE;
 
 	return true;
+}
+
+static void notif_callback(int notify_id, void *cb_data)
+{
+	struct optee *optee = cb_data;
+
+	if (notify_id == optee->ffa.bottom_half_value)
+		optee_do_bottom_half(optee->ctx);
+	else
+		optee_notif_send(optee, notify_id);
+}
+
+static int enable_async_notif(struct optee *optee)
+{
+	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
+	struct ffa_send_direct_data data = {
+		.data0 = OPTEE_FFA_ENABLE_ASYNC_NOTIF,
+		.data1 = optee->ffa.bottom_half_value,
+	};
+	int rc;
+
+	rc = ffa_dev->ops->msg_ops->sync_send_receive(ffa_dev, &data);
+	if (rc)
+		return rc;
+	return data.data0;
 }
 
 static void optee_ffa_get_version(struct tee_device *teedev,
@@ -775,7 +808,11 @@ static const struct optee_ops optee_ffa_ops = {
 static void optee_ffa_remove(struct ffa_device *ffa_dev)
 {
 	struct optee *optee = ffa_dev_get_drvdata(ffa_dev);
+	u32 bottom_half_id = optee->ffa.bottom_half_value;
 
+	if (bottom_half_id != U32_MAX)
+		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
+							      bottom_half_id);
 	optee_remove_common(optee);
 
 	mutex_destroy(&optee->ffa.mutex);
@@ -784,9 +821,51 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 	kfree(optee);
 }
 
+static int optee_ffa_async_notif_init(struct ffa_device *ffa_dev,
+				      struct optee *optee)
+{
+	bool is_per_vcpu = false;
+	u32 notif_id = 0;
+	int rc;
+
+	while (true) {
+		rc = ffa_dev->ops->notifier_ops->notify_request(ffa_dev,
+								is_per_vcpu,
+								notif_callback,
+								optee,
+								notif_id);
+		if (!rc)
+			break;
+		/*
+		 * -EACCES means that the notification ID was
+		 * already bound, try the next one as long as we
+		 * haven't reached the max. Any other error is a
+		 * permanent error, so skip asynchronous
+		 * notifications in that case.
+		 */
+		if (rc != -EACCES)
+			return rc;
+		notif_id++;
+		if (notif_id >= OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE)
+			return rc;
+	}
+	optee->ffa.bottom_half_value = notif_id;
+
+	rc = enable_async_notif(optee);
+	if (rc < 0) {
+		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
+							      notif_id);
+		optee->ffa.bottom_half_value = U32_MAX;
+	}
+
+	return rc;
+}
+
 static int optee_ffa_probe(struct ffa_device *ffa_dev)
 {
+	const struct ffa_notifier_ops *notif_ops;
 	const struct ffa_ops *ffa_ops;
+	unsigned int max_notif_value;
 	unsigned int rpc_param_count;
 	struct tee_shm_pool *pool;
 	struct tee_device *teedev;
@@ -797,12 +876,13 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	int rc;
 
 	ffa_ops = ffa_dev->ops;
+	notif_ops = ffa_ops->notifier_ops;
 
 	if (!optee_ffa_api_is_compatbile(ffa_dev, ffa_ops))
 		return -EINVAL;
 
 	if (!optee_ffa_exchange_caps(ffa_dev, ffa_ops, &sec_caps,
-				     &rpc_param_count))
+				     &rpc_param_count, &max_notif_value))
 		return -EINVAL;
 	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
 		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
@@ -820,6 +900,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 
 	optee->ops = &optee_ffa_ops;
 	optee->ffa.ffa_dev = ffa_dev;
+	optee->ffa.bottom_half_value = U32_MAX;
 	optee->rpc_param_count = rpc_param_count;
 
 	teedev = tee_device_alloc(&optee_ffa_clnt_desc, NULL, optee->pool,
@@ -850,8 +931,7 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	if (rc)
 		goto err_unreg_supp_teedev;
 	mutex_init(&optee->ffa.mutex);
-	mutex_init(&optee->call_queue.mutex);
-	INIT_LIST_HEAD(&optee->call_queue.waiters);
+	optee_cq_init(&optee->call_queue, 0);
 	optee_supp_init(&optee->supp);
 	optee_shm_arg_cache_init(optee, arg_cache_flags);
 	ffa_dev_set_drvdata(ffa_dev, optee);
@@ -864,6 +944,12 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	rc = optee_notif_init(optee, OPTEE_DEFAULT_MAX_NOTIF_VALUE);
 	if (rc)
 		goto err_close_ctx;
+	if (sec_caps & OPTEE_FFA_SEC_CAP_ASYNC_NOTIF) {
+		rc = optee_ffa_async_notif_init(ffa_dev, optee);
+		if (rc < 0)
+			pr_err("Failed to initialize async notifications: %d",
+			       rc);
+	}
 
 	rc = optee_enumerate_devices(PTA_CMD_GET_DEVICES);
 	if (rc)
@@ -874,6 +960,9 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 
 err_unregister_devices:
 	optee_unregister_devices();
+	if (optee->ffa.bottom_half_value != U32_MAX)
+		notif_ops->notify_relinquish(ffa_dev,
+					     optee->ffa.bottom_half_value);
 	optee_notif_uninit(optee);
 err_close_ctx:
 	teedev_close_context(ctx);

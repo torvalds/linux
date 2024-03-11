@@ -61,19 +61,6 @@ config MD_BITMAP_FILE
 	  various kernel APIs and can only work with files on a file system not
 	  actually sitting on the MD device.
 
-config MD_LINEAR
-	tristate "Linear (append) mode (deprecated)"
-	depends on BLK_DEV_MD
-	help
-	  If you say Y here, then your multiple devices driver will be able to
-	  use the so-called linear mode, i.e. it will combine the hard disk
-	  partitions by simply appending one to the other.
-
-	  To compile this as a module, choose M here: the module
-	  will be called linear.
-
-	  If unsure, say Y.
-
 config MD_RAID0
 	tristate "RAID-0 (striping) mode"
 	depends on BLK_DEV_MD
@@ -171,27 +158,6 @@ config MD_RAID456
 	  will be called raid456.
 
 	  If unsure, say Y.
-
-config MD_MULTIPATH
-	tristate "Multipath I/O support (deprecated)"
-	depends on BLK_DEV_MD
-	help
-	  MD_MULTIPATH provides a simple multi-path personality for use
-	  the MD framework.  It is not under active development.  New
-	  projects should consider using DM_MULTIPATH which has more
-	  features and more testing.
-
-	  If unsure, say N.
-
-config MD_FAULTY
-	tristate "Faulty test module for MD (deprecated)"
-	depends on BLK_DEV_MD
-	help
-	  The "faulty" module allows for a block device that occasionally returns
-	  read or write errors.  It is useful for testing.
-
-	  In unsure, say N.
-
 
 config MD_CLUSTER
 	tristate "Cluster Support for MD"

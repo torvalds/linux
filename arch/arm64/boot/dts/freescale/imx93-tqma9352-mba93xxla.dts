@@ -18,6 +18,7 @@
 	model = "TQ-Systems i.MX93 TQMa93xxLA on MBa93xxLA SBC";
 	compatible = "tq,imx93-tqma9352-mba93xxla",
 		     "tq,imx93-tqma9352", "fsl,imx93";
+	chassis-type = "embedded";
 
 	chosen {
 		stdout-path = &lpuart1;

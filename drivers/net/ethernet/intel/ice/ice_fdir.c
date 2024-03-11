@@ -604,55 +604,32 @@ ice_set_fd_desc_val(struct ice_fd_fltr_desc_ctx *ctx,
 	u64 qword;
 
 	/* prep QW0 of FD filter programming desc */
-	qword = ((u64)ctx->qindex << ICE_FXD_FLTR_QW0_QINDEX_S) &
-		ICE_FXD_FLTR_QW0_QINDEX_M;
-	qword |= ((u64)ctx->comp_q << ICE_FXD_FLTR_QW0_COMP_Q_S) &
-		 ICE_FXD_FLTR_QW0_COMP_Q_M;
-	qword |= ((u64)ctx->comp_report << ICE_FXD_FLTR_QW0_COMP_REPORT_S) &
-		 ICE_FXD_FLTR_QW0_COMP_REPORT_M;
-	qword |= ((u64)ctx->fd_space << ICE_FXD_FLTR_QW0_FD_SPACE_S) &
-		 ICE_FXD_FLTR_QW0_FD_SPACE_M;
-	qword |= ((u64)ctx->cnt_index << ICE_FXD_FLTR_QW0_STAT_CNT_S) &
-		 ICE_FXD_FLTR_QW0_STAT_CNT_M;
-	qword |= ((u64)ctx->cnt_ena << ICE_FXD_FLTR_QW0_STAT_ENA_S) &
-		 ICE_FXD_FLTR_QW0_STAT_ENA_M;
-	qword |= ((u64)ctx->evict_ena << ICE_FXD_FLTR_QW0_EVICT_ENA_S) &
-		 ICE_FXD_FLTR_QW0_EVICT_ENA_M;
-	qword |= ((u64)ctx->toq << ICE_FXD_FLTR_QW0_TO_Q_S) &
-		 ICE_FXD_FLTR_QW0_TO_Q_M;
-	qword |= ((u64)ctx->toq_prio << ICE_FXD_FLTR_QW0_TO_Q_PRI_S) &
-		 ICE_FXD_FLTR_QW0_TO_Q_PRI_M;
-	qword |= ((u64)ctx->dpu_recipe << ICE_FXD_FLTR_QW0_DPU_RECIPE_S) &
-		 ICE_FXD_FLTR_QW0_DPU_RECIPE_M;
-	qword |= ((u64)ctx->drop << ICE_FXD_FLTR_QW0_DROP_S) &
-		 ICE_FXD_FLTR_QW0_DROP_M;
-	qword |= ((u64)ctx->flex_prio << ICE_FXD_FLTR_QW0_FLEX_PRI_S) &
-		 ICE_FXD_FLTR_QW0_FLEX_PRI_M;
-	qword |= ((u64)ctx->flex_mdid << ICE_FXD_FLTR_QW0_FLEX_MDID_S) &
-		 ICE_FXD_FLTR_QW0_FLEX_MDID_M;
-	qword |= ((u64)ctx->flex_val << ICE_FXD_FLTR_QW0_FLEX_VAL_S) &
-		 ICE_FXD_FLTR_QW0_FLEX_VAL_M;
+	qword = FIELD_PREP(ICE_FXD_FLTR_QW0_QINDEX_M, ctx->qindex);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_COMP_Q_M, ctx->comp_q);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_COMP_REPORT_M, ctx->comp_report);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_FD_SPACE_M, ctx->fd_space);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_STAT_CNT_M, ctx->cnt_index);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_STAT_ENA_M, ctx->cnt_ena);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_EVICT_ENA_M, ctx->evict_ena);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_TO_Q_M, ctx->toq);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_TO_Q_PRI_M, ctx->toq_prio);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_DPU_RECIPE_M, ctx->dpu_recipe);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_DROP_M, ctx->drop);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_FLEX_PRI_M, ctx->flex_prio);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_FLEX_MDID_M, ctx->flex_mdid);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW0_FLEX_VAL_M, ctx->flex_val);
 	fdir_desc->qidx_compq_space_stat = cpu_to_le64(qword);
 
 	/* prep QW1 of FD filter programming desc */
-	qword = ((u64)ctx->dtype << ICE_FXD_FLTR_QW1_DTYPE_S) &
-		ICE_FXD_FLTR_QW1_DTYPE_M;
-	qword |= ((u64)ctx->pcmd << ICE_FXD_FLTR_QW1_PCMD_S) &
-		 ICE_FXD_FLTR_QW1_PCMD_M;
-	qword |= ((u64)ctx->desc_prof_prio << ICE_FXD_FLTR_QW1_PROF_PRI_S) &
-		 ICE_FXD_FLTR_QW1_PROF_PRI_M;
-	qword |= ((u64)ctx->desc_prof << ICE_FXD_FLTR_QW1_PROF_S) &
-		 ICE_FXD_FLTR_QW1_PROF_M;
-	qword |= ((u64)ctx->fd_vsi << ICE_FXD_FLTR_QW1_FD_VSI_S) &
-		 ICE_FXD_FLTR_QW1_FD_VSI_M;
-	qword |= ((u64)ctx->swap << ICE_FXD_FLTR_QW1_SWAP_S) &
-		 ICE_FXD_FLTR_QW1_SWAP_M;
-	qword |= ((u64)ctx->fdid_prio << ICE_FXD_FLTR_QW1_FDID_PRI_S) &
-		 ICE_FXD_FLTR_QW1_FDID_PRI_M;
-	qword |= ((u64)ctx->fdid_mdid << ICE_FXD_FLTR_QW1_FDID_MDID_S) &
-		 ICE_FXD_FLTR_QW1_FDID_MDID_M;
-	qword |= ((u64)ctx->fdid << ICE_FXD_FLTR_QW1_FDID_S) &
-		 ICE_FXD_FLTR_QW1_FDID_M;
+	qword = FIELD_PREP(ICE_FXD_FLTR_QW1_DTYPE_M, ctx->dtype);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_PCMD_M, ctx->pcmd);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_PROF_PRI_M, ctx->desc_prof_prio);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_PROF_M, ctx->desc_prof);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_FD_VSI_M, ctx->fd_vsi);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_SWAP_M, ctx->swap);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_FDID_PRI_M, ctx->fdid_prio);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_FDID_MDID_M, ctx->fdid_mdid);
+	qword |= FIELD_PREP(ICE_FXD_FLTR_QW1_FDID_M, ctx->fdid);
 	fdir_desc->dtype_cmd_vsi_fdid = cpu_to_le64(qword);
 }
 

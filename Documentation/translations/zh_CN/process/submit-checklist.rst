@@ -53,8 +53,7 @@ Linux内核补丁提交检查单
 9) 通过 sparse 清查。
    （参见 Documentation/translations/zh_CN/dev-tools/sparse.rst ）
 
-10) 使用 ``make checkstack`` 和 ``make namespacecheck`` 并修复他们发现的任何
-    问题。
+10) 使用 ``make checkstack`` 并修复他们发现的任何问题。
 
     .. note::
 

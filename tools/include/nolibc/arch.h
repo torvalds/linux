@@ -23,7 +23,7 @@
 #include "arch-arm.h"
 #elif defined(__aarch64__)
 #include "arch-aarch64.h"
-#elif defined(__mips__) && defined(_ABIO32)
+#elif defined(__mips__)
 #include "arch-mips.h"
 #elif defined(__powerpc__)
 #include "arch-powerpc.h"
@@ -33,6 +33,8 @@
 #include "arch-s390.h"
 #elif defined(__loongarch__)
 #include "arch-loongarch.h"
+#else
+#error Unsupported Architecture
 #endif
 
 #endif /* _NOLIBC_ARCH_H */

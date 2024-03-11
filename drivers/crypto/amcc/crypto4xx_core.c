@@ -1211,26 +1211,6 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 	} },
 	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
 		.base = {
-			.cra_name = "cfb(aes)",
-			.cra_driver_name = "cfb-aes-ppc4xx",
-			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
-			.cra_flags = CRYPTO_ALG_ASYNC |
-				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
-			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
-			.cra_module = THIS_MODULE,
-		},
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.ivsize	= AES_IV_SIZE,
-		.setkey	= crypto4xx_setkey_aes_cfb,
-		.encrypt = crypto4xx_encrypt_iv_stream,
-		.decrypt = crypto4xx_decrypt_iv_stream,
-		.init = crypto4xx_sk_init,
-		.exit = crypto4xx_sk_exit,
-	} },
-	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
-		.base = {
 			.cra_name = "ctr(aes)",
 			.cra_driver_name = "ctr-aes-ppc4xx",
 			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
@@ -1286,26 +1266,6 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.setkey	= crypto4xx_setkey_aes_ecb,
 		.encrypt = crypto4xx_encrypt_noiv_block,
 		.decrypt = crypto4xx_decrypt_noiv_block,
-		.init = crypto4xx_sk_init,
-		.exit = crypto4xx_sk_exit,
-	} },
-	{ .type = CRYPTO_ALG_TYPE_SKCIPHER, .u.cipher = {
-		.base = {
-			.cra_name = "ofb(aes)",
-			.cra_driver_name = "ofb-aes-ppc4xx",
-			.cra_priority = CRYPTO4XX_CRYPTO_PRIORITY,
-			.cra_flags = CRYPTO_ALG_ASYNC |
-				CRYPTO_ALG_KERN_DRIVER_ONLY,
-			.cra_blocksize = 1,
-			.cra_ctxsize = sizeof(struct crypto4xx_ctx),
-			.cra_module = THIS_MODULE,
-		},
-		.min_keysize = AES_MIN_KEY_SIZE,
-		.max_keysize = AES_MAX_KEY_SIZE,
-		.ivsize	= AES_IV_SIZE,
-		.setkey	= crypto4xx_setkey_aes_ofb,
-		.encrypt = crypto4xx_encrypt_iv_stream,
-		.decrypt = crypto4xx_decrypt_iv_stream,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },

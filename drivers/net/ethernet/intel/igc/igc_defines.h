@@ -317,6 +317,8 @@
 #define IGC_TXD_CMD_TSE		0x04000000 /* TCP Seg enable */
 #define IGC_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
+#define IGC_TXD_PTP2_TIMER_1	0x00000020
+
 /* IPSec Encrypt Enable */
 #define IGC_ADVTXD_L4LEN_SHIFT	8  /* Adv ctxt L4LEN shift */
 #define IGC_ADVTXD_MSS_SHIFT	16 /* Adv ctxt MSS shift */

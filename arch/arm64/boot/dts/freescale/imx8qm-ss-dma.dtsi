@@ -128,21 +128,25 @@
 &lpuart0 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
 	dmas = <&edma2 13 0 0>, <&edma2 12 0 1>;
+	dma-names = "rx","tx";
 };
 
 &lpuart1 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
 	dmas = <&edma2 15 0 0>, <&edma2 14 0 1>;
+	dma-names = "rx","tx";
 };
 
 &lpuart2 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
 	dmas = <&edma2 17 0 0>, <&edma2 16 0 1>;
+	dma-names = "rx","tx";
 };
 
 &lpuart3 {
 	compatible = "fsl,imx8qm-lpuart", "fsl,imx8qxp-lpuart";
 	dmas = <&edma2 19 0 0>, <&edma2 18 0 1>;
+	dma-names = "rx","tx";
 };
 
 &i2c0 {

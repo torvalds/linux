@@ -9,8 +9,16 @@
 
 #include "internal.h"
 
+/*
+ * Outside of this file vfs{g,u}id_t are always created from k{g,u}id_t,
+ * never from raw values. These are just internal helpers.
+ */
+#define VFSUIDT_INIT_RAW(val) (vfsuid_t){ val }
+#define VFSGIDT_INIT_RAW(val) (vfsgid_t){ val }
+
 struct mnt_idmap {
-	struct user_namespace *owner;
+	struct uid_gid_map uid_map;
+	struct uid_gid_map gid_map;
 	refcount_t count;
 };
 
@@ -20,23 +28,9 @@ struct mnt_idmap {
  * mapped to {g,u}id 1, [...], {g,u}id 1000 to {g,u}id 1000, [...].
  */
 struct mnt_idmap nop_mnt_idmap = {
-	.owner	= &init_user_ns,
 	.count	= REFCOUNT_INIT(1),
 };
 EXPORT_SYMBOL_GPL(nop_mnt_idmap);
-
-/**
- * check_fsmapping - check whether an mount idmapping is allowed
- * @idmap: idmap of the relevent mount
- * @sb:    super block of the filesystem
- *
- * Return: true if @idmap is allowed, false if not.
- */
-bool check_fsmapping(const struct mnt_idmap *idmap,
-		     const struct super_block *sb)
-{
-	return idmap->owner != sb->s_user_ns;
-}
 
 /**
  * initial_idmapping - check whether this is the initial mapping
@@ -53,26 +47,6 @@ static inline bool initial_idmapping(const struct user_namespace *ns)
 }
 
 /**
- * no_idmapping - check whether we can skip remapping a kuid/gid
- * @mnt_userns: the mount's idmapping
- * @fs_userns: the filesystem's idmapping
- *
- * This function can be used to check whether a remapping between two
- * idmappings is required.
- * An idmapped mount is a mount that has an idmapping attached to it that
- * is different from the filsystem's idmapping and the initial idmapping.
- * If the initial mapping is used or the idmapping of the mount and the
- * filesystem are identical no remapping is required.
- *
- * Return: true if remapping can be skipped, false if not.
- */
-static inline bool no_idmapping(const struct user_namespace *mnt_userns,
-				const struct user_namespace *fs_userns)
-{
-	return initial_idmapping(mnt_userns) || mnt_userns == fs_userns;
-}
-
-/**
  * make_vfsuid - map a filesystem kuid according to an idmapping
  * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
@@ -81,8 +55,8 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
  * Take a @kuid and remap it from @fs_userns into @idmap. Use this
  * function when preparing a @kuid to be reported to userspace.
  *
- * If no_idmapping() determines that this is not an idmapped mount we can
- * simply return @kuid unchanged.
+ * If initial_idmapping() determines that this is not an idmapped mount
+ * we can simply return @kuid unchanged.
  * If initial_idmapping() tells us that the filesystem is not mounted with an
  * idmapping we know the value of @kuid won't change when calling
  * from_kuid() so we can simply retrieve the value via __kuid_val()
@@ -94,13 +68,12 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
  */
 
 vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
-				   struct user_namespace *fs_userns,
-				   kuid_t kuid)
+		     struct user_namespace *fs_userns,
+		     kuid_t kuid)
 {
 	uid_t uid;
-	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return VFSUIDT_INIT(kuid);
 	if (initial_idmapping(fs_userns))
 		uid = __kuid_val(kuid);
@@ -108,7 +81,7 @@ vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
 		uid = from_kuid(fs_userns, kuid);
 	if (uid == (uid_t)-1)
 		return INVALID_VFSUID;
-	return VFSUIDT_INIT(make_kuid(mnt_userns, uid));
+	return VFSUIDT_INIT_RAW(map_id_down(&idmap->uid_map, uid));
 }
 EXPORT_SYMBOL_GPL(make_vfsuid);
 
@@ -121,8 +94,8 @@ EXPORT_SYMBOL_GPL(make_vfsuid);
  * Take a @kgid and remap it from @fs_userns into @idmap. Use this
  * function when preparing a @kgid to be reported to userspace.
  *
- * If no_idmapping() determines that this is not an idmapped mount we can
- * simply return @kgid unchanged.
+ * If initial_idmapping() determines that this is not an idmapped mount
+ * we can simply return @kgid unchanged.
  * If initial_idmapping() tells us that the filesystem is not mounted with an
  * idmapping we know the value of @kgid won't change when calling
  * from_kgid() so we can simply retrieve the value via __kgid_val()
@@ -136,9 +109,8 @@ vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
 		     struct user_namespace *fs_userns, kgid_t kgid)
 {
 	gid_t gid;
-	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return VFSGIDT_INIT(kgid);
 	if (initial_idmapping(fs_userns))
 		gid = __kgid_val(kgid);
@@ -146,7 +118,7 @@ vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
 		gid = from_kgid(fs_userns, kgid);
 	if (gid == (gid_t)-1)
 		return INVALID_VFSGID;
-	return VFSGIDT_INIT(make_kgid(mnt_userns, gid));
+	return VFSGIDT_INIT_RAW(map_id_down(&idmap->gid_map, gid));
 }
 EXPORT_SYMBOL_GPL(make_vfsgid);
 
@@ -165,11 +137,10 @@ kuid_t from_vfsuid(struct mnt_idmap *idmap,
 		   struct user_namespace *fs_userns, vfsuid_t vfsuid)
 {
 	uid_t uid;
-	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return AS_KUIDT(vfsuid);
-	uid = from_kuid(mnt_userns, AS_KUIDT(vfsuid));
+	uid = map_id_up(&idmap->uid_map, __vfsuid_val(vfsuid));
 	if (uid == (uid_t)-1)
 		return INVALID_UID;
 	if (initial_idmapping(fs_userns))
@@ -193,11 +164,10 @@ kgid_t from_vfsgid(struct mnt_idmap *idmap,
 		   struct user_namespace *fs_userns, vfsgid_t vfsgid)
 {
 	gid_t gid;
-	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return AS_KGIDT(vfsgid);
-	gid = from_kgid(mnt_userns, AS_KGIDT(vfsgid));
+	gid = map_id_up(&idmap->gid_map, __vfsgid_val(vfsgid));
 	if (gid == (gid_t)-1)
 		return INVALID_GID;
 	if (initial_idmapping(fs_userns))
@@ -228,16 +198,91 @@ int vfsgid_in_group_p(vfsgid_t vfsgid)
 #endif
 EXPORT_SYMBOL_GPL(vfsgid_in_group_p);
 
+static int copy_mnt_idmap(struct uid_gid_map *map_from,
+			  struct uid_gid_map *map_to)
+{
+	struct uid_gid_extent *forward, *reverse;
+	u32 nr_extents = READ_ONCE(map_from->nr_extents);
+	/* Pairs with smp_wmb() when writing the idmapping. */
+	smp_rmb();
+
+	/*
+	 * Don't blindly copy @map_to into @map_from if nr_extents is
+	 * smaller or equal to UID_GID_MAP_MAX_BASE_EXTENTS. Since we
+	 * read @nr_extents someone could have written an idmapping and
+	 * then we might end up with inconsistent data. So just don't do
+	 * anything at all.
+	 */
+	if (nr_extents == 0)
+		return 0;
+
+	/*
+	 * Here we know that nr_extents is greater than zero which means
+	 * a map has been written. Since idmappings can't be changed
+	 * once they have been written we know that we can safely copy
+	 * from @map_to into @map_from.
+	 */
+
+	if (nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS) {
+		*map_to = *map_from;
+		return 0;
+	}
+
+	forward = kmemdup(map_from->forward,
+			  nr_extents * sizeof(struct uid_gid_extent),
+			  GFP_KERNEL_ACCOUNT);
+	if (!forward)
+		return -ENOMEM;
+
+	reverse = kmemdup(map_from->reverse,
+			  nr_extents * sizeof(struct uid_gid_extent),
+			  GFP_KERNEL_ACCOUNT);
+	if (!reverse) {
+		kfree(forward);
+		return -ENOMEM;
+	}
+
+	/*
+	 * The idmapping isn't exposed anywhere so we don't need to care
+	 * about ordering between extent pointers and @nr_extents
+	 * initialization.
+	 */
+	map_to->forward = forward;
+	map_to->reverse = reverse;
+	map_to->nr_extents = nr_extents;
+	return 0;
+}
+
+static void free_mnt_idmap(struct mnt_idmap *idmap)
+{
+	if (idmap->uid_map.nr_extents > UID_GID_MAP_MAX_BASE_EXTENTS) {
+		kfree(idmap->uid_map.forward);
+		kfree(idmap->uid_map.reverse);
+	}
+	if (idmap->gid_map.nr_extents > UID_GID_MAP_MAX_BASE_EXTENTS) {
+		kfree(idmap->gid_map.forward);
+		kfree(idmap->gid_map.reverse);
+	}
+	kfree(idmap);
+}
+
 struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns)
 {
 	struct mnt_idmap *idmap;
+	int ret;
 
 	idmap = kzalloc(sizeof(struct mnt_idmap), GFP_KERNEL_ACCOUNT);
 	if (!idmap)
 		return ERR_PTR(-ENOMEM);
 
-	idmap->owner = get_user_ns(mnt_userns);
 	refcount_set(&idmap->count, 1);
+	ret = copy_mnt_idmap(&mnt_userns->uid_map, &idmap->uid_map);
+	if (!ret)
+		ret = copy_mnt_idmap(&mnt_userns->gid_map, &idmap->gid_map);
+	if (ret) {
+		free_mnt_idmap(idmap);
+		idmap = ERR_PTR(ret);
+	}
 	return idmap;
 }
 
@@ -267,9 +312,7 @@ EXPORT_SYMBOL_GPL(mnt_idmap_get);
  */
 void mnt_idmap_put(struct mnt_idmap *idmap)
 {
-	if (idmap != &nop_mnt_idmap && refcount_dec_and_test(&idmap->count)) {
-		put_user_ns(idmap->owner);
-		kfree(idmap);
-	}
+	if (idmap != &nop_mnt_idmap && refcount_dec_and_test(&idmap->count))
+		free_mnt_idmap(idmap);
 }
 EXPORT_SYMBOL_GPL(mnt_idmap_put);

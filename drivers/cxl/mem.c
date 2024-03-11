@@ -217,16 +217,15 @@ static DEVICE_ATTR_WO(trigger_poison_list);
 
 static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
 {
-	if (a == &dev_attr_trigger_poison_list.attr) {
-		struct device *dev = kobj_to_dev(kobj);
-		struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-		struct cxl_memdev_state *mds =
-			to_cxl_memdev_state(cxlmd->cxlds);
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
+	if (a == &dev_attr_trigger_poison_list.attr)
 		if (!test_bit(CXL_POISON_ENABLED_LIST,
 			      mds->poison.enabled_cmds))
 			return 0;
-	}
+
 	return a->mode;
 }
 

@@ -71,6 +71,24 @@ static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
 }
 
+static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors + a.cached_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_dirty(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
+						 struct bch_alloc_v4 a)
+{
+	int d = bch2_bucket_sectors_dirty(a);
+
+	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
 	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
@@ -90,10 +108,11 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
 	if (!data_type_movable(a.data_type) ||
-	    a.dirty_sectors >= ca->mi.bucket_size)
+	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
 
-	return div_u64((u64) a.dirty_sectors * (1ULL << 31), ca->mi.bucket_size);
+	u64 d = bch2_bucket_sectors_dirty(a);
+	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
 
 static inline u64 alloc_freespace_genbits(struct bch_alloc_v4 a)
@@ -163,24 +182,21 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v1_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v2_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v3 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v3_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 16,				\
 })
 
@@ -188,8 +204,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.key_invalid	= bch2_alloc_v4_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.swab		= bch2_alloc_v4_swab,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
 })
 
@@ -213,8 +228,8 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 
 int bch2_alloc_read(struct bch_fs *);
 
-int bch2_trans_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
+		       struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);

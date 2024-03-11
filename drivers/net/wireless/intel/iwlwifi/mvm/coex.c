@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2020, 2022 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2020, 2022-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  */
 #include <linux/ieee80211.h>
@@ -115,11 +115,6 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	}
 
 	ret = BT_COEX_TX_DIS_LUT;
-
-	if (mvm->cfg->bt_shared_single_ant) {
-		rcu_read_unlock();
-		return ret;
-	}
 
 	phy_ctx_id = *((u16 *)chanctx_conf->drv_priv);
 	primary_ch_phy_id = le32_to_cpu(mvm->last_bt_ci_cmd.primary_ch_phy_id);
@@ -383,13 +378,12 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	/*
 	 * don't reduce the Tx power if one of these is true:
 	 *  we are in LOOSE
-	 *  single share antenna product
 	 *  BT is inactive
 	 *  we are not associated
 	 */
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
-	    mvm->cfg->bt_shared_single_ant || !vif->cfg.assoc ||
-	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF) {
+	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF ||
+	    !vif->cfg.assoc) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id, false);
 		/* FIXME: should this be per link? */
 		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
@@ -570,7 +564,7 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * Check if rssi is good enough for reduced Tx power, but not in loose
 	 * scheme.
 	 */
-	if (rssi_event == RSSI_EVENT_LOW || mvm->cfg->bt_shared_single_ant ||
+	if (rssi_event == RSSI_EVENT_LOW ||
 	    iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT)
 		ret = iwl_mvm_bt_coex_reduced_txp(mvm,
 						  mvmvif->deflink.ap_sta_id,
@@ -639,10 +633,6 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 
 bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
 {
-	/* there is no other antenna, shared antenna is always available */
-	if (mvm->cfg->bt_shared_single_ant)
-		return true;
-
 	if (ant & mvm->cfg->non_shared_ant)
 		return true;
 
@@ -652,10 +642,6 @@ bool iwl_mvm_bt_coex_is_ant_avail(struct iwl_mvm *mvm, u8 ant)
 
 bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
 {
-	/* there is no other antenna, shared antenna is always available */
-	if (mvm->cfg->bt_shared_single_ant)
-		return true;
-
 	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) < BT_HIGH_TRAFFIC;
 }
 

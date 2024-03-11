@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
+#include <linux/avf/virtchnl.h>
+#include <linux/bitfield.h>
 #include "iavf_type.h"
 #include "iavf_adminq.h"
 #include "iavf_prototype.h"
-#include <linux/avf/virtchnl.h>
 
 /**
  * iavf_aq_str - convert AQ err code to a string
@@ -279,11 +280,11 @@ void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask, void *desc,
  **/
 bool iavf_check_asq_alive(struct iavf_hw *hw)
 {
-	if (hw->aq.asq.len)
-		return !!(rd32(hw, hw->aq.asq.len) &
-			  IAVF_VF_ATQLEN1_ATQENABLE_MASK);
-	else
+	/* Check if the queue is initialized */
+	if (!hw->aq.asq.count)
 		return false;
+
+	return !!(rd32(hw, IAVF_VF_ATQLEN1) & IAVF_VF_ATQLEN1_ATQENABLE_MASK);
 }
 
 /**
@@ -330,6 +331,7 @@ static enum iavf_status iavf_aq_get_set_rss_lut(struct iavf_hw *hw,
 	struct iavf_aq_desc desc;
 	struct iavf_aqc_get_set_rss_lut *cmd_resp =
 		   (struct iavf_aqc_get_set_rss_lut *)&desc.params.raw;
+	u16 flags;
 
 	if (set)
 		iavf_fill_default_direct_cmd_desc(&desc,
@@ -342,22 +344,18 @@ static enum iavf_status iavf_aq_get_set_rss_lut(struct iavf_hw *hw,
 	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_BUF);
 	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_RD);
 
-	cmd_resp->vsi_id =
-			cpu_to_le16((u16)((vsi_id <<
-					  IAVF_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
-					  IAVF_AQC_SET_RSS_LUT_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)IAVF_AQC_SET_RSS_LUT_VSI_VALID);
+	vsi_id = FIELD_PREP(IAVF_AQC_SET_RSS_LUT_VSI_ID_MASK, vsi_id) |
+		 FIELD_PREP(IAVF_AQC_SET_RSS_LUT_VSI_VALID, 1);
+	cmd_resp->vsi_id = cpu_to_le16(vsi_id);
 
 	if (pf_lut)
-		cmd_resp->flags |= cpu_to_le16((u16)
-					((IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
-					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+		flags = FIELD_PREP(IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK,
+				   IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_PF);
 	else
-		cmd_resp->flags |= cpu_to_le16((u16)
-					((IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
-					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+		flags = FIELD_PREP(IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_MASK,
+				   IAVF_AQC_SET_RSS_LUT_TABLE_TYPE_VSI);
+
+	cmd_resp->flags = cpu_to_le16(flags);
 
 	status = iavf_asq_send_command(hw, &desc, lut, lut_size, NULL);
 
@@ -411,11 +409,9 @@ iavf_status iavf_aq_get_set_rss_key(struct iavf_hw *hw, u16 vsi_id,
 	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_BUF);
 	desc.flags |= cpu_to_le16((u16)IAVF_AQ_FLAG_RD);
 
-	cmd_resp->vsi_id =
-			cpu_to_le16((u16)((vsi_id <<
-					  IAVF_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
-					  IAVF_AQC_SET_RSS_KEY_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)IAVF_AQC_SET_RSS_KEY_VSI_VALID);
+	vsi_id = FIELD_PREP(IAVF_AQC_SET_RSS_KEY_VSI_ID_MASK, vsi_id) |
+		 FIELD_PREP(IAVF_AQC_SET_RSS_KEY_VSI_VALID, 1);
+	cmd_resp->vsi_id = cpu_to_le16(vsi_id);
 
 	status = iavf_asq_send_command(hw, &desc, key, key_size, NULL);
 

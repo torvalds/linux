@@ -323,9 +323,6 @@ extern void sigio_broken(int fd);
 extern int __add_sigio_fd(int fd);
 extern int __ignore_sigio_fd(int fd);
 
-/* prctl.c */
-extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
-
 /* tty.c */
 extern int get_pty(void);
 

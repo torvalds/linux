@@ -827,6 +827,9 @@ int main(int ac, char **av)
 		break;
 	}
 
+	if (conf_errors())
+		exit(1);
+
 	if (sync_kconfig) {
 		name = getenv("KCONFIG_NOSILENTUPDATE");
 		if (name && *name) {
@@ -889,6 +892,9 @@ int main(int ac, char **av)
 	default:
 		break;
 	}
+
+	if (sym_dep_errors())
+		exit(1);
 
 	if (input_mode == savedefconfig) {
 		if (conf_write_defconfig(defconfig_file)) {

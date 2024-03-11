@@ -1588,22 +1588,23 @@ static u32 get_rss_table_size(struct net_device *dev)
 	return pi->rss_size;
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p, u8 *key, u8 *hfunc)
+static int get_rss_table(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	unsigned int n = pi->rss_size;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!p)
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (!rxfh->indir)
 		return 0;
 	while (n--)
-		p[n] = pi->rss[n];
+		rxfh->indir[n] = pi->rss[n];
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
-			 const u8 hfunc)
+static int set_rss_table(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
@@ -1611,16 +1612,17 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	/* We require at least one supported parameter to be changed and no
 	 * change in any of the unsupported parameters
 	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
-	if (!p)
+	if (!rxfh->indir)
 		return 0;
 
 	/* Interface must be brought up atleast once */
 	if (pi->adapter->flags & CXGB4_FULL_INIT_DONE) {
 		for (i = 0; i < pi->rss_size; i++)
-			pi->rss[i] = p[i];
+			pi->rss[i] = rxfh->indir[i];
 
 		return cxgb4_write_rss(pi, pi->rss);
 	}

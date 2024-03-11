@@ -89,19 +89,14 @@ err:
 
 void bch2_disk_groups_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct bch_disk_groups_cpu *g;
-	struct bch_dev *ca;
-	int i;
-	unsigned iter;
-
 	out->atomic++;
 	rcu_read_lock();
 
-	g = rcu_dereference(c->disk_groups);
+	struct bch_disk_groups_cpu *g = rcu_dereference(c->disk_groups);
 	if (!g)
 		goto out;
 
-	for (i = 0; i < g->nr; i++) {
+	for (unsigned i = 0; i < g->nr; i++) {
 		if (i)
 			prt_printf(out, " ");
 
@@ -111,7 +106,7 @@ void bch2_disk_groups_to_text(struct printbuf *out, struct bch_fs *c)
 		}
 
 		prt_printf(out, "[parent %d devs", g->entries[i].parent);
-		for_each_member_device_rcu(ca, c, iter, &g->entries[i].devs)
+		for_each_member_device_rcu(c, ca, &g->entries[i].devs)
 			prt_printf(out, " %s", ca->name);
 		prt_printf(out, "]");
 	}
@@ -562,7 +557,7 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 			: NULL;
 
 		if (ca && percpu_ref_tryget(&ca->io_ref)) {
-			prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
+			prt_printf(out, "/dev/%s", ca->name);
 			percpu_ref_put(&ca->io_ref);
 		} else if (ca) {
 			prt_printf(out, "offline device %u", t.dev);

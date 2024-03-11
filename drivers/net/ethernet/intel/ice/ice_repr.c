@@ -14,7 +14,7 @@
  */
 static int ice_repr_get_sw_port_id(struct ice_repr *repr)
 {
-	return repr->vf->pf->hw.port_info->lport;
+	return repr->src_vsi->back->hw.port_info->lport;
 }
 
 /**
@@ -35,7 +35,7 @@ ice_repr_get_phys_port_name(struct net_device *netdev, char *buf, size_t len)
 		return -EOPNOTSUPP;
 
 	res = snprintf(buf, len, "pf%dvfr%d", ice_repr_get_sw_port_id(repr),
-		       repr->vf->vf_id);
+		       repr->id);
 	if (res <= 0)
 		return -EOPNOTSUPP;
 	return 0;
@@ -278,25 +278,67 @@ ice_repr_reg_netdev(struct net_device *netdev)
 	return register_netdev(netdev);
 }
 
+static void ice_repr_remove_node(struct devlink_port *devlink_port)
+{
+	devl_lock(devlink_port->devlink);
+	devl_rate_leaf_destroy(devlink_port);
+	devl_unlock(devlink_port->devlink);
+}
+
 /**
- * ice_repr_add - add representor for VF
- * @vf: pointer to VF structure
+ * ice_repr_rem - remove representor from VF
+ * @repr: pointer to representor structure
  */
-static int ice_repr_add(struct ice_vf *vf)
+static void ice_repr_rem(struct ice_repr *repr)
+{
+	kfree(repr->q_vector);
+	free_netdev(repr->netdev);
+	kfree(repr);
+}
+
+/**
+ * ice_repr_rem_vf - remove representor from VF
+ * @repr: pointer to representor structure
+ */
+void ice_repr_rem_vf(struct ice_repr *repr)
+{
+	ice_repr_remove_node(&repr->vf->devlink_port);
+	unregister_netdev(repr->netdev);
+	ice_devlink_destroy_vf_port(repr->vf);
+	ice_virtchnl_set_dflt_ops(repr->vf);
+	ice_repr_rem(repr);
+}
+
+static void ice_repr_set_tx_topology(struct ice_pf *pf)
+{
+	struct devlink *devlink;
+
+	/* only export if ADQ and DCB disabled and eswitch enabled*/
+	if (ice_is_adq_active(pf) || ice_is_dcb_active(pf) ||
+	    !ice_is_switchdev_running(pf))
+		return;
+
+	devlink = priv_to_devlink(pf);
+	ice_devlink_rate_init_tx_topology(devlink, ice_get_main_vsi(pf));
+}
+
+/**
+ * ice_repr_add - add representor for generic VSI
+ * @pf: pointer to PF structure
+ * @src_vsi: pointer to VSI structure of device to represent
+ * @parent_mac: device MAC address
+ */
+static struct ice_repr *
+ice_repr_add(struct ice_pf *pf, struct ice_vsi *src_vsi, const u8 *parent_mac)
 {
 	struct ice_q_vector *q_vector;
 	struct ice_netdev_priv *np;
 	struct ice_repr *repr;
-	struct ice_vsi *vsi;
 	int err;
-
-	vsi = ice_get_vf_vsi(vf);
-	if (!vsi)
-		return -EINVAL;
 
 	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
 	if (!repr)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	repr->netdev = alloc_etherdev(sizeof(struct ice_netdev_priv));
 	if (!repr->netdev) {
@@ -304,9 +346,7 @@ static int ice_repr_add(struct ice_vf *vf)
 		goto err_alloc;
 	}
 
-	repr->src_vsi = vsi;
-	repr->vf = vf;
-	vf->repr = repr;
+	repr->src_vsi = src_vsi;
 	np = netdev_priv(repr->netdev);
 	np->repr = repr;
 
@@ -316,10 +356,40 @@ static int ice_repr_add(struct ice_vf *vf)
 		goto err_alloc_q_vector;
 	}
 	repr->q_vector = q_vector;
+	repr->q_id = repr->id;
+
+	ether_addr_copy(repr->parent_mac, parent_mac);
+
+	return repr;
+
+err_alloc_q_vector:
+	free_netdev(repr->netdev);
+err_alloc:
+	kfree(repr);
+	return ERR_PTR(err);
+}
+
+struct ice_repr *ice_repr_add_vf(struct ice_vf *vf)
+{
+	struct ice_repr *repr;
+	struct ice_vsi *vsi;
+	int err;
+
+	vsi = ice_get_vf_vsi(vf);
+	if (!vsi)
+		return ERR_PTR(-ENOENT);
 
 	err = ice_devlink_create_vf_port(vf);
 	if (err)
-		goto err_devlink;
+		return ERR_PTR(err);
+
+	repr = ice_repr_add(vf->pf, vsi, vf->hw_lan_addr);
+	if (IS_ERR(repr)) {
+		err = PTR_ERR(repr);
+		goto err_repr_add;
+	}
+
+	repr->vf = vf;
 
 	repr->netdev->min_mtu = ETH_MIN_MTU;
 	repr->netdev->max_mtu = ICE_MAX_MTU;
@@ -331,100 +401,23 @@ static int ice_repr_add(struct ice_vf *vf)
 		goto err_netdev;
 
 	ice_virtchnl_set_repr_ops(vf);
+	ice_repr_set_tx_topology(vf->pf);
 
-	return 0;
+	return repr;
 
 err_netdev:
+	ice_repr_rem(repr);
+err_repr_add:
 	ice_devlink_destroy_vf_port(vf);
-err_devlink:
-	kfree(repr->q_vector);
-	vf->repr->q_vector = NULL;
-err_alloc_q_vector:
-	free_netdev(repr->netdev);
-	repr->netdev = NULL;
-err_alloc:
-	kfree(repr);
-	vf->repr = NULL;
-	return err;
+	return ERR_PTR(err);
 }
 
-/**
- * ice_repr_rem - remove representor from VF
- * @vf: pointer to VF structure
- */
-static void ice_repr_rem(struct ice_vf *vf)
+struct ice_repr *ice_repr_get_by_vsi(struct ice_vsi *vsi)
 {
-	if (!vf->repr)
-		return;
+	if (!vsi->vf)
+		return NULL;
 
-	kfree(vf->repr->q_vector);
-	vf->repr->q_vector = NULL;
-	unregister_netdev(vf->repr->netdev);
-	ice_devlink_destroy_vf_port(vf);
-	free_netdev(vf->repr->netdev);
-	vf->repr->netdev = NULL;
-	kfree(vf->repr);
-	vf->repr = NULL;
-
-	ice_virtchnl_set_dflt_ops(vf);
-}
-
-/**
- * ice_repr_rem_from_all_vfs - remove port representor for all VFs
- * @pf: pointer to PF structure
- */
-void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
-{
-	struct devlink *devlink;
-	struct ice_vf *vf;
-	unsigned int bkt;
-
-	lockdep_assert_held(&pf->vfs.table_lock);
-
-	ice_for_each_vf(pf, bkt, vf)
-		ice_repr_rem(vf);
-
-	/* since all port representors are destroyed, there is
-	 * no point in keeping the nodes
-	 */
-	devlink = priv_to_devlink(pf);
-	devl_lock(devlink);
-	devl_rate_nodes_destroy(devlink);
-	devl_unlock(devlink);
-}
-
-/**
- * ice_repr_add_for_all_vfs - add port representor for all VFs
- * @pf: pointer to PF structure
- */
-int ice_repr_add_for_all_vfs(struct ice_pf *pf)
-{
-	struct devlink *devlink;
-	struct ice_vf *vf;
-	unsigned int bkt;
-	int err;
-
-	lockdep_assert_held(&pf->vfs.table_lock);
-
-	ice_for_each_vf(pf, bkt, vf) {
-		err = ice_repr_add(vf);
-		if (err)
-			goto err;
-	}
-
-	/* only export if ADQ and DCB disabled */
-	if (ice_is_adq_active(pf) || ice_is_dcb_active(pf))
-		return 0;
-
-	devlink = priv_to_devlink(pf);
-	ice_devlink_rate_init_tx_topology(devlink, ice_get_main_vsi(pf));
-
-	return 0;
-
-err:
-	ice_repr_rem_from_all_vfs(pf);
-
-	return err;
+	return xa_load(&vsi->back->eswitch.reprs, vsi->vf->repr_id);
 }
 
 /**

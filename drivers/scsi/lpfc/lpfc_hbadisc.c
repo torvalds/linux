@@ -411,7 +411,7 @@ lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
 				 "port_state = x%x\n",
 				 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp,
 				 ndlp->nlp_flag, vport->port_state);
-		spin_lock_irqsave(&ndlp->lock, iflags);
+		return;
 	}
 	spin_unlock_irqrestore(&ndlp->lock, iflags);
 }

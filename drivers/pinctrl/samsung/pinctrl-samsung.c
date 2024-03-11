@@ -565,7 +565,7 @@ static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 /* gpiolib gpio_get callback function */
 static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	void __iomem *reg;
+	const void __iomem *reg;
 	u32 data;
 	struct samsung_pin_bank *bank = gpiochip_get_data(gc);
 	const struct samsung_pin_bank_type *type = bank->type;
@@ -1106,6 +1106,9 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 		bank->eint_type = bdata->eint_type;
 		bank->eint_mask = bdata->eint_mask;
 		bank->eint_offset = bdata->eint_offset;
+		bank->eint_con_offset = bdata->eint_con_offset;
+		bank->eint_mask_offset = bdata->eint_mask_offset;
+		bank->eint_pend_offset = bdata->eint_pend_offset;
 		bank->name = bdata->name;
 
 		raw_spin_lock_init(&bank->slock);
@@ -1201,7 +1204,7 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
-		void __iomem *reg = bank->pctl_base + bank->pctl_offset;
+		const void __iomem *reg = bank->pctl_base + bank->pctl_offset;
 		const u8 *offs = bank->type->reg_offset;
 		const u8 *widths = bank->type->fld_width;
 		enum pincfg_type type;
@@ -1309,6 +1312,8 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = &s5pv210_of_data },
 #endif
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM64
+	{ .compatible = "google,gs101-pinctrl",
+		.data = &gs101_of_data },
 	{ .compatible = "samsung,exynos5433-pinctrl",
 		.data = &exynos5433_of_data },
 	{ .compatible = "samsung,exynos7-pinctrl",
@@ -1319,6 +1324,8 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = &exynos850_of_data },
 	{ .compatible = "samsung,exynosautov9-pinctrl",
 		.data = &exynosautov9_of_data },
+	{ .compatible = "samsung,exynosautov920-pinctrl",
+		.data = &exynosautov920_of_data },
 	{ .compatible = "tesla,fsd-pinctrl",
 		.data = &fsd_of_data },
 #endif

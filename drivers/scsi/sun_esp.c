@@ -550,7 +550,7 @@ static int esp_sbus_probe(struct platform_device *op)
 	return ret;
 }
 
-static int esp_sbus_remove(struct platform_device *op)
+static void esp_sbus_remove(struct platform_device *op)
 {
 	struct esp *esp = dev_get_drvdata(&op->dev);
 	struct platform_device *dma_of = esp->dma;
@@ -581,8 +581,6 @@ static int esp_sbus_remove(struct platform_device *op)
 	dev_set_drvdata(&op->dev, NULL);
 
 	put_device(&dma_of->dev);
-
-	return 0;
 }
 
 static const struct of_device_id esp_match[] = {
@@ -605,7 +603,7 @@ static struct platform_driver esp_sbus_driver = {
 		.of_match_table = esp_match,
 	},
 	.probe		= esp_sbus_probe,
-	.remove		= esp_sbus_remove,
+	.remove_new	= esp_sbus_remove,
 };
 module_platform_driver(esp_sbus_driver);
 

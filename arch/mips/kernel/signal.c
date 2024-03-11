@@ -38,6 +38,7 @@
 #include <asm/dsp.h>
 #include <asm/inst.h>
 #include <asm/msa.h>
+#include <asm/syscalls.h>
 
 #include "signal-common.h"
 
@@ -569,7 +570,7 @@ void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		return (void __user __force *)(-1UL);
 
 	/*
-	 * FPU emulator may have it's own trampoline active just
+	 * FPU emulator may have its own trampoline active just
 	 * above the user stack, 16-bytes before the next lowest
 	 * 16 byte boundary.  Try to avoid trashing it.
 	 */

@@ -213,6 +213,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 				      struct list_head *head)
 {
 	struct resource *res;
+	const char *res_name;
 	struct pci_dev_resource *add_res, *tmp;
 	struct pci_dev_resource *dev_res;
 	resource_size_t add_size, align;
@@ -222,6 +223,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		bool found_match = false;
 
 		res = add_res->res;
+
 		/* Skip resource that has been reset */
 		if (!res->flags)
 			goto out;
@@ -237,6 +239,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 			continue;
 
 		idx = res - &add_res->dev->resource[0];
+		res_name = pci_resource_name(add_res->dev, idx);
 		add_size = add_res->add_size;
 		align = add_res->min_align;
 		if (!resource_size(res)) {
@@ -249,9 +252,9 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 				 (IORESOURCE_STARTALIGN|IORESOURCE_SIZEALIGN);
 			if (pci_reassign_resource(add_res->dev, idx,
 						  add_size, align))
-				pci_info(add_res->dev, "failed to add %llx res[%d]=%pR\n",
-					 (unsigned long long) add_size, idx,
-					 res);
+				pci_info(add_res->dev, "%s %pR: failed to add %llx\n",
+					 res_name, res,
+					 (unsigned long long) add_size);
 		}
 out:
 		list_del(&add_res->list);
@@ -571,6 +574,7 @@ EXPORT_SYMBOL(pci_setup_cardbus);
 static void pci_setup_bridge_io(struct pci_dev *bridge)
 {
 	struct resource *res;
+	const char *res_name;
 	struct pci_bus_region region;
 	unsigned long io_mask;
 	u8 io_base_lo, io_limit_lo;
@@ -583,6 +587,7 @@ static void pci_setup_bridge_io(struct pci_dev *bridge)
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus */
 	res = &bridge->resource[PCI_BRIDGE_IO_WINDOW];
+	res_name = pci_resource_name(bridge, PCI_BRIDGE_IO_WINDOW);
 	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_IO) {
 		pci_read_config_word(bridge, PCI_IO_BASE, &l);
@@ -591,7 +596,7 @@ static void pci_setup_bridge_io(struct pci_dev *bridge)
 		l = ((u16) io_limit_lo << 8) | io_base_lo;
 		/* Set up upper 16 bits of I/O base/limit */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
-		pci_info(bridge, "  bridge window %pR\n", res);
+		pci_info(bridge, "  %s %pR\n", res_name, res);
 	} else {
 		/* Clear upper 16 bits of I/O base/limit */
 		io_upper16 = 0;
@@ -608,16 +613,18 @@ static void pci_setup_bridge_io(struct pci_dev *bridge)
 static void pci_setup_bridge_mmio(struct pci_dev *bridge)
 {
 	struct resource *res;
+	const char *res_name;
 	struct pci_bus_region region;
 	u32 l;
 
 	/* Set up the top and bottom of the PCI Memory segment for this bus */
 	res = &bridge->resource[PCI_BRIDGE_MEM_WINDOW];
+	res_name = pci_resource_name(bridge, PCI_BRIDGE_MEM_WINDOW);
 	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-		pci_info(bridge, "  bridge window %pR\n", res);
+		pci_info(bridge, "  %s %pR\n", res_name, res);
 	} else {
 		l = 0x0000fff0;
 	}
@@ -627,6 +634,7 @@ static void pci_setup_bridge_mmio(struct pci_dev *bridge)
 static void pci_setup_bridge_mmio_pref(struct pci_dev *bridge)
 {
 	struct resource *res;
+	const char *res_name;
 	struct pci_bus_region region;
 	u32 l, bu, lu;
 
@@ -640,6 +648,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_dev *bridge)
 	/* Set up PREF base/limit */
 	bu = lu = 0;
 	res = &bridge->resource[PCI_BRIDGE_PREF_MEM_WINDOW];
+	res_name = pci_resource_name(bridge, PCI_BRIDGE_PREF_MEM_WINDOW);
 	pcibios_resource_to_bus(bridge->bus, &region, res);
 	if (res->flags & IORESOURCE_PREFETCH) {
 		l = (region.start >> 16) & 0xfff0;
@@ -648,7 +657,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_dev *bridge)
 			bu = upper_32_bits(region.start);
 			lu = upper_32_bits(region.end);
 		}
-		pci_info(bridge, "  bridge window %pR\n", res);
+		pci_info(bridge, "  %s %pR\n", res_name, res);
 	} else {
 		l = 0x0000fff0;
 	}
@@ -1013,6 +1022,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		int i;
 
 		pci_dev_for_each_resource(dev, r, i) {
+			const char *r_name = pci_resource_name(dev, i);
 			resource_size_t r_size;
 
 			if (r->parent || (r->flags & IORESOURCE_PCI_FIXED) ||
@@ -1043,8 +1053,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (order < 0)
 				order = 0;
 			if (order >= ARRAY_SIZE(aligns)) {
-				pci_warn(dev, "disabling BAR %d: %pR (bad alignment %#llx)\n",
-					 i, r, (unsigned long long) align);
+				pci_warn(dev, "%s %pR: disabling; bad alignment %#llx\n",
+					 r_name, r, (unsigned long long) align);
 				r->flags = 0;
 				continue;
 			}
@@ -2235,6 +2245,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 		for (i = PCI_BRIDGE_RESOURCES; i < PCI_BRIDGE_RESOURCE_END;
 		     i++) {
 			struct resource *res = &bridge->resource[i];
+			const char *res_name = pci_resource_name(bridge, i);
 
 			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
 				continue;
@@ -2247,8 +2258,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 			if (ret)
 				goto cleanup;
 
-			pci_info(bridge, "BAR %d: releasing %pR\n",
-				 i, res);
+			pci_info(bridge, "%s %pR: releasing\n", res_name, res);
 
 			if (res->parent)
 				release_resource(res);

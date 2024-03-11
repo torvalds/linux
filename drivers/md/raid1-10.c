@@ -173,3 +173,57 @@ static inline void raid1_prepare_flush_writes(struct bitmap *bitmap)
 	else
 		md_bitmap_unplug(bitmap);
 }
+
+/*
+ * Used by fix_read_error() to decay the per rdev read_errors.
+ * We halve the read error count for every hour that has elapsed
+ * since the last recorded read error.
+ */
+static inline void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
+{
+	long cur_time_mon;
+	unsigned long hours_since_last;
+	unsigned int read_errors = atomic_read(&rdev->read_errors);
+
+	cur_time_mon = ktime_get_seconds();
+
+	if (rdev->last_read_error == 0) {
+		/* first time we've seen a read error */
+		rdev->last_read_error = cur_time_mon;
+		return;
+	}
+
+	hours_since_last = (long)(cur_time_mon -
+			    rdev->last_read_error) / 3600;
+
+	rdev->last_read_error = cur_time_mon;
+
+	/*
+	 * if hours_since_last is > the number of bits in read_errors
+	 * just set read errors to 0. We do this to avoid
+	 * overflowing the shift of read_errors by hours_since_last.
+	 */
+	if (hours_since_last >= 8 * sizeof(read_errors))
+		atomic_set(&rdev->read_errors, 0);
+	else
+		atomic_set(&rdev->read_errors, read_errors >> hours_since_last);
+}
+
+static inline bool exceed_read_errors(struct mddev *mddev, struct md_rdev *rdev)
+{
+	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
+	int read_errors;
+
+	check_decay_read_errors(mddev, rdev);
+	read_errors =  atomic_inc_return(&rdev->read_errors);
+	if (read_errors > max_read_errors) {
+		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Raid device exceeded read_error threshold [cur %d:max %d]\n",
+			  mdname(mddev), rdev->bdev, read_errors, max_read_errors);
+		pr_notice("md/"RAID_1_10_NAME":%s: %pg: Failing raid device\n",
+			  mdname(mddev), rdev->bdev);
+		md_error(mddev, rdev);
+		return true;
+	}
+
+	return false;
+}

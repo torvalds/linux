@@ -12,6 +12,9 @@ ssize_t fb_io_read(struct fb_info *info, char __user *buf, size_t count, loff_t 
 	int c, cnt = 0, err = 0;
 	unsigned long total_size, trailing;
 
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+
 	if (!info->screen_base)
 		return -ENODEV;
 
@@ -73,6 +76,9 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	int c, cnt = 0, err = 0;
 	unsigned long total_size, trailing;
 
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+
 	if (!info->screen_base)
 		return -ENODEV;
 
@@ -131,6 +137,36 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	return (cnt) ? cnt : err;
 }
 EXPORT_SYMBOL(fb_io_write);
+
+int fb_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	unsigned long start = info->fix.smem_start;
+	u32 len = info->fix.smem_len;
+	unsigned long mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
+
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+
+	/*
+	 * This can be either the framebuffer mapping, or if pgoff points
+	 * past it, the mmio mapping.
+	 */
+	if (vma->vm_pgoff >= mmio_pgoff) {
+		if (info->var.accel_flags)
+			return -EINVAL;
+
+		vma->vm_pgoff -= mmio_pgoff;
+		start = info->fix.mmio_start;
+		len = info->fix.mmio_len;
+	}
+
+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	vma->vm_page_prot = pgprot_framebuffer(vma->vm_page_prot, vma->vm_start,
+					       vma->vm_end, start);
+
+	return vm_iomap_memory(vma, start, len);
+}
+EXPORT_SYMBOL(fb_io_mmap);
 
 MODULE_DESCRIPTION("Fbdev helpers for framebuffers in I/O memory");
 MODULE_LICENSE("GPL");

@@ -117,8 +117,8 @@ TEST_FILES += va_high_addr_switch.sh
 
 include ../lib.mk
 
-$(TEST_GEN_PROGS): vm_util.c
-$(TEST_GEN_FILES): vm_util.c
+$(TEST_GEN_PROGS): vm_util.c thp_settings.c
+$(TEST_GEN_FILES): vm_util.c thp_settings.c
 
 $(OUTPUT)/uffd-stress: uffd-common.c
 $(OUTPUT)/uffd-unit-tests: uffd-common.c

@@ -6,28 +6,28 @@
 #include "eytzinger.h"
 #include "replicas_types.h"
 
-void bch2_replicas_entry_sort(struct bch_replicas_entry *);
+void bch2_replicas_entry_sort(struct bch_replicas_entry_v1 *);
 void bch2_replicas_entry_to_text(struct printbuf *,
-				 struct bch_replicas_entry *);
-int bch2_replicas_entry_validate(struct bch_replicas_entry *,
+				 struct bch_replicas_entry_v1 *);
+int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *,
 				 struct bch_sb *, struct printbuf *);
 void bch2_cpu_replicas_to_text(struct printbuf *, struct bch_replicas_cpu *);
 
-static inline struct bch_replicas_entry *
+static inline struct bch_replicas_entry_v1 *
 cpu_replicas_entry(struct bch_replicas_cpu *r, unsigned i)
 {
 	return (void *) r->entries + r->entry_size * i;
 }
 
 int bch2_replicas_entry_idx(struct bch_fs *,
-			    struct bch_replicas_entry *);
+			    struct bch_replicas_entry_v1 *);
 
-void bch2_devlist_to_replicas(struct bch_replicas_entry *,
+void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *,
 			      enum bch_data_type,
 			      struct bch_devs_list);
-bool bch2_replicas_marked(struct bch_fs *, struct bch_replicas_entry *);
+bool bch2_replicas_marked(struct bch_fs *, struct bch_replicas_entry_v1 *);
 int bch2_mark_replicas(struct bch_fs *,
-		       struct bch_replicas_entry *);
+		       struct bch_replicas_entry_v1 *);
 
 static inline struct replicas_delta *
 replicas_delta_next(struct replicas_delta *d)
@@ -37,9 +37,9 @@ replicas_delta_next(struct replicas_delta *d)
 
 int bch2_replicas_delta_list_mark(struct bch_fs *, struct replicas_delta_list *);
 
-void bch2_bkey_to_replicas(struct bch_replicas_entry *, struct bkey_s_c);
+void bch2_bkey_to_replicas(struct bch_replicas_entry_v1 *, struct bkey_s_c);
 
-static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,
+static inline void bch2_replicas_entry_cached(struct bch_replicas_entry_v1 *e,
 					      unsigned dev)
 {
 	e->data_type	= BCH_DATA_cached;
@@ -59,7 +59,7 @@ int bch2_replicas_gc_start(struct bch_fs *, unsigned);
 int bch2_replicas_gc2(struct bch_fs *);
 
 int bch2_replicas_set_usage(struct bch_fs *,
-			    struct bch_replicas_entry *,
+			    struct bch_replicas_entry_v1 *,
 			    u64);
 
 #define for_each_cpu_replicas_entry(_r, _i)				\

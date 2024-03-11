@@ -278,7 +278,9 @@ static int profile_tracer_perm(const struct cred *cred,
 
 /**
  * aa_may_ptrace - test if tracer task can trace the tracee
+ * @tracer_cred: cred of task doing the tracing  (NOT NULL)
  * @tracer: label of the task doing the tracing  (NOT NULL)
+ * @tracee_cred: cred of task to be traced
  * @tracee: task label to be traced
  * @request: permission request
  *

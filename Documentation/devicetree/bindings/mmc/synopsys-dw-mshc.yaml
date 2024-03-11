@@ -35,6 +35,9 @@ properties:
       - const: biu
       - const: ciu
 
+  iommus:
+    maxItems: 1
+
   altr,sysmgr-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
@@ -62,6 +65,7 @@ allOf:
         altr,sysmgr-syscon: true
     else:
       properties:
+        iommus: false
         altr,sysmgr-syscon: false
 
 required:

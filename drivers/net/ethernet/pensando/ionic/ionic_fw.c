@@ -109,6 +109,11 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 	dl = priv_to_devlink(ionic);
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
 
+	if (!idev->dev_cmd_regs) {
+		err = -ENXIO;
+		goto err_out;
+	}
+
 	buf_sz = sizeof(idev->dev_cmd_regs->data);
 
 	netdev_dbg(netdev,

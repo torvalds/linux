@@ -1415,11 +1415,9 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (!pdata->pwm_enabled) {
-		ret = pm_runtime_get_sync(pdata->dev);
-		if (ret < 0) {
-			pm_runtime_put_sync(pdata->dev);
+		ret = pm_runtime_resume_and_get(chip->dev);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	if (state->enabled) {
@@ -1433,7 +1431,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 						 SN_GPIO_MUX_MASK << (2 * SN_PWM_GPIO_IDX),
 						 SN_GPIO_MUX_SPECIAL << (2 * SN_PWM_GPIO_IDX));
 			if (ret) {
-				dev_err(pdata->dev, "failed to mux in PWM function\n");
+				dev_err(chip->dev, "failed to mux in PWM function\n");
 				goto out;
 			}
 		}
@@ -1509,7 +1507,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		ret = regmap_write(pdata->regmap, SN_PWM_PRE_DIV_REG, pre_div);
 		if (ret) {
-			dev_err(pdata->dev, "failed to update PWM_PRE_DIV\n");
+			dev_err(chip->dev, "failed to update PWM_PRE_DIV\n");
 			goto out;
 		}
 
@@ -1521,7 +1519,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		     FIELD_PREP(SN_PWM_INV_MASK, state->polarity == PWM_POLARITY_INVERSED);
 	ret = regmap_write(pdata->regmap, SN_PWM_EN_INV_REG, pwm_en_inv);
 	if (ret) {
-		dev_err(pdata->dev, "failed to update PWM_EN/PWM_INV\n");
+		dev_err(chip->dev, "failed to update PWM_EN/PWM_INV\n");
 		goto out;
 	}
 
@@ -1529,7 +1527,7 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 out:
 
 	if (!pdata->pwm_enabled)
-		pm_runtime_put_sync(pdata->dev);
+		pm_runtime_put_sync(chip->dev);
 
 	return ret;
 }
@@ -1589,11 +1587,13 @@ static int ti_sn_pwm_probe(struct auxiliary_device *adev,
 {
 	struct ti_sn65dsi86 *pdata = dev_get_drvdata(adev->dev.parent);
 
-	pdata->pchip.dev = pdata->dev;
+	pdata->pchip.dev = &adev->dev;
 	pdata->pchip.ops = &ti_sn_pwm_ops;
 	pdata->pchip.npwm = 1;
 	pdata->pchip.of_xlate = of_pwm_single_xlate;
 	pdata->pchip.of_pwm_n_cells = 1;
+
+	devm_pm_runtime_enable(&adev->dev);
 
 	return pwmchip_add(&pdata->pchip);
 }
@@ -1605,7 +1605,7 @@ static void ti_sn_pwm_remove(struct auxiliary_device *adev)
 	pwmchip_remove(&pdata->pchip);
 
 	if (pdata->pwm_enabled)
-		pm_runtime_put_sync(pdata->dev);
+		pm_runtime_put_sync(&adev->dev);
 }
 
 static const struct auxiliary_device_id ti_sn_pwm_id_table[] = {

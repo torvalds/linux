@@ -9,6 +9,7 @@
 #include <linux/sched/task.h>
 #include <linux/cred.h>
 #include <linux/refcount.h>
+#include <linux/pid.h>
 #include <linux/posix-timers.h>
 #include <linux/mm_types.h>
 #include <asm/ptrace.h>
@@ -432,7 +433,6 @@ static inline bool fault_signal_pending(vm_fault_t fault_flags,
  * This is required every time the blocked sigset_t changes.
  * callers must hold sighand->siglock.
  */
-extern void recalc_sigpending_and_wake(struct task_struct *t);
 extern void recalc_sigpending(void);
 extern void calculate_sigpending(void);
 
@@ -645,6 +645,9 @@ extern bool current_is_single_threaded(void);
  */
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
+
+#define for_other_threads(p, t)	\
+	for (t = p; (t = next_thread(t)) != p; )
 
 #define __for_each_thread(signal, t)	\
 	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node, \

@@ -51,8 +51,6 @@ static bool s390_cpumcfdg_testctr(struct perf_sample *sample)
 	struct cf_trailer_entry *te;
 	struct cf_ctrset_entry *cep, ce;
 
-	if (!len)
-		return false;
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 		ce.def = be16_to_cpu(cep->def);
@@ -125,6 +123,9 @@ static int get_counterset_start(int setnr)
 		return 128;
 	case CPUMF_CTR_SET_MT_DIAG:		/* Diagnostic counter set */
 		return 448;
+	case PERF_EVENT_PAI_NNPA_ALL:		/* PAI NNPA counter set */
+	case PERF_EVENT_PAI_CRYPTO_ALL:		/* PAI CRYPTO counter set */
+		return setnr;
 	default:
 		return -1;
 	}
@@ -212,27 +213,120 @@ static void s390_cpumcfdg_dump(struct perf_pmu *pmu, struct perf_sample *sample)
 	}
 }
 
-/* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
- * and if the event was triggered by a counter set diagnostic event display
- * its raw data.
- * The function is only invoked when the dump flag -D is set.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
+/*
+ * Check for consistency of PAI_CRYPTO/PAI_NNPA raw data.
  */
-void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
+struct pai_data {		/* Event number and value */
+	u16 event_nr;
+	u64 event_val;
+} __packed;
+
+#pragma GCC diagnostic pop
+
+/*
+ * Test for valid raw data. At least one PAI event should be in the raw
+ * data section.
+ */
+static bool s390_pai_all_test(struct perf_sample *sample)
 {
+	size_t len = sample->raw_size;
+
+	if (len < 0xa)
+		return false;
+	return true;
+}
+
+static void s390_pai_all_dump(struct evsel *evsel, struct perf_sample *sample)
+{
+	size_t len = sample->raw_size, offset = 0;
+	unsigned char *p = sample->raw_data;
+	const char *color = PERF_COLOR_BLUE;
+	struct pai_data pai_data;
+	char *ev_name;
+
+	while (offset < len) {
+		memcpy(&pai_data.event_nr, p, sizeof(pai_data.event_nr));
+		pai_data.event_nr = be16_to_cpu(pai_data.event_nr);
+		p += sizeof(pai_data.event_nr);
+		offset += sizeof(pai_data.event_nr);
+
+		memcpy(&pai_data.event_val, p, sizeof(pai_data.event_val));
+		pai_data.event_val = be64_to_cpu(pai_data.event_val);
+		p += sizeof(pai_data.event_val);
+		offset += sizeof(pai_data.event_val);
+
+		ev_name = get_counter_name(evsel->core.attr.config,
+					   pai_data.event_nr, evsel->pmu);
+		color_fprintf(stdout, color, "\tCounter:%03d %s Value:%#018lx\n",
+			      pai_data.event_nr, ev_name ?: "<unknown>",
+			      pai_data.event_val);
+		free(ev_name);
+
+		if (offset + 0xa > len)
+			break;
+	}
+	color_fprintf(stdout, color, "\n");
+}
+
+/* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
+ * and if the event was triggered by a
+ * - counter set diagnostic event
+ * - processor activity assist (PAI) crypto counter event
+ * - processor activity assist (PAI) neural network processor assist (NNPA)
+ *   counter event
+ * display its raw data.
+ * The function is only invoked when the dump flag -D is set.
+ *
+ * Function evlist__s390_sample_raw() is defined as call back after it has
+ * been verified that the perf.data file was created on s390 platform.
+ */
+void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event,
+			     struct perf_sample *sample)
+{
+	const char *pai_name;
 	struct evsel *evsel;
 
 	if (event->header.type != PERF_RECORD_SAMPLE)
 		return;
 
 	evsel = evlist__event2evsel(evlist, event);
-	if (evsel == NULL ||
-	    evsel->core.attr.config != PERF_EVENT_CPUM_CF_DIAG)
+	if (!evsel)
+		return;
+
+	/* Check for raw data in sample */
+	if (!sample->raw_size || !sample->raw_data)
 		return;
 
 	/* Display raw data on screen */
-	if (!s390_cpumcfdg_testctr(sample)) {
-		pr_err("Invalid counter set data encountered\n");
+	if (evsel->core.attr.config == PERF_EVENT_CPUM_CF_DIAG) {
+		if (!evsel->pmu)
+			evsel->pmu = perf_pmus__find("cpum_cf");
+		if (!s390_cpumcfdg_testctr(sample))
+			pr_err("Invalid counter set data encountered\n");
+		else
+			s390_cpumcfdg_dump(evsel->pmu, sample);
 		return;
 	}
-	s390_cpumcfdg_dump(evsel->pmu, sample);
+
+	switch (evsel->core.attr.config) {
+	case PERF_EVENT_PAI_NNPA_ALL:
+		pai_name = "NNPA_ALL";
+		break;
+	case PERF_EVENT_PAI_CRYPTO_ALL:
+		pai_name = "CRYPTO_ALL";
+		break;
+	default:
+		return;
+	}
+
+	if (!s390_pai_all_test(sample)) {
+		pr_err("Invalid %s raw data encountered\n", pai_name);
+	} else {
+		if (!evsel->pmu)
+			evsel->pmu = perf_pmus__find_by_type(evsel->core.attr.type);
+		s390_pai_all_dump(evsel, sample);
+	}
 }

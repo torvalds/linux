@@ -488,7 +488,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 
 	for (i = 0; i < caps->nengines; i++) {
 		struct mv_cesa_engine *engine = &cesa->engines[i];
-		char res_name[7];
+		char res_name[16];
 
 		engine->id = i;
 		spin_lock_init(&engine->lock);
@@ -509,7 +509,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		 * Not all platforms can gate the CESA clocks: do not complain
 		 * if the clock does not exist.
 		 */
-		snprintf(res_name, sizeof(res_name), "cesa%d", i);
+		snprintf(res_name, sizeof(res_name), "cesa%u", i);
 		engine->clk = devm_clk_get(dev, res_name);
 		if (IS_ERR(engine->clk)) {
 			engine->clk = devm_clk_get(dev, NULL);
@@ -517,7 +517,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 				engine->clk = NULL;
 		}
 
-		snprintf(res_name, sizeof(res_name), "cesaz%d", i);
+		snprintf(res_name, sizeof(res_name), "cesaz%u", i);
 		engine->zclk = devm_clk_get(dev, res_name);
 		if (IS_ERR(engine->zclk))
 			engine->zclk = NULL;

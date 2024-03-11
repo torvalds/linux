@@ -997,6 +997,32 @@ r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 	return 0;
 }
 
+static void
+nvkm_gsp_mem_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_mem *mem)
+{
+	if (mem->data) {
+		/*
+		 * Poison the buffer to catch any unexpected access from
+		 * GSP-RM if the buffer was prematurely freed.
+		 */
+		memset(mem->data, 0xFF, mem->size);
+
+		dma_free_coherent(gsp->subdev.device->dev, mem->size, mem->data, mem->addr);
+		memset(mem, 0, sizeof(*mem));
+	}
+}
+
+static int
+nvkm_gsp_mem_ctor(struct nvkm_gsp *gsp, size_t size, struct nvkm_gsp_mem *mem)
+{
+	mem->size = size;
+	mem->data = dma_alloc_coherent(gsp->subdev.device->dev, size, &mem->addr, GFP_KERNEL);
+	if (WARN_ON(!mem->data))
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int
 r535_gsp_postinit(struct nvkm_gsp *gsp)
 {
@@ -1024,6 +1050,11 @@ r535_gsp_postinit(struct nvkm_gsp *gsp)
 
 	nvkm_inth_allow(&gsp->subdev.inth);
 	nvkm_wr32(device, 0x110004, 0x00000040);
+
+	/* Release the DMA buffers that were needed only for boot and init */
+	nvkm_gsp_mem_dtor(gsp, &gsp->boot.fw);
+	nvkm_gsp_mem_dtor(gsp, &gsp->libos);
+
 	return ret;
 }
 
@@ -1078,7 +1109,6 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 	if (IS_ERR(rpc))
 		return PTR_ERR(rpc);
 
-	rpc->size = sizeof(*rpc);
 	rpc->numEntries = NV_GSP_REG_NUM_ENTRIES;
 
 	str_offset = offsetof(typeof(*rpc), entries[NV_GSP_REG_NUM_ENTRIES]);
@@ -1094,6 +1124,7 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 		strings += name_len;
 		str_offset += name_len;
 	}
+	rpc->size = str_offset;
 
 	return nvkm_gsp_rpc_wr(gsp, rpc, false);
 }
@@ -1532,27 +1563,6 @@ r535_gsp_msg_run_cpu_sequencer(void *priv, u32 fn, void *repv, u32 repc)
 	return 0;
 }
 
-static void
-nvkm_gsp_mem_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_mem *mem)
-{
-	if (mem->data) {
-		dma_free_coherent(gsp->subdev.device->dev, mem->size, mem->data, mem->addr);
-		mem->data = NULL;
-	}
-}
-
-static int
-nvkm_gsp_mem_ctor(struct nvkm_gsp *gsp, u32 size, struct nvkm_gsp_mem *mem)
-{
-	mem->size = size;
-	mem->data = dma_alloc_coherent(gsp->subdev.device->dev, size, &mem->addr, GFP_KERNEL);
-	if (WARN_ON(!mem->data))
-		return -ENOMEM;
-
-	return 0;
-}
-
-
 static int
 r535_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
 {
@@ -1938,20 +1948,20 @@ nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
  * See kgspCreateRadix3_IMPL
  */
 static int
-nvkm_gsp_radix3_sg(struct nvkm_device *device, struct sg_table *sgt, u64 size,
+nvkm_gsp_radix3_sg(struct nvkm_gsp *gsp, struct sg_table *sgt, u64 size,
 		   struct nvkm_gsp_radix3 *rx3)
 {
 	u64 addr;
 
 	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--) {
 		u64 *ptes;
-		int idx;
+		size_t bufsize;
+		int ret, idx;
 
-		rx3->mem[i].size = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
-		rx3->mem[i].data = dma_alloc_coherent(device->dev, rx3->mem[i].size,
-						      &rx3->mem[i].addr, GFP_KERNEL);
-		if (WARN_ON(!rx3->mem[i].data))
-			return -ENOMEM;
+		bufsize = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
+		ret = nvkm_gsp_mem_ctor(gsp, bufsize, &rx3->mem[i]);
+		if (ret)
+			return ret;
 
 		ptes = rx3->mem[i].data;
 		if (i == 2) {
@@ -1991,7 +2001,7 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 		if (ret)
 			return ret;
 
-		ret = nvkm_gsp_radix3_sg(gsp->subdev.device, &gsp->sr.sgt, len, &gsp->sr.radix3);
+		ret = nvkm_gsp_radix3_sg(gsp, &gsp->sr.sgt, len, &gsp->sr.radix3);
 		if (ret)
 			return ret;
 
@@ -2150,6 +2160,13 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 	mutex_destroy(&gsp->cmdq.mutex);
 
 	r535_gsp_dtor_fws(gsp);
+
+	nvkm_gsp_mem_dtor(gsp, &gsp->rmargs);
+	nvkm_gsp_mem_dtor(gsp, &gsp->wpr_meta);
+	nvkm_gsp_mem_dtor(gsp, &gsp->shm.mem);
+	nvkm_gsp_mem_dtor(gsp, &gsp->loginit);
+	nvkm_gsp_mem_dtor(gsp, &gsp->logintr);
+	nvkm_gsp_mem_dtor(gsp, &gsp->logrm);
 }
 
 int
@@ -2194,7 +2211,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	memcpy(gsp->sig.data, data, size);
 
 	/* Build radix3 page table for ELF image. */
-	ret = nvkm_gsp_radix3_sg(device, &gsp->fw.mem.sgt, gsp->fw.len, &gsp->radix3);
+	ret = nvkm_gsp_radix3_sg(gsp, &gsp->fw.mem.sgt, gsp->fw.len, &gsp->radix3);
 	if (ret)
 		return ret;
 
@@ -2295,8 +2312,12 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	int ret;
+	bool enable_gsp = fwif->enable;
 
-	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", fwif->enable))
+#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
+	enable_gsp = true;
+#endif
+	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))
 		return -EINVAL;
 
 	if ((ret = r535_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm)) ||

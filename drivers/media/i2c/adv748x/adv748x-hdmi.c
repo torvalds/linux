@@ -441,8 +441,8 @@ static int adv748x_hdmi_get_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mbusformat = v4l2_subdev_get_try_format(sd, sd_state,
-							sdformat->pad);
+		mbusformat = v4l2_subdev_state_get_format(sd_state,
+							  sdformat->pad);
 		sdformat->format = *mbusformat;
 	} else {
 		adv748x_hdmi_fill_format(hdmi, &sdformat->format);
@@ -464,7 +464,7 @@ static int adv748x_hdmi_set_format(struct v4l2_subdev *sd,
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return adv748x_hdmi_get_format(sd, sd_state, sdformat);
 
-	mbusformat = v4l2_subdev_get_try_format(sd, sd_state, sdformat->pad);
+	mbusformat = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 	*mbusformat = sdformat->format;
 
 	return 0;

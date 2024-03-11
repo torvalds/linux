@@ -37,14 +37,9 @@
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
 #include "xfs_log_priv.h"
+#include "xfs_health.h"
 
 struct kmem_cache *xfs_inode_cache;
-
-/*
- * Used in xfs_itruncate_extents().  This is the maximum number of extents
- * freed from a file in a single transaction.
- */
-#define	XFS_ITRUNC_MAX_EXTENTS	2
 
 STATIC int xfs_iunlink(struct xfs_trans *, struct xfs_inode *);
 STATIC int xfs_iunlink_remove(struct xfs_trans *tp, struct xfs_perag *pag,
@@ -661,6 +656,8 @@ xfs_lookup(
 
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
+		return -EIO;
 
 	error = xfs_dir_lookup(NULL, dp, name, &inum, ci_name);
 	if (error)
@@ -875,7 +872,7 @@ xfs_init_new_inode(
 	case S_IFLNK:
 		ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
 		ip->i_df.if_bytes = 0;
-		ip->i_df.if_u1.if_root = NULL;
+		ip->i_df.if_data = NULL;
 		break;
 	default:
 		ASSERT(0);
@@ -977,6 +974,8 @@ xfs_create(
 	trace_xfs_create(dp, name);
 
 	if (xfs_is_shutdown(mp))
+		return -EIO;
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
 		return -EIO;
 
 	prid = xfs_get_initial_prid(dp);
@@ -1217,6 +1216,8 @@ xfs_link(
 
 	if (xfs_is_shutdown(mp))
 		return -EIO;
+	if (xfs_ifork_zapped(tdp, XFS_DATA_FORK))
+		return -EIO;
 
 	error = xfs_qm_dqattach(sip);
 	if (error)
@@ -1339,7 +1340,6 @@ xfs_itruncate_extents_flags(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
 	xfs_fileoff_t		first_unmap_block;
-	xfs_filblks_t		unmap_len;
 	int			error = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
@@ -1371,19 +1371,10 @@ xfs_itruncate_extents_flags(
 		return 0;
 	}
 
-	unmap_len = XFS_MAX_FILEOFF - first_unmap_block + 1;
-	while (unmap_len > 0) {
-		ASSERT(tp->t_highest_agno == NULLAGNUMBER);
-		error = __xfs_bunmapi(tp, ip, first_unmap_block, &unmap_len,
-				flags, XFS_ITRUNC_MAX_EXTENTS);
-		if (error)
-			goto out;
-
-		/* free the just unmapped extents */
-		error = xfs_defer_finish(&tp);
-		if (error)
-			goto out;
-	}
+	error = xfs_bunmapi_range(&tp, ip, flags, first_unmap_block,
+			XFS_MAX_FILEOFF);
+	if (error)
+		goto out;
 
 	if (whichfork == XFS_DATA_FORK) {
 		/* Remove all pending CoW reservations. */
@@ -2387,8 +2378,8 @@ xfs_ifree(
 	 * already been freed by xfs_attr_inactive.
 	 */
 	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		kmem_free(ip->i_df.if_u1.if_data);
-		ip->i_df.if_u1.if_data = NULL;
+		kmem_free(ip->i_df.if_data);
+		ip->i_df.if_data = NULL;
 		ip->i_df.if_bytes = 0;
 	}
 
@@ -2505,6 +2496,8 @@ xfs_remove(
 	trace_xfs_remove(dp, name);
 
 	if (xfs_is_shutdown(mp))
+		return -EIO;
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
 		return -EIO;
 
 	error = xfs_qm_dqattach(dp);
@@ -3757,4 +3750,30 @@ xfs_inode_reload_unlinked(
 	xfs_trans_cancel(tp);
 
 	return error;
+}
+
+/* Has this inode fork been zapped by repair? */
+bool
+xfs_ifork_zapped(
+	const struct xfs_inode	*ip,
+	int			whichfork)
+{
+	unsigned int		datamask = 0;
+
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		switch (ip->i_vnode.i_mode & S_IFMT) {
+		case S_IFDIR:
+			datamask = XFS_SICK_INO_DIR_ZAPPED;
+			break;
+		case S_IFLNK:
+			datamask = XFS_SICK_INO_SYMLINK_ZAPPED;
+			break;
+		}
+		return ip->i_sick & (XFS_SICK_INO_BMBTD_ZAPPED | datamask);
+	case XFS_ATTR_FORK:
+		return ip->i_sick & XFS_SICK_INO_BMBTA_ZAPPED;
+	default:
+		return false;
+	}
 }

@@ -949,7 +949,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 
 static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state *conn_state)
 {
-	int format = conn_state->tv.mode;
+	int format = conn_state->tv.legacy_mode;
 
 	return &tv_modes[format];
 }
@@ -1417,9 +1417,6 @@ set_tv_mode_timings(struct drm_i915_private *dev_priv,
 static void set_color_conversion(struct drm_i915_private *dev_priv,
 				 const struct color_conversion *color_conversion)
 {
-	if (!color_conversion)
-		return;
-
 	intel_de_write(dev_priv, TV_CSC_Y,
 		       (color_conversion->ry << 16) | color_conversion->gy);
 	intel_de_write(dev_priv, TV_CSC_Y2,
@@ -1453,9 +1450,6 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 	bool burst_ena;
 	int xpos, ypos;
 	unsigned int xsize, ysize;
-
-	if (!tv_mode)
-		return;	/* can't happen (mode_prepare prevents this) */
 
 	tv_ctl = intel_de_read(dev_priv, TV_CTL);
 	tv_ctl &= TV_CTL_SAVE;
@@ -1710,7 +1704,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 			break;
 	}
 
-	connector->state->tv.mode = i;
+	connector->state->tv.legacy_mode = i;
 }
 
 static int
@@ -1865,7 +1859,7 @@ static int intel_tv_atomic_check(struct drm_connector *connector,
 	old_state = drm_atomic_get_old_connector_state(state, connector);
 	new_crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
-	if (old_state->tv.mode != new_state->tv.mode ||
+	if (old_state->tv.legacy_mode != new_state->tv.legacy_mode ||
 	    old_state->tv.margins.left != new_state->tv.margins.left ||
 	    old_state->tv.margins.right != new_state->tv.margins.right ||
 	    old_state->tv.margins.top != new_state->tv.margins.top ||
@@ -1902,7 +1896,7 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 	conn_state->tv.margins.right = 46;
 	conn_state->tv.margins.bottom = 37;
 
-	conn_state->tv.mode = 0;
+	conn_state->tv.legacy_mode = 0;
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
@@ -1916,7 +1910,7 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 
 	drm_object_attach_property(&connector->base,
 				   i915->drm.mode_config.legacy_tv_mode_property,
-				   conn_state->tv.mode);
+				   conn_state->tv.legacy_mode);
 	drm_object_attach_property(&connector->base,
 				   i915->drm.mode_config.tv_left_margin_property,
 				   conn_state->tv.margins.left);

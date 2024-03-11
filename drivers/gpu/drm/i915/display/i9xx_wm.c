@@ -608,7 +608,7 @@ static bool intel_crtc_active(struct intel_crtc *crtc)
 	 * crtc->state->active once we have proper CRTC states wired up
 	 * for atomic.
 	 */
-	return crtc && crtc->active && crtc->base.primary->state->fb &&
+	return crtc->active && crtc->base.primary->state->fb &&
 		crtc->config->hw.adjusted_mode.crtc_clock;
 }
 
@@ -2477,7 +2477,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_i915_private *dev_priv,
 		 * FIFO size is only half of the self
 		 * refresh FIFO size on ILK/SNB.
 		 */
-		if (DISPLAY_VER(dev_priv) <= 6)
+		if (DISPLAY_VER(dev_priv) < 7)
 			fifo_size /= 2;
 	}
 
@@ -2818,7 +2818,7 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 	usable_level = dev_priv->display.wm.num_levels - 1;
 
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
-	if (DISPLAY_VER(dev_priv) <= 6 && pipe_wm->sprites_enabled)
+	if (DISPLAY_VER(dev_priv) < 7 && pipe_wm->sprites_enabled)
 		usable_level = 1;
 
 	/* ILK/SNB/IVB: LP1+ watermarks only w/o scaling */
@@ -2961,7 +2961,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	int last_enabled_level = num_levels - 1;
 
 	/* ILK/SNB/IVB: LP1+ watermarks only w/ single pipe */
-	if ((DISPLAY_VER(dev_priv) <= 6 || IS_IVYBRIDGE(dev_priv)) &&
+	if ((DISPLAY_VER(dev_priv) < 7 || IS_IVYBRIDGE(dev_priv)) &&
 	    config->num_pipes_active > 1)
 		last_enabled_level = 0;
 
@@ -2993,7 +2993,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 
 	/* ILK: LP2+ must be disabled when FBC WM is disabled but FBC enabled */
 	if (DISPLAY_VER(dev_priv) == 5 && HAS_FBC(dev_priv) &&
-	    dev_priv->params.enable_fbc && !merged->fbc_wm_enabled) {
+	    dev_priv->display.params.enable_fbc && !merged->fbc_wm_enabled) {
 		for (level = 2; level < num_levels; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
 
@@ -3060,7 +3060,7 @@ static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 		 * Always set WM_LP_SPRITE_EN when spr_val != 0, even if the
 		 * level is disabled. Doing otherwise could cause underruns.
 		 */
-		if (DISPLAY_VER(dev_priv) <= 6 && r->spr_val) {
+		if (DISPLAY_VER(dev_priv) < 7 && r->spr_val) {
 			drm_WARN_ON(&dev_priv->drm, wm_lp != 1);
 			results->wm_lp_spr[wm_lp - 1] |= WM_LP_SPRITE_ENABLE;
 		}

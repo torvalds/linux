@@ -32,6 +32,8 @@
 
 #include <drm/drm_debugfs.h>
 
+#include "display/intel_display_params.h"
+
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_buffer_pool.h"
@@ -49,6 +51,7 @@
 #include "i915_debugfs.h"
 #include "i915_debugfs_params.h"
 #include "i915_driver.h"
+#include "i915_gpu_error.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i915_scheduler.h"
@@ -67,13 +70,13 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
 
 	intel_device_info_print(INTEL_INFO(i915), RUNTIME_INFO(i915), &p);
-	intel_display_device_info_print(DISPLAY_INFO(i915), DISPLAY_RUNTIME_INFO(i915), &p);
 	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915->params, &p);
+	intel_display_params_dump(i915, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
@@ -296,107 +299,6 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
-static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
-			      size_t count, loff_t *pos)
-{
-	struct i915_gpu_coredump *error;
-	ssize_t ret;
-	void *buf;
-
-	error = file->private_data;
-	if (!error)
-		return 0;
-
-	/* Bounce buffer required because of kernfs __user API convenience. */
-	buf = kmalloc(count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = i915_gpu_coredump_copy_to_buffer(error, buf, *pos, count);
-	if (ret <= 0)
-		goto out;
-
-	if (!copy_to_user(ubuf, buf, ret))
-		*pos += ret;
-	else
-		ret = -EFAULT;
-
-out:
-	kfree(buf);
-	return ret;
-}
-
-static int gpu_state_release(struct inode *inode, struct file *file)
-{
-	i915_gpu_coredump_put(file->private_data);
-	return 0;
-}
-
-static int i915_gpu_info_open(struct inode *inode, struct file *file)
-{
-	struct drm_i915_private *i915 = inode->i_private;
-	struct i915_gpu_coredump *gpu;
-	intel_wakeref_t wakeref;
-
-	gpu = NULL;
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES, CORE_DUMP_FLAG_NONE);
-
-	if (IS_ERR(gpu))
-		return PTR_ERR(gpu);
-
-	file->private_data = gpu;
-	return 0;
-}
-
-static const struct file_operations i915_gpu_info_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_gpu_info_open,
-	.read = gpu_state_read,
-	.llseek = default_llseek,
-	.release = gpu_state_release,
-};
-
-static ssize_t
-i915_error_state_write(struct file *filp,
-		       const char __user *ubuf,
-		       size_t cnt,
-		       loff_t *ppos)
-{
-	struct i915_gpu_coredump *error = filp->private_data;
-
-	if (!error)
-		return 0;
-
-	drm_dbg(&error->i915->drm, "Resetting error state\n");
-	i915_reset_error_state(error->i915);
-
-	return cnt;
-}
-
-static int i915_error_state_open(struct inode *inode, struct file *file)
-{
-	struct i915_gpu_coredump *error;
-
-	error = i915_first_error_state(inode->i_private);
-	if (IS_ERR(error))
-		return PTR_ERR(error);
-
-	file->private_data  = error;
-	return 0;
-}
-
-static const struct file_operations i915_error_state_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_error_state_open,
-	.read = gpu_state_read,
-	.write = i915_error_state_write,
-	.llseek = default_llseek,
-	.release = gpu_state_release,
-};
-#endif
 
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
@@ -837,10 +739,6 @@ static const struct i915_debugfs_files {
 	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
-#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
-	{"i915_error_state", &i915_error_state_fops},
-	{"i915_gpu_info", &i915_gpu_info_fops},
-#endif
 };
 
 void i915_debugfs_register(struct drm_i915_private *dev_priv)
@@ -863,4 +761,6 @@ void i915_debugfs_register(struct drm_i915_private *dev_priv)
 	drm_debugfs_create_files(i915_debugfs_list,
 				 ARRAY_SIZE(i915_debugfs_list),
 				 minor->debugfs_root, minor);
+
+	i915_gpu_error_debugfs_register(dev_priv);
 }

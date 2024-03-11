@@ -874,6 +874,9 @@ void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
 	cmd.sta_id = cpu_to_le32(mvmsta->deflink.sta_id);
 	cmd.disable = cpu_to_le32(disable);
 
+	if (WARN_ON(iwl_mvm_has_no_host_disable_tx(mvm)))
+		return;
+
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(MAC_CONF_GROUP, STA_DISABLE_TX_CMD),
 				   CMD_ASYNC, sizeof(cmd), &cmd);

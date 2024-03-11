@@ -461,10 +461,6 @@ static int sti_uniperiph_cpu_dai_of(struct device_node *node,
 	return 0;
 }
 
-static const struct snd_dmaengine_pcm_config dmaengine_pcm_config = {
-	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
-};
-
 static int sti_uniperiph_probe(struct platform_device *pdev)
 {
 	struct sti_uniperiph_data *priv;
@@ -493,8 +489,7 @@ static int sti_uniperiph_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	return devm_snd_dmaengine_pcm_register(&pdev->dev,
-					       &dmaengine_pcm_config, 0);
+	return devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 }
 
 static struct platform_driver sti_uniperiph_driver = {

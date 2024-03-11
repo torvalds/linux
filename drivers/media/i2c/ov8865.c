@@ -2640,33 +2640,8 @@ static int ov8865_s_stream(struct v4l2_subdev *subdev, int enable)
 	return 0;
 }
 
-static int ov8865_g_frame_interval(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_frame_interval *interval)
-{
-	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
-	const struct ov8865_mode *mode;
-	unsigned int framesize;
-	unsigned int fps;
-
-	mutex_lock(&sensor->mutex);
-
-	mode = sensor->state.mode;
-	framesize = mode->hts * (mode->output_size_y +
-				 sensor->ctrls.vblank->val);
-	fps = DIV_ROUND_CLOSEST(sensor->ctrls.pixel_rate->val, framesize);
-
-	interval->interval.numerator = 1;
-	interval->interval.denominator = fps;
-
-	mutex_unlock(&sensor->mutex);
-
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops ov8865_subdev_video_ops = {
 	.s_stream		= ov8865_s_stream,
-	.g_frame_interval	= ov8865_g_frame_interval,
-	.s_frame_interval	= ov8865_g_frame_interval,
 };
 
 /* Subdev Pad Operations */
@@ -2710,8 +2685,8 @@ static int ov8865_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(&sensor->mutex);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, sd_state,
-							   format->pad);
+		*mbus_format = *v4l2_subdev_state_get_format(sd_state,
+							     format->pad);
 	else
 		ov8865_mbus_format_fill(mbus_format, sensor->state.mbus_code,
 					sensor->state.mode);
@@ -2765,7 +2740,7 @@ static int ov8865_set_fmt(struct v4l2_subdev *subdev,
 	ov8865_mbus_format_fill(mbus_format, mbus_code, mode);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, sd_state, format->pad) =
+		*v4l2_subdev_state_get_format(sd_state, format->pad) =
 			*mbus_format;
 	else if (sensor->state.mode != mode ||
 		 sensor->state.mbus_code != mbus_code)
@@ -2818,7 +2793,7 @@ __ov8865_get_pad_crop(struct ov8865_sensor *sensor,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		*r = *v4l2_subdev_get_try_crop(&sensor->subdev, state, pad);
+		*r = *v4l2_subdev_state_get_crop(state, pad);
 		break;
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		r->height = mode->output_size_y;
@@ -2862,6 +2837,37 @@ static int ov8865_get_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+static int ov8865_get_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
+{
+	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
+	const struct ov8865_mode *mode;
+	unsigned int framesize;
+	unsigned int fps;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
+	mutex_lock(&sensor->mutex);
+
+	mode = sensor->state.mode;
+	framesize = mode->hts * (mode->output_size_y +
+				 sensor->ctrls.vblank->val);
+	fps = DIV_ROUND_CLOSEST(sensor->ctrls.pixel_rate->val, framesize);
+
+	interval->interval.numerator = 1;
+	interval->interval.denominator = fps;
+
+	mutex_unlock(&sensor->mutex);
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops ov8865_subdev_pad_ops = {
 	.enum_mbus_code		= ov8865_enum_mbus_code,
 	.get_fmt		= ov8865_get_fmt,
@@ -2869,6 +2875,8 @@ static const struct v4l2_subdev_pad_ops ov8865_subdev_pad_ops = {
 	.enum_frame_size	= ov8865_enum_frame_size,
 	.get_selection		= ov8865_get_selection,
 	.set_selection		= ov8865_get_selection,
+	.get_frame_interval	= ov8865_get_frame_interval,
+	.set_frame_interval	= ov8865_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov8865_subdev_ops = {

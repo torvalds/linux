@@ -256,6 +256,9 @@ static int rt722_sdca_read_prop(struct sdw_slave *slave)
 	/* wake-up event */
 	prop->wake_capable = 1;
 
+	/* Three data lanes are supported by rt722-sdca codec */
+	prop->lane_control_support = true;
+
 	return 0;
 }
 

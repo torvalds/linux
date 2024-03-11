@@ -200,12 +200,11 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int serial8250_em_remove(struct platform_device *pdev)
+static void serial8250_em_remove(struct platform_device *pdev)
 {
 	struct serial8250_em_priv *priv = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(priv->line);
-	return 0;
 }
 
 static const struct of_device_id serial8250_em_dt_ids[] = {
@@ -220,7 +219,7 @@ static struct platform_driver serial8250_em_platform_driver = {
 		.of_match_table = serial8250_em_dt_ids,
 	},
 	.probe			= serial8250_em_probe,
-	.remove			= serial8250_em_remove,
+	.remove_new		= serial8250_em_remove,
 };
 
 module_platform_driver(serial8250_em_platform_driver);

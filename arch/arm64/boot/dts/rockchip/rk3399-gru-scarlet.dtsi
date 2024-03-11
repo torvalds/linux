@@ -706,7 +706,7 @@ camera: &i2c7 {
 &spi2 {
 	status = "okay";
 
-	cr50@0 {
+	tpm@0 {
 		compatible = "google,cr50";
 		reg = <0>;
 		interrupt-parent = <&gpio1>;

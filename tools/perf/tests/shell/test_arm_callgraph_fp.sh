@@ -2,7 +2,13 @@
 # Check Arm64 callgraphs are complete in fp mode
 # SPDX-License-Identifier: GPL-2.0
 
+shelldir=$(dirname "$0")
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
 lscpu | grep -q "aarch64" || exit 2
+
+skip_test_missing_symbol leafloop
 
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 TEST_PROGRAM="perf test -w leafloop"

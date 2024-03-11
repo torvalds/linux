@@ -1260,7 +1260,8 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 	u64 bytes_left, end;
 	u64 aligned_start = ALIGN(start, 1 << SECTOR_SHIFT);
 
-	if (WARN_ON(start != aligned_start)) {
+	/* Adjust the range to be aligned to 512B sectors if necessary. */
+	if (start != aligned_start) {
 		len -= aligned_start - start;
 		len = round_down(len, 1 << SECTOR_SHIFT);
 		start = aligned_start;
@@ -3447,6 +3448,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_ref generic_ref = { 0 };
+	struct btrfs_block_group *bg;
 	int ret;
 
 	btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
@@ -3460,67 +3462,64 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		BUG_ON(ret); /* -ENOMEM */
 	}
 
-	if (last_ref && btrfs_header_generation(buf) == trans->transid) {
-		struct btrfs_block_group *cache;
-		bool must_pin = false;
+	if (!last_ref)
+		return;
 
-		if (root_id != BTRFS_TREE_LOG_OBJECTID) {
-			ret = check_ref_cleanup(trans, buf->start);
-			if (!ret) {
-				btrfs_redirty_list_add(trans->transaction, buf);
-				goto out;
-			}
-		}
+	if (btrfs_header_generation(buf) != trans->transid)
+		goto out;
 
-		cache = btrfs_lookup_block_group(fs_info, buf->start);
-
-		if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
-			pin_down_extent(trans, cache, buf->start, buf->len, 1);
-			btrfs_put_block_group(cache);
+	if (root_id != BTRFS_TREE_LOG_OBJECTID) {
+		ret = check_ref_cleanup(trans, buf->start);
+		if (!ret)
 			goto out;
-		}
-
-		/*
-		 * If there are tree mod log users we may have recorded mod log
-		 * operations for this node.  If we re-allocate this node we
-		 * could replay operations on this node that happened when it
-		 * existed in a completely different root.  For example if it
-		 * was part of root A, then was reallocated to root B, and we
-		 * are doing a btrfs_old_search_slot(root b), we could replay
-		 * operations that happened when the block was part of root A,
-		 * giving us an inconsistent view of the btree.
-		 *
-		 * We are safe from races here because at this point no other
-		 * node or root points to this extent buffer, so if after this
-		 * check a new tree mod log user joins we will not have an
-		 * existing log of operations on this node that we have to
-		 * contend with.
-		 */
-		if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
-			must_pin = true;
-
-		if (must_pin || btrfs_is_zoned(fs_info)) {
-			btrfs_redirty_list_add(trans->transaction, buf);
-			pin_down_extent(trans, cache, buf->start, buf->len, 1);
-			btrfs_put_block_group(cache);
-			goto out;
-		}
-
-		WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
-
-		btrfs_add_free_space(cache, buf->start, buf->len);
-		btrfs_free_reserved_bytes(cache, buf->len, 0);
-		btrfs_put_block_group(cache);
-		trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
 	}
+
+	bg = btrfs_lookup_block_group(fs_info, buf->start);
+
+	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
+		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		btrfs_put_block_group(bg);
+		goto out;
+	}
+
+	/*
+	 * If there are tree mod log users we may have recorded mod log
+	 * operations for this node.  If we re-allocate this node we
+	 * could replay operations on this node that happened when it
+	 * existed in a completely different root.  For example if it
+	 * was part of root A, then was reallocated to root B, and we
+	 * are doing a btrfs_old_search_slot(root b), we could replay
+	 * operations that happened when the block was part of root A,
+	 * giving us an inconsistent view of the btree.
+	 *
+	 * We are safe from races here because at this point no other
+	 * node or root points to this extent buffer, so if after this
+	 * check a new tree mod log user joins we will not have an
+	 * existing log of operations on this node that we have to
+	 * contend with.
+	 */
+
+	if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags)
+		     || btrfs_is_zoned(fs_info)) {
+		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		btrfs_put_block_group(bg);
+		goto out;
+	}
+
+	WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
+
+	btrfs_add_free_space(bg, buf->start, buf->len);
+	btrfs_free_reserved_bytes(bg, buf->len, 0);
+	btrfs_put_block_group(bg);
+	trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
+
 out:
-	if (last_ref) {
-		/*
-		 * Deleting the buffer, clear the corrupt flag since it doesn't
-		 * matter anymore.
-		 */
-		clear_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags);
-	}
+
+	/*
+	 * Deleting the buffer, clear the corrupt flag since it doesn't
+	 * matter anymore.
+	 */
+	clear_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags);
 }
 
 /* Can return -ENOMEM */
@@ -4300,6 +4299,42 @@ static int prepare_allocation_clustered(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+static int prepare_allocation_zoned(struct btrfs_fs_info *fs_info,
+				    struct find_free_extent_ctl *ffe_ctl)
+{
+	if (ffe_ctl->for_treelog) {
+		spin_lock(&fs_info->treelog_bg_lock);
+		if (fs_info->treelog_bg)
+			ffe_ctl->hint_byte = fs_info->treelog_bg;
+		spin_unlock(&fs_info->treelog_bg_lock);
+	} else if (ffe_ctl->for_data_reloc) {
+		spin_lock(&fs_info->relocation_bg_lock);
+		if (fs_info->data_reloc_bg)
+			ffe_ctl->hint_byte = fs_info->data_reloc_bg;
+		spin_unlock(&fs_info->relocation_bg_lock);
+	} else if (ffe_ctl->flags & BTRFS_BLOCK_GROUP_DATA) {
+		struct btrfs_block_group *block_group;
+
+		spin_lock(&fs_info->zone_active_bgs_lock);
+		list_for_each_entry(block_group, &fs_info->zone_active_bgs, active_bg_list) {
+			/*
+			 * No lock is OK here because avail is monotinically
+			 * decreasing, and this is just a hint.
+			 */
+			u64 avail = block_group->zone_capacity - block_group->alloc_offset;
+
+			if (block_group_bits(block_group, ffe_ctl->flags) &&
+			    avail >= ffe_ctl->num_bytes) {
+				ffe_ctl->hint_byte = block_group->start;
+				break;
+			}
+		}
+		spin_unlock(&fs_info->zone_active_bgs_lock);
+	}
+
+	return 0;
+}
+
 static int prepare_allocation(struct btrfs_fs_info *fs_info,
 			      struct find_free_extent_ctl *ffe_ctl,
 			      struct btrfs_space_info *space_info,
@@ -4310,19 +4345,7 @@ static int prepare_allocation(struct btrfs_fs_info *fs_info,
 		return prepare_allocation_clustered(fs_info, ffe_ctl,
 						    space_info, ins);
 	case BTRFS_EXTENT_ALLOC_ZONED:
-		if (ffe_ctl->for_treelog) {
-			spin_lock(&fs_info->treelog_bg_lock);
-			if (fs_info->treelog_bg)
-				ffe_ctl->hint_byte = fs_info->treelog_bg;
-			spin_unlock(&fs_info->treelog_bg_lock);
-		}
-		if (ffe_ctl->for_data_reloc) {
-			spin_lock(&fs_info->relocation_bg_lock);
-			if (fs_info->data_reloc_bg)
-				ffe_ctl->hint_byte = fs_info->data_reloc_bg;
-			spin_unlock(&fs_info->relocation_bg_lock);
-		}
-		return 0;
+		return prepare_allocation_zoned(fs_info, ffe_ctl);
 	default:
 		BUG();
 	}
@@ -5061,7 +5084,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	__btrfs_tree_lock(buf, nest);
 	btrfs_clear_buffer_dirty(trans, buf);
 	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
-	clear_bit(EXTENT_BUFFER_NO_CHECK, &buf->bflags);
+	clear_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &buf->bflags);
 
 	set_extent_buffer_uptodate(buf);
 

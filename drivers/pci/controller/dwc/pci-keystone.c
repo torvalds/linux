@@ -115,8 +115,7 @@ struct keystone_pcie {
 	struct dw_pcie		*pci;
 	/* PCI Device ID */
 	u32			device_id;
-	int			legacy_host_irqs[PCI_NUM_INTX];
-	struct			device_node *legacy_intc_np;
+	int			intx_host_irqs[PCI_NUM_INTX];
 
 	int			msi_host_irq;
 	int			num_lanes;
@@ -124,7 +123,7 @@ struct keystone_pcie {
 	struct phy		**phy;
 	struct device_link	**link;
 	struct			device_node *msi_intc_np;
-	struct irq_domain	*legacy_irq_domain;
+	struct irq_domain	*intx_irq_domain;
 	struct device_node	*np;
 
 	/* Application register space */
@@ -252,8 +251,8 @@ static int ks_pcie_msi_host_init(struct dw_pcie_rp *pp)
 	return dw_pcie_allocate_domains(pp);
 }
 
-static void ks_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie,
-				      int offset)
+static void ks_pcie_handle_intx_irq(struct keystone_pcie *ks_pcie,
+				    int offset)
 {
 	struct dw_pcie *pci = ks_pcie->pci;
 	struct device *dev = pci->dev;
@@ -263,7 +262,7 @@ static void ks_pcie_handle_legacy_irq(struct keystone_pcie *ks_pcie,
 
 	if (BIT(0) & pending) {
 		dev_dbg(dev, ": irq: irq_offset %d", offset);
-		generic_handle_domain_irq(ks_pcie->legacy_irq_domain, offset);
+		generic_handle_domain_irq(ks_pcie->intx_irq_domain, offset);
 	}
 
 	/* EOI the INTx interrupt */
@@ -307,38 +306,37 @@ static irqreturn_t ks_pcie_handle_error_irq(struct keystone_pcie *ks_pcie)
 	return IRQ_HANDLED;
 }
 
-static void ks_pcie_ack_legacy_irq(struct irq_data *d)
+static void ks_pcie_ack_intx_irq(struct irq_data *d)
 {
 }
 
-static void ks_pcie_mask_legacy_irq(struct irq_data *d)
+static void ks_pcie_mask_intx_irq(struct irq_data *d)
 {
 }
 
-static void ks_pcie_unmask_legacy_irq(struct irq_data *d)
+static void ks_pcie_unmask_intx_irq(struct irq_data *d)
 {
 }
 
-static struct irq_chip ks_pcie_legacy_irq_chip = {
-	.name = "Keystone-PCI-Legacy-IRQ",
-	.irq_ack = ks_pcie_ack_legacy_irq,
-	.irq_mask = ks_pcie_mask_legacy_irq,
-	.irq_unmask = ks_pcie_unmask_legacy_irq,
+static struct irq_chip ks_pcie_intx_irq_chip = {
+	.name = "Keystone-PCI-INTX-IRQ",
+	.irq_ack = ks_pcie_ack_intx_irq,
+	.irq_mask = ks_pcie_mask_intx_irq,
+	.irq_unmask = ks_pcie_unmask_intx_irq,
 };
 
-static int ks_pcie_init_legacy_irq_map(struct irq_domain *d,
-				       unsigned int irq,
-				       irq_hw_number_t hw_irq)
+static int ks_pcie_init_intx_irq_map(struct irq_domain *d,
+				     unsigned int irq, irq_hw_number_t hw_irq)
 {
-	irq_set_chip_and_handler(irq, &ks_pcie_legacy_irq_chip,
+	irq_set_chip_and_handler(irq, &ks_pcie_intx_irq_chip,
 				 handle_level_irq);
 	irq_set_chip_data(irq, d->host_data);
 
 	return 0;
 }
 
-static const struct irq_domain_ops ks_pcie_legacy_irq_domain_ops = {
-	.map = ks_pcie_init_legacy_irq_map,
+static const struct irq_domain_ops ks_pcie_intx_irq_domain_ops = {
+	.map = ks_pcie_init_intx_irq_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
@@ -605,22 +603,22 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 }
 
 /**
- * ks_pcie_legacy_irq_handler() - Handle legacy interrupt
+ * ks_pcie_intx_irq_handler() - Handle INTX interrupt
  * @desc: Pointer to irq descriptor
  *
- * Traverse through pending legacy interrupts and invoke handler for each. Also
+ * Traverse through pending INTX interrupts and invoke handler for each. Also
  * takes care of interrupt controller level mask/ack operation.
  */
-static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
+static void ks_pcie_intx_irq_handler(struct irq_desc *desc)
 {
 	unsigned int irq = irq_desc_get_irq(desc);
 	struct keystone_pcie *ks_pcie = irq_desc_get_handler_data(desc);
 	struct dw_pcie *pci = ks_pcie->pci;
 	struct device *dev = pci->dev;
-	u32 irq_offset = irq - ks_pcie->legacy_host_irqs[0];
+	u32 irq_offset = irq - ks_pcie->intx_host_irqs[0];
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	dev_dbg(dev, ": Handling legacy irq %d\n", irq);
+	dev_dbg(dev, ": Handling INTX irq %d\n", irq);
 
 	/*
 	 * The chained irq handler installation would have replaced normal
@@ -628,7 +626,7 @@ static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 	 * ack operation.
 	 */
 	chained_irq_enter(chip, desc);
-	ks_pcie_handle_legacy_irq(ks_pcie, irq_offset);
+	ks_pcie_handle_intx_irq(ks_pcie, irq_offset);
 	chained_irq_exit(chip, desc);
 }
 
@@ -686,10 +684,10 @@ err:
 	return ret;
 }
 
-static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
+static int ks_pcie_config_intx_irq(struct keystone_pcie *ks_pcie)
 {
 	struct device *dev = ks_pcie->pci->dev;
-	struct irq_domain *legacy_irq_domain;
+	struct irq_domain *intx_irq_domain;
 	struct device_node *np = ks_pcie->np;
 	struct device_node *intc_np;
 	int irq_count, irq, ret = 0, i;
@@ -697,7 +695,7 @@ static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
 	intc_np = of_get_child_by_name(np, "legacy-interrupt-controller");
 	if (!intc_np) {
 		/*
-		 * Since legacy interrupts are modeled as edge-interrupts in
+		 * Since INTX interrupts are modeled as edge-interrupts in
 		 * AM6, keep it disabled for now.
 		 */
 		if (ks_pcie->is_am6)
@@ -719,22 +717,21 @@ static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
 			ret = -EINVAL;
 			goto err;
 		}
-		ks_pcie->legacy_host_irqs[i] = irq;
+		ks_pcie->intx_host_irqs[i] = irq;
 
 		irq_set_chained_handler_and_data(irq,
-						 ks_pcie_legacy_irq_handler,
+						 ks_pcie_intx_irq_handler,
 						 ks_pcie);
 	}
 
-	legacy_irq_domain =
-		irq_domain_add_linear(intc_np, PCI_NUM_INTX,
-				      &ks_pcie_legacy_irq_domain_ops, NULL);
-	if (!legacy_irq_domain) {
-		dev_err(dev, "Failed to add irq domain for legacy irqs\n");
+	intx_irq_domain = irq_domain_add_linear(intc_np, PCI_NUM_INTX,
+					&ks_pcie_intx_irq_domain_ops, NULL);
+	if (!intx_irq_domain) {
+		dev_err(dev, "Failed to add irq domain for INTX irqs\n");
 		ret = -EINVAL;
 		goto err;
 	}
-	ks_pcie->legacy_irq_domain = legacy_irq_domain;
+	ks_pcie->intx_irq_domain = intx_irq_domain;
 
 	for (i = 0; i < PCI_NUM_INTX; i++)
 		ks_pcie_app_writel(ks_pcie, IRQ_ENABLE_SET(i), INTx_EN);
@@ -808,7 +805,7 @@ static int __init ks_pcie_host_init(struct dw_pcie_rp *pp)
 	if (!ks_pcie->is_am6)
 		pp->bridge->child_ops = &ks_child_pcie_ops;
 
-	ret = ks_pcie_config_legacy_irq(ks_pcie);
+	ret = ks_pcie_config_intx_irq(ks_pcie);
 	if (ret)
 		return ret;
 
@@ -838,12 +835,12 @@ static int __init ks_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops ks_pcie_host_ops = {
-	.host_init = ks_pcie_host_init,
-	.msi_host_init = ks_pcie_msi_host_init,
+	.init = ks_pcie_host_init,
+	.msi_init = ks_pcie_msi_host_init,
 };
 
 static const struct dw_pcie_host_ops ks_pcie_am654_host_ops = {
-	.host_init = ks_pcie_host_init,
+	.init = ks_pcie_host_init,
 };
 
 static irqreturn_t ks_pcie_err_irq_handler(int irq, void *priv)
@@ -881,7 +878,7 @@ static void ks_pcie_am654_ep_init(struct dw_pcie_ep *ep)
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, flags);
 }
 
-static void ks_pcie_am654_raise_legacy_irq(struct keystone_pcie *ks_pcie)
+static void ks_pcie_am654_raise_intx_irq(struct keystone_pcie *ks_pcie)
 {
 	struct dw_pcie *pci = ks_pcie->pci;
 	u8 int_pin;
@@ -900,20 +897,19 @@ static void ks_pcie_am654_raise_legacy_irq(struct keystone_pcie *ks_pcie)
 }
 
 static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				   enum pci_epc_irq_type type,
-				   u16 interrupt_num)
+				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		ks_pcie_am654_raise_legacy_irq(ks_pcie);
+	case PCI_IRQ_INTX:
+		ks_pcie_am654_raise_intx_irq(ks_pcie);
 		break;
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
 		break;
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
 		break;
 	default:
@@ -944,7 +940,7 @@ ks_pcie_am654_get_features(struct dw_pcie_ep *ep)
 }
 
 static const struct dw_pcie_ep_ops ks_pcie_am654_ep_ops = {
-	.ep_init = ks_pcie_am654_ep_init,
+	.init = ks_pcie_am654_ep_init,
 	.raise_irq = ks_pcie_am654_raise_irq,
 	.get_features = &ks_pcie_am654_get_features,
 };
@@ -1218,7 +1214,16 @@ static int ks_pcie_probe(struct platform_device *pdev)
 		goto err_link;
 	}
 
+	/* Obtain references to the PHYs */
+	for (i = 0; i < num_lanes; i++)
+		phy_pm_runtime_get_sync(ks_pcie->phy[i]);
+
 	ret = ks_pcie_enable_phy(ks_pcie);
+
+	/* Release references to the PHYs */
+	for (i = 0; i < num_lanes; i++)
+		phy_pm_runtime_put_sync(ks_pcie->phy[i]);
+
 	if (ret) {
 		dev_err(dev, "failed to enable phy\n");
 		goto err_link;
@@ -1302,7 +1307,7 @@ err_link:
 	return ret;
 }
 
-static int ks_pcie_remove(struct platform_device *pdev)
+static void ks_pcie_remove(struct platform_device *pdev)
 {
 	struct keystone_pcie *ks_pcie = platform_get_drvdata(pdev);
 	struct device_link **link = ks_pcie->link;
@@ -1314,13 +1319,11 @@ static int ks_pcie_remove(struct platform_device *pdev)
 	ks_pcie_disable_phy(ks_pcie);
 	while (num_lanes--)
 		device_link_del(link[num_lanes]);
-
-	return 0;
 }
 
 static struct platform_driver ks_pcie_driver = {
 	.probe  = ks_pcie_probe,
-	.remove = ks_pcie_remove,
+	.remove_new = ks_pcie_remove,
 	.driver = {
 		.name	= "keystone-pcie",
 		.of_match_table = ks_pcie_of_match,

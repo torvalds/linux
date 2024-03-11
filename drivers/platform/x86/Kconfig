@@ -177,10 +177,12 @@ config ACER_WMI
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on ACPI_WMI
-	select ACPI_VIDEO
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on HWMON
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
+	select ACPI_PLATFORM_PROFILE
 	help
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
 	  wireless radio and bluetooth control, and on some laptops,
@@ -1086,6 +1088,21 @@ config INTEL_SCU_IPC_UTIL
 	  N unless you will be doing this on an Intel MID platform.
 
 source "drivers/platform/x86/siemens/Kconfig"
+
+config SILICOM_PLATFORM
+	tristate "Silicom Edge Networking device support"
+	depends on HWMON
+	depends on GPIOLIB
+	depends on LEDS_CLASS_MULTICOLOR
+	help
+	  This option enables support for the LEDs/GPIO/etc downstream of the
+	  embedded controller on Silicom "Cordoba" hardware and derivatives.
+
+	  This platform driver provides support for various functions via
+	  the Linux LED framework, GPIO framework, Hardware Monitoring (HWMON)
+	  and device attributes.
+
+	  If you have a Silicom network appliance, say Y or M here.
 
 config WINMATE_FM07_KEYS
 	tristate "Winmate FM07/FM07P front-panel keys driver"

@@ -198,7 +198,7 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 	 * at the WPF sink.
 	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
-					    pipe->output->entity.config,
+					    pipe->output->entity.state,
 					    RWPF_PAD_SINK);
 
 	/* A single partition simply processes the output size in full. */
@@ -263,7 +263,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	 * at the WPF sink.
 	 */
 	format = vsp1_entity_get_pad_format(&pipe->output->entity,
-					    pipe->output->entity.config,
+					    pipe->output->entity.state,
 					    RWPF_PAD_SINK);
 	div_size = format->width;
 

@@ -94,6 +94,7 @@ static int virtio_gpu_probe(struct virtio_device *vdev)
 			goto err_free;
 	}
 
+	dma_set_max_seg_size(dev->dev, dma_max_mapping_size(dev->dev) ?: UINT_MAX);
 	ret = virtio_gpu_init(vdev, dev);
 	if (ret)
 		goto err_free;
@@ -177,7 +178,7 @@ static const struct drm_driver driver = {
 	 * out via drm_device::driver_features:
 	 */
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_RENDER | DRIVER_ATOMIC |
-			   DRIVER_SYNCOBJ | DRIVER_SYNCOBJ_TIMELINE,
+			   DRIVER_SYNCOBJ | DRIVER_SYNCOBJ_TIMELINE | DRIVER_CURSOR_HOTSPOT,
 	.open = virtio_gpu_driver_open,
 	.postclose = virtio_gpu_driver_postclose,
 

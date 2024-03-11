@@ -26,8 +26,8 @@
 #include "amdgpu_smu.h"
 
 #define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
+#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x1
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x6
 
 #define FEATURE_MASK(feature) (1ULL << feature)
 

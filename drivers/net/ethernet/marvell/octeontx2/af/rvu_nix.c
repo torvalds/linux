@@ -72,12 +72,19 @@ enum nix_makr_fmt_indexes {
 /* For now considering MC resources needed for broadcast
  * pkt replication only. i.e 256 HWVFs + 12 PFs.
  */
-#define MC_TBL_SIZE	MC_TBL_SZ_512
-#define MC_BUF_CNT	MC_BUF_CNT_128
+#define MC_TBL_SIZE	MC_TBL_SZ_2K
+#define MC_BUF_CNT	MC_BUF_CNT_1024
+
+#define MC_TX_MAX	2048
 
 struct mce {
 	struct hlist_node	node;
+	u32			rq_rss_index;
 	u16			pcifunc;
+	u16			channel;
+	u8			dest_type;
+	u8			is_active;
+	u8			reserved[2];
 };
 
 int rvu_get_next_nix_blkaddr(struct rvu *rvu, int blkaddr)
@@ -165,16 +172,31 @@ static void nix_mce_list_init(struct nix_mce_list *list, int max)
 	list->max = max;
 }
 
-static u16 nix_alloc_mce_list(struct nix_mcast *mcast, int count)
+static int nix_alloc_mce_list(struct nix_mcast *mcast, int count, u8 dir)
 {
+	struct rsrc_bmap *mce_counter;
 	int idx;
 
 	if (!mcast)
-		return 0;
+		return -EINVAL;
 
-	idx = mcast->next_free_mce;
-	mcast->next_free_mce += count;
+	mce_counter = &mcast->mce_counter[dir];
+	if (!rvu_rsrc_check_contig(mce_counter, count))
+		return -ENOSPC;
+
+	idx = rvu_alloc_rsrc_contig(mce_counter, count);
 	return idx;
+}
+
+static void nix_free_mce_list(struct nix_mcast *mcast, int count, int start, u8 dir)
+{
+	struct rsrc_bmap *mce_counter;
+
+	if (!mcast)
+		return;
+
+	mce_counter = &mcast->mce_counter[dir];
+	rvu_free_rsrc_contig(mce_counter, count, start);
 }
 
 struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr)
@@ -2956,7 +2978,8 @@ int rvu_mbox_handler_nix_vtag_cfg(struct rvu *rvu,
 }
 
 static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
-			     int mce, u8 op, u16 pcifunc, int next, bool eol)
+			     int mce, u8 op, u16 pcifunc, int next,
+			     int index, u8 mce_op, bool eol)
 {
 	struct nix_aq_enq_req aq_req;
 	int err;
@@ -2967,8 +2990,8 @@ static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
 	aq_req.qidx = mce;
 
 	/* Use RSS with RSS index 0 */
-	aq_req.mce.op = 1;
-	aq_req.mce.index = 0;
+	aq_req.mce.op = mce_op;
+	aq_req.mce.index = index;
 	aq_req.mce.eol = eol;
 	aq_req.mce.pf_func = pcifunc;
 	aq_req.mce.next = next;
@@ -2983,6 +3006,206 @@ static int nix_blk_setup_mce(struct rvu *rvu, struct nix_hw *nix_hw,
 		return err;
 	}
 	return 0;
+}
+
+static void nix_delete_mcast_mce_list(struct nix_mce_list *mce_list)
+{
+	struct hlist_node *tmp;
+	struct mce *mce;
+
+	/* Scan through the current list */
+	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
+		hlist_del(&mce->node);
+		kfree(mce);
+	}
+
+	mce_list->count = 0;
+	mce_list->max = 0;
+}
+
+static int nix_get_last_mce_list_index(struct nix_mcast_grp_elem *elem)
+{
+	return elem->mce_start_index + elem->mcast_mce_list.count - 1;
+}
+
+static int nix_update_ingress_mce_list_hw(struct rvu *rvu,
+					  struct nix_hw *nix_hw,
+					  struct nix_mcast_grp_elem *elem)
+{
+	int idx, last_idx, next_idx, err;
+	struct nix_mce_list *mce_list;
+	struct mce *mce, *prev_mce;
+
+	mce_list = &elem->mcast_mce_list;
+	idx = elem->mce_start_index;
+	last_idx = nix_get_last_mce_list_index(elem);
+	hlist_for_each_entry(mce, &mce_list->head, node) {
+		if (idx > last_idx)
+			break;
+
+		if (!mce->is_active) {
+			if (idx == elem->mce_start_index) {
+				idx++;
+				prev_mce = mce;
+				elem->mce_start_index = idx;
+				continue;
+			} else if (idx == last_idx) {
+				err = nix_blk_setup_mce(rvu, nix_hw, idx - 1, NIX_AQ_INSTOP_WRITE,
+							prev_mce->pcifunc, next_idx,
+							prev_mce->rq_rss_index,
+							prev_mce->dest_type,
+							false);
+				if (err)
+					return err;
+
+				break;
+			}
+		}
+
+		next_idx = idx + 1;
+		/* EOL should be set in last MCE */
+		err = nix_blk_setup_mce(rvu, nix_hw, idx, NIX_AQ_INSTOP_WRITE,
+					mce->pcifunc, next_idx,
+					mce->rq_rss_index, mce->dest_type,
+					(next_idx > last_idx) ? true : false);
+		if (err)
+			return err;
+
+		idx++;
+		prev_mce = mce;
+	}
+
+	return 0;
+}
+
+static void nix_update_egress_mce_list_hw(struct rvu *rvu,
+					  struct nix_hw *nix_hw,
+					  struct nix_mcast_grp_elem *elem)
+{
+	struct nix_mce_list *mce_list;
+	int idx, last_idx, next_idx;
+	struct mce *mce, *prev_mce;
+	u64 regval;
+	u8 eol;
+
+	mce_list = &elem->mcast_mce_list;
+	idx = elem->mce_start_index;
+	last_idx = nix_get_last_mce_list_index(elem);
+	hlist_for_each_entry(mce, &mce_list->head, node) {
+		if (idx > last_idx)
+			break;
+
+		if (!mce->is_active) {
+			if (idx == elem->mce_start_index) {
+				idx++;
+				prev_mce = mce;
+				elem->mce_start_index = idx;
+				continue;
+			} else if (idx == last_idx) {
+				regval = (next_idx << 16) | (1 << 12) | prev_mce->channel;
+				rvu_write64(rvu, nix_hw->blkaddr,
+					    NIX_AF_TX_MCASTX(idx - 1),
+					    regval);
+				break;
+			}
+		}
+
+		eol = 0;
+		next_idx = idx + 1;
+		/* EOL should be set in last MCE */
+		if (next_idx > last_idx)
+			eol = 1;
+
+		regval = (next_idx << 16) | (eol << 12) | mce->channel;
+		rvu_write64(rvu, nix_hw->blkaddr,
+			    NIX_AF_TX_MCASTX(idx),
+			    regval);
+		idx++;
+		prev_mce = mce;
+	}
+}
+
+static int nix_del_mce_list_entry(struct rvu *rvu,
+				  struct nix_hw *nix_hw,
+				  struct nix_mcast_grp_elem *elem,
+				  struct nix_mcast_grp_update_req *req)
+{
+	u32 num_entry = req->num_mce_entry;
+	struct nix_mce_list *mce_list;
+	struct mce *mce;
+	bool is_found;
+	int i;
+
+	mce_list = &elem->mcast_mce_list;
+	for (i = 0; i < num_entry; i++) {
+		is_found = false;
+		hlist_for_each_entry(mce, &mce_list->head, node) {
+			/* If already exists, then delete */
+			if (mce->pcifunc == req->pcifunc[i]) {
+				hlist_del(&mce->node);
+				kfree(mce);
+				mce_list->count--;
+				is_found = true;
+				break;
+			}
+		}
+
+		if (!is_found)
+			return NIX_AF_ERR_INVALID_MCAST_DEL_REQ;
+	}
+
+	mce_list->max = mce_list->count;
+	/* Dump the updated list to HW */
+	if (elem->dir == NIX_MCAST_INGRESS)
+		return nix_update_ingress_mce_list_hw(rvu, nix_hw, elem);
+
+	nix_update_egress_mce_list_hw(rvu, nix_hw, elem);
+	return 0;
+}
+
+static int nix_add_mce_list_entry(struct rvu *rvu,
+				  struct nix_hw *nix_hw,
+				  struct nix_mcast_grp_elem *elem,
+				  struct nix_mcast_grp_update_req *req)
+{
+	u32 num_entry = req->num_mce_entry;
+	struct nix_mce_list *mce_list;
+	struct hlist_node *tmp;
+	struct mce *mce;
+	int i;
+
+	mce_list = &elem->mcast_mce_list;
+	for (i = 0; i < num_entry; i++) {
+		mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+		if (!mce)
+			goto free_mce;
+
+		mce->pcifunc = req->pcifunc[i];
+		mce->channel = req->channel[i];
+		mce->rq_rss_index = req->rq_rss_index[i];
+		mce->dest_type = req->dest_type[i];
+		mce->is_active = 1;
+		hlist_add_head(&mce->node, &mce_list->head);
+		mce_list->count++;
+	}
+
+	mce_list->max += num_entry;
+
+	/* Dump the updated list to HW */
+	if (elem->dir == NIX_MCAST_INGRESS)
+		return nix_update_ingress_mce_list_hw(rvu, nix_hw, elem);
+
+	nix_update_egress_mce_list_hw(rvu, nix_hw, elem);
+	return 0;
+
+free_mce:
+	hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
+		hlist_del(&mce->node);
+		kfree(mce);
+		mce_list->count--;
+	}
+
+	return -ENOMEM;
 }
 
 static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
@@ -3080,6 +3303,7 @@ int nix_update_mce_list(struct rvu *rvu, u16 pcifunc,
 		/* EOL should be set in last MCE */
 		err = nix_blk_setup_mce(rvu, nix_hw, idx, NIX_AQ_INSTOP_WRITE,
 					mce->pcifunc, next_idx,
+					0, 1,
 					(next_idx > last_idx) ? true : false);
 		if (err)
 			goto end;
@@ -3160,6 +3384,16 @@ static int nix_update_mce_rule(struct rvu *rvu, u16 pcifunc,
 	return err;
 }
 
+static void nix_setup_mcast_grp(struct nix_hw *nix_hw)
+{
+	struct nix_mcast_grp *mcast_grp = &nix_hw->mcast_grp;
+
+	INIT_LIST_HEAD(&mcast_grp->mcast_grp_head);
+	mutex_init(&mcast_grp->mcast_grp_lock);
+	mcast_grp->next_grp_index = 1;
+	mcast_grp->count = 0;
+}
+
 static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 {
 	struct nix_mcast *mcast = &nix_hw->mcast;
@@ -3184,15 +3418,15 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			continue;
 
 		/* save start idx of broadcast mce list */
-		pfvf->bcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+		pfvf->bcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1, NIX_MCAST_INGRESS);
 		nix_mce_list_init(&pfvf->bcast_mce_list, numvfs + 1);
 
 		/* save start idx of multicast mce list */
-		pfvf->mcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+		pfvf->mcast_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1, NIX_MCAST_INGRESS);
 		nix_mce_list_init(&pfvf->mcast_mce_list, numvfs + 1);
 
 		/* save the start idx of promisc mce list */
-		pfvf->promisc_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1);
+		pfvf->promisc_mce_idx = nix_alloc_mce_list(mcast, numvfs + 1, NIX_MCAST_INGRESS);
 		nix_mce_list_init(&pfvf->promisc_mce_list, numvfs + 1);
 
 		for (idx = 0; idx < (numvfs + 1); idx++) {
@@ -3207,7 +3441,7 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			err = nix_blk_setup_mce(rvu, nix_hw,
 						pfvf->bcast_mce_idx + idx,
 						NIX_AQ_INSTOP_INIT,
-						pcifunc, 0, true);
+						pcifunc, 0, 0, 1, true);
 			if (err)
 				return err;
 
@@ -3215,7 +3449,7 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			err = nix_blk_setup_mce(rvu, nix_hw,
 						pfvf->mcast_mce_idx + idx,
 						NIX_AQ_INSTOP_INIT,
-						pcifunc, 0, true);
+						pcifunc, 0, 0, 1, true);
 			if (err)
 				return err;
 
@@ -3223,7 +3457,7 @@ static int nix_setup_mce_tables(struct rvu *rvu, struct nix_hw *nix_hw)
 			err = nix_blk_setup_mce(rvu, nix_hw,
 						pfvf->promisc_mce_idx + idx,
 						NIX_AQ_INSTOP_INIT,
-						pcifunc, 0, true);
+						pcifunc, 0, 0, 1, true);
 			if (err)
 				return err;
 		}
@@ -3238,13 +3472,30 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	int err, size;
 
 	size = (rvu_read64(rvu, blkaddr, NIX_AF_CONST3) >> 16) & 0x0F;
-	size = (1ULL << size);
+	size = BIT_ULL(size);
+
+	/* Allocate bitmap for rx mce entries */
+	mcast->mce_counter[NIX_MCAST_INGRESS].max = 256UL << MC_TBL_SIZE;
+	err = rvu_alloc_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
+	if (err)
+		return -ENOMEM;
+
+	/* Allocate bitmap for tx mce entries */
+	mcast->mce_counter[NIX_MCAST_EGRESS].max = MC_TX_MAX;
+	err = rvu_alloc_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
+	if (err) {
+		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
+		return -ENOMEM;
+	}
 
 	/* Alloc memory for multicast/mirror replication entries */
 	err = qmem_alloc(rvu->dev, &mcast->mce_ctx,
-			 (256UL << MC_TBL_SIZE), size);
-	if (err)
+			 mcast->mce_counter[NIX_MCAST_INGRESS].max, size);
+	if (err) {
+		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
+		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
 		return -ENOMEM;
+	}
 
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BASE,
 		    (u64)mcast->mce_ctx->iova);
@@ -3257,8 +3508,11 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	size = rvu_read64(rvu, blkaddr, NIX_AF_MC_MIRROR_CONST) & 0xFFFF;
 	err = qmem_alloc(rvu->dev, &mcast->mcast_buf,
 			 (8UL << MC_BUF_CNT), size);
-	if (err)
+	if (err) {
+		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_INGRESS]);
+		rvu_free_bitmap(&mcast->mce_counter[NIX_MCAST_EGRESS]);
 		return -ENOMEM;
+	}
 
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_MCAST_BUF_BASE,
 		    (u64)mcast->mcast_buf->iova);
@@ -3271,6 +3525,8 @@ static int nix_setup_mcast(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 		    BIT_ULL(20) | MC_BUF_CNT);
 
 	mutex_init(&mcast->mce_lock);
+
+	nix_setup_mcast_grp(nix_hw);
 
 	return nix_setup_mce_tables(rvu, nix_hw);
 }
@@ -4698,6 +4954,74 @@ void rvu_nix_freemem(struct rvu *rvu)
 	}
 }
 
+static void nix_mcast_update_action(struct rvu *rvu,
+				    struct nix_mcast_grp_elem *elem)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct nix_rx_action rx_action = { 0 };
+	struct nix_tx_action tx_action = { 0 };
+	int npc_blkaddr;
+
+	npc_blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (elem->dir == NIX_MCAST_INGRESS) {
+		*(u64 *)&rx_action = npc_get_mcam_action(rvu, mcam,
+							 npc_blkaddr,
+							 elem->mcam_index);
+		rx_action.index = elem->mce_start_index;
+		npc_set_mcam_action(rvu, mcam, npc_blkaddr, elem->mcam_index,
+				    *(u64 *)&rx_action);
+	} else {
+		*(u64 *)&tx_action = npc_get_mcam_action(rvu, mcam,
+							 npc_blkaddr,
+							 elem->mcam_index);
+		tx_action.index = elem->mce_start_index;
+		npc_set_mcam_action(rvu, mcam, npc_blkaddr, elem->mcam_index,
+				    *(u64 *)&tx_action);
+	}
+}
+
+static void nix_mcast_update_mce_entry(struct rvu *rvu, u16 pcifunc, u8 is_active)
+{
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	struct nix_hw *nix_hw;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return;
+
+	mcast_grp = &nix_hw->mcast_grp;
+
+	mutex_lock(&mcast_grp->mcast_grp_lock);
+	list_for_each_entry(elem, &mcast_grp->mcast_grp_head, list) {
+		struct nix_mce_list *mce_list;
+		struct mce *mce;
+
+		/* Iterate the group elements and disable the element which
+		 * received the disable request.
+		 */
+		mce_list = &elem->mcast_mce_list;
+		hlist_for_each_entry(mce, &mce_list->head, node) {
+			if (mce->pcifunc == pcifunc) {
+				mce->is_active = is_active;
+				break;
+			}
+		}
+
+		/* Dump the updated list to HW */
+		if (elem->dir == NIX_MCAST_INGRESS)
+			nix_update_ingress_mce_list_hw(rvu, nix_hw, elem);
+		else
+			nix_update_egress_mce_list_hw(rvu, nix_hw, elem);
+
+		/* Update the multicast index in NPC rule */
+		nix_mcast_update_action(rvu, elem);
+	}
+	mutex_unlock(&mcast_grp->mcast_grp_lock);
+}
+
 int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 				     struct msg_rsp *rsp)
 {
@@ -4708,6 +5032,9 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 	err = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
 	if (err)
 		return err;
+
+	/* Enable the interface if it is in any multicast list */
+	nix_mcast_update_mce_entry(rvu, pcifunc, 1);
 
 	rvu_npc_enable_default_entries(rvu, pcifunc, nixlf);
 
@@ -4733,6 +5060,9 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 		return err;
 
 	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+	/* Disable the interface if it is in any multicast list */
+	nix_mcast_update_mce_entry(rvu, pcifunc, 0);
+
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	clear_bit(NIXLF_INITIALIZED, &pfvf->flags);
@@ -5706,4 +6036,362 @@ int rvu_mbox_handler_nix_bandprof_get_hwinfo(struct rvu *rvu, struct msg_req *re
 	rsp->policer_timeunit = (tu + 1) * 100;
 
 	return 0;
+}
+
+static struct nix_mcast_grp_elem *rvu_nix_mcast_find_grp_elem(struct nix_mcast_grp *mcast_grp,
+							      u32 mcast_grp_idx)
+{
+	struct nix_mcast_grp_elem *iter;
+	bool is_found = false;
+
+	list_for_each_entry(iter, &mcast_grp->mcast_grp_head, list) {
+		if (iter->mcast_grp_idx == mcast_grp_idx) {
+			is_found = true;
+			break;
+		}
+	}
+
+	if (is_found)
+		return iter;
+
+	return NULL;
+}
+
+int rvu_nix_mcast_get_mce_index(struct rvu *rvu, u16 pcifunc, u32 mcast_grp_idx)
+{
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	struct nix_hw *nix_hw;
+	int blkaddr, ret;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return NIX_AF_ERR_INVALID_NIXBLK;
+
+	mcast_grp = &nix_hw->mcast_grp;
+	mutex_lock(&mcast_grp->mcast_grp_lock);
+	elem = rvu_nix_mcast_find_grp_elem(mcast_grp, mcast_grp_idx);
+	if (!elem)
+		ret = NIX_AF_ERR_INVALID_MCAST_GRP;
+	else
+		ret = elem->mce_start_index;
+
+	mutex_unlock(&mcast_grp->mcast_grp_lock);
+	return ret;
+}
+
+void rvu_nix_mcast_flr_free_entries(struct rvu *rvu, u16 pcifunc)
+{
+	struct nix_mcast_grp_destroy_req dreq = { 0 };
+	struct nix_mcast_grp_update_req ureq = { 0 };
+	struct nix_mcast_grp_update_rsp ursp = { 0 };
+	struct nix_mcast_grp_elem *elem, *tmp;
+	struct nix_mcast_grp *mcast_grp;
+	struct nix_hw *nix_hw;
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return;
+
+	mcast_grp = &nix_hw->mcast_grp;
+
+	mutex_lock(&mcast_grp->mcast_grp_lock);
+	list_for_each_entry_safe(elem, tmp, &mcast_grp->mcast_grp_head, list) {
+		struct nix_mce_list *mce_list;
+		struct hlist_node *tmp;
+		struct mce *mce;
+
+		/* If the pcifunc which created the multicast/mirror
+		 * group received an FLR, then delete the entire group.
+		 */
+		if (elem->pcifunc == pcifunc) {
+			/* Delete group */
+			dreq.hdr.pcifunc = elem->pcifunc;
+			dreq.mcast_grp_idx = elem->mcast_grp_idx;
+			dreq.is_af = 1;
+			rvu_mbox_handler_nix_mcast_grp_destroy(rvu, &dreq, NULL);
+			continue;
+		}
+
+		/* Iterate the group elements and delete the element which
+		 * received the FLR.
+		 */
+		mce_list = &elem->mcast_mce_list;
+		hlist_for_each_entry_safe(mce, tmp, &mce_list->head, node) {
+			if (mce->pcifunc == pcifunc) {
+				ureq.hdr.pcifunc = pcifunc;
+				ureq.num_mce_entry = 1;
+				ureq.mcast_grp_idx = elem->mcast_grp_idx;
+				ureq.op = NIX_MCAST_OP_DEL_ENTRY;
+				ureq.pcifunc[0] = pcifunc;
+				ureq.is_af = 1;
+				rvu_mbox_handler_nix_mcast_grp_update(rvu, &ureq, &ursp);
+				break;
+			}
+		}
+	}
+	mutex_unlock(&mcast_grp->mcast_grp_lock);
+}
+
+int rvu_nix_mcast_update_mcam_entry(struct rvu *rvu, u16 pcifunc,
+				    u32 mcast_grp_idx, u16 mcam_index)
+{
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	struct nix_hw *nix_hw;
+	int blkaddr, ret = 0;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return NIX_AF_ERR_INVALID_NIXBLK;
+
+	mcast_grp = &nix_hw->mcast_grp;
+	mutex_lock(&mcast_grp->mcast_grp_lock);
+	elem = rvu_nix_mcast_find_grp_elem(mcast_grp, mcast_grp_idx);
+	if (!elem)
+		ret = NIX_AF_ERR_INVALID_MCAST_GRP;
+	else
+		elem->mcam_index = mcam_index;
+
+	mutex_unlock(&mcast_grp->mcast_grp_lock);
+	return ret;
+}
+
+int rvu_mbox_handler_nix_mcast_grp_create(struct rvu *rvu,
+					  struct nix_mcast_grp_create_req *req,
+					  struct nix_mcast_grp_create_rsp *rsp)
+{
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	struct nix_hw *nix_hw;
+	int blkaddr, err;
+
+	err = nix_get_struct_ptrs(rvu, req->hdr.pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mcast_grp = &nix_hw->mcast_grp;
+	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+	if (!elem)
+		return -ENOMEM;
+
+	INIT_HLIST_HEAD(&elem->mcast_mce_list.head);
+	elem->mcam_index = -1;
+	elem->mce_start_index = -1;
+	elem->pcifunc = req->hdr.pcifunc;
+	elem->dir = req->dir;
+	elem->mcast_grp_idx = mcast_grp->next_grp_index++;
+
+	mutex_lock(&mcast_grp->mcast_grp_lock);
+	list_add_tail(&elem->list, &mcast_grp->mcast_grp_head);
+	mcast_grp->count++;
+	mutex_unlock(&mcast_grp->mcast_grp_lock);
+
+	rsp->mcast_grp_idx = elem->mcast_grp_idx;
+	return 0;
+}
+
+int rvu_mbox_handler_nix_mcast_grp_destroy(struct rvu *rvu,
+					   struct nix_mcast_grp_destroy_req *req,
+					   struct msg_rsp *rsp)
+{
+	struct npc_delete_flow_req uninstall_req = { 0 };
+	struct npc_delete_flow_rsp uninstall_rsp = { 0 };
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	int blkaddr, err, ret = 0;
+	struct nix_mcast *mcast;
+	struct nix_hw *nix_hw;
+
+	err = nix_get_struct_ptrs(rvu, req->hdr.pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mcast_grp = &nix_hw->mcast_grp;
+
+	/* If AF is requesting for the deletion,
+	 * then AF is already taking the lock
+	 */
+	if (!req->is_af)
+		mutex_lock(&mcast_grp->mcast_grp_lock);
+
+	elem = rvu_nix_mcast_find_grp_elem(mcast_grp, req->mcast_grp_idx);
+	if (!elem) {
+		ret = NIX_AF_ERR_INVALID_MCAST_GRP;
+		goto unlock_grp;
+	}
+
+	/* If no mce entries are associated with the group
+	 * then just remove it from the global list.
+	 */
+	if (!elem->mcast_mce_list.count)
+		goto delete_grp;
+
+	/* Delete the associated mcam entry and
+	 * remove all mce entries from the group
+	 */
+	mcast = &nix_hw->mcast;
+	mutex_lock(&mcast->mce_lock);
+	if (elem->mcam_index != -1) {
+		uninstall_req.hdr.pcifunc = req->hdr.pcifunc;
+		uninstall_req.entry = elem->mcam_index;
+		rvu_mbox_handler_npc_delete_flow(rvu, &uninstall_req, &uninstall_rsp);
+	}
+
+	nix_free_mce_list(mcast, elem->mcast_mce_list.count,
+			  elem->mce_start_index, elem->dir);
+	nix_delete_mcast_mce_list(&elem->mcast_mce_list);
+	mutex_unlock(&mcast->mce_lock);
+
+delete_grp:
+	list_del(&elem->list);
+	kfree(elem);
+	mcast_grp->count--;
+
+unlock_grp:
+	if (!req->is_af)
+		mutex_unlock(&mcast_grp->mcast_grp_lock);
+
+	return ret;
+}
+
+int rvu_mbox_handler_nix_mcast_grp_update(struct rvu *rvu,
+					  struct nix_mcast_grp_update_req *req,
+					  struct nix_mcast_grp_update_rsp *rsp)
+{
+	struct nix_mcast_grp_destroy_req dreq = { 0 };
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct nix_mcast_grp_elem *elem;
+	struct nix_mcast_grp *mcast_grp;
+	int blkaddr, err, npc_blkaddr;
+	u16 prev_count, new_count;
+	struct nix_mcast *mcast;
+	struct nix_hw *nix_hw;
+	int i, ret;
+
+	if (!req->num_mce_entry)
+		return 0;
+
+	err = nix_get_struct_ptrs(rvu, req->hdr.pcifunc, &nix_hw, &blkaddr);
+	if (err)
+		return err;
+
+	mcast_grp = &nix_hw->mcast_grp;
+
+	/* If AF is requesting for the updation,
+	 * then AF is already taking the lock
+	 */
+	if (!req->is_af)
+		mutex_lock(&mcast_grp->mcast_grp_lock);
+
+	elem = rvu_nix_mcast_find_grp_elem(mcast_grp, req->mcast_grp_idx);
+	if (!elem) {
+		ret = NIX_AF_ERR_INVALID_MCAST_GRP;
+		goto unlock_grp;
+	}
+
+	/* If any pcifunc matches the group's pcifunc, then we can
+	 * delete the entire group.
+	 */
+	if (req->op == NIX_MCAST_OP_DEL_ENTRY) {
+		for (i = 0; i < req->num_mce_entry; i++) {
+			if (elem->pcifunc == req->pcifunc[i]) {
+				/* Delete group */
+				dreq.hdr.pcifunc = elem->pcifunc;
+				dreq.mcast_grp_idx = elem->mcast_grp_idx;
+				dreq.is_af = 1;
+				rvu_mbox_handler_nix_mcast_grp_destroy(rvu, &dreq, NULL);
+				ret = 0;
+				goto unlock_grp;
+			}
+		}
+	}
+
+	mcast = &nix_hw->mcast;
+	mutex_lock(&mcast->mce_lock);
+	npc_blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (elem->mcam_index != -1)
+		npc_enable_mcam_entry(rvu, mcam, npc_blkaddr, elem->mcam_index, false);
+
+	prev_count = elem->mcast_mce_list.count;
+	if (req->op == NIX_MCAST_OP_ADD_ENTRY) {
+		new_count = prev_count + req->num_mce_entry;
+		if (prev_count)
+			nix_free_mce_list(mcast, prev_count, elem->mce_start_index, elem->dir);
+
+		elem->mce_start_index = nix_alloc_mce_list(mcast, new_count, elem->dir);
+
+		/* It is possible not to get contiguous memory */
+		if (elem->mce_start_index < 0) {
+			if (elem->mcam_index != -1) {
+				npc_enable_mcam_entry(rvu, mcam, npc_blkaddr,
+						      elem->mcam_index, true);
+				ret = NIX_AF_ERR_NON_CONTIG_MCE_LIST;
+				goto unlock_mce;
+			}
+		}
+
+		ret = nix_add_mce_list_entry(rvu, nix_hw, elem, req);
+		if (ret) {
+			nix_free_mce_list(mcast, new_count, elem->mce_start_index, elem->dir);
+			if (prev_count)
+				elem->mce_start_index = nix_alloc_mce_list(mcast,
+									   prev_count,
+									   elem->dir);
+
+			if (elem->mcam_index != -1)
+				npc_enable_mcam_entry(rvu, mcam, npc_blkaddr,
+						      elem->mcam_index, true);
+
+			goto unlock_mce;
+		}
+	} else {
+		if (!prev_count || prev_count < req->num_mce_entry) {
+			if (elem->mcam_index != -1)
+				npc_enable_mcam_entry(rvu, mcam, npc_blkaddr,
+						      elem->mcam_index, true);
+			ret = NIX_AF_ERR_INVALID_MCAST_DEL_REQ;
+			goto unlock_mce;
+		}
+
+		nix_free_mce_list(mcast, prev_count, elem->mce_start_index, elem->dir);
+		new_count = prev_count - req->num_mce_entry;
+		elem->mce_start_index = nix_alloc_mce_list(mcast, new_count, elem->dir);
+		ret = nix_del_mce_list_entry(rvu, nix_hw, elem, req);
+		if (ret) {
+			nix_free_mce_list(mcast, new_count, elem->mce_start_index, elem->dir);
+			elem->mce_start_index = nix_alloc_mce_list(mcast, prev_count, elem->dir);
+			if (elem->mcam_index != -1)
+				npc_enable_mcam_entry(rvu, mcam,
+						      npc_blkaddr,
+						      elem->mcam_index,
+						      true);
+
+			goto unlock_mce;
+		}
+	}
+
+	if (elem->mcam_index == -1) {
+		rsp->mce_start_index = elem->mce_start_index;
+		ret = 0;
+		goto unlock_mce;
+	}
+
+	nix_mcast_update_action(rvu, elem);
+	npc_enable_mcam_entry(rvu, mcam, npc_blkaddr, elem->mcam_index, true);
+	rsp->mce_start_index = elem->mce_start_index;
+	ret = 0;
+
+unlock_mce:
+	mutex_unlock(&mcast->mce_lock);
+
+unlock_grp:
+	if (!req->is_af)
+		mutex_unlock(&mcast_grp->mcast_grp_lock);
+
+	return ret;
 }

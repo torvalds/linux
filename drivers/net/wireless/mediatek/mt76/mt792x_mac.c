@@ -223,7 +223,7 @@ static void
 mt792x_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
 	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
-	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
 	int nf;

@@ -67,4 +67,6 @@ mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
 
 obj-y += tests/
 
+mac80211-y += wbrf.o
+
 ccflags-y += -DDEBUG

@@ -12,9 +12,12 @@
 /*
  * u128_u: u128 user mode, because not all architectures support a real int128
  * type
+ *
+ * We don't use this version in userspace, because in userspace we link with
+ * Rust and rustc has issues with u128.
  */
 
-#ifdef __SIZEOF_INT128__
+#if defined(__SIZEOF_INT128__) && defined(__KERNEL__) && !defined(CONFIG_PARISC)
 
 typedef struct {
 	unsigned __int128 v;

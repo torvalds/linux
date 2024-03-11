@@ -50,6 +50,7 @@
  */
 
 #include <arpa/inet.h>
+#include <linux/if_link.h>
 #include <linux/if_tun.h>
 #include <linux/limits.h>
 #include <linux/sysctl.h>
@@ -91,6 +92,11 @@
 
 #define IPIP_TUNL_DEV0 "ipip00"
 #define IPIP_TUNL_DEV1 "ipip11"
+
+#define XFRM_AUTH "0x1111111111111111111111111111111111111111"
+#define XFRM_ENC "0x22222222222222222222222222222222"
+#define XFRM_SPI_IN_TO_OUT 0x1
+#define XFRM_SPI_OUT_TO_IN 0x2
 
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
@@ -262,6 +268,92 @@ static void delete_ipip_tunnel(void)
 	SYS_NOFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
 	SYS_NOFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
 	SYS_NOFAIL("ip fou del port 5555 2> /dev/null");
+}
+
+static int add_xfrm_tunnel(void)
+{
+	/* at_ns0 namespace
+	 * at_ns0 -> root
+	 */
+	SYS(fail,
+	    "ip netns exec at_ns0 "
+		"ip xfrm state add src %s dst %s proto esp "
+			"spi %d reqid 1 mode tunnel replay-window 42 "
+			"auth-trunc 'hmac(sha1)' %s 96 enc 'cbc(aes)' %s",
+	    IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT, XFRM_AUTH, XFRM_ENC);
+	SYS(fail,
+	    "ip netns exec at_ns0 "
+		"ip xfrm policy add src %s/32 dst %s/32 dir out "
+			"tmpl src %s dst %s proto esp reqid 1 "
+			"mode tunnel",
+	    IP4_ADDR_TUNL_DEV0, IP4_ADDR_TUNL_DEV1, IP4_ADDR_VETH0, IP4_ADDR1_VETH1);
+
+	/* root -> at_ns0 */
+	SYS(fail,
+	    "ip netns exec at_ns0 "
+		"ip xfrm state add src %s dst %s proto esp "
+			"spi %d reqid 2 mode tunnel "
+			"auth-trunc 'hmac(sha1)' %s 96 enc 'cbc(aes)' %s",
+	    IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN, XFRM_AUTH, XFRM_ENC);
+	SYS(fail,
+	    "ip netns exec at_ns0 "
+		"ip xfrm policy add src %s/32 dst %s/32 dir in "
+			"tmpl src %s dst %s proto esp reqid 2 "
+			"mode tunnel",
+	    IP4_ADDR_TUNL_DEV1, IP4_ADDR_TUNL_DEV0, IP4_ADDR1_VETH1, IP4_ADDR_VETH0);
+
+	/* address & route */
+	SYS(fail, "ip netns exec at_ns0 ip addr add dev veth0 %s/32",
+	    IP4_ADDR_TUNL_DEV0);
+	SYS(fail, "ip netns exec at_ns0 ip route add %s dev veth0 via %s src %s",
+	    IP4_ADDR_TUNL_DEV1, IP4_ADDR1_VETH1, IP4_ADDR_TUNL_DEV0);
+
+	/* root namespace
+	 * at_ns0 -> root
+	 */
+	SYS(fail,
+	    "ip xfrm state add src %s dst %s proto esp "
+		    "spi %d reqid 1 mode tunnel replay-window 42 "
+		    "auth-trunc 'hmac(sha1)' %s 96  enc 'cbc(aes)' %s",
+	    IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT, XFRM_AUTH, XFRM_ENC);
+	SYS(fail,
+	    "ip xfrm policy add src %s/32 dst %s/32 dir in "
+		    "tmpl src %s dst %s proto esp reqid 1 "
+		    "mode tunnel",
+	    IP4_ADDR_TUNL_DEV0, IP4_ADDR_TUNL_DEV1, IP4_ADDR_VETH0, IP4_ADDR1_VETH1);
+
+	/* root -> at_ns0 */
+	SYS(fail,
+	    "ip xfrm state add src %s dst %s proto esp "
+		    "spi %d reqid 2 mode tunnel "
+		    "auth-trunc 'hmac(sha1)' %s 96  enc 'cbc(aes)' %s",
+	    IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN, XFRM_AUTH, XFRM_ENC);
+	SYS(fail,
+	    "ip xfrm policy add src %s/32 dst %s/32 dir out "
+		    "tmpl src %s dst %s proto esp reqid 2 "
+		    "mode tunnel",
+	    IP4_ADDR_TUNL_DEV1, IP4_ADDR_TUNL_DEV0, IP4_ADDR1_VETH1, IP4_ADDR_VETH0);
+
+	/* address & route */
+	SYS(fail, "ip addr add dev veth1 %s/32", IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip route add %s dev veth1 via %s src %s",
+	    IP4_ADDR_TUNL_DEV0, IP4_ADDR_VETH0, IP4_ADDR_TUNL_DEV1);
+
+	return 0;
+fail:
+	return -1;
+}
+
+static void delete_xfrm_tunnel(void)
+{
+	SYS_NOFAIL("ip xfrm policy delete dir out src %s/32 dst %s/32 2> /dev/null",
+		   IP4_ADDR_TUNL_DEV1, IP4_ADDR_TUNL_DEV0);
+	SYS_NOFAIL("ip xfrm policy delete dir in src %s/32 dst %s/32 2> /dev/null",
+		   IP4_ADDR_TUNL_DEV0, IP4_ADDR_TUNL_DEV1);
+	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+		   IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT);
+	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+		   IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN);
 }
 
 static int test_ping(int family, const char *addr)
@@ -532,25 +624,85 @@ done:
 		test_tunnel_kern__destroy(skel);
 }
 
+static void test_xfrm_tunnel(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
+			    .attach_point = BPF_TC_INGRESS);
+	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
+	struct test_tunnel_kern *skel = NULL;
+	struct nstoken *nstoken;
+	int xdp_prog_fd;
+	int tc_prog_fd;
+	int ifindex;
+	int err;
+
+	err = add_xfrm_tunnel();
+	if (!ASSERT_OK(err, "add_xfrm_tunnel"))
+		return;
+
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		goto done;
+
+	ifindex = if_nametoindex("veth1");
+	if (!ASSERT_NEQ(ifindex, 0, "veth1 ifindex"))
+		goto done;
+
+	/* attach tc prog to tunnel dev */
+	tc_hook.ifindex = ifindex;
+	tc_prog_fd = bpf_program__fd(skel->progs.xfrm_get_state);
+	if (!ASSERT_GE(tc_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	if (attach_tc_prog(&tc_hook, tc_prog_fd, -1))
+		goto done;
+
+	/* attach xdp prog to tunnel dev */
+	xdp_prog_fd = bpf_program__fd(skel->progs.xfrm_get_state_xdp);
+	if (!ASSERT_GE(xdp_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	err = bpf_xdp_attach(ifindex, xdp_prog_fd, XDP_FLAGS_REPLACE, &opts);
+	if (!ASSERT_OK(err, "bpf_xdp_attach"))
+		goto done;
+
+	/* ping from at_ns0 namespace test */
+	nstoken = open_netns("at_ns0");
+	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
+	close_netns(nstoken);
+	if (!ASSERT_OK(err, "test_ping"))
+		goto done;
+
+	if (!ASSERT_EQ(skel->bss->xfrm_reqid, 1, "req_id"))
+		goto done;
+	if (!ASSERT_EQ(skel->bss->xfrm_spi, XFRM_SPI_IN_TO_OUT, "spi"))
+		goto done;
+	if (!ASSERT_EQ(skel->bss->xfrm_remote_ip, 0xac100164, "remote_ip"))
+		goto done;
+	if (!ASSERT_EQ(skel->bss->xfrm_replay_window, 42, "replay_window"))
+		goto done;
+
+done:
+	delete_xfrm_tunnel();
+	if (skel)
+		test_tunnel_kern__destroy(skel);
+}
+
 #define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
+			config_device();				\
 			test_ ## name(__VA_ARGS__);			\
+			cleanup();					\
 		}							\
 	})
 
 static void *test_tunnel_run_tests(void *arg)
 {
-	cleanup();
-	config_device();
-
 	RUN_TEST(vxlan_tunnel);
 	RUN_TEST(ip6vxlan_tunnel);
 	RUN_TEST(ipip_tunnel, NONE);
 	RUN_TEST(ipip_tunnel, FOU);
 	RUN_TEST(ipip_tunnel, GUE);
-
-	cleanup();
+	RUN_TEST(xfrm_tunnel);
 
 	return NULL;
 }

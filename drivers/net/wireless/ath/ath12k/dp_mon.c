@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "dp_mon.h"
@@ -797,7 +797,7 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_base *ab,
 		/* TODO: add msdu start parsing logic */
 		break;
 	case HAL_MON_BUF_ADDR: {
-		struct dp_rxdma_ring *buf_ring = &ab->dp.rxdma_mon_buf_ring;
+		struct dp_rxdma_mon_ring *buf_ring = &ab->dp.rxdma_mon_buf_ring;
 		struct dp_mon_packet_info *packet_info =
 			(struct dp_mon_packet_info *)tlv_data;
 		int buf_id = u32_get_bits(packet_info->cookie,
@@ -1091,7 +1091,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %u %s %s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %pK len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
 		   peer ? peer->addr : NULL,
@@ -1104,6 +1104,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 		   (status->bw == RATE_INFO_BW_40) ? "40" : "",
 		   (status->bw == RATE_INFO_BW_80) ? "80" : "",
 		   (status->bw == RATE_INFO_BW_160) ? "160" : "",
+		   (status->bw == RATE_INFO_BW_320) ? "320" : "",
 		   status->enc_flags & RX_ENC_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
 		   status->nss,
@@ -1259,7 +1260,7 @@ ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
 }
 
 int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
-				struct dp_rxdma_ring *buf_ring,
+				struct dp_rxdma_mon_ring *buf_ring,
 				int req_entries)
 {
 	struct hal_mon_buf_ring *mon_buf;
@@ -1902,7 +1903,7 @@ ath12k_dp_mon_tx_parse_status_tlv(struct ath12k_base *ab,
 	}
 
 	case HAL_MON_BUF_ADDR: {
-		struct dp_rxdma_ring *buf_ring = &ab->dp.tx_mon_buf_ring;
+		struct dp_rxdma_mon_ring *buf_ring = &ab->dp.tx_mon_buf_ring;
 		struct dp_mon_packet_info *packet_info =
 			(struct dp_mon_packet_info *)tlv_data;
 		int buf_id = u32_get_bits(packet_info->cookie,
@@ -2067,7 +2068,7 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int mac_id, int *budget,
 	struct ath12k_skb_rxcb *rxcb;
 	struct dp_srng *mon_dst_ring;
 	struct hal_srng *srng;
-	struct dp_rxdma_ring *buf_ring;
+	struct dp_rxdma_mon_ring *buf_ring;
 	u64 cookie;
 	u32 ppdu_id;
 	int num_buffs_reaped = 0, srng_id, buf_id;
@@ -2480,7 +2481,7 @@ int ath12k_dp_mon_rx_process_stats(struct ath12k *ar, int mac_id,
 	struct ath12k_skb_rxcb *rxcb;
 	struct dp_srng *mon_dst_ring;
 	struct hal_srng *srng;
-	struct dp_rxdma_ring *buf_ring;
+	struct dp_rxdma_mon_ring *buf_ring;
 	struct ath12k_sta *arsta = NULL;
 	struct ath12k_peer *peer;
 	u64 cookie;

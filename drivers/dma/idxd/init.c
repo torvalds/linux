@@ -59,6 +59,7 @@ static struct idxd_driver_data idxd_driver_data[] = {
 		.evl_cr_off = offsetof(struct iax_evl_entry, cr),
 		.cr_status_off = offsetof(struct iax_completion_record, status),
 		.cr_result_off = offsetof(struct iax_completion_record, error_code),
+		.load_device_defaults = idxd_load_iaa_device_defaults,
 	},
 };
 
@@ -342,7 +343,9 @@ static void idxd_cleanup_internals(struct idxd_device *idxd)
 static int idxd_init_evl(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
+	unsigned int evl_cache_size;
 	struct idxd_evl *evl;
+	const char *idxd_name;
 
 	if (idxd->hw.gen_cap.evl_support == 0)
 		return 0;
@@ -354,9 +357,16 @@ static int idxd_init_evl(struct idxd_device *idxd)
 	spin_lock_init(&evl->lock);
 	evl->size = IDXD_EVL_SIZE_MIN;
 
-	idxd->evl_cache = kmem_cache_create(dev_name(idxd_confdev(idxd)),
-					    sizeof(struct idxd_evl_fault) + evl_ent_size(idxd),
-					    0, 0, NULL);
+	idxd_name = dev_name(idxd_confdev(idxd));
+	evl_cache_size = sizeof(struct idxd_evl_fault) + evl_ent_size(idxd);
+	/*
+	 * Since completion record in evl_cache will be copied to user
+	 * when handling completion record page fault, need to create
+	 * the cache suitable for user copy.
+	 */
+	idxd->evl_cache = kmem_cache_create_usercopy(idxd_name, evl_cache_size,
+						     0, 0, 0, evl_cache_size,
+						     NULL);
 	if (!idxd->evl_cache) {
 		kfree(evl);
 		return -ENOMEM;
@@ -743,6 +753,12 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc) {
 		dev_err(dev, "Intel(R) IDXD DMA Engine init failed\n");
 		goto err;
+	}
+
+	if (data->load_device_defaults) {
+		rc = data->load_device_defaults(idxd);
+		if (rc)
+			dev_warn(dev, "IDXD loading device defaults failed\n");
 	}
 
 	rc = idxd_register_devices(idxd);

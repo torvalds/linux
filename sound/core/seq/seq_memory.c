@@ -442,7 +442,8 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
 
-	cellptr = kvmalloc_array(sizeof(struct snd_seq_event_cell), pool->size,
+	cellptr = kvmalloc_array(pool->size,
+				 sizeof(struct snd_seq_event_cell),
 				 GFP_KERNEL);
 	if (!cellptr)
 		return -ENOMEM;

@@ -12,7 +12,8 @@ description:
   PS_MODE). Every pin can be configured as input/output.
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@amd.com>
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 properties:
   compatible:
@@ -22,6 +23,8 @@ properties:
 
   "#gpio-cells":
     const: 2
+
+  label: true
 
 required:
   - compatible
@@ -37,6 +40,7 @@ examples:
             compatible = "xlnx,zynqmp-gpio-modepin";
             gpio-controller;
             #gpio-cells = <2>;
+            label = "modepin";
         };
     };
 

@@ -50,7 +50,7 @@ macro_rules! new_condvar {
 /// fn wait_for_value(e: &Example, v: u32) {
 ///     let mut guard = e.value.lock();
 ///     while *guard != v {
-///         e.value_changed.wait_uninterruptible(&mut guard);
+///         e.value_changed.wait(&mut guard);
 ///     }
 /// }
 ///
@@ -69,7 +69,7 @@ macro_rules! new_condvar {
 /// }
 /// ```
 ///
-/// [`struct wait_queue_head`]: ../../../include/linux/wait.h
+/// [`struct wait_queue_head`]: srctree/include/linux/wait.h
 #[pin_data]
 pub struct CondVar {
     #[pin]
@@ -120,26 +120,26 @@ impl CondVar {
         unsafe { bindings::finish_wait(self.wait_list.get(), wait.get()) };
     }
 
-    /// Releases the lock and waits for a notification in interruptible mode.
+    /// Releases the lock and waits for a notification in uninterruptible mode.
     ///
     /// Atomically releases the given lock (whose ownership is proven by the guard) and puts the
     /// thread to sleep, reacquiring the lock on wake up. It wakes up when notified by
-    /// [`CondVar::notify_one`] or [`CondVar::notify_all`], or when the thread receives a signal.
-    /// It may also wake up spuriously.
-    ///
-    /// Returns whether there is a signal pending.
-    #[must_use = "wait returns if a signal is pending, so the caller must check the return value"]
-    pub fn wait<T: ?Sized, B: Backend>(&self, guard: &mut Guard<'_, T, B>) -> bool {
-        self.wait_internal(bindings::TASK_INTERRUPTIBLE, guard);
-        crate::current!().signal_pending()
+    /// [`CondVar::notify_one`] or [`CondVar::notify_all`]. Note that it may also wake up
+    /// spuriously.
+    pub fn wait<T: ?Sized, B: Backend>(&self, guard: &mut Guard<'_, T, B>) {
+        self.wait_internal(bindings::TASK_UNINTERRUPTIBLE, guard);
     }
 
-    /// Releases the lock and waits for a notification in uninterruptible mode.
+    /// Releases the lock and waits for a notification in interruptible mode.
     ///
-    /// Similar to [`CondVar::wait`], except that the wait is not interruptible. That is, the
-    /// thread won't wake up due to signals. It may, however, wake up supirously.
-    pub fn wait_uninterruptible<T: ?Sized, B: Backend>(&self, guard: &mut Guard<'_, T, B>) {
-        self.wait_internal(bindings::TASK_UNINTERRUPTIBLE, guard)
+    /// Similar to [`CondVar::wait`], except that the wait is interruptible. That is, the thread may
+    /// wake up due to signals. It may also wake up spuriously.
+    ///
+    /// Returns whether there is a signal pending.
+    #[must_use = "wait_interruptible returns if a signal is pending, so the caller must check the return value"]
+    pub fn wait_interruptible<T: ?Sized, B: Backend>(&self, guard: &mut Guard<'_, T, B>) -> bool {
+        self.wait_internal(bindings::TASK_INTERRUPTIBLE, guard);
+        crate::current!().signal_pending()
     }
 
     /// Calls the kernel function to notify the appropriate number of threads with the given flags.

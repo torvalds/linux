@@ -191,13 +191,10 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 					   struct jset_entry **end,
 					   u64 journal_seq)
 {
-	struct bch_dev *ca;
-	unsigned i, dev;
-
 	percpu_down_read(&c->mark_lock);
 
 	if (!journal_seq) {
-		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+		for (unsigned i = 0; i < ARRAY_SIZE(c->usage); i++)
 			bch2_fs_usage_acc_to_base(c, i);
 	} else {
 		bch2_fs_usage_acc_to_base(c, journal_seq & JOURNAL_BUF_MASK);
@@ -210,7 +207,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->nr_inodes);
+		u->v		= cpu_to_le64(c->usage_base->b.nr_inodes);
 	}
 
 	{
@@ -223,7 +220,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
 	}
 
-	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
+	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
 		struct jset_entry_usage *u =
 			container_of(jset_entry_init(end, sizeof(*u)),
 				     struct jset_entry_usage, entry);
@@ -234,8 +231,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
 	}
 
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
+	for (unsigned i = 0; i < c->replicas.nr; i++) {
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 		struct jset_entry_data_usage *u =
 			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),
@@ -247,7 +244,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 			      "embedded variable length struct");
 	}
 
-	for_each_member_device(ca, c, dev) {
+	for_each_member_device(c, ca) {
 		unsigned b = sizeof(struct jset_entry_dev_usage) +
 			sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR;
 		struct jset_entry_dev_usage *u =
@@ -255,10 +252,9 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 				     struct jset_entry_dev_usage, entry);
 
 		u->entry.type = BCH_JSET_ENTRY_dev_usage;
-		u->dev = cpu_to_le32(dev);
-		u->buckets_ec		= cpu_to_le64(ca->usage_base->buckets_ec);
+		u->dev = cpu_to_le32(ca->dev_idx);
 
-		for (i = 0; i < BCH_DATA_NR; i++) {
+		for (unsigned i = 0; i < BCH_DATA_NR; i++) {
 			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);
 			u->d[i].sectors	= cpu_to_le64(ca->usage_base->d[i].sectors);
 			u->d[i].fragmented = cpu_to_le64(ca->usage_base->d[i].fragmented);
@@ -267,7 +263,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 	percpu_up_read(&c->mark_lock);
 
-	for (i = 0; i < 2; i++) {
+	for (unsigned i = 0; i < 2; i++) {
 		struct jset_entry_clock *clock =
 			container_of(jset_entry_init(end, sizeof(*clock)),
 				     struct jset_entry_clock, entry);

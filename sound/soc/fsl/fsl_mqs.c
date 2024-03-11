@@ -10,9 +10,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
-#include <linux/of.h>
 #include <linux/pm_runtime.h>
-#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <sound/soc.h>

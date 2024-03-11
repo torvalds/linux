@@ -33,14 +33,18 @@ A particular version of the Rust compiler is required. Newer versions may or
 may not work because, for the moment, the kernel depends on some unstable
 Rust features.
 
-If ``rustup`` is being used, enter the checked out source code directory
-and run::
+If ``rustup`` is being used, enter the kernel build directory (or use
+``--path=<build-dir>`` argument to the ``set`` sub-command) and run::
 
 	rustup override set $(scripts/min-tool-version.sh rustc)
 
 This will configure your working directory to use the correct version of
-``rustc`` without affecting your default toolchain. If you are not using
-``rustup``, fetch a standalone installer from:
+``rustc`` without affecting your default toolchain.
+
+Note that the override applies to the current working directory (and its
+sub-directories).
+
+If you are not using ``rustup``, fetch a standalone installer from:
 
 	https://forge.rust-lang.org/infra/other-installation-methods.html#standalone
 
@@ -76,7 +80,7 @@ libclang
 
 ``libclang`` (part of LLVM) is used by ``bindgen`` to understand the C code
 in the kernel, which means LLVM needs to be installed; like when the kernel
-is compiled with ``CC=clang`` or ``LLVM=1``.
+is compiled with ``LLVM=1``.
 
 Linux distributions are likely to have a suitable one available, so it is
 best to check that first.
@@ -228,10 +232,6 @@ Building a kernel with a complete LLVM toolchain is the best supported setup
 at the moment. That is::
 
 	make LLVM=1
-
-For architectures that do not support a full LLVM toolchain, use::
-
-	make CC=clang
 
 Using GCC also works for some configurations, but it is very experimental at
 the moment.

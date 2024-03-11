@@ -15,6 +15,7 @@
 / {
 	model = "TQ-Systems i.MX8MPlus TQMa8MPxL on MBa8MPxL";
 	compatible = "tq,imx8mp-tqma8mpql-mba8mpxl", "tq,imx8mp-tqma8mpql", "fsl,imx8mp";
+	chassis-type = "embedded";
 
 	chosen {
 		stdout-path = &uart4;
@@ -53,6 +54,21 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
+	};
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "X29";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon0>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
 	};
 
 	fan0: pwm-fan {
@@ -166,6 +182,13 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&gpio2 6 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_vcc_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 	};
 
 	reg_vcc_3v3: regulator-3v3 {
@@ -464,7 +487,7 @@
 		clock-names = "mclk";
 		clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI3_MCLK1>;
 		reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
-		iov-supply = <&reg_vcc_3v3>;
+		iov-supply = <&reg_vcc_1v8>;
 		ldoin-supply = <&reg_vcc_3v3>;
 	};
 
@@ -602,7 +625,6 @@
 &usb3_1 {
 	fsl,disable-port-power-control;
 	fsl,permanently-attached;
-	dr_mode = "host";
 	status = "okay";
 };
 
@@ -626,13 +648,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		type = "micro";
-		label = "X29";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon0>;
-		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

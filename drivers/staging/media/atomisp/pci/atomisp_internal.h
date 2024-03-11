@@ -132,8 +132,8 @@ struct atomisp_input_subdev {
 	/* Sensor rects for sensors which support crop */
 	struct v4l2_rect native_rect;
 	struct v4l2_rect active_rect;
-	/* Sensor pad_cfg for which == V4L2_SUBDEV_FORMAT_TRY calls */
-	struct v4l2_subdev_pad_config pad_cfg;
+	/* Sensor state for which == V4L2_SUBDEV_FORMAT_TRY calls */
+	struct v4l2_subdev_state *try_sd_state;
 
 	struct v4l2_subdev *motor;
 

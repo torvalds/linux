@@ -10,8 +10,6 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_btree.h"
-#include "xfs_trans_resv.h"
-#include "xfs_mount.h"
 #include "xfs_ag.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
@@ -115,6 +113,38 @@ xchk_health_mask_for_scrub_type(
 	__u32			scrub_type)
 {
 	return type_to_health_flag[scrub_type].sick_mask;
+}
+
+/*
+ * If the scrub state is clean, add @mask to the scrub sick mask to clear
+ * additional sick flags from the metadata object's sick state.
+ */
+void
+xchk_mark_healthy_if_clean(
+	struct xfs_scrub	*sc,
+	unsigned int		mask)
+{
+	if (!(sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
+				  XFS_SCRUB_OFLAG_XCORRUPT)))
+		sc->sick_mask |= mask;
+}
+
+/*
+ * If we're scrubbing a piece of file metadata for the first time, does it look
+ * like it has been zapped?  Skip the check if we just repaired the metadata
+ * and are revalidating it.
+ */
+bool
+xchk_file_looks_zapped(
+	struct xfs_scrub	*sc,
+	unsigned int		mask)
+{
+	ASSERT((mask & ~XFS_SICK_INO_ZAPPED) == 0);
+
+	if (sc->flags & XREP_ALREADY_FIXED)
+		return false;
+
+	return xfs_inode_has_sickness(sc->ip, mask);
 }
 
 /*

@@ -239,11 +239,13 @@ enum tx_mgnt_type {
 
 #define MT_TXD6_TX_SRC			GENMASK(31, 30)
 #define MT_TXD6_VTA			BIT(28)
-#define MT_TXD6_BW			GENMASK(25, 22)
+#define MT_TXD6_FIXED_BW		BIT(25)
+#define MT_TXD6_BW			GENMASK(24, 22)
 #define MT_TXD6_TX_RATE			GENMASK(21, 16)
 #define MT_TXD6_TIMESTAMP_OFS_EN	BIT(15)
 #define MT_TXD6_TIMESTAMP_OFS_IDX	GENMASK(14, 10)
 #define MT_TXD6_MSDU_CNT		GENMASK(9, 4)
+#define MT_TXD6_MSDU_CNT_V2		GENMASK(15, 10)
 #define MT_TXD6_DIS_MAT			BIT(3)
 #define MT_TXD6_DAS			BIT(2)
 #define MT_TXD6_AMSDU_CAP		BIT(1)
@@ -258,6 +260,9 @@ enum tx_mgnt_type {
 #define MT_TXD7_TX_TIME			GENMASK(9, 0)
 
 #define MT_TXD9_WLAN_IDX		GENMASK(23, 8)
+
+#define MT_TXP_BUF_LEN			GENMASK(11, 0)
+#define MT_TXP_DMA_ADDR_H		GENMASK(15, 12)
 
 #define MT_TX_RATE_STBC			BIT(14)
 #define MT_TX_RATE_NSS			GENMASK(13, 10)

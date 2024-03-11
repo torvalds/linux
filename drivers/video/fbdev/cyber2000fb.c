@@ -227,13 +227,6 @@ cyber2000fb_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 			   CO_REG_CMD_H, cfb);
 }
 
-static void
-cyber2000fb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	cfb_imageblit(info, image);
-	return;
-}
-
 static int cyber2000fb_sync(struct fb_info *info)
 {
 	struct cfb_info *cfb = container_of(info, struct cfb_info, fb);
@@ -1069,7 +1062,7 @@ static const struct fb_ops cyber2000fb_ops = {
 	.fb_pan_display	= cyber2000fb_pan_display,
 	.fb_fillrect	= cyber2000fb_fillrect,
 	.fb_copyarea	= cyber2000fb_copyarea,
-	.fb_imageblit	= cyber2000fb_imageblit,
+	.fb_imageblit	= cfb_imageblit,
 	.fb_sync	= cyber2000fb_sync,
 	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
@@ -1234,7 +1227,6 @@ static int cyber2000fb_setup_ddc_bus(struct cfb_info *cfb)
 	strscpy(cfb->ddc_adapter.name, cfb->fb.fix.id,
 		sizeof(cfb->ddc_adapter.name));
 	cfb->ddc_adapter.owner		= THIS_MODULE;
-	cfb->ddc_adapter.class		= I2C_CLASS_DDC;
 	cfb->ddc_adapter.algo_data	= &cfb->ddc_algo;
 	cfb->ddc_adapter.dev.parent	= cfb->fb.device;
 	cfb->ddc_algo.setsda		= cyber2000fb_ddc_setsda;

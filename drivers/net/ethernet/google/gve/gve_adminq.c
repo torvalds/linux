@@ -194,12 +194,19 @@ gve_process_device_options(struct gve_priv *priv,
 
 int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 {
-	priv->adminq = dma_alloc_coherent(dev, PAGE_SIZE,
-					  &priv->adminq_bus_addr, GFP_KERNEL);
-	if (unlikely(!priv->adminq))
+	priv->adminq_pool = dma_pool_create("adminq_pool", dev,
+					    GVE_ADMINQ_BUFFER_SIZE, 0, 0);
+	if (unlikely(!priv->adminq_pool))
 		return -ENOMEM;
+	priv->adminq = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				      &priv->adminq_bus_addr);
+	if (unlikely(!priv->adminq)) {
+		dma_pool_destroy(priv->adminq_pool);
+		return -ENOMEM;
+	}
 
-	priv->adminq_mask = (PAGE_SIZE / sizeof(union gve_adminq_command)) - 1;
+	priv->adminq_mask =
+		(GVE_ADMINQ_BUFFER_SIZE / sizeof(union gve_adminq_command)) - 1;
 	priv->adminq_prod_cnt = 0;
 	priv->adminq_cmd_fail = 0;
 	priv->adminq_timeouts = 0;
@@ -218,9 +225,20 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_get_ptype_map_cnt = 0;
 
 	/* Setup Admin queue with the device */
-	iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
-		    &priv->reg_bar0->adminq_pfn);
-
+	if (priv->pdev->revision < 0x1) {
+		iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
+			    &priv->reg_bar0->adminq_pfn);
+	} else {
+		iowrite16be(GVE_ADMINQ_BUFFER_SIZE,
+			    &priv->reg_bar0->adminq_length);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		iowrite32be(priv->adminq_bus_addr >> 32,
+			    &priv->reg_bar0->adminq_base_address_hi);
+#endif
+		iowrite32be(priv->adminq_bus_addr,
+			    &priv->reg_bar0->adminq_base_address_lo);
+		iowrite32be(GVE_DRIVER_STATUS_RUN_MASK, &priv->reg_bar0->driver_status);
+	}
 	gve_set_admin_queue_ok(priv);
 	return 0;
 }
@@ -230,16 +248,27 @@ void gve_adminq_release(struct gve_priv *priv)
 	int i = 0;
 
 	/* Tell the device the adminq is leaving */
-	iowrite32be(0x0, &priv->reg_bar0->adminq_pfn);
-	while (ioread32be(&priv->reg_bar0->adminq_pfn)) {
-		/* If this is reached the device is unrecoverable and still
-		 * holding memory. Continue looping to avoid memory corruption,
-		 * but WARN so it is visible what is going on.
-		 */
-		if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
-			WARN(1, "Unrecoverable platform error!");
-		i++;
-		msleep(GVE_ADMINQ_SLEEP_LEN);
+	if (priv->pdev->revision < 0x1) {
+		iowrite32be(0x0, &priv->reg_bar0->adminq_pfn);
+		while (ioread32be(&priv->reg_bar0->adminq_pfn)) {
+			/* If this is reached the device is unrecoverable and still
+			 * holding memory. Continue looping to avoid memory corruption,
+			 * but WARN so it is visible what is going on.
+			 */
+			if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
+				WARN(1, "Unrecoverable platform error!");
+			i++;
+			msleep(GVE_ADMINQ_SLEEP_LEN);
+		}
+	} else {
+		iowrite32be(GVE_DRIVER_STATUS_RESET_MASK, &priv->reg_bar0->driver_status);
+		while (!(ioread32be(&priv->reg_bar0->device_status)
+				& GVE_DEVICE_STATUS_DEVICE_IS_RESET)) {
+			if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
+				WARN(1, "Unrecoverable platform error!");
+			i++;
+			msleep(GVE_ADMINQ_SLEEP_LEN);
+		}
 	}
 	gve_clear_device_rings_ok(priv);
 	gve_clear_device_resources_ok(priv);
@@ -251,7 +280,8 @@ void gve_adminq_free(struct device *dev, struct gve_priv *priv)
 	if (!gve_get_admin_queue_ok(priv))
 		return;
 	gve_adminq_release(priv);
-	dma_free_coherent(dev, PAGE_SIZE, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_free(priv->adminq_pool, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_destroy(priv->adminq_pool);
 	gve_clear_admin_queue_ok(priv);
 }
 
@@ -697,18 +727,7 @@ static int gve_set_desc_cnt(struct gve_priv *priv,
 			    struct gve_device_descriptor *descriptor)
 {
 	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
-	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n",
-			priv->tx_desc_cnt);
-		return -EINVAL;
-	}
 	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
-	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
-	    < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n",
-			priv->rx_desc_cnt);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -778,8 +797,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	u16 mtu;
 
 	memset(&cmd, 0, sizeof(cmd));
-	descriptor = dma_alloc_coherent(&priv->pdev->dev, PAGE_SIZE,
-					&descriptor_bus, GFP_KERNEL);
+	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				    &descriptor_bus);
 	if (!descriptor)
 		return -ENOMEM;
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESCRIBE_DEVICE);
@@ -787,7 +806,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 						cpu_to_be64(descriptor_bus);
 	cmd.describe_device.device_descriptor_version =
 			cpu_to_be32(GVE_ADMINQ_DEVICE_DESCRIPTOR_VERSION);
-	cmd.describe_device.available_length = cpu_to_be32(PAGE_SIZE);
+	cmd.describe_device.available_length =
+		cpu_to_be32(GVE_ADMINQ_BUFFER_SIZE);
 
 	err = gve_adminq_execute_cmd(priv, &cmd);
 	if (err)
@@ -868,8 +888,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 				      dev_op_jumbo_frames, dev_op_dqo_qpl);
 
 free_device_descriptor:
-	dma_free_coherent(&priv->pdev->dev, PAGE_SIZE, descriptor,
-			  descriptor_bus);
+	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
 	return err;
 }
 
@@ -898,6 +917,7 @@ int gve_adminq_register_page_list(struct gve_priv *priv,
 		.page_list_id = cpu_to_be32(qpl->id),
 		.num_pages = cpu_to_be32(num_entries),
 		.page_address_list_addr = cpu_to_be64(page_list_bus),
+		.page_size = cpu_to_be64(PAGE_SIZE),
 	};
 
 	err = gve_adminq_execute_cmd(priv, &cmd);

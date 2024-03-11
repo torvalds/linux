@@ -756,16 +756,16 @@ static ssize_t cyapa_show_suspend_scanrate(struct device *dev,
 
 	switch (pwr_cmd) {
 	case PWR_MODE_BTN_ONLY:
-		len = scnprintf(buf, PAGE_SIZE, "%s\n", BTN_ONLY_MODE_NAME);
+		len = sysfs_emit(buf, "%s\n", BTN_ONLY_MODE_NAME);
 		break;
 
 	case PWR_MODE_OFF:
-		len = scnprintf(buf, PAGE_SIZE, "%s\n", OFF_MODE_NAME);
+		len = sysfs_emit(buf, "%s\n", OFF_MODE_NAME);
 		break;
 
 	default:
-		len = scnprintf(buf, PAGE_SIZE, "%u\n",
-				cyapa->gen == CYAPA_GEN3 ?
+		len = sysfs_emit(buf, "%u\n",
+				 cyapa->gen == CYAPA_GEN3 ?
 					cyapa_pwr_cmd_to_sleep_time(pwr_cmd) :
 					sleep_time);
 		break;
@@ -877,8 +877,8 @@ static ssize_t cyapa_show_rt_suspend_scanrate(struct device *dev,
 
 	mutex_unlock(&cyapa->state_sync_lock);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 cyapa->gen == CYAPA_GEN3 ?
+	return sysfs_emit(buf, "%u\n",
+			  cyapa->gen == CYAPA_GEN3 ?
 				cyapa_pwr_cmd_to_sleep_time(pwr_cmd) :
 				sleep_time);
 }
@@ -988,8 +988,8 @@ static ssize_t cyapa_show_fm_ver(struct device *dev,
 	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
 	if (error)
 		return error;
-	error = scnprintf(buf, PAGE_SIZE, "%d.%d\n", cyapa->fw_maj_ver,
-			 cyapa->fw_min_ver);
+	error = sysfs_emit(buf, "%d.%d\n",
+			   cyapa->fw_maj_ver, cyapa->fw_min_ver);
 	mutex_unlock(&cyapa->state_sync_lock);
 	return error;
 }
@@ -1004,7 +1004,7 @@ static ssize_t cyapa_show_product_id(struct device *dev,
 	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
 	if (error)
 		return error;
-	size = scnprintf(buf, PAGE_SIZE, "%s\n", cyapa->product_id);
+	size = sysfs_emit(buf, "%s\n", cyapa->product_id);
 	mutex_unlock(&cyapa->state_sync_lock);
 	return size;
 }
@@ -1209,8 +1209,8 @@ static ssize_t cyapa_show_mode(struct device *dev,
 	if (error)
 		return error;
 
-	size = scnprintf(buf, PAGE_SIZE, "gen%d %s\n",
-			cyapa->gen, cyapa_state_to_string(cyapa));
+	size = sysfs_emit(buf, "gen%d %s\n",
+			  cyapa->gen, cyapa_state_to_string(cyapa));
 
 	mutex_unlock(&cyapa->state_sync_lock);
 	return size;

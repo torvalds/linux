@@ -33,6 +33,7 @@
 struct pagevec;
 struct afs_call;
 struct afs_vnode;
+struct afs_server_probe;
 
 /*
  * Partial file-locking emulation mode.  (The problem being that AFS3 only
@@ -73,21 +74,51 @@ enum afs_call_state {
 };
 
 /*
+ * Address preferences.
+ */
+struct afs_addr_preference {
+	union {
+		struct in_addr	ipv4_addr;	/* AF_INET address to compare against */
+		struct in6_addr	ipv6_addr;	/* AF_INET6 address to compare against */
+	};
+	sa_family_t		family;		/* Which address to use */
+	u16			prio;		/* Priority */
+	u8			subnet_mask;	/* How many bits to compare */
+};
+
+struct afs_addr_preference_list {
+	struct rcu_head		rcu;
+	u16			version;	/* Incremented when prefs list changes */
+	u8			ipv6_off;	/* Offset of IPv6 addresses */
+	u8			nr;		/* Number of addresses in total */
+	u8			max_prefs;	/* Number of prefs allocated */
+	struct afs_addr_preference prefs[] __counted_by(max_prefs);
+};
+
+struct afs_address {
+	struct rxrpc_peer	*peer;
+	short			last_error;	/* Last error from this address */
+	u16			prio;		/* Address priority */
+};
+
+/*
  * List of server addresses.
  */
 struct afs_addr_list {
 	struct rcu_head		rcu;
 	refcount_t		usage;
 	u32			version;	/* Version */
+	unsigned int		debug_id;
+	unsigned int		addr_pref_version; /* Version of address preference list */
 	unsigned char		max_addrs;
 	unsigned char		nr_addrs;
 	unsigned char		preferred;	/* Preferred address */
 	unsigned char		nr_ipv4;	/* Number of IPv4 addresses */
 	enum dns_record_source	source:8;
 	enum dns_lookup_status	status:8;
-	unsigned long		failed;		/* Mask of addrs that failed locally/ICMP */
+	unsigned long		probe_failed;	/* Mask of addrs that failed locally/ICMP */
 	unsigned long		responded;	/* Mask of addrs that responded */
-	struct sockaddr_rxrpc	addrs[] __counted_by(max_addrs);
+	struct afs_address	addrs[] __counted_by(max_addrs);
 #define AFS_MAX_ADDRESSES ((unsigned int)(sizeof(unsigned long) * 8))
 };
 
@@ -96,11 +127,11 @@ struct afs_addr_list {
  */
 struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
-	struct afs_addr_list	*alist;		/* Address is alist[addr_ix] */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
 	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
+	struct rxrpc_peer	*peer;		/* Remote endpoint */
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
 	struct afs_server	*server;	/* The fileserver record if fs op (pins ref) */
@@ -116,11 +147,14 @@ struct afs_call {
 	};
 	void			*buffer;	/* reply receive buffer */
 	union {
-		long			ret0;	/* Value to reply with instead of 0 */
+		struct afs_endpoint_state *probe;
+		struct afs_addr_list	*vl_probe;
 		struct afs_addr_list	*ret_alist;
 		struct afs_vldb_entry	*ret_vldb;
 		char			*ret_str;
 	};
+	struct afs_fid		fid;		/* Primary vnode ID (or all zeroes) */
+	unsigned char		probe_index;	/* Address in ->probe_alist */
 	struct afs_operation	*op;
 	unsigned int		server_index;
 	refcount_t		ref;
@@ -133,13 +167,13 @@ struct afs_call {
 	unsigned		reply_max;	/* maximum size of reply */
 	unsigned		count2;		/* count used in unmarshalling */
 	unsigned char		unmarshall;	/* unmarshalling phase */
-	unsigned char		addr_ix;	/* Address in ->alist */
 	bool			drop_ref;	/* T if need to drop ref for incoming call */
 	bool			need_attention;	/* T if RxRPC poked us */
 	bool			async;		/* T if asynchronous */
 	bool			upgrade;	/* T to request service upgrade */
 	bool			intr;		/* T if interruptible */
 	bool			unmarshalling_error; /* T if an unmarshalling error occurred */
+	bool			responded;	/* Got a response from the call (may be abort) */
 	u16			service_id;	/* Actual service ID (after upgrade) */
 	unsigned int		debug_id;	/* Trace ID */
 	u32			operation_ID;	/* operation ID for an incoming call */
@@ -287,8 +321,7 @@ struct afs_net {
 	struct list_head	fs_probe_slow;	/* List of afs_server to probe at 5m intervals */
 	struct hlist_head	fs_proc;	/* procfs servers list */
 
-	struct hlist_head	fs_addresses4;	/* afs_server (by lowest IPv4 addr) */
-	struct hlist_head	fs_addresses6;	/* afs_server (by lowest IPv6 addr) */
+	struct hlist_head	fs_addresses;	/* afs_server (by lowest IPv6 addr) */
 	seqlock_t		fs_addr_lock;	/* For fs_addresses[46] */
 
 	struct work_struct	fs_manager;
@@ -306,6 +339,8 @@ struct afs_net {
 	struct proc_dir_entry	*proc_afs;	/* /proc/net/afs directory */
 	struct afs_sysnames	*sysnames;
 	rwlock_t		sysnames_lock;
+	struct afs_addr_preference_list __rcu *address_prefs;
+	u16			address_pref_version;
 
 	/* Statistics counters */
 	atomic_t		n_lookup;	/* Number of lookups done */
@@ -379,6 +414,7 @@ struct afs_cell {
 	unsigned int		debug_id;
 
 	/* The volumes belonging to this cell */
+	struct rw_semaphore	vs_lock;	/* Lock for server->volumes */
 	struct rb_root		volumes;	/* Tree of volumes on this server */
 	struct hlist_head	proc_volumes;	/* procfs volume list */
 	seqlock_t		volume_lock;	/* For volumes */
@@ -386,9 +422,6 @@ struct afs_cell {
 	/* Active fileserver interaction state. */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID) */
 	seqlock_t		fs_lock;	/* For fs_servers  */
-	struct rw_semaphore	fs_open_mmaps_lock;
-	struct list_head	fs_open_mmaps;	/* List of vnodes that are mmapped */
-	atomic_t		fs_s_break;	/* Counter of CB.InitCallBackState messages */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -412,13 +445,14 @@ struct afs_vlserver {
 	rwlock_t		lock;		/* Lock on addresses */
 	refcount_t		ref;
 	unsigned int		rtt;		/* Server's current RTT in uS */
+	unsigned int		debug_id;
 
 	/* Probe state */
 	wait_queue_head_t	probe_wq;
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
 	struct {
-		unsigned int	rtt;		/* RTT in uS */
+		unsigned int	rtt;		/* Best RTT in uS (or UINT_MAX) */
 		u32		abort_code;
 		short		error;
 		unsigned short	flags;
@@ -428,6 +462,7 @@ struct afs_vlserver {
 #define AFS_VLSERVER_PROBE_LOCAL_FAILURE	0x08 /* A local failure prevented a probe */
 	} probe;
 
+	u16			service_id;	/* Service ID we're using */
 	u16			port;
 	u16			name_len;	/* Length of name */
 	char			name[];		/* Server name, case-flattened */
@@ -477,10 +512,37 @@ struct afs_vldb_entry {
 #define AFS_VOL_VTM_RW	0x01 /* R/W version of the volume is available (on this server) */
 #define AFS_VOL_VTM_RO	0x02 /* R/O version of the volume is available (on this server) */
 #define AFS_VOL_VTM_BAK	0x04 /* backup version of the volume is available (on this server) */
+	u8			vlsf_flags[AFS_NMAXNSERVERS];
 	short			error;
 	u8			nr_servers;	/* Number of server records */
 	u8			name_len;
 	u8			name[AFS_MAXVOLNAME + 1]; /* NUL-padded volume name */
+};
+
+/*
+ * Fileserver endpoint state.  The records the addresses of a fileserver's
+ * endpoints and the state and result of a round of probing on them.  This
+ * allows the rotation algorithm to access those results without them being
+ * erased by a subsequent round of probing.
+ */
+struct afs_endpoint_state {
+	struct rcu_head		rcu;
+	struct afs_addr_list	*addresses;	/* The addresses being probed */
+	unsigned long		responsive_set;	/* Bitset of responsive endpoints */
+	unsigned long		failed_set;	/* Bitset of endpoints we failed to probe */
+	refcount_t		ref;
+	unsigned int		server_id;	/* Debug ID of server */
+	unsigned int		probe_seq;	/* Probe sequence (from server::probe_counter) */
+	atomic_t		nr_probing;	/* Number of outstanding probes */
+	unsigned int		rtt;		/* Best RTT in uS (or UINT_MAX) */
+	s32			abort_code;
+	short			error;
+	unsigned long		flags;
+#define AFS_ESTATE_RESPONDED	0		/* Set if the server responded */
+#define AFS_ESTATE_SUPERSEDED	1		/* Set if this record has been superseded */
+#define AFS_ESTATE_IS_YFS	2		/* Set if probe upgraded to YFS */
+#define AFS_ESTATE_NOT_YFS	3		/* Set if probe didn't upgrade to YFS */
+#define AFS_ESTATE_LOCAL_FAILURE 4		/* Set if there was a local failure (eg. ENOMEM) */
 };
 
 /*
@@ -493,16 +555,14 @@ struct afs_server {
 		struct afs_uuid	_uuid;
 	};
 
-	struct afs_addr_list	__rcu *addresses;
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
 	struct afs_server __rcu	*uuid_next;	/* Next server with same UUID */
 	struct afs_server	*uuid_prev;	/* Previous server with same UUID */
 	struct list_head	probe_link;	/* Link in net->fs_probe_list */
-	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
-	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */
+	struct hlist_node	addr_link;	/* Link in net->fs_addresses6 */
 	struct hlist_node	proc_link;	/* Link in net->fs_proc */
-	struct work_struct	initcb_work;	/* Work for CB.InitCallBackState* */
+	struct list_head	volumes;	/* RCU list of afs_server_entry objects */
 	struct afs_server	*gc_next;	/* Next server in manager's list */
 	time64_t		unuse_time;	/* Time at which last unused */
 	unsigned long		flags;
@@ -520,44 +580,47 @@ struct afs_server {
 	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
+	u16			service_id;	/* Service ID we're using. */
 	unsigned int		rtt;		/* Server's current RTT in uS */
 	unsigned int		debug_id;	/* Debugging ID for traces */
 
 	/* file service access */
 	rwlock_t		fs_lock;	/* access lock */
 
-	/* callback promise management */
-	unsigned		cb_s_break;	/* Break-everything counter. */
-
 	/* Probe state */
+	struct afs_endpoint_state __rcu *endpoint_state; /* Latest endpoint/probe state */
 	unsigned long		probed_at;	/* Time last probe was dispatched (jiffies) */
 	wait_queue_head_t	probe_wq;
-	atomic_t		probe_outstanding;
+	unsigned int		probe_counter;	/* Number of probes issued */
 	spinlock_t		probe_lock;
-	struct {
-		unsigned int	rtt;		/* RTT in uS */
-		u32		abort_code;
-		short		error;
-		bool		responded:1;
-		bool		is_yfs:1;
-		bool		not_yfs:1;
-		bool		local_failure:1;
-	} probe;
 };
+
+enum afs_ro_replicating {
+	AFS_RO_NOT_REPLICATING,			/* Not doing replication */
+	AFS_RO_REPLICATING_USE_OLD,		/* Replicating; use old version */
+	AFS_RO_REPLICATING_USE_NEW,		/* Replicating; switch to new version */
+} __mode(byte);
 
 /*
  * Replaceable volume server list.
  */
 struct afs_server_entry {
 	struct afs_server	*server;
+	struct afs_volume	*volume;
+	struct list_head	slink;		/* Link in server->volumes */
+	time64_t		cb_expires_at;	/* Time at which volume-level callback expires */
+	unsigned long		flags;
+#define AFS_SE_EXCLUDED		0		/* Set if server is to be excluded in rotation */
+#define AFS_SE_VOLUME_OFFLINE	1		/* Set if volume offline notice given */
+#define AFS_SE_VOLUME_BUSY	2		/* Set if volume busy notice given */
 };
 
 struct afs_server_list {
 	struct rcu_head		rcu;
-	afs_volid_t		vids[AFS_MAXTYPES]; /* Volume IDs */
 	refcount_t		usage;
+	bool			attached;	/* T if attached to servers */
+	enum afs_ro_replicating	ro_replicating;	/* RW->RO update (probably) in progress */
 	unsigned char		nr_servers;
-	unsigned char		preferred;	/* Preferred server */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */
 	unsigned int		seq;		/* Set to ->servers_seq when installed */
 	rwlock_t		lock;
@@ -568,25 +631,23 @@ struct afs_server_list {
  * Live AFS volume management.
  */
 struct afs_volume {
-	union {
-		struct rcu_head	rcu;
-		afs_volid_t	vid;		/* volume ID */
-	};
+	struct rcu_head	rcu;
+	afs_volid_t		vid;		/* The volume ID of this volume */
+	afs_volid_t		vids[AFS_MAXTYPES]; /* All associated volume IDs */
 	refcount_t		ref;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		cell_node;	/* Link in cell->volumes */
 	struct hlist_node	proc_link;	/* Link in cell->proc_volumes */
 	struct super_block __rcu *sb;		/* Superblock on which inodes reside */
+	struct work_struct	destructor;	/* Deferred destructor */
 	unsigned long		flags;
 #define AFS_VOLUME_NEEDS_UPDATE	0	/* - T if an update needs performing */
 #define AFS_VOLUME_UPDATING	1	/* - T if an update is in progress */
 #define AFS_VOLUME_WAIT		2	/* - T if users must wait for update */
 #define AFS_VOLUME_DELETED	3	/* - T if volume appears deleted */
-#define AFS_VOLUME_OFFLINE	4	/* - T if volume offline notice given */
-#define AFS_VOLUME_BUSY		5	/* - T if volume busy notice given */
-#define AFS_VOLUME_MAYBE_NO_IBULK 6	/* - T if some servers don't have InlineBulkStatus */
-#define AFS_VOLUME_RM_TREE	7	/* - Set if volume removed from cell->volumes */
+#define AFS_VOLUME_MAYBE_NO_IBULK 4	/* - T if some servers don't have InlineBulkStatus */
+#define AFS_VOLUME_RM_TREE	5	/* - Set if volume removed from cell->volumes */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_volume	*cache;		/* Caching cookie */
 #endif
@@ -594,8 +655,21 @@ struct afs_volume {
 	rwlock_t		servers_lock;	/* Lock for ->servers */
 	unsigned int		servers_seq;	/* Incremented each time ->servers changes */
 
-	unsigned		cb_v_break;	/* Break-everything counter. */
+	/* RO release tracking */
+	struct mutex		volsync_lock;	/* Time/state evaluation lock */
+	time64_t		creation_time;	/* Volume creation time (or TIME64_MIN) */
+	time64_t		update_time;	/* Volume update time (or TIME64_MIN) */
+
+	/* Callback management */
+	struct mutex		cb_check_lock;	/* Lock to control race to check after v_break */
+	time64_t		cb_expires_at;	/* Earliest volume callback expiry time */
+	atomic_t		cb_ro_snapshot;	/* RO volume update-from-snapshot counter */
+	atomic_t		cb_v_break;	/* Volume-break event counter. */
+	atomic_t		cb_v_check;	/* Volume-break has-been-checked counter. */
+	atomic_t		cb_scrub;	/* Scrub-all-data event counter. */
 	rwlock_t		cb_v_break_lock;
+	struct rw_semaphore	open_mmaps_lock;
+	struct list_head	open_mmaps;	/* List of vnodes that are mmapped */
 
 	afs_voltype_t		type;		/* type of volume */
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
@@ -634,7 +708,6 @@ struct afs_vnode {
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
-#define AFS_VNODE_CB_PROMISED	0		/* Set if vnode has a callback promise */
 #define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
 #define AFS_VNODE_DIR_VALID	2		/* Set if dir contents are valid */
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
@@ -660,13 +733,14 @@ struct afs_vnode {
 	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
 	atomic_t		cb_nr_mmap;	/* Number of mmaps */
-	unsigned int		cb_fs_s_break;	/* Mass server break counter (cell->fs_s_break) */
-	unsigned int		cb_s_break;	/* Mass break counter on ->server */
-	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
+	unsigned int		cb_ro_snapshot;	/* RO volume release counter on ->volume */
+	unsigned int		cb_scrub;	/* Scrub counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
+	unsigned int		cb_v_check;	/* Break check counter on ->volume */
 	seqlock_t		cb_lock;	/* Lock for ->cb_server, ->status, ->cb_*break */
 
-	time64_t		cb_expires_at;	/* time at which callback expires */
+	atomic64_t		cb_expires_at;	/* time at which callback expires */
+#define AFS_NO_CB_PROMISE TIME64_MIN
 };
 
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
@@ -714,40 +788,49 @@ struct afs_permits {
  * Error prioritisation and accumulation.
  */
 struct afs_error {
-	short	error;			/* Accumulated error */
+	s32	abort_code;		/* Cumulative abort code */
+	short	error;			/* Cumulative error */
 	bool	responded;		/* T if server responded */
-};
-
-/*
- * Cursor for iterating over a server's address list.
- */
-struct afs_addr_cursor {
-	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
-	unsigned long		tried;		/* Tried addresses */
-	signed char		index;		/* Current address */
-	bool			responded;	/* T if the current address responded */
-	unsigned short		nr_iterations;	/* Number of address iterations */
-	short			error;
-	u32			abort_code;
+	bool	aborted;		/* T if ->error is from an abort */
 };
 
 /*
  * Cursor for iterating over a set of volume location servers.
  */
 struct afs_vl_cursor {
-	struct afs_addr_cursor	ac;
 	struct afs_cell		*cell;		/* The cell we're querying */
 	struct afs_vlserver_list *server_list;	/* Current server list (pins ref) */
 	struct afs_vlserver	*server;	/* Server on which this resides */
+	struct afs_addr_list	*alist;		/* Current address list (pins ref) */
 	struct key		*key;		/* Key for the server */
-	unsigned long		untried;	/* Bitmask of untried servers */
-	short			index;		/* Current server */
-	short			error;
+	unsigned long		untried_servers; /* Bitmask of untried servers */
+	unsigned long		addr_tried;	/* Tried addresses */
+	struct afs_error	cumul_error;	/* Cumulative error */
+	unsigned int		debug_id;
+	s32			call_abort_code;
+	short			call_error;	/* Error from single call */
+	short			server_index;	/* Current server */
+	signed char		addr_index;	/* Current address */
 	unsigned short		flags;
 #define AFS_VL_CURSOR_STOP	0x0001		/* Set to cease iteration */
 #define AFS_VL_CURSOR_RETRY	0x0002		/* Set to do a retry */
 #define AFS_VL_CURSOR_RETRIED	0x0004		/* Set if started a retry */
-	unsigned short		nr_iterations;	/* Number of server iterations */
+	short			nr_iterations;	/* Number of server iterations */
+	bool			call_responded;	/* T if the current address responded */
+};
+
+/*
+ * Fileserver state tracking for an operation.  An array of these is kept,
+ * indexed by server index.
+ */
+struct afs_server_state {
+	/* Tracking of fileserver probe state.  Other operations may interfere
+	 * by probing a fileserver when accessing other volumes.
+	 */
+	unsigned int		probe_seq;
+	unsigned long		untried_addrs;	/* Addresses we haven't tried yet */
+	struct wait_queue_entry	probe_waiter;
+	struct afs_endpoint_state *endpoint_state; /* Endpoint state being monitored */
 };
 
 /*
@@ -768,7 +851,7 @@ struct afs_vnode_param {
 	struct afs_fid		fid;		/* Fid to access */
 	struct afs_status_cb	scb;		/* Returned status and callback promise */
 	afs_dataversion_t	dv_before;	/* Data version before the call */
-	unsigned int		cb_break_before; /* cb_break + cb_s_break before the call */
+	unsigned int		cb_break_before; /* cb_break before the call */
 	u8			dv_delta;	/* Expected change in data version */
 	bool			put_vnode:1;	/* T if we have a ref on the vnode */
 	bool			need_io_lock:1;	/* T if we need the I/O lock on this */
@@ -793,17 +876,17 @@ struct afs_operation {
 	struct afs_volume	*volume;	/* Volume being accessed */
 	struct afs_vnode_param	file[2];
 	struct afs_vnode_param	*more_files;
-	struct afs_volsync	volsync;
+	struct afs_volsync	pre_volsync;	/* Volsync before op */
+	struct afs_volsync	volsync;	/* Volsync returned by op */
 	struct dentry		*dentry;	/* Dentry to be altered */
 	struct dentry		*dentry_2;	/* Second dentry to be altered */
 	struct timespec64	mtime;		/* Modification time to record */
 	struct timespec64	ctime;		/* Change time to set */
+	struct afs_error	cumul_error;	/* Cumulative error */
 	short			nr_files;	/* Number of entries in file[], more_files */
-	short			error;
 	unsigned int		debug_id;
 
 	unsigned int		cb_v_break;	/* Volume break counter before op */
-	unsigned int		cb_s_break;	/* Server break counter before op */
 
 	union {
 		struct {
@@ -848,13 +931,19 @@ struct afs_operation {
 	};
 
 	/* Fileserver iteration state */
-	struct afs_addr_cursor	ac;
 	struct afs_server_list	*server_list;	/* Current server list (pins ref) */
 	struct afs_server	*server;	/* Server we're using (ref pinned by server_list) */
+	struct afs_endpoint_state *estate;	/* Current endpoint state (doesn't pin ref) */
+	struct afs_server_state	*server_states;	/* States of the servers involved */
 	struct afs_call		*call;
-	unsigned long		untried;	/* Bitmask of untried servers */
-	short			index;		/* Current server */
-	unsigned short		nr_iterations;	/* Number of server iterations */
+	unsigned long		untried_servers; /* Bitmask of untried servers */
+	unsigned long		addr_tried;	/* Tried addresses */
+	s32			call_abort_code; /* Abort code from single call */
+	short			call_error;	/* Error from single call */
+	short			server_index;	/* Current server */
+	short			nr_iterations;	/* Number of server iterations */
+	signed char		addr_index;	/* Current address */
+	bool			call_responded;	/* T if the current address responded */
 
 	unsigned int		flags;
 #define AFS_OPERATION_STOP		0x0001	/* Set to cease iteration */
@@ -894,93 +983,38 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
 			   i_size_read(&vnode->netfs.inode), flags);
 }
 
-/*
- * We use folio->private to hold the amount of the folio that we've written to,
- * splitting the field into two parts.  However, we need to represent a range
- * 0...FOLIO_SIZE, so we reduce the resolution if the size of the folio
- * exceeds what we can encode.
- */
-#ifdef CONFIG_64BIT
-#define __AFS_FOLIO_PRIV_MASK		0x7fffffffUL
-#define __AFS_FOLIO_PRIV_SHIFT		32
-#define __AFS_FOLIO_PRIV_MMAPPED	0x80000000UL
-#else
-#define __AFS_FOLIO_PRIV_MASK		0x7fffUL
-#define __AFS_FOLIO_PRIV_SHIFT		16
-#define __AFS_FOLIO_PRIV_MMAPPED	0x8000UL
-#endif
-
-static inline unsigned int afs_folio_dirty_resolution(struct folio *folio)
-{
-	int shift = folio_shift(folio) - (__AFS_FOLIO_PRIV_SHIFT - 1);
-	return (shift > 0) ? shift : 0;
-}
-
-static inline size_t afs_folio_dirty_from(struct folio *folio, unsigned long priv)
-{
-	unsigned long x = priv & __AFS_FOLIO_PRIV_MASK;
-
-	/* The lower bound is inclusive */
-	return x << afs_folio_dirty_resolution(folio);
-}
-
-static inline size_t afs_folio_dirty_to(struct folio *folio, unsigned long priv)
-{
-	unsigned long x = (priv >> __AFS_FOLIO_PRIV_SHIFT) & __AFS_FOLIO_PRIV_MASK;
-
-	/* The upper bound is immediately beyond the region */
-	return (x + 1) << afs_folio_dirty_resolution(folio);
-}
-
-static inline unsigned long afs_folio_dirty(struct folio *folio, size_t from, size_t to)
-{
-	unsigned int res = afs_folio_dirty_resolution(folio);
-	from >>= res;
-	to = (to - 1) >> res;
-	return (to << __AFS_FOLIO_PRIV_SHIFT) | from;
-}
-
-static inline unsigned long afs_folio_dirty_mmapped(unsigned long priv)
-{
-	return priv | __AFS_FOLIO_PRIV_MMAPPED;
-}
-
-static inline bool afs_is_folio_dirty_mmapped(unsigned long priv)
-{
-	return priv & __AFS_FOLIO_PRIV_MMAPPED;
-}
-
 #include <trace/events/afs.h>
 
 /*****************************************************************************/
 /*
  * addr_list.c
  */
-static inline struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist)
-{
-	if (alist)
-		refcount_inc(&alist->usage);
-	return alist;
-}
-extern struct afs_addr_list *afs_alloc_addrlist(unsigned int,
-						unsigned short,
-						unsigned short);
-extern void afs_put_addrlist(struct afs_addr_list *);
+struct afs_addr_list *afs_get_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
+extern struct afs_addr_list *afs_alloc_addrlist(unsigned int nr);
+extern void afs_put_addrlist(struct afs_addr_list *alist, enum afs_alist_trace reason);
 extern struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *,
 						      const char *, size_t, char,
 						      unsigned short, unsigned short);
+bool afs_addr_list_same(const struct afs_addr_list *a,
+			const struct afs_addr_list *b);
 extern struct afs_vlserver_list *afs_dns_query(struct afs_cell *, time64_t *);
-extern bool afs_iterate_addresses(struct afs_addr_cursor *);
-extern int afs_end_cursor(struct afs_addr_cursor *);
 
-extern void afs_merge_fs_addr4(struct afs_addr_list *, __be32, u16);
-extern void afs_merge_fs_addr6(struct afs_addr_list *, __be32 *, u16);
+extern int afs_merge_fs_addr4(struct afs_net *net, struct afs_addr_list *addr,
+			      __be32 xdr, u16 port);
+extern int afs_merge_fs_addr6(struct afs_net *net, struct afs_addr_list *addr,
+			      __be32 *xdr, u16 port);
+
+/*
+ * addr_prefs.c
+ */
+int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size);
+void afs_get_address_preferences_rcu(struct afs_net *net, struct afs_addr_list *alist);
+void afs_get_address_preferences(struct afs_net *net, struct afs_addr_list *alist);
 
 /*
  * callback.c
  */
 extern void afs_invalidate_mmap_work(struct work_struct *);
-extern void afs_server_init_callback_work(struct work_struct *work);
 extern void afs_init_callback_state(struct afs_server *);
 extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
 extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
@@ -988,13 +1022,15 @@ extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback
 
 static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 {
-	return vnode->cb_break + vnode->cb_v_break;
+	return vnode->cb_break + vnode->cb_ro_snapshot + vnode->cb_scrub;
 }
 
 static inline bool afs_cb_is_broken(unsigned int cb_break,
 				    const struct afs_vnode *vnode)
 {
-	return cb_break != (vnode->cb_break + vnode->volume->cb_v_break);
+	return cb_break != (vnode->cb_break +
+			    atomic_read(&vnode->volume->cb_ro_snapshot) +
+			    atomic_read(&vnode->volume->cb_scrub));
 }
 
 /*
@@ -1073,7 +1109,6 @@ extern int afs_release(struct inode *, struct file *);
 extern int afs_fetch_data(struct afs_vnode *, struct afs_read *);
 extern struct afs_read *afs_alloc_read(gfp_t);
 extern void afs_put_read(struct afs_read *);
-extern int afs_write_inode(struct inode *, struct writeback_control *);
 
 static inline struct afs_read *afs_get_read(struct afs_read *req)
 {
@@ -1110,15 +1145,16 @@ extern void afs_fs_get_volume_status(struct afs_operation *);
 extern void afs_fs_set_lock(struct afs_operation *);
 extern void afs_fs_extend_lock(struct afs_operation *);
 extern void afs_fs_release_lock(struct afs_operation *);
-extern int afs_fs_give_up_all_callbacks(struct afs_net *, struct afs_server *,
-					struct afs_addr_cursor *, struct key *);
-extern bool afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
-				    struct afs_addr_cursor *, struct key *);
+int afs_fs_give_up_all_callbacks(struct afs_net *net, struct afs_server *server,
+				 struct afs_address *addr, struct key *key);
+bool afs_fs_get_capabilities(struct afs_net *net, struct afs_server *server,
+			     struct afs_endpoint_state *estate, unsigned int addr_index,
+			     struct key *key);
 extern void afs_fs_inline_bulk_status(struct afs_operation *);
 
 struct afs_acl {
 	u32	size;
-	u8	data[];
+	u8	data[] __counted_by(size);
 };
 
 extern void afs_fs_fetch_acl(struct afs_operation *);
@@ -1132,11 +1168,6 @@ extern int afs_put_operation(struct afs_operation *);
 extern bool afs_begin_vnode_operation(struct afs_operation *);
 extern void afs_wait_for_operation(struct afs_operation *);
 extern int afs_do_sync_operation(struct afs_operation *);
-
-static inline void afs_op_nomem(struct afs_operation *op)
-{
-	op->error = -ENOMEM;
-}
 
 static inline void afs_op_set_vnode(struct afs_operation *op, unsigned int n,
 				    struct afs_vnode *vnode)
@@ -1154,12 +1185,17 @@ static inline void afs_op_set_fid(struct afs_operation *op, unsigned int n,
 /*
  * fs_probe.c
  */
+struct afs_endpoint_state *afs_get_endpoint_state(struct afs_endpoint_state *estate,
+						  enum afs_estate_trace where);
+void afs_put_endpoint_state(struct afs_endpoint_state *estate, enum afs_estate_trace where);
 extern void afs_fileserver_probe_result(struct afs_call *);
-extern void afs_fs_probe_fileserver(struct afs_net *, struct afs_server *, struct key *, bool);
-extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
+void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
+			     struct afs_addr_list *new_addrs, struct key *key);
+int afs_wait_for_fs_probes(struct afs_operation *op, struct afs_server_state *states, bool intr);
 extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
-extern int afs_wait_for_one_fs_probe(struct afs_server *, bool);
+int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_state *estate,
+			      unsigned long exclude, bool is_intr);
 extern void afs_fs_probe_cleanup(struct afs_net *);
 
 /*
@@ -1173,9 +1209,6 @@ extern int afs_ilookup5_test_by_fid(struct inode *, void *);
 extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct afs_operation *, struct afs_vnode_param *);
 extern struct inode *afs_root_iget(struct super_block *, struct key *);
-extern bool afs_check_validity(struct afs_vnode *);
-extern int afs_validate(struct afs_vnode *, struct key *);
-bool afs_pagecache_valid(struct afs_vnode *);
 extern int afs_getattr(struct mnt_idmap *idmap, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern int afs_setattr(struct mnt_idmap *idmap, struct dentry *, struct iattr *);
@@ -1231,6 +1264,31 @@ static inline void __afs_stat(atomic_t *s)
 extern int afs_abort_to_error(u32);
 extern void afs_prioritise_error(struct afs_error *, int, u32);
 
+static inline void afs_op_nomem(struct afs_operation *op)
+{
+	op->cumul_error.error = -ENOMEM;
+}
+
+static inline int afs_op_error(const struct afs_operation *op)
+{
+	return op->cumul_error.error;
+}
+
+static inline s32 afs_op_abort_code(const struct afs_operation *op)
+{
+	return op->cumul_error.abort_code;
+}
+
+static inline int afs_op_set_error(struct afs_operation *op, int error)
+{
+	return op->cumul_error.error = error;
+}
+
+static inline void afs_op_accumulate_error(struct afs_operation *op, int error, s32 abort_code)
+{
+	afs_prioritise_error(&op->cumul_error, error, abort_code);
+}
+
 /*
  * mntpt.c
  */
@@ -1261,6 +1319,7 @@ static inline void afs_put_sysnames(struct afs_sysnames *sysnames) {}
 /*
  * rotate.c
  */
+void afs_clear_server_states(struct afs_operation *op);
 extern bool afs_select_fileserver(struct afs_operation *);
 extern void afs_dump_edestaddrreq(const struct afs_operation *);
 
@@ -1273,8 +1332,8 @@ extern int __net_init afs_open_socket(struct afs_net *);
 extern void __net_exit afs_close_socket(struct afs_net *);
 extern void afs_charge_preallocation(struct work_struct *);
 extern void afs_put_call(struct afs_call *);
-extern void afs_make_call(struct afs_addr_cursor *, struct afs_call *, gfp_t);
-extern long afs_wait_for_call_to_complete(struct afs_call *, struct afs_addr_cursor *);
+void afs_make_call(struct afs_call *call, gfp_t gfp);
+void afs_wait_for_call_to_complete(struct afs_call *call);
 extern struct afs_call *afs_alloc_flat_call(struct afs_net *,
 					    const struct afs_call_type *,
 					    size_t, size_t);
@@ -1287,12 +1346,16 @@ extern int afs_protocol_error(struct afs_call *, enum afs_eproto_cause);
 static inline void afs_make_op_call(struct afs_operation *op, struct afs_call *call,
 				    gfp_t gfp)
 {
-	op->call = call;
-	op->type = call->type;
-	call->op = op;
-	call->key = op->key;
-	call->intr = !(op->flags & AFS_OPERATION_UNINTR);
-	afs_make_call(&op->ac, call, gfp);
+	struct afs_addr_list *alist = op->estate->addresses;
+
+	op->call	= call;
+	op->type	= call->type;
+	call->op	= op;
+	call->key	= op->key;
+	call->intr	= !(op->flags & AFS_OPERATION_UNINTR);
+	call->peer	= rxrpc_kernel_get_peer(alist->addrs[op->addr_index].peer);
+	call->service_id = op->server->service_id;
+	afs_make_call(call, gfp);
 }
 
 static inline void afs_extract_begin(struct afs_call *call, void *buf, size_t size)
@@ -1401,8 +1464,7 @@ extern void __exit afs_clean_up_permit_cache(void);
  */
 extern spinlock_t afs_server_peer_lock;
 
-extern struct afs_server *afs_find_server(struct afs_net *,
-					  const struct sockaddr_rxrpc *);
+extern struct afs_server *afs_find_server(struct afs_net *, const struct rxrpc_peer *);
 extern struct afs_server *afs_find_server_by_uuid(struct afs_net *, const uuid_t *);
 extern struct afs_server *afs_lookup_server(struct afs_cell *, struct key *, const uuid_t *, u32);
 extern struct afs_server *afs_get_server(struct afs_server *, enum afs_server_trace);
@@ -1414,7 +1476,7 @@ extern void afs_manage_servers(struct work_struct *);
 extern void afs_servers_timer(struct timer_list *);
 extern void afs_fs_probe_timer(struct timer_list *);
 extern void __net_exit afs_purge_servers(struct afs_net *);
-extern bool afs_check_server_record(struct afs_operation *, struct afs_server *);
+bool afs_check_server_record(struct afs_operation *op, struct afs_server *server, struct key *key);
 
 static inline void afs_inc_servers_outstanding(struct afs_net *net)
 {
@@ -1442,10 +1504,14 @@ static inline struct afs_server_list *afs_get_serverlist(struct afs_server_list 
 }
 
 extern void afs_put_serverlist(struct afs_net *, struct afs_server_list *);
-extern struct afs_server_list *afs_alloc_server_list(struct afs_cell *, struct key *,
-						     struct afs_vldb_entry *,
-						     u8);
+struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
+					      struct key *key,
+					      struct afs_vldb_entry *vldb);
 extern bool afs_annotate_server_list(struct afs_server_list *, struct afs_server_list *);
+void afs_attach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist);
+void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server_list *slist,
+				    struct afs_server_list *old);
+void afs_detach_volume_from_servers(struct afs_volume *volume, struct afs_server_list *slist);
 
 /*
  * super.c
@@ -1454,13 +1520,24 @@ extern int __init afs_fs_init(void);
 extern void afs_fs_exit(void);
 
 /*
+ * validation.c
+ */
+bool afs_check_validity(const struct afs_vnode *vnode);
+int afs_update_volume_state(struct afs_operation *op);
+int afs_validate(struct afs_vnode *vnode, struct key *key);
+
+/*
  * vlclient.c
  */
 extern struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *,
 							 const char *, int);
 extern struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *, const uuid_t *);
-extern struct afs_call *afs_vl_get_capabilities(struct afs_net *, struct afs_addr_cursor *,
-						struct key *, struct afs_vlserver *, unsigned int);
+struct afs_call *afs_vl_get_capabilities(struct afs_net *net,
+					 struct afs_addr_list *alist,
+					 unsigned int addr_index,
+					 struct key *key,
+					 struct afs_vlserver *server,
+					 unsigned int server_index);
 extern struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *, const uuid_t *);
 extern char *afs_yfsvl_get_cell_name(struct afs_vl_cursor *);
 
@@ -1516,30 +1593,17 @@ extern int afs_activate_volume(struct afs_volume *);
 extern void afs_deactivate_volume(struct afs_volume *);
 bool afs_try_get_volume(struct afs_volume *volume, enum afs_volume_trace reason);
 extern struct afs_volume *afs_get_volume(struct afs_volume *, enum afs_volume_trace);
-extern void afs_put_volume(struct afs_net *, struct afs_volume *, enum afs_volume_trace);
+void afs_put_volume(struct afs_volume *volume, enum afs_volume_trace reason);
 extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
 
 /*
  * write.c
  */
-#ifdef CONFIG_AFS_FSCACHE
-bool afs_dirty_folio(struct address_space *, struct folio *);
-#else
-#define afs_dirty_folio filemap_dirty_folio
-#endif
-extern int afs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata);
-extern int afs_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata);
-extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
-extern ssize_t afs_file_write(struct kiocb *, struct iov_iter *);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 extern vm_fault_t afs_page_mkwrite(struct vm_fault *vmf);
 extern void afs_prune_wb_keys(struct afs_vnode *);
-int afs_launder_folio(struct folio *);
+void afs_create_write_requests(struct netfs_io_request *wreq, loff_t start, size_t len);
 
 /*
  * xattr.c
@@ -1603,7 +1667,7 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
 					     struct afs_vnode_param *dir_vp,
 					     struct dentry *dentry)
 {
-	if (!op->error)
+	if (!op->cumul_error.error)
 		dentry->d_fsdata =
 			(void *)(unsigned long)dir_vp->scb.status.data_version;
 }

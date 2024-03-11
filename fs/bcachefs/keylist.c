@@ -43,8 +43,6 @@ void bch2_keylist_pop_front(struct keylist *l)
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_verify_keylist_sorted(struct keylist *l)
 {
-	struct bkey_i *k;
-
 	for_each_keylist_key(l, k)
 		BUG_ON(bkey_next(k) != l->top &&
 		       bpos_ge(k->k.p, bkey_next(k)->k.p));

@@ -91,6 +91,16 @@ void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
 struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params);
 
+void
+ice_queue_set_napi(struct ice_vsi *vsi, unsigned int queue_index,
+		   enum netdev_queue_type type, struct napi_struct *napi);
+
+void __ice_q_vector_set_napi_queues(struct ice_q_vector *q_vector, bool locked);
+
+void ice_q_vector_set_napi_queues(struct ice_q_vector *q_vector);
+
+void ice_vsi_set_napi_queues(struct ice_vsi *vsi);
+
 int ice_vsi_release(struct ice_vsi *vsi);
 
 void ice_vsi_close(struct ice_vsi *vsi);

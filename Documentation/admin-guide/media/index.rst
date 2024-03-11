@@ -20,16 +20,8 @@ Documentation/driver-api/media/index.rst
   - for driver development information and Kernel APIs used by
     media devices;
 
-The media subsystem
-===================
-
-.. only:: html
-
-    .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+	:caption: Table of Contents
 	:maxdepth: 2
 	:numbered:
 

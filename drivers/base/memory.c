@@ -68,7 +68,7 @@ static inline unsigned long phys_to_block_id(unsigned long phys)
 static int memory_subsys_online(struct device *dev);
 static int memory_subsys_offline(struct device *dev);
 
-static struct bus_type memory_subsys = {
+static const struct bus_type memory_subsys = {
 	.name = MEMORY_CLASS_NAME,
 	.dev_name = MEMORY_CLASS_NAME,
 	.online = memory_subsys_online,

@@ -638,34 +638,8 @@ err_unlock:
 	return ret;
 }
 
-static int ov7740_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
-static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
-	.s_frame_interval = ov7740_s_frame_interval,
-	.g_frame_interval = ov7740_g_frame_interval,
 };
 
 static const struct reg_sequence ov7740_format_yuyv[] = {
@@ -812,8 +786,7 @@ static int ov7740_set_fmt(struct v4l2_subdev *sd,
 		if (ret)
 			goto error;
 
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-						      format->pad);
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		*mbus_fmt = format->format;
 		mutex_unlock(&ov7740->mutex);
 		return 0;
@@ -843,12 +816,24 @@ static int ov7740_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov7740->mutex);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		format->format = *mbus_fmt;
 	} else {
 		format->format = ov7740->format;
 	}
 	mutex_unlock(&ov7740->mutex);
+
+	return 0;
+}
+
+static int ov7740_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
+{
+	struct v4l2_fract *tpf = &ival->interval;
+
+	tpf->numerator = 1;
+	tpf->denominator = 60;
 
 	return 0;
 }
@@ -859,6 +844,8 @@ static const struct v4l2_subdev_pad_ops ov7740_subdev_pad_ops = {
 	.enum_mbus_code = ov7740_enum_mbus_code,
 	.get_fmt = ov7740_get_fmt,
 	.set_fmt = ov7740_set_fmt,
+	.get_frame_interval = ov7740_get_frame_interval,
+	.set_frame_interval = ov7740_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov7740_subdev_ops = {
@@ -883,7 +870,7 @@ static int ov7740_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&ov7740->mutex);
 	ov7740_get_default_format(sd, format);

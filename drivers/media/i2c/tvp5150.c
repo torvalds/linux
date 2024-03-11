@@ -1035,7 +1035,7 @@ tvp5150_get_pad_crop(struct tvp5150 *decoder,
 		return &decoder->rect;
 	case V4L2_SUBDEV_FORMAT_TRY:
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-		return v4l2_subdev_get_try_crop(&decoder->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 #else
 		return ERR_PTR(-EINVAL);
 #endif
@@ -1209,8 +1209,8 @@ static int tvp5150_get_mbus_config(struct v4l2_subdev *sd,
 /****************************************************************************
 			V4L2 subdev pad ops
  ****************************************************************************/
-static int tvp5150_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int tvp5150_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	v4l2_std_id std;
@@ -1722,7 +1722,6 @@ static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops tvp5150_pad_ops = {
-	.init_cfg = tvp5150_init_cfg,
 	.enum_mbus_code = tvp5150_enum_mbus_code,
 	.enum_frame_size = tvp5150_enum_frame_size,
 	.set_fmt = tvp5150_fill_fmt,
@@ -1741,6 +1740,7 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops tvp5150_internal_ops = {
+	.init_state = tvp5150_init_state,
 	.registered = tvp5150_registered,
 	.open = tvp5150_open,
 	.close = tvp5150_close,

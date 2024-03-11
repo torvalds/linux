@@ -8,6 +8,8 @@
 
 #include <linux/math64.h>
 
+extern const char * const bch2_fs_flag_strs[];
+
 struct bch_fs *bch2_dev_to_fs(dev_t);
 struct bch_fs *bch2_uuid_to_fs(__uuid_t);
 
@@ -37,8 +39,8 @@ int bch2_fs_read_write_early(struct bch_fs *);
  */
 static inline void bch2_fs_lazy_rw(struct bch_fs *c)
 {
-	if (!test_bit(BCH_FS_RW, &c->flags) &&
-	    !test_bit(BCH_FS_WAS_RW, &c->flags))
+	if (!test_bit(BCH_FS_rw, &c->flags) &&
+	    !test_bit(BCH_FS_was_rw, &c->flags))
 		bch2_fs_read_write_early(c);
 }
 

@@ -371,7 +371,7 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused pwm_imx_tpm_suspend(struct device *dev)
+static int pwm_imx_tpm_suspend(struct device *dev)
 {
 	struct imx_tpm_pwm_chip *tpm = dev_get_drvdata(dev);
 
@@ -390,7 +390,7 @@ static int __maybe_unused pwm_imx_tpm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused pwm_imx_tpm_resume(struct device *dev)
+static int pwm_imx_tpm_resume(struct device *dev)
 {
 	struct imx_tpm_pwm_chip *tpm = dev_get_drvdata(dev);
 	int ret = 0;
@@ -402,8 +402,8 @@ static int __maybe_unused pwm_imx_tpm_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(imx_tpm_pwm_pm,
-			 pwm_imx_tpm_suspend, pwm_imx_tpm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(imx_tpm_pwm_pm,
+				pwm_imx_tpm_suspend, pwm_imx_tpm_resume);
 
 static const struct of_device_id imx_tpm_pwm_dt_ids[] = {
 	{ .compatible = "fsl,imx7ulp-pwm", },
@@ -415,7 +415,7 @@ static struct platform_driver imx_tpm_pwm_driver = {
 	.driver = {
 		.name = "imx7ulp-tpm-pwm",
 		.of_match_table = imx_tpm_pwm_dt_ids,
-		.pm = &imx_tpm_pwm_pm,
+		.pm = pm_ptr(&imx_tpm_pwm_pm),
 	},
 	.probe	= pwm_imx_tpm_probe,
 };

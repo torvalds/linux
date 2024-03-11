@@ -145,6 +145,7 @@ ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
 
 xfs-y				+= $(addprefix scrub/, \
 				   trace.o \
+				   agb_bitmap.o \
 				   agheader.o \
 				   alloc.o \
 				   attr.o \
@@ -175,14 +176,32 @@ xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
 				   rtsummary.o \
 				   )
 
-xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
+				   dqiterate.o \
+				   quota.o \
+				   )
 
 # online repair
 ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
 				   agheader_repair.o \
+				   alloc_repair.o \
+				   bmap_repair.o \
+				   cow_repair.o \
+				   ialloc_repair.o \
+				   inode_repair.o \
+				   newbt.o \
 				   reap.o \
+				   refcount_repair.o \
 				   repair.o \
+				   )
+
+xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
+				   rtbitmap_repair.o \
+				   )
+
+xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
+				   quota_repair.o \
 				   )
 endif
 endif

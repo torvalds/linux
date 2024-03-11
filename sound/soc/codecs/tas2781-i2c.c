@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// ALSA SoC Texas Instruments TAS2781 Audio Smart Amplifier
+// ALSA SoC Texas Instruments TAS2563/TAS2781 Audio Smart Amplifier
 //
 // Copyright (C) 2022 - 2023 Texas Instruments Incorporated
 // https://www.ti.com
 //
-// The TAS2781 driver implements a flexible and configurable
+// The TAS2563/TAS2781 driver implements a flexible and configurable
 // algo coefficient setting for one, two, or even multiple
-// TAS2781 chips.
+// TAS2563/TAS2781 chips.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 // Author: Kevin Lu <kevin-lu@ti.com>
@@ -32,6 +32,7 @@
 #include <sound/tas2781-tlv.h>
 
 static const struct i2c_device_id tasdevice_id[] = {
+	{ "tas2563", TAS2563 },
 	{ "tas2781", TAS2781 },
 	{}
 };
@@ -39,6 +40,7 @@ MODULE_DEVICE_TABLE(i2c, tasdevice_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id tasdevice_of_match[] = {
+	{ .compatible = "ti,tas2563" },
 	{ .compatible = "ti,tas2781" },
 	{},
 };
@@ -564,7 +566,7 @@ static int tasdevice_codec_probe(struct snd_soc_component *codec)
 {
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
-	return tascodec_init(tas_priv, codec, tasdevice_fw_ready);
+	return tascodec_init(tas_priv, codec, THIS_MODULE, tasdevice_fw_ready);
 }
 
 static void tasdevice_deinit(void *context)

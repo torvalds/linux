@@ -7,7 +7,7 @@ help.  Contact the Chinese maintainer if this translation is outdated
 or if there is a problem with the translation.
 
 Maintainer: Eric W. Biederman <ebiederman@xmission.com>
-Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
+Traditional Chinese maintainer: Hu Haowen <2023002089@link.tyut.edu.cn>
 ---------------------------------------------------------------------
 Documentation/core-api/irq/index.rst 的繁體中文翻譯
 
@@ -16,9 +16,9 @@ Documentation/core-api/irq/index.rst 的繁體中文翻譯
 者翻譯存在問題，請聯繫繁體中文版維護者。
 
 英文版維護者： Eric W. Biederman <ebiederman@xmission.com>
-繁體中文版維護者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
-繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
-繁體中文版校譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版維護者： 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
+繁體中文版校譯者： 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 
 以下爲正文

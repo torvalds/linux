@@ -81,7 +81,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 	struct kernfs_node *kn = kobj->sd;
 
 	/*
-	 * In general, kboject owner is responsible for ensuring removal
+	 * In general, kobject owner is responsible for ensuring removal
 	 * doesn't race with other operations and sysfs doesn't provide any
 	 * protection; however, when @kobj is used as a symlink target, the
 	 * symlinking entity usually doesn't own @kobj and thus has no

@@ -84,8 +84,15 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi2>;
-	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>,
+		   <&gpio1 10 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	tpm@1 {
+		compatible = "atmel,attpm20p", "tcg,tpm_tis-spi";
+		reg = <0x1>;
+		spi-max-frequency = <36000000>;
+	};
 };
 
 &gpio1 {
@@ -152,23 +159,30 @@
 
 	pcie@0,0 {
 		reg = <0x0000 0 0 0 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
 
-		pcie@1,0 {
+		pcie@0,0 {
 			reg = <0x0000 0 0 0 0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
 
-			pcie@2,3 {
+			pcie@3,0 {
 				reg = <0x1800 0 0 0 0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
+				device_type = "pci";
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
 
-				eth1: pcie@5,0 {
+				eth1: ethernet@0,0 {
 					reg = <0x0000 0 0 0 0>;
-					#address-cells = <1>;
-					#size-cells = <0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					ranges;
 
 					local-mac-address = [00 00 00 00 00 00];
 				};
@@ -312,6 +326,7 @@
 			MX8MM_IOMUXC_ECSPI2_MOSI_ECSPI2_MOSI	0xd6
 			MX8MM_IOMUXC_ECSPI2_MISO_ECSPI2_MISO	0xd6
 			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13	0xd6
+			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10	0xd6
 		>;
 	};
 

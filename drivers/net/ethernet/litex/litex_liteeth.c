@@ -318,4 +318,5 @@ static struct platform_driver liteeth_driver = {
 module_platform_driver(liteeth_driver);
 
 MODULE_AUTHOR("Joel Stanley <joel@jms.id.au>");
+MODULE_DESCRIPTION("LiteX Liteeth Ethernet driver");
 MODULE_LICENSE("GPL");

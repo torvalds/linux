@@ -11,6 +11,7 @@
  * define how recovery should work for that type of log item.
  */
 struct xlog_recover_item;
+struct xfs_defer_op_type;
 
 /* Sorting hat for log items as they're read in. */
 enum xlog_recover_reorder {
@@ -152,5 +153,12 @@ xlog_recover_resv(const struct xfs_trans_res *r)
 
 	return ret;
 }
+
+struct xfs_defer_pending;
+
+void xlog_recover_intent_item(struct xlog *log, struct xfs_log_item *lip,
+		xfs_lsn_t lsn, const struct xfs_defer_op_type *ops);
+int xlog_recover_finish_intent(struct xfs_trans *tp,
+		struct xfs_defer_pending *dfp);
 
 #endif	/* __XFS_LOG_RECOVER_H__ */

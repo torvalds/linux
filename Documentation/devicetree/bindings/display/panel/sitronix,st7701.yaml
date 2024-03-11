@@ -27,6 +27,7 @@ properties:
   compatible:
     items:
       - enum:
+          - anbernic,rg-arc-panel
           - densitron,dmt028vghmcmi-1a
           - elida,kd50t048a
           - techstar,ts8550b

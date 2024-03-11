@@ -11,9 +11,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include "clk-stm32-core.h"
-
-#define STM32_RESET_ID_MASK GENMASK(15, 0)
+#include "reset-stm32.h"
 
 struct stm32_reset_data {
 	/* reset lock */
@@ -99,24 +97,22 @@ static const struct reset_control_ops stm32_reset_ops = {
 	.status		= stm32_reset_status,
 };
 
-int stm32_rcc_reset_init(struct device *dev, const struct of_device_id *match,
+int stm32_rcc_reset_init(struct device *dev, struct clk_stm32_reset_data *data,
 			 void __iomem *base)
 {
-	const struct stm32_rcc_match_data *data = match->data;
-	struct stm32_reset_data *reset_data = NULL;
-
-	data = match->data;
+	struct stm32_reset_data *reset_data;
 
 	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
 	if (!reset_data)
 		return -ENOMEM;
 
 	spin_lock_init(&reset_data->lock);
+
 	reset_data->membase = base;
 	reset_data->rcdev.owner = THIS_MODULE;
 	reset_data->rcdev.ops = &stm32_reset_ops;
 	reset_data->rcdev.of_node = dev_of_node(dev);
-	reset_data->rcdev.nr_resets = STM32_RESET_ID_MASK;
+	reset_data->rcdev.nr_resets = data->nr_lines;
 	reset_data->clear_offset = data->clear_offset;
 
 	return reset_controller_register(&reset_data->rcdev);

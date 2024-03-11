@@ -424,8 +424,7 @@ static int ub913_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/* Set sink format */
-	fmt = v4l2_subdev_state_get_stream_format(state, format->pad,
-						  format->stream);
+	fmt = v4l2_subdev_state_get_format(state, format->pad, format->stream);
 	if (!fmt)
 		return -EINVAL;
 
@@ -444,8 +443,8 @@ static int ub913_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ub913_init_cfg(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *state)
+static int ub913_init_state(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_route routes[] = {
 		{
@@ -504,12 +503,15 @@ static const struct v4l2_subdev_pad_ops ub913_pad_ops = {
 	.get_frame_desc = ub913_get_frame_desc,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = ub913_set_fmt,
-	.init_cfg = ub913_init_cfg,
 };
 
 static const struct v4l2_subdev_ops ub913_subdev_ops = {
 	.core = &ub913_subdev_core_ops,
 	.pad = &ub913_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ub913_internal_ops = {
+	.init_state = ub913_init_state,
 };
 
 static const struct media_entity_operations ub913_entity_ops = {
@@ -745,6 +747,7 @@ static int ub913_subdev_init(struct ub913_data *priv)
 	int ret;
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &ub913_subdev_ops);
+	priv->sd.internal_ops = &ub913_internal_ops;
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.ops = &ub913_entity_ops;

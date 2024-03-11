@@ -15,8 +15,11 @@ struct ivpu_hw_ops {
 	int (*power_down)(struct ivpu_device *vdev);
 	int (*reset)(struct ivpu_device *vdev);
 	bool (*is_idle)(struct ivpu_device *vdev);
+	int (*wait_for_idle)(struct ivpu_device *vdev);
 	void (*wdt_disable)(struct ivpu_device *vdev);
 	void (*diagnose_failure)(struct ivpu_device *vdev);
+	u32 (*profiling_freq_get)(struct ivpu_device *vdev);
+	void (*profiling_freq_drive)(struct ivpu_device *vdev, bool enable);
 	u32 (*reg_pll_freq_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_offset_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_size_get)(struct ivpu_device *vdev);
@@ -58,6 +61,8 @@ struct ivpu_hw_info {
 	u32 sku;
 	u16 config;
 	int dma_bits;
+	ktime_t d0i3_entry_host_ts;
+	u64 d0i3_entry_vpu_ts;
 };
 
 extern const struct ivpu_hw_ops ivpu_hw_37xx_ops;
@@ -85,6 +90,11 @@ static inline bool ivpu_hw_is_idle(struct ivpu_device *vdev)
 	return vdev->hw->ops->is_idle(vdev);
 };
 
+static inline int ivpu_hw_wait_for_idle(struct ivpu_device *vdev)
+{
+	return vdev->hw->ops->wait_for_idle(vdev);
+};
+
 static inline int ivpu_hw_power_down(struct ivpu_device *vdev)
 {
 	ivpu_dbg(vdev, PM, "HW power down\n");
@@ -102,6 +112,16 @@ static inline int ivpu_hw_reset(struct ivpu_device *vdev)
 static inline void ivpu_hw_wdt_disable(struct ivpu_device *vdev)
 {
 	vdev->hw->ops->wdt_disable(vdev);
+};
+
+static inline u32 ivpu_hw_profiling_freq_get(struct ivpu_device *vdev)
+{
+	return vdev->hw->ops->profiling_freq_get(vdev);
+};
+
+static inline void ivpu_hw_profiling_freq_drive(struct ivpu_device *vdev, bool enable)
+{
+	return vdev->hw->ops->profiling_freq_drive(vdev, enable);
 };
 
 /* Register indirect accesses */

@@ -28,6 +28,8 @@
 #include <asm/ip32/mace.h>
 #include <asm/ip32/ip32_ints.h>
 
+#include "ip32-common.h"
+
 /* issue a PIO read to make sure no PIO writes are pending */
 static inline void flush_crime_bus(void)
 {
@@ -106,10 +108,6 @@ static inline void flush_mace_bus(void)
  * different IRQ map than IRIX uses, but that's OK as Linux irq handling
  * is quite different anyway.
  */
-
-/* Some initial interrupts to set up */
-extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
-extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
 /*
  * This is for pure CRIME interrupts - ie not MACE.  The advantage?

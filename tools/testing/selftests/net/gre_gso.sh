@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # This test is for checking GRE GSO.
-
+source lib.sh
 ret=0
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
 TESTS="gre_gso"
@@ -13,8 +11,6 @@ TESTS="gre_gso"
 VERBOSE=0
 PAUSE_ON_FAIL=no
 PAUSE=no
-IP="ip -netns ns1"
-NS_EXEC="ip netns exec ns1"
 TMPFILE=`mktemp`
 PID=
 
@@ -50,13 +46,13 @@ log_test()
 setup()
 {
 	set -e
-	ip netns add ns1
-	ip netns set ns1 auto
-	$IP link set dev lo up
+	setup_ns ns1
+	IP="ip -netns $ns1"
+	NS_EXEC="ip netns exec $ns1"
 
 	ip link add veth0 type veth peer name veth1
 	ip link set veth0 up
-	ip link set veth1 netns ns1
+	ip link set veth1 netns $ns1
 	$IP link set veth1 name veth0
 	$IP link set veth0 up
 
@@ -70,7 +66,7 @@ cleanup()
 	[ -n "$PID" ] && kill $PID
 	ip link del dev gre1 &> /dev/null
 	ip link del dev veth0 &> /dev/null
-	ip netns del ns1
+	cleanup_ns $ns1
 }
 
 get_linklocal()
@@ -145,7 +141,7 @@ gre6_gso_test()
 	setup
 
 	a1=$(get_linklocal veth0)
-	a2=$(get_linklocal veth0 ns1)
+	a2=$(get_linklocal veth0 $ns1)
 
 	gre_create_tun $a1 $a2
 

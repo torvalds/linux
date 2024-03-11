@@ -1036,7 +1036,7 @@ static int ov5675_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5675->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov5675->link_freq, mode->link_freq_index);
@@ -1069,9 +1069,8 @@ static int ov5675_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov5675->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov5675->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		ov5675_update_pad_format(ov5675->cur_mode, &fmt->format);
 
@@ -1141,7 +1140,7 @@ static int ov5675_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->state, 0));
+				 v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&ov5675->mutex);
 
 	return 0;

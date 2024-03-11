@@ -795,6 +795,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
 	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
 	struct bpf_tramp_links *fmod_ret = &tlinks[BPF_TRAMP_MODIFY_RETURN];
+	bool is_struct_ops = flags & BPF_TRAMP_F_INDIRECT;
 	void *orig_call = func_addr;
 	bool save_ret;
 	u32 insn;
@@ -878,7 +879,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 
 	stack_size = round_up(stack_size, 16);
 
-	if (func_addr) {
+	if (!is_struct_ops) {
 		/* For the trampoline called from function entry,
 		 * the frame of traced function and the frame of
 		 * trampoline need to be considered.
@@ -998,7 +999,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 
 	emit_ld(RV_REG_S1, -sreg_off, RV_REG_FP, ctx);
 
-	if (func_addr) {
+	if (!is_struct_ops) {
 		/* trampoline called from function entry */
 		emit_ld(RV_REG_T0, stack_size - 8, RV_REG_SP, ctx);
 		emit_ld(RV_REG_FP, stack_size - 16, RV_REG_SP, ctx);
@@ -1029,6 +1030,21 @@ out:
 	return ret;
 }
 
+int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
+			     struct bpf_tramp_links *tlinks, void *func_addr)
+{
+	struct bpf_tramp_image im;
+	struct rv_jit_context ctx;
+	int ret;
+
+	ctx.ninsns = 0;
+	ctx.insns = NULL;
+	ctx.ro_insns = NULL;
+	ret = __arch_prepare_bpf_trampoline(&im, m, tlinks, func_addr, flags, &ctx);
+
+	return ret < 0 ? ret : ninsns_rvoff(ctx.ninsns);
+}
+
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 				void *image_end, const struct btf_func_model *m,
 				u32 flags, struct bpf_tramp_links *tlinks,
@@ -1036,16 +1052,6 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 {
 	int ret;
 	struct rv_jit_context ctx;
-
-	ctx.ninsns = 0;
-	ctx.insns = NULL;
-	ctx.ro_insns = NULL;
-	ret = __arch_prepare_bpf_trampoline(im, m, tlinks, func_addr, flags, &ctx);
-	if (ret < 0)
-		return ret;
-
-	if (ninsns_rvoff(ret) > (long)image_end - (long)image)
-		return -EFBIG;
 
 	ctx.ninsns = 0;
 	/*

@@ -21,7 +21,6 @@ struct bus_dma_region {
 	phys_addr_t	cpu_start;
 	dma_addr_t	dma_start;
 	u64		size;
-	u64		offset;
 };
 
 static inline dma_addr_t translate_phys_to_dma(struct device *dev,
@@ -29,9 +28,12 @@ static inline dma_addr_t translate_phys_to_dma(struct device *dev,
 {
 	const struct bus_dma_region *m;
 
-	for (m = dev->dma_range_map; m->size; m++)
-		if (paddr >= m->cpu_start && paddr - m->cpu_start < m->size)
-			return (dma_addr_t)paddr - m->offset;
+	for (m = dev->dma_range_map; m->size; m++) {
+		u64 offset = paddr - m->cpu_start;
+
+		if (paddr >= m->cpu_start && offset < m->size)
+			return m->dma_start + offset;
+	}
 
 	/* make sure dma_capable fails when no translation is available */
 	return DMA_MAPPING_ERROR;
@@ -42,9 +44,12 @@ static inline phys_addr_t translate_dma_to_phys(struct device *dev,
 {
 	const struct bus_dma_region *m;
 
-	for (m = dev->dma_range_map; m->size; m++)
-		if (dma_addr >= m->dma_start && dma_addr - m->dma_start < m->size)
-			return (phys_addr_t)dma_addr + m->offset;
+	for (m = dev->dma_range_map; m->size; m++) {
+		u64 offset = dma_addr - m->dma_start;
+
+		if (dma_addr >= m->dma_start && offset < m->size)
+			return m->cpu_start + offset;
+	}
 
 	return (phys_addr_t)-1;
 }

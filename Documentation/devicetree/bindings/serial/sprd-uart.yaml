@@ -20,6 +20,7 @@ properties:
               - sprd,sc9860-uart
               - sprd,sc9863a-uart
               - sprd,ums512-uart
+              - sprd,ums9620-uart
           - const: sprd,sc9836-uart
       - const: sprd,sc9836-uart
 

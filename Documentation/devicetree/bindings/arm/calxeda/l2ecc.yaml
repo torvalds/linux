@@ -16,7 +16,7 @@ maintainers:
 
 properties:
   compatible:
-    const: "calxeda,hb-sregs-l2-ecc"
+    const: calxeda,hb-sregs-l2-ecc
 
   reg:
     maxItems: 1

@@ -31,13 +31,13 @@
 #include "pmc.h"
 
 /* SMU communication registers */
-#define AMD_PMC_REGISTER_MESSAGE	0x538
 #define AMD_PMC_REGISTER_RESPONSE	0x980
 #define AMD_PMC_REGISTER_ARGUMENT	0x9BC
 
 /* PMC Scratch Registers */
 #define AMD_PMC_SCRATCH_REG_CZN		0x94
 #define AMD_PMC_SCRATCH_REG_YC		0xD14
+#define AMD_PMC_SCRATCH_REG_1AH		0xF14
 
 /* STB Registers */
 #define AMD_PMC_STB_PMI_0		0x03E30600
@@ -145,6 +145,7 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 	{"JPEG",	BIT(18)},
 	{"IPU",		BIT(19)},
 	{"UMSCH",	BIT(20)},
+	{"VPE",		BIT(21)},
 	{}
 };
 
@@ -350,10 +351,17 @@ static void amd_pmc_get_ip_info(struct amd_pmc_dev *dev)
 	case AMD_CPU_ID_CB:
 		dev->num_ips = 12;
 		dev->s2d_msg_id = 0xBE;
+		dev->smu_msg = 0x538;
 		break;
 	case AMD_CPU_ID_PS:
 		dev->num_ips = 21;
 		dev->s2d_msg_id = 0x85;
+		dev->smu_msg = 0x538;
+		break;
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
+		dev->num_ips = 22;
+		dev->s2d_msg_id = 0xDE;
+		dev->smu_msg = 0x938;
 		break;
 	}
 }
@@ -588,6 +596,9 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 	case AMD_CPU_ID_PS:
 		val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_YC);
 		break;
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
+		val = amd_pmc_reg_read(pdev, AMD_PMC_SCRATCH_REG_1AH);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -618,6 +629,7 @@ static bool amd_pmc_is_stb_supported(struct amd_pmc_dev *dev)
 	case AMD_CPU_ID_YC:
 	case AMD_CPU_ID_CB:
 	case AMD_CPU_ID_PS:
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
 		return true;
 	default:
 		return false;
@@ -653,7 +665,7 @@ static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 		argument = AMD_S2D_REGISTER_ARGUMENT;
 		response = AMD_S2D_REGISTER_RESPONSE;
 	} else {
-		message = AMD_PMC_REGISTER_MESSAGE;
+		message = dev->smu_msg;
 		argument = AMD_PMC_REGISTER_ARGUMENT;
 		response = AMD_PMC_REGISTER_RESPONSE;
 	}
@@ -680,7 +692,7 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg,
 		argument = AMD_S2D_REGISTER_ARGUMENT;
 		response = AMD_S2D_REGISTER_RESPONSE;
 	} else {
-		message = AMD_PMC_REGISTER_MESSAGE;
+		message = dev->smu_msg;
 		argument = AMD_PMC_REGISTER_ARGUMENT;
 		response = AMD_PMC_REGISTER_RESPONSE;
 	}
@@ -751,6 +763,7 @@ static int amd_pmc_get_os_hint(struct amd_pmc_dev *dev)
 	case AMD_CPU_ID_YC:
 	case AMD_CPU_ID_CB:
 	case AMD_CPU_ID_PS:
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
 		return MSG_OS_HINT_RN;
 	}
 	return -EINVAL;
@@ -967,9 +980,6 @@ static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 	/* Spill to DRAM feature uses separate SMU message port */
 	dev->msg_port = 1;
 
-	/* Get num of IP blocks within the SoC */
-	amd_pmc_get_ip_info(dev);
-
 	amd_pmc_send_cmd(dev, S2D_TELEMETRY_SIZE, &size, dev->s2d_msg_id, true);
 	if (size != S2D_TELEMETRY_BYTES_MAX)
 		return -EIO;
@@ -1076,6 +1086,9 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&dev->lock);
+
+	/* Get num of IP blocks within the SoC */
+	amd_pmc_get_ip_info(dev);
 
 	if (enable_stb && amd_pmc_is_stb_supported(dev)) {
 		err = amd_pmc_s2d_init(dev);

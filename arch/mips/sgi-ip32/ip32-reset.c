@@ -29,6 +29,8 @@
 #include <asm/ip32/crime.h>
 #include <asm/ip32/ip32_ints.h>
 
+#include "ip32-common.h"
+
 #define POWERDOWN_TIMEOUT	120
 /*
  * Blink frequency during reboot grace period and when panicked.

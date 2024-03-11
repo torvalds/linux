@@ -493,7 +493,7 @@ static void vduse_vq_kick(struct vduse_virtqueue *vq)
 		goto unlock;
 
 	if (vq->kickfd)
-		eventfd_signal(vq->kickfd, 1);
+		eventfd_signal(vq->kickfd);
 	else
 		vq->kicked = true;
 unlock:
@@ -911,7 +911,7 @@ static int vduse_kickfd_setup(struct vduse_dev *dev,
 		eventfd_ctx_put(vq->kickfd);
 	vq->kickfd = ctx;
 	if (vq->ready && vq->kicked && vq->kickfd) {
-		eventfd_signal(vq->kickfd, 1);
+		eventfd_signal(vq->kickfd);
 		vq->kicked = false;
 	}
 	spin_unlock(&vq->kick_lock);
@@ -960,7 +960,7 @@ static bool vduse_vq_signal_irqfd(struct vduse_virtqueue *vq)
 
 	spin_lock_irq(&vq->irq_lock);
 	if (vq->ready && vq->cb.trigger) {
-		eventfd_signal(vq->cb.trigger, 1);
+		eventfd_signal(vq->cb.trigger);
 		signal = true;
 	}
 	spin_unlock_irq(&vq->irq_lock);
@@ -1157,7 +1157,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			fput(f);
 			break;
 		}
-		ret = receive_fd(f, perm_to_file_flags(entry.perm));
+		ret = receive_fd(f, NULL, perm_to_file_flags(entry.perm));
 		fput(f);
 		break;
 	}

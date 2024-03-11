@@ -2401,12 +2401,12 @@ static ssize_t fw_info_show(struct device *dev,
 {
 	struct iqs7211_private *iqs7211 = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u.%u:%u.%u\n",
-			 le16_to_cpu(iqs7211->ver_info.prod_num),
-			 le32_to_cpu(iqs7211->ver_info.patch),
-			 le16_to_cpu(iqs7211->ver_info.major),
-			 le16_to_cpu(iqs7211->ver_info.minor),
-			 iqs7211->exp_file[1], iqs7211->exp_file[0]);
+	return sysfs_emit(buf, "%u.%u.%u.%u:%u.%u\n",
+			  le16_to_cpu(iqs7211->ver_info.prod_num),
+			  le32_to_cpu(iqs7211->ver_info.patch),
+			  le16_to_cpu(iqs7211->ver_info.major),
+			  le16_to_cpu(iqs7211->ver_info.minor),
+			  iqs7211->exp_file[1], iqs7211->exp_file[0]);
 }
 
 static DEVICE_ATTR_RO(fw_info);

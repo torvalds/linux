@@ -40,7 +40,7 @@
  * either sta_info_insert() or sta_info_insert_rcu(); only in the latter
  * case (which acquires an rcu read section but must not be called from
  * within one) will the pointer still be valid after the call. Note that
- * the caller may not do much with the STA info before inserting it, in
+ * the caller may not do much with the STA info before inserting it; in
  * particular, it may not start any mesh peer link management or add
  * encryption keys.
  *
@@ -58,7 +58,7 @@
  * In order to remove a STA info structure, various sta_info_destroy_*()
  * calls are available.
  *
- * There is no concept of ownership on a STA entry, each structure is
+ * There is no concept of ownership on a STA entry; each structure is
  * owned by the global hash table/list until it is removed. All users of
  * the structure need to be RCU protected so that the structure won't be
  * freed before they are done using it.
@@ -404,7 +404,10 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sta->link); i++) {
-		if (!(sta->sta.valid_links & BIT(i)))
+		struct link_sta_info *link_sta;
+
+		link_sta = rcu_access_pointer(sta->link[i]);
+		if (!link_sta)
 			continue;
 
 		sta_remove_link(sta, i, false);
@@ -909,6 +912,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_accept_plinks_update(sdata);
+
+	ieee80211_check_fast_xmit(sta);
 
 	return 0;
  out_remove:
@@ -2268,7 +2273,6 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 	struct ieee80211_local *local = sta->sdata->local;
 	u8 ac = ieee80211_ac_from_tid(tid);
 	u32 airtime = 0;
-	u32 diff;
 
 	if (sta->local->airtime_flags & AIRTIME_USE_TX)
 		airtime += tx_airtime;
@@ -2279,8 +2283,7 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 	sta->airtime[ac].tx_airtime += tx_airtime;
 	sta->airtime[ac].rx_airtime += rx_airtime;
 
-	diff = (u32)jiffies - sta->airtime[ac].last_active;
-	if (diff <= AIRTIME_ACTIVE_DURATION)
+	if (ieee80211_sta_keep_active(sta, ac))
 		sta->airtime[ac].deficit -= airtime;
 
 	spin_unlock_bh(&local->active_txq_lock[ac]);

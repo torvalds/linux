@@ -51,6 +51,12 @@
 		regulator-name = "unknown";
 	};
 
+	wl12xx_pwrseq: wl12xx-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&twl 1>;
+		clock-names = "ext_clock";
+	};
+
        /* regulator for wl12xx on sdio2 */
 	wl12xx_vmmc: wl12xx-vmmc {
 		pinctrl-names = "default";
@@ -74,6 +80,7 @@
 	twl: pmic@48 {
 		compatible = "ti,twl6032";
 		reg = <0x48>;
+		#clock-cells = <1>;
 		/* IRQ# = 7 */
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
 		interrupt-controller;
@@ -294,6 +301,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&wl12xx_pins>;
 	vmmc-supply = <&wl12xx_vmmc>;
+	mmc-pwrseq = <&wl12xx_pwrseq>;
 	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0x12e>;
 	non-removable;
@@ -454,10 +462,12 @@
 	interrupts-extended = <&wakeupgen GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core OMAP4_UART2_RX>;
 
-	/*
-	 * BT + GPS in WL1283 in WG7500 requiring CLK32KAUDIO of pmic
-	 * which does not have a driver
-	 */
+	bluetooth-gnss {
+		compatible = "ti,wl1283-st";
+		enable-gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>;	/* GPIO_25 */
+		clocks = <&twl 1>;
+		clock-names = "ext_clock";
+	};
 };
 
 &uart3 {

@@ -203,7 +203,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
  * F (2) in swp entry is used to record when a pagetable is
  * writeprotected by userfaultfd WP support.
  *
- * E (3) in swp entry is used to rememeber PG_anon_exclusive.
+ * E (3) in swp entry is used to remember PG_anon_exclusive.
  *
  * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
  * but also L and G.

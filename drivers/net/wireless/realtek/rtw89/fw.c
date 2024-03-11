@@ -401,10 +401,14 @@ int __rtw89_fw_recognize_from_elm(struct rtw89_dev *rtwdev,
 				  const union rtw89_fw_element_arg arg)
 {
 	enum rtw89_fw_type type = arg.fw_type;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_fw_suit *fw_suit;
 
+	if (hal->cv != elm->u.bbmcu.cv)
+		return 1; /* ignore this element */
+
 	fw_suit = rtw89_fw_suit_get(rtwdev, type);
-	fw_suit->data = elm->u.common.contents;
+	fw_suit->data = elm->u.bbmcu.contents;
 	fw_suit->size = le32_to_cpu(elm->size);
 
 	return rtw89_fw_update_ver(rtwdev, type, fw_suit);
@@ -453,6 +457,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 40, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 56, 10, BEACON_FILTER),
+	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 30, 0, CRASH_TRIGGER),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -658,6 +663,97 @@ setup:
 	return 0;
 }
 
+static
+int rtw89_build_txpwr_trk_tbl_from_elm(struct rtw89_dev *rtwdev,
+				       const struct rtw89_fw_element_hdr *elm,
+				       const union rtw89_fw_element_arg arg)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 needed_bitmap = 0;
+	u32 offset = 0;
+	int subband;
+	u32 bitmap;
+	int type;
+
+	if (chip->support_bands & BIT(NL80211_BAND_6GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_6GHZ;
+	if (chip->support_bands & BIT(NL80211_BAND_5GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_5GHZ;
+	if (chip->support_bands & BIT(NL80211_BAND_2GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_2GHZ;
+
+	bitmap = le32_to_cpu(elm->u.txpwr_trk.bitmap);
+
+	if ((bitmap & needed_bitmap) != needed_bitmap) {
+		rtw89_warn(rtwdev, "needed txpwr trk bitmap %08x but %0x8x\n",
+			   needed_bitmap, bitmap);
+		return -ENOENT;
+	}
+
+	elm_info->txpwr_trk = kzalloc(sizeof(*elm_info->txpwr_trk), GFP_KERNEL);
+	if (!elm_info->txpwr_trk)
+		return -ENOMEM;
+
+	for (type = 0; bitmap; type++, bitmap >>= 1) {
+		if (!(bitmap & BIT(0)))
+			continue;
+
+		if (type >= __RTW89_FW_TXPWR_TRK_TYPE_6GHZ_START &&
+		    type <= __RTW89_FW_TXPWR_TRK_TYPE_6GHZ_MAX)
+			subband = 4;
+		else if (type >= __RTW89_FW_TXPWR_TRK_TYPE_5GHZ_START &&
+			 type <= __RTW89_FW_TXPWR_TRK_TYPE_5GHZ_MAX)
+			subband = 3;
+		else if (type >= __RTW89_FW_TXPWR_TRK_TYPE_2GHZ_START &&
+			 type <= __RTW89_FW_TXPWR_TRK_TYPE_2GHZ_MAX)
+			subband = 1;
+		else
+			break;
+
+		elm_info->txpwr_trk->delta[type] = &elm->u.txpwr_trk.contents[offset];
+
+		offset += subband;
+		if (offset * DELTA_SWINGIDX_SIZE > le32_to_cpu(elm->size))
+			goto err;
+	}
+
+	return 0;
+
+err:
+	rtw89_warn(rtwdev, "unexpected txpwr trk offset %d over size %d\n",
+		   offset, le32_to_cpu(elm->size));
+	kfree(elm_info->txpwr_trk);
+	elm_info->txpwr_trk = NULL;
+
+	return -EFAULT;
+}
+
+static
+int rtw89_build_rfk_log_fmt_from_elm(struct rtw89_dev *rtwdev,
+				     const struct rtw89_fw_element_hdr *elm,
+				     const union rtw89_fw_element_arg arg)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	u8 rfk_id;
+
+	if (elm_info->rfk_log_fmt)
+		goto allocated;
+
+	elm_info->rfk_log_fmt = kzalloc(sizeof(*elm_info->rfk_log_fmt), GFP_KERNEL);
+	if (!elm_info->rfk_log_fmt)
+		return 1; /* this is an optional element, so just ignore this */
+
+allocated:
+	rfk_id = elm->u.rfk_log_fmt.rfk_id;
+	if (rfk_id >= RTW89_PHY_C2H_RFK_LOG_FUNC_NUM)
+		return 1;
+
+	elm_info->rfk_log_fmt->elm[rfk_id] = elm;
+
+	return 0;
+}
+
 static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_BBMCU0] = {__rtw89_fw_recognize_from_elm,
 					{ .fw_type = RTW89_FW_BBMCU0 }, NULL},
@@ -710,6 +806,12 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 		rtw89_fw_recognize_txpwr_from_elm,
 		{ .offset = offsetof(struct rtw89_rfe_data, tx_shape_lmt_ru.conf) }, NULL,
 	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_TRK] = {
+		rtw89_build_txpwr_trk_tbl_from_elm, {}, "PWR_TRK",
+	},
+	[RTW89_FW_ELEMENT_ID_RFKLOG_FMT] = {
+		rtw89_build_rfk_log_fmt_from_elm, {}, NULL,
+	},
 };
 
 int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
@@ -750,6 +852,8 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 			goto next;
 
 		ret = handler->fn(rtwdev, hdr, handler->arg);
+		if (ret == 1) /* ignore this element */
+			goto next;
 		if (ret)
 			return ret;
 
@@ -956,16 +1060,24 @@ static int rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 
 static void rtw89_fw_prog_cnt_dump(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	u32 addr = R_AX_DBG_PORT_SEL;
 	u32 val32;
 	u16 index;
+
+	if (chip_gen == RTW89_CHIP_BE) {
+		addr = R_BE_WLCPU_PORT_PC;
+		goto dump;
+	}
 
 	rtw89_write32(rtwdev, R_AX_DBG_CTRL,
 		      FIELD_PREP(B_AX_DBG_SEL0, FW_PROG_CNTR_DBG_SEL) |
 		      FIELD_PREP(B_AX_DBG_SEL1, FW_PROG_CNTR_DBG_SEL));
 	rtw89_write32_mask(rtwdev, R_AX_SYS_STATUS1, B_AX_SEL_0XC0_MASK, MAC_DBG_SEL);
 
+dump:
 	for (index = 0; index < 15; index++) {
-		val32 = rtw89_read32(rtwdev, R_AX_DBG_PORT_SEL);
+		val32 = rtw89_read32(rtwdev, addr);
 		rtw89_err(rtwdev, "[ERR]fw PC = 0x%x\n", val32);
 		fsleep(10);
 	}
@@ -1135,6 +1247,9 @@ static void rtw89_unload_firmware_elements(struct rtw89_dev *rtwdev)
 	for (i = 0; i < ARRAY_SIZE(elm_info->rf_radio); i++)
 		rtw89_free_phy_tbl_from_elm(elm_info->rf_radio[i]);
 	rtw89_free_phy_tbl_from_elm(elm_info->rf_nctl);
+
+	kfree(elm_info->txpwr_trk);
+	kfree(elm_info->rfk_log_fmt);
 }
 
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
@@ -2201,6 +2316,41 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
 			      H2C_FUNC_MAC_JOININFO, 0, 1,
 			      H2C_JOIN_INFO_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_notify_dbcc(struct rtw89_dev *rtwdev, bool en)
+{
+	struct rtw89_h2c_notify_dbcc *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c notify dbcc\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_notify_dbcc *)skb->data;
+
+	h2c->w0 = le32_encode_bits(en, RTW89_H2C_NOTIFY_DBCC_EN);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
+			      H2C_FUNC_NOTIFY_DBCC, 0, 1,
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
@@ -3451,6 +3601,8 @@ static bool rtw89_fw_c2h_chk_atomic(struct rtw89_dev *rtwdev,
 		return false;
 	case RTW89_C2H_CAT_MAC:
 		return rtw89_mac_c2h_chk_atomic(rtwdev, class, func);
+	case RTW89_C2H_CAT_OUTSRC:
+		return rtw89_phy_c2h_chk_atomic(rtwdev, class, func);
 	}
 }
 
@@ -3867,6 +4019,8 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 			if (info->channel_6ghz &&
 			    ch_info->pri_ch != info->channel_6ghz)
 				continue;
+			else if (info->channel_6ghz && probe_count != 0)
+				ch_info->period += RTW89_CHANNEL_TIME_6G;
 			ch_info->pkt_id[probe_count++] = info->id;
 			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
 				break;
@@ -4043,6 +4197,7 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtw89_core_scan_complete(rtwdev, vif, true);
 	ieee80211_scan_completed(rtwdev->hw, &info);
 	ieee80211_wake_queues(rtwdev->hw);
+	rtw89_mac_enable_beacon_for_ap_vifs(rtwdev, true);
 
 	rtw89_release_pkt_list(rtwdev);
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -4060,6 +4215,19 @@ void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 	rtw89_hw_scan_complete(rtwdev, vif, true);
 }
 
+static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_vif *rtwvif;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		/* This variable implies connected or during attempt to connect */
+		if (!is_zero_ether_addr(rtwvif->bssid))
+			return true;
+	}
+
+	return false;
+}
+
 int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			  bool enable)
 {
@@ -4072,8 +4240,7 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	if (!rtwvif)
 		return -EINVAL;
 
-	/* This variable implies connected or during attempt to connect */
-	connected = !is_zero_ether_addr(rtwvif->bssid);
+	connected = rtw89_is_any_vif_connected_or_connecting(rtwdev);
 	opt.enable = enable;
 	opt.target_ch_mode = connected;
 	if (enable) {

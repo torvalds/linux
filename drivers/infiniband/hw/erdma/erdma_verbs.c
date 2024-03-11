@@ -1708,3 +1708,93 @@ void erdma_port_event(struct erdma_dev *dev, enum ib_event_type reason)
 
 	ib_dispatch_event(&event);
 }
+
+enum counters {
+	ERDMA_STATS_TX_REQS_CNT,
+	ERDMA_STATS_TX_PACKETS_CNT,
+	ERDMA_STATS_TX_BYTES_CNT,
+	ERDMA_STATS_TX_DISABLE_DROP_CNT,
+	ERDMA_STATS_TX_BPS_METER_DROP_CNT,
+	ERDMA_STATS_TX_PPS_METER_DROP_CNT,
+
+	ERDMA_STATS_RX_PACKETS_CNT,
+	ERDMA_STATS_RX_BYTES_CNT,
+	ERDMA_STATS_RX_DISABLE_DROP_CNT,
+	ERDMA_STATS_RX_BPS_METER_DROP_CNT,
+	ERDMA_STATS_RX_PPS_METER_DROP_CNT,
+
+	ERDMA_STATS_MAX
+};
+
+static const struct rdma_stat_desc erdma_descs[] = {
+	[ERDMA_STATS_TX_REQS_CNT].name = "tx_reqs_cnt",
+	[ERDMA_STATS_TX_PACKETS_CNT].name = "tx_packets_cnt",
+	[ERDMA_STATS_TX_BYTES_CNT].name = "tx_bytes_cnt",
+	[ERDMA_STATS_TX_DISABLE_DROP_CNT].name = "tx_disable_drop_cnt",
+	[ERDMA_STATS_TX_BPS_METER_DROP_CNT].name = "tx_bps_limit_drop_cnt",
+	[ERDMA_STATS_TX_PPS_METER_DROP_CNT].name = "tx_pps_limit_drop_cnt",
+	[ERDMA_STATS_RX_PACKETS_CNT].name = "rx_packets_cnt",
+	[ERDMA_STATS_RX_BYTES_CNT].name = "rx_bytes_cnt",
+	[ERDMA_STATS_RX_DISABLE_DROP_CNT].name = "rx_disable_drop_cnt",
+	[ERDMA_STATS_RX_BPS_METER_DROP_CNT].name = "rx_bps_limit_drop_cnt",
+	[ERDMA_STATS_RX_PPS_METER_DROP_CNT].name = "rx_pps_limit_drop_cnt",
+};
+
+struct rdma_hw_stats *erdma_alloc_hw_port_stats(struct ib_device *device,
+						u32 port_num)
+{
+	return rdma_alloc_hw_stats_struct(erdma_descs, ERDMA_STATS_MAX,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static int erdma_query_hw_stats(struct erdma_dev *dev,
+				struct rdma_hw_stats *stats)
+{
+	struct erdma_cmdq_query_stats_resp *resp;
+	struct erdma_cmdq_query_req req;
+	dma_addr_t dma_addr;
+	int err;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_GET_STATS);
+
+	resp = dma_pool_zalloc(dev->resp_pool, GFP_KERNEL, &dma_addr);
+	if (!resp)
+		return -ENOMEM;
+
+	req.target_addr = dma_addr;
+	req.target_length = ERDMA_HW_RESP_SIZE;
+
+	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	if (err)
+		goto out;
+
+	if (resp->hdr.magic != ERDMA_HW_RESP_MAGIC) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memcpy(&stats->value[0], &resp->tx_req_cnt,
+	       sizeof(u64) * stats->num_counters);
+
+out:
+	dma_pool_free(dev->resp_pool, resp, dma_addr);
+
+	return err;
+}
+
+int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+		       u32 port, int index)
+{
+	struct erdma_dev *dev = to_edev(ibdev);
+	int ret;
+
+	if (port == 0)
+		return 0;
+
+	ret = erdma_query_hw_stats(dev, stats);
+	if (ret)
+		return ret;
+
+	return stats->num_counters;
+}

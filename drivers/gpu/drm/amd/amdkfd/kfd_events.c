@@ -880,6 +880,10 @@ static int copy_signaled_event_data(uint32_t num_events,
 				dst = &data[i].memory_exception_data;
 				src = &event->memory_exception_data;
 				size = sizeof(struct kfd_hsa_memory_exception_data);
+			} else if (event->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				dst = &data[i].memory_exception_data;
+				src = &event->hw_exception_data;
+				size = sizeof(struct kfd_hsa_hw_exception_data);
 			} else if (event->type == KFD_EVENT_TYPE_SIGNAL &&
 				waiter->event_age_enabled) {
 				dst = &data[i].signal_event_data.last_event_age;

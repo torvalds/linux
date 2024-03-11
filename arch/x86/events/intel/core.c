@@ -2527,9 +2527,14 @@ static void intel_pmu_assign_event(struct perf_event *event, int idx)
 		perf_report_aux_output_id(event, idx);
 }
 
+static __always_inline bool intel_pmu_needs_branch_stack(struct perf_event *event)
+{
+	return event->hw.flags & PERF_X86_EVENT_NEEDS_BRANCH_STACK;
+}
+
 static void intel_pmu_del_event(struct perf_event *event)
 {
-	if (needs_branch_stack(event))
+	if (intel_pmu_needs_branch_stack(event))
 		intel_pmu_lbr_del(event);
 	if (event->attr.precise_ip)
 		intel_pmu_pebs_del(event);
@@ -2787,6 +2792,7 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 
 static void intel_pmu_enable_event(struct perf_event *event)
 {
+	u64 enable_mask = ARCH_PERFMON_EVENTSEL_ENABLE;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -2795,8 +2801,10 @@ static void intel_pmu_enable_event(struct perf_event *event)
 
 	switch (idx) {
 	case 0 ... INTEL_PMC_IDX_FIXED - 1:
+		if (branch_sample_counters(event))
+			enable_mask |= ARCH_PERFMON_EVENTSEL_BR_CNTR;
 		intel_set_masks(event, idx);
-		__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
+		__x86_pmu_enable_event(hwc, enable_mask);
 		break;
 	case INTEL_PMC_IDX_FIXED ... INTEL_PMC_IDX_FIXED_BTS - 1:
 	case INTEL_PMC_IDX_METRIC_BASE ... INTEL_PMC_IDX_METRIC_END:
@@ -2820,7 +2828,7 @@ static void intel_pmu_add_event(struct perf_event *event)
 {
 	if (event->attr.precise_ip)
 		intel_pmu_pebs_add(event);
-	if (needs_branch_stack(event))
+	if (intel_pmu_needs_branch_stack(event))
 		intel_pmu_lbr_add(event);
 }
 
@@ -3047,7 +3055,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 		perf_sample_data_init(&data, 0, event->hw.last_period);
 
 		if (has_branch_stack(event))
-			perf_sample_save_brstack(&data, event, &cpuc->lbr_stack);
+			intel_pmu_lbr_save_brstack(&data, cpuc, event);
 
 		if (perf_event_overflow(event, &data, regs))
 			x86_pmu_stop(event, 0);
@@ -3612,6 +3620,13 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	if (cpuc->excl_cntrs)
 		return intel_get_excl_constraints(cpuc, event, idx, c2);
 
+	/* Not all counters support the branch counter feature. */
+	if (branch_sample_counters(event)) {
+		c2 = dyn_constraint(cpuc, c2, idx);
+		c2->idxmsk64 &= x86_pmu.lbr_counters;
+		c2->weight = hweight64(c2->idxmsk64);
+	}
+
 	return c2;
 }
 
@@ -3897,7 +3912,62 @@ static int intel_pmu_hw_config(struct perf_event *event)
 			x86_pmu.pebs_aliases(event);
 	}
 
-	if (needs_branch_stack(event)) {
+	if (needs_branch_stack(event) && is_sampling_event(event))
+		event->hw.flags  |= PERF_X86_EVENT_NEEDS_BRANCH_STACK;
+
+	if (branch_sample_counters(event)) {
+		struct perf_event *leader, *sibling;
+		int num = 0;
+
+		if (!(x86_pmu.flags & PMU_FL_BR_CNTR) ||
+		    (event->attr.config & ~INTEL_ARCH_EVENT_MASK))
+			return -EINVAL;
+
+		/*
+		 * The branch counter logging is not supported in the call stack
+		 * mode yet, since we cannot simply flush the LBR during e.g.,
+		 * multiplexing. Also, there is no obvious usage with the call
+		 * stack mode. Simply forbids it for now.
+		 *
+		 * If any events in the group enable the branch counter logging
+		 * feature, the group is treated as a branch counter logging
+		 * group, which requires the extra space to store the counters.
+		 */
+		leader = event->group_leader;
+		if (branch_sample_call_stack(leader))
+			return -EINVAL;
+		if (branch_sample_counters(leader))
+			num++;
+		leader->hw.flags |= PERF_X86_EVENT_BRANCH_COUNTERS;
+
+		for_each_sibling_event(sibling, leader) {
+			if (branch_sample_call_stack(sibling))
+				return -EINVAL;
+			if (branch_sample_counters(sibling))
+				num++;
+		}
+
+		if (num > fls(x86_pmu.lbr_counters))
+			return -EINVAL;
+		/*
+		 * Only applying the PERF_SAMPLE_BRANCH_COUNTERS doesn't
+		 * require any branch stack setup.
+		 * Clear the bit to avoid unnecessary branch stack setup.
+		 */
+		if (0 == (event->attr.branch_sample_type &
+			  ~(PERF_SAMPLE_BRANCH_PLM_ALL |
+			    PERF_SAMPLE_BRANCH_COUNTERS)))
+			event->hw.flags  &= ~PERF_X86_EVENT_NEEDS_BRANCH_STACK;
+
+		/*
+		 * Force the leader to be a LBR event. So LBRs can be reset
+		 * with the leader event. See intel_pmu_lbr_del() for details.
+		 */
+		if (!intel_pmu_needs_branch_stack(leader))
+			return -EINVAL;
+	}
+
+	if (intel_pmu_needs_branch_stack(event)) {
 		ret = intel_pmu_setup_lbr_filter(event);
 		if (ret)
 			return ret;
@@ -4027,7 +4097,7 @@ static int intel_pmu_hw_config(struct perf_event *event)
 
 /*
  * Currently, the only caller of this function is the atomic_switch_perf_msrs().
- * The host perf conext helps to prepare the values of the real hardware for
+ * The host perf context helps to prepare the values of the real hardware for
  * a set of msrs that need to be switched atomically in a vmx transaction.
  *
  * For example, the pseudocode needed to add a new msr should look like:
@@ -4380,8 +4450,13 @@ cmt_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	 */
 	if (event->attr.precise_ip == 3) {
 		/* Force instruction:ppp on PMC0, 1 and Fixed counter 0 */
-		if (constraint_match(&fixed0_constraint, event->hw.config))
-			return &fixed0_counter0_1_constraint;
+		if (constraint_match(&fixed0_constraint, event->hw.config)) {
+			/* The fixed counter 0 doesn't support LBR event logging. */
+			if (branch_sample_counters(event))
+				return &counter0_1_constraint;
+			else
+				return &fixed0_counter0_1_constraint;
+		}
 
 		switch (c->idxmsk64 & 0x3ull) {
 		case 0x1:
@@ -4560,7 +4635,7 @@ int intel_cpuc_prepare(struct cpu_hw_events *cpuc, int cpu)
 			goto err;
 	}
 
-	if (x86_pmu.flags & (PMU_FL_EXCL_CNTRS | PMU_FL_TFA)) {
+	if (x86_pmu.flags & (PMU_FL_EXCL_CNTRS | PMU_FL_TFA | PMU_FL_BR_CNTR)) {
 		size_t sz = X86_PMC_IDX_MAX * sizeof(struct event_constraint);
 
 		cpuc->constraint_list = kzalloc_node(sz, GFP_KERNEL, cpu_to_node(cpu));
@@ -5532,10 +5607,40 @@ static ssize_t branches_show(struct device *cdev,
 
 static DEVICE_ATTR_RO(branches);
 
+static ssize_t branch_counter_nr_show(struct device *cdev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", fls(x86_pmu.lbr_counters));
+}
+
+static DEVICE_ATTR_RO(branch_counter_nr);
+
+static ssize_t branch_counter_width_show(struct device *cdev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", LBR_INFO_BR_CNTR_BITS);
+}
+
+static DEVICE_ATTR_RO(branch_counter_width);
+
 static struct attribute *lbr_attrs[] = {
 	&dev_attr_branches.attr,
+	&dev_attr_branch_counter_nr.attr,
+	&dev_attr_branch_counter_width.attr,
 	NULL
 };
+
+static umode_t
+lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	/* branches */
+	if (i == 0)
+		return x86_pmu.lbr_nr ? attr->mode : 0;
+
+	return (x86_pmu.flags & PMU_FL_BR_CNTR) ? attr->mode : 0;
+}
 
 static char pmu_name_str[30];
 
@@ -5564,6 +5669,15 @@ static struct attribute *intel_pmu_attrs[] = {
 };
 
 static umode_t
+default_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	if (attr == &dev_attr_allow_tsx_force_abort.attr)
+		return x86_pmu.flags & PMU_FL_TFA ? attr->mode : 0;
+
+	return attr->mode;
+}
+
+static umode_t
 tsx_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return boot_cpu_has(X86_FEATURE_RTM) ? attr->mode : 0;
@@ -5585,24 +5699,9 @@ mem_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 }
 
 static umode_t
-lbr_is_visible(struct kobject *kobj, struct attribute *attr, int i)
-{
-	return x86_pmu.lbr_nr ? attr->mode : 0;
-}
-
-static umode_t
 exra_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return x86_pmu.version >= 2 ? attr->mode : 0;
-}
-
-static umode_t
-default_is_visible(struct kobject *kobj, struct attribute *attr, int i)
-{
-	if (attr == &dev_attr_allow_tsx_force_abort.attr)
-		return x86_pmu.flags & PMU_FL_TFA ? attr->mode : 0;
-
-	return attr->mode;
 }
 
 static struct attribute_group group_events_td  = {

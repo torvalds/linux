@@ -88,7 +88,7 @@ static void __init edb93xx_register_i2c(void)
  * EDB93xx SPI peripheral handling
  *************************************************************************/
 static struct cs4271_platform_data edb93xx_cs4271_data = {
-	.gpio_nreset	= -EINVAL,	/* filled in later */
+	/* Intentionally left blank */
 };
 
 static struct spi_board_info edb93xx_spi_board_info[] __initdata = {
@@ -114,14 +114,38 @@ static struct ep93xx_spi_info edb93xx_spi_info __initdata = {
 	/* Intentionally left blank */
 };
 
+static struct gpiod_lookup_table edb93xx_cs4272_edb9301_gpio_table = {
+	.dev_id = "spi0.0", /* CS0 on SPI0 */
+	.table = {
+		GPIO_LOOKUP("A", 1, "reset", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table edb93xx_cs4272_edb9302_gpio_table = {
+	.dev_id = "spi0.0", /* CS0 on SPI0 */
+	.table = {
+		GPIO_LOOKUP("H", 2, "reset", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table edb93xx_cs4272_edb9315_gpio_table = {
+	.dev_id = "spi0.0", /* CS0 on SPI0 */
+	.table = {
+		GPIO_LOOKUP("B", 6, "reset", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init edb93xx_register_spi(void)
 {
 	if (machine_is_edb9301() || machine_is_edb9302())
-		edb93xx_cs4271_data.gpio_nreset = EP93XX_GPIO_LINE_EGPIO1;
+		gpiod_add_lookup_table(&edb93xx_cs4272_edb9301_gpio_table);
 	else if (machine_is_edb9302a() || machine_is_edb9307a())
-		edb93xx_cs4271_data.gpio_nreset = EP93XX_GPIO_LINE_H(2);
+		gpiod_add_lookup_table(&edb93xx_cs4272_edb9302_gpio_table);
 	else if (machine_is_edb9315a())
-		edb93xx_cs4271_data.gpio_nreset = EP93XX_GPIO_LINE_EGPIO14;
+		gpiod_add_lookup_table(&edb93xx_cs4272_edb9315_gpio_table);
 
 	gpiod_add_lookup_table(&edb93xx_spi_cs_gpio_table);
 	ep93xx_register_spi(&edb93xx_spi_info, edb93xx_spi_board_info,

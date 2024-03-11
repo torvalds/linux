@@ -477,7 +477,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		return -ENOMEM;
 	zc->card = ac;
 	dev_set_drvdata(&ap_dev->device, zc);
-	if (ap_test_bit(&ac->functions, AP_FUNC_ACCEL)) {
+	if (ac->hwinfo.accel) {
 		if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX4) {
 			zc->type_string = "CEX4A";
 			zc->user_space_type = ZCRYPT_CEX4;
@@ -506,8 +506,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 			zc->user_space_type = ZCRYPT_CEX6;
 		}
 		zc->min_mod_size = CEX4A_MIN_MOD_SIZE;
-		if (ap_test_bit(&ac->functions, AP_FUNC_MEX4K) &&
-		    ap_test_bit(&ac->functions, AP_FUNC_CRT4K)) {
+		if (ac->hwinfo.mex4k && ac->hwinfo.crt4k) {
 			zc->max_mod_size = CEX4A_MAX_MOD_SIZE_4K;
 			zc->max_exp_bit_length =
 				CEX4A_MAX_MOD_SIZE_4K;
@@ -516,7 +515,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 			zc->max_exp_bit_length =
 				CEX4A_MAX_MOD_SIZE_2K;
 		}
-	} else if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
+	} else if (ac->hwinfo.cca) {
 		if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX4) {
 			zc->type_string = "CEX4C";
 			zc->speed_rating = CEX4C_SPEED_IDX;
@@ -556,7 +555,7 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		zc->min_mod_size = CEX4C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX4C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX4C_MAX_MOD_SIZE;
-	} else if (ap_test_bit(&ac->functions, AP_FUNC_EP11)) {
+	} else if (ac->hwinfo.ep11) {
 		if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX4) {
 			zc->type_string = "CEX4P";
 			zc->user_space_type = ZCRYPT_CEX4;
@@ -599,14 +598,14 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 		return rc;
 	}
 
-	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
+	if (ac->hwinfo.cca) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&cca_card_attr_grp);
 		if (rc) {
 			zcrypt_card_unregister(zc);
 			zcrypt_card_free(zc);
 		}
-	} else if (ap_test_bit(&ac->functions, AP_FUNC_EP11)) {
+	} else if (ac->hwinfo.ep11) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&ep11_card_attr_grp);
 		if (rc) {
@@ -627,9 +626,9 @@ static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
 	struct zcrypt_card *zc = dev_get_drvdata(&ap_dev->device);
 	struct ap_card *ac = to_ap_card(&ap_dev->device);
 
-	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+	if (ac->hwinfo.cca)
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
-	else if (ap_test_bit(&ac->functions, AP_FUNC_EP11))
+	else if (ac->hwinfo.ep11)
 		sysfs_remove_group(&ap_dev->device.kobj, &ep11_card_attr_grp);
 
 	zcrypt_card_unregister(zc);
@@ -654,19 +653,19 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	struct zcrypt_queue *zq;
 	int rc;
 
-	if (ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL)) {
+	if (aq->card->hwinfo.accel) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE50_NAME,
 					 MSGTYPE50_VARIANT_DEFAULT);
-	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
+	} else if (aq->card->hwinfo.cca) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
 		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
 					 MSGTYPE06_VARIANT_DEFAULT);
-	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11)) {
+	} else if (aq->card->hwinfo.ep11) {
 		zq = zcrypt_queue_alloc(aq->card->maxmsgsize);
 		if (!zq)
 			return -ENOMEM;
@@ -689,14 +688,14 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 		return rc;
 	}
 
-	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
+	if (aq->card->hwinfo.cca) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&cca_queue_attr_grp);
 		if (rc) {
 			zcrypt_queue_unregister(zq);
 			zcrypt_queue_free(zq);
 		}
-	} else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11)) {
+	} else if (aq->card->hwinfo.ep11) {
 		rc = sysfs_create_group(&ap_dev->device.kobj,
 					&ep11_queue_attr_grp);
 		if (rc) {
@@ -717,9 +716,9 @@ static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 	struct zcrypt_queue *zq = dev_get_drvdata(&ap_dev->device);
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 
-	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+	if (aq->card->hwinfo.cca)
 		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
-	else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11))
+	else if (aq->card->hwinfo.ep11)
 		sysfs_remove_group(&ap_dev->device.kobj, &ep11_queue_attr_grp);
 
 	zcrypt_queue_unregister(zq);

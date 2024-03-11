@@ -239,4 +239,4 @@ int qcom_snd_wcd_jack_setup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_snd_wcd_jack_setup);
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

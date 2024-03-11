@@ -40,6 +40,13 @@ static int debugfs_trace_show(struct seq_file *f, void *offset)
 	return 0;
 }
 
+static int vchiq_dump_show(struct seq_file *f, void *offset)
+{
+	vchiq_dump_state(f, &g_state);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(vchiq_dump);
+
 static int debugfs_trace_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, debugfs_trace_show, inode->i_private);
@@ -115,6 +122,9 @@ void vchiq_debugfs_init(void)
 {
 	vchiq_dbg_dir = debugfs_create_dir("vchiq", NULL);
 	vchiq_dbg_clients = debugfs_create_dir("clients", vchiq_dbg_dir);
+
+	debugfs_create_file("state", S_IFREG | 0444, vchiq_dbg_dir, NULL,
+			    &vchiq_dump_fops);
 }
 
 /* remove all the debugfs entries */

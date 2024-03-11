@@ -1379,7 +1379,9 @@ static int fsi_dma_probe(struct fsi_priv *fsi, struct fsi_stream *io, struct dev
 	io->chan = dma_request_channel(mask, shdma_chan_filter,
 				       (void *)io->dma_id);
 #else
-	io->chan = dma_request_slave_channel(dev, is_play ? "tx" : "rx");
+	io->chan = dma_request_chan(dev, is_play ? "tx" : "rx");
+	if (IS_ERR(io->chan))
+		io->chan = NULL;
 #endif
 	if (io->chan) {
 		struct dma_slave_config cfg = {};

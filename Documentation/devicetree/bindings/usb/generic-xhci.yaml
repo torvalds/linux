@@ -9,9 +9,6 @@ title: USB xHCI Controller
 maintainers:
   - Mathias Nyman <mathias.nyman@intel.com>
 
-allOf:
-  - $ref: usb-xhci.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -25,6 +22,11 @@ properties:
               - marvell,armada-380-xhci
               - marvell,armada-8k-xhci
           - const: generic-xhci
+      - description: Broadcom SoCs with power domains
+        items:
+          - enum:
+              - brcm,bcm2711-xhci
+          - const: brcm,xhci-brcm-v2
       - description: Broadcom STB SoCs with xHCI
         enum:
           - brcm,xhci-brcm-v2
@@ -49,12 +51,29 @@ properties:
       - const: core
       - const: reg
 
+  power-domains:
+    maxItems: 1
+
 unevaluatedProperties: false
 
 required:
   - compatible
   - reg
   - interrupts
+
+allOf:
+  - $ref: usb-xhci.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,bcm2711-xhci
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
 
 examples:
   - |

@@ -468,10 +468,9 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 		channel->mux.hw.init = &init;
 
 		err = devm_clk_hw_register(dev, &channel->mux.hw);
-		if (err) {
-			dev_err(dev, "failed to register %s: %d\n", name, err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "failed to register %s\n", name);
 
 		snprintf(name, sizeof(name), "%s#div%u", dev_name(dev), i);
 
@@ -491,10 +490,9 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 		channel->div.lock = &meson->lock;
 
 		err = devm_clk_hw_register(dev, &channel->div.hw);
-		if (err) {
-			dev_err(dev, "failed to register %s: %d\n", name, err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "failed to register %s\n", name);
 
 		snprintf(name, sizeof(name), "%s#gate%u", dev_name(dev), i);
 
@@ -513,17 +511,13 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 		channel->gate.lock = &meson->lock;
 
 		err = devm_clk_hw_register(dev, &channel->gate.hw);
-		if (err) {
-			dev_err(dev, "failed to register %s: %d\n", name, err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "failed to register %s\n", name);
 
 		channel->clk = devm_clk_hw_get_clk(dev, &channel->gate.hw, NULL);
-		if (IS_ERR(channel->clk)) {
-			err = PTR_ERR(channel->clk);
-			dev_err(dev, "failed to register %s: %d\n", name, err);
-			return err;
-		}
+		if (IS_ERR(channel->clk))
+			return dev_err_probe(dev, PTR_ERR(channel->clk),
+					     "failed to register %s\n", name);
 	}
 
 	return 0;
@@ -554,10 +548,9 @@ static int meson_pwm_probe(struct platform_device *pdev)
 		return err;
 
 	err = devm_pwmchip_add(&pdev->dev, &meson->chip);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to register PWM chip: %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		return dev_err_probe(&pdev->dev, err,
+				     "failed to register PWM chip\n");
 
 	return 0;
 }

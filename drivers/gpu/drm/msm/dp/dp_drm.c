@@ -24,10 +24,10 @@ static enum drm_connector_status dp_bridge_detect(struct drm_bridge *bridge)
 
 	dp = to_dp_bridge(bridge)->dp_display;
 
-	drm_dbg_dp(dp->drm_dev, "is_connected = %s\n",
-		(dp->is_connected) ? "true" : "false");
+	drm_dbg_dp(dp->drm_dev, "link_ready = %s\n",
+		(dp->link_ready) ? "true" : "false");
 
-	return (dp->is_connected) ? connector_status_connected :
+	return (dp->link_ready) ? connector_status_connected :
 					connector_status_disconnected;
 }
 
@@ -40,8 +40,8 @@ static int dp_bridge_atomic_check(struct drm_bridge *bridge,
 
 	dp = to_dp_bridge(bridge)->dp_display;
 
-	drm_dbg_dp(dp->drm_dev, "is_connected = %s\n",
-		(dp->is_connected) ? "true" : "false");
+	drm_dbg_dp(dp->drm_dev, "link_ready = %s\n",
+		(dp->link_ready) ? "true" : "false");
 
 	/*
 	 * There is no protection in the DRM framework to check if the display
@@ -55,7 +55,7 @@ static int dp_bridge_atomic_check(struct drm_bridge *bridge,
 	 * After that this piece of code can be removed.
 	 */
 	if (bridge->ops & DRM_BRIDGE_OP_HPD)
-		return (dp->is_connected) ? 0 : -ENOTCONN;
+		return (dp->link_ready) ? 0 : -ENOTCONN;
 
 	return 0;
 }
@@ -78,7 +78,7 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 	dp = to_dp_bridge(bridge)->dp_display;
 
 	/* pluggable case assumes EDID is read when HPD */
-	if (dp->is_connected) {
+	if (dp->link_ready) {
 		rc = dp_display_get_modes(dp);
 		if (rc <= 0) {
 			DRM_ERROR("failed to get DP sink modes, rc=%d\n", rc);
@@ -88,6 +88,13 @@ static int dp_bridge_get_modes(struct drm_bridge *bridge, struct drm_connector *
 		drm_dbg_dp(connector->dev, "No sink connected\n");
 	}
 	return rc;
+}
+
+static void dp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry *root)
+{
+	struct msm_dp *dp = to_dp_bridge(bridge)->dp_display;
+
+	dp_display_debugfs_init(dp, root, false);
 }
 
 static const struct drm_bridge_funcs dp_bridge_ops = {
@@ -105,6 +112,7 @@ static const struct drm_bridge_funcs dp_bridge_ops = {
 	.hpd_enable   = dp_bridge_hpd_enable,
 	.hpd_disable  = dp_bridge_hpd_disable,
 	.hpd_notify   = dp_bridge_hpd_notify,
+	.debugfs_init = dp_bridge_debugfs_init,
 };
 
 static int edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
@@ -260,6 +268,13 @@ static enum drm_mode_status edp_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
+static void edp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry *root)
+{
+	struct msm_dp *dp = to_dp_bridge(bridge)->dp_display;
+
+	dp_display_debugfs_init(dp, root, true);
+}
+
 static const struct drm_bridge_funcs edp_bridge_ops = {
 	.atomic_enable = edp_bridge_atomic_enable,
 	.atomic_disable = edp_bridge_atomic_disable,
@@ -270,6 +285,7 @@ static const struct drm_bridge_funcs edp_bridge_ops = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_check = edp_bridge_atomic_check,
+	.debugfs_init = edp_bridge_debugfs_init,
 };
 
 int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,

@@ -206,28 +206,6 @@ static const struct attribute_group arm_spe_pmu_cap_group = {
 #define ATTR_CFG_FLD_inv_event_filter_LO	0
 #define ATTR_CFG_FLD_inv_event_filter_HI	63
 
-/* Why does everything I do descend into this? */
-#define __GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
-	(lo) == (hi) ? #cfg ":" #lo "\n" : #cfg ":" #lo "-" #hi
-
-#define _GEN_PMU_FORMAT_ATTR(cfg, lo, hi)				\
-	__GEN_PMU_FORMAT_ATTR(cfg, lo, hi)
-
-#define GEN_PMU_FORMAT_ATTR(name)					\
-	PMU_FORMAT_ATTR(name,						\
-	_GEN_PMU_FORMAT_ATTR(ATTR_CFG_FLD_##name##_CFG,			\
-			     ATTR_CFG_FLD_##name##_LO,			\
-			     ATTR_CFG_FLD_##name##_HI))
-
-#define _ATTR_CFG_GET_FLD(attr, cfg, lo, hi)				\
-	((((attr)->cfg) >> lo) & GENMASK(hi - lo, 0))
-
-#define ATTR_CFG_GET_FLD(attr, name)					\
-	_ATTR_CFG_GET_FLD(attr,						\
-			  ATTR_CFG_FLD_##name##_CFG,			\
-			  ATTR_CFG_FLD_##name##_LO,			\
-			  ATTR_CFG_FLD_##name##_HI)
-
 GEN_PMU_FORMAT_ATTR(ts_enable);
 GEN_PMU_FORMAT_ATTR(pa_enable);
 GEN_PMU_FORMAT_ATTR(pct_enable);

@@ -119,7 +119,6 @@ struct qxl_output {
 
 #define to_qxl_crtc(x) container_of(x, struct qxl_crtc, base)
 #define drm_connector_to_qxl_output(x) container_of(x, struct qxl_output, base)
-#define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, enc)
 
 struct qxl_mman {
 	struct ttm_device		bdev;
@@ -256,8 +255,6 @@ struct qxl_device {
 
 #define to_qxl(dev) container_of(dev, struct qxl_device, ddev)
 
-int qxl_debugfs_fence_init(struct qxl_device *rdev);
-
 int qxl_device_init(struct qxl_device *qdev, struct pci_dev *pdev);
 void qxl_device_fini(struct qxl_device *qdev);
 
@@ -343,8 +340,6 @@ qxl_image_alloc_objects(struct qxl_device *qdev,
 			struct qxl_drm_image **image_ptr,
 			int height, int stride);
 void qxl_image_free_objects(struct qxl_device *qdev, struct qxl_drm_image *dimage);
-
-void qxl_update_screen(struct qxl_device *qxl);
 
 /* qxl io operations (qxl_cmd.c) */
 
@@ -445,8 +440,6 @@ int qxl_hw_surface_dealloc(struct qxl_device *qdev,
 
 int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo);
 
-struct qxl_drv_surface *
-qxl_surface_lookup(struct drm_device *dev, int surface_id);
 void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool freeing);
 
 /* qxl_ioctl.c */

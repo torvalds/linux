@@ -127,6 +127,7 @@ enum visl_codec {
 	VISL_CODEC_VP9,
 	VISL_CODEC_H264,
 	VISL_CODEC_HEVC,
+	VISL_CODEC_AV1,
 };
 
 struct visl_blob {

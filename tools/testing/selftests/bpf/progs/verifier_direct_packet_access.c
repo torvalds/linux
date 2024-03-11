@@ -411,7 +411,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("direct packet access: test17 (pruning, alignment)")
-__failure __msg("misaligned packet access off 2+(0x0; 0x0)+15+-4 size 4")
+__failure __msg("misaligned packet access off 2+0+15+-4 size 4")
 __flag(BPF_F_STRICT_ALIGNMENT)
 __naked void packet_access_test17_pruning_alignment(void)
 {

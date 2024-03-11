@@ -48,7 +48,15 @@ properties:
       - const: tx
       - const: rx
 
+  interconnects:
+    maxItems: 1
+
   interrupts:
+    maxItems: 1
+
+  operating-points-v2: true
+
+  power-domains:
     maxItems: 1
 
   qcom,rx-crci:
@@ -99,7 +107,9 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interconnect/qcom,msm8996.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
     serial@f991e000 {
         compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
@@ -109,4 +119,7 @@ examples:
         clock-names = "core", "iface";
         dmas = <&dma0 0>, <&dma0 1>;
         dma-names = "tx", "rx";
+        power-domains = <&rpmpd MSM8996_VDDCX>;
+        operating-points-v2 = <&uart_opp_table>;
+        interconnects = <&pnoc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
     };

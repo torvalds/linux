@@ -205,6 +205,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 	const uint8_t vendor_lttpr_write_data_4lane_3[4] = {0x1, 0x6D, 0xF2, 0x18};
 	const uint8_t vendor_lttpr_write_data_4lane_4[4] = {0x1, 0x6C, 0xF2, 0x03};
 	const uint8_t vendor_lttpr_write_data_4lane_5[4] = {0x1, 0x03, 0xF3, 0x06};
+	const uint8_t vendor_lttpr_write_data_dpmf[4] = {0x1, 0x6, 0x70, 0x87};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	uint8_t lane = 0;
 	union down_spread_ctrl downspread = {0};
@@ -292,6 +293,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 		lt_settings->enhanced_framing,
 		DP_DOWNSPREAD_CTRL,
 		lt_settings->link_settings.link_spread);
+
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_dpmf[0],
+			sizeof(vendor_lttpr_write_data_dpmf));
 
 	if (lt_settings->link_settings.lane_count == LANE_COUNT_FOUR) {
 		link_configure_fixed_vs_pe_retimer(link->ddc,
@@ -552,6 +557,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	const uint8_t vendor_lttpr_write_data_4lane_3[4] = {0x1, 0x6D, 0xF2, 0x18};
 	const uint8_t vendor_lttpr_write_data_4lane_4[4] = {0x1, 0x6C, 0xF2, 0x03};
 	const uint8_t vendor_lttpr_write_data_4lane_5[4] = {0x1, 0x03, 0xF3, 0x06};
+	const uint8_t vendor_lttpr_write_data_dpmf[4] = {0x1, 0x6, 0x70, 0x87};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	uint8_t lane = 0;
 	union down_spread_ctrl downspread = {0};
@@ -638,6 +644,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		lt_settings->enhanced_framing,
 		DP_DOWNSPREAD_CTRL,
 		lt_settings->link_settings.link_spread);
+
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_dpmf[0],
+			sizeof(vendor_lttpr_write_data_dpmf));
 
 	if (lt_settings->link_settings.lane_count == LANE_COUNT_FOUR) {
 		link_configure_fixed_vs_pe_retimer(link->ddc,

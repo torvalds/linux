@@ -33,11 +33,16 @@
 
 #define ADDR_TO_L2_CACHE_CFG(addr) ((addr) >> 31)
 
-#define IVPU_FW_CHECK_API(vdev, fw_hdr, name, min_major) \
+/* Check if FW API is compatible with the driver */
+#define IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, name, min_major) \
 	ivpu_fw_check_api(vdev, fw_hdr, #name, \
 			  VPU_##name##_API_VER_INDEX, \
 			  VPU_##name##_API_VER_MAJOR, \
 			  VPU_##name##_API_VER_MINOR, min_major)
+
+/* Check if API version is lower that the given version */
+#define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, minor) \
+	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, minor)
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
@@ -105,6 +110,19 @@ ivpu_fw_check_api(struct ivpu_device *vdev, const struct vpu_firmware_header *fw
 	return 0;
 }
 
+static bool
+ivpu_fw_check_api_ver_lt(struct ivpu_device *vdev, const struct vpu_firmware_header *fw_hdr,
+			 const char *str, int index, u16 major, u16 minor)
+{
+	u16 fw_major = (u16)(fw_hdr->api_version[index] >> 16);
+	u16 fw_minor = (u16)(fw_hdr->api_version[index]);
+
+	if (fw_major < major || (fw_major == major && fw_minor < minor))
+		return true;
+
+	return false;
+}
+
 static int ivpu_fw_parse(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
@@ -164,9 +182,9 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	ivpu_info(vdev, "Firmware: %s, version: %s", fw->name,
 		  (const char *)fw_hdr + VPU_FW_HEADER_SIZE);
 
-	if (IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT, 3))
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, BOOT, 3))
 		return -EINVAL;
-	if (IVPU_FW_CHECK_API(vdev, fw_hdr, JSM, 3))
+	if (IVPU_FW_CHECK_API_COMPAT(vdev, fw_hdr, JSM, 3))
 		return -EINVAL;
 
 	fw->runtime_addr = runtime_addr;
@@ -182,6 +200,8 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->trace_destination_mask = VPU_TRACE_DESTINATION_VERBOSE_TRACING;
 	fw->trace_hw_component_mask = -1;
 
+	fw->dvfs_mode = 0;
+
 	ivpu_dbg(vdev, FW_BOOT, "Size: file %lu image %u runtime %u shavenn %u\n",
 		 fw->file->size, fw->image_size, fw->runtime_size, fw->shave_nn_size);
 	ivpu_dbg(vdev, FW_BOOT, "Address: runtime 0x%llx, load 0x%llx, entry point 0x%llx\n",
@@ -193,6 +213,23 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 static void ivpu_fw_release(struct ivpu_device *vdev)
 {
 	release_firmware(vdev->fw->file);
+}
+
+/* Initialize workarounds that depend on FW version */
+static void
+ivpu_fw_init_wa(struct ivpu_device *vdev)
+{
+	const struct vpu_firmware_header *fw_hdr = (const void *)vdev->fw->file->data;
+
+	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, BOOT, 3, 17) ||
+	    (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_DISABLE))
+		vdev->wa.disable_d0i3_msg = true;
+
+	/* Force enable the feature for testing purposes */
+	if (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_ENABLE)
+		vdev->wa.disable_d0i3_msg = false;
+
+	IVPU_PRINT_WA(disable_d0i3_msg);
 }
 
 static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
@@ -248,7 +285,7 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 
 	if (fw->shave_nn_size) {
 		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
-							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
+							  fw->shave_nn_size, DRM_IVPU_BO_WC);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
 			ret = -ENOMEM;
@@ -296,6 +333,8 @@ int ivpu_fw_init(struct ivpu_device *vdev)
 	ret = ivpu_fw_parse(vdev);
 	if (ret)
 		goto err_fw_release;
+
+	ivpu_fw_init_wa(vdev);
 
 	ret = ivpu_fw_mem_init(vdev);
 	if (ret)
@@ -422,14 +461,31 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->punit_telemetry_sram_size);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.vpu_telemetry_enable = 0x%x\n",
 		 boot_params->vpu_telemetry_enable);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.dvfs_mode = %u\n",
+		 boot_params->dvfs_mode);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_delayed_entry = %d\n",
+		 boot_params->d0i3_delayed_entry);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
+		 boot_params->d0i3_residency_time_us);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
+		 boot_params->d0i3_entry_vpu_ts);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
 {
 	struct ivpu_bo *ipc_mem_rx = vdev->ipc->mem_rx;
 
-	/* In case of warm boot we only have to reset the entrypoint addr */
+	/* In case of warm boot only update variable params */
 	if (!ivpu_fw_is_cold_boot(vdev)) {
+		boot_params->d0i3_residency_time_us =
+			ktime_us_delta(ktime_get_boottime(), vdev->hw->d0i3_entry_host_ts);
+		boot_params->d0i3_entry_vpu_ts = vdev->hw->d0i3_entry_vpu_ts;
+
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
+			 boot_params->d0i3_residency_time_us);
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
+			 boot_params->d0i3_entry_vpu_ts);
+
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
 		wmb(); /* Flush WC buffers after writing save_restore_ret_address */
@@ -441,6 +497,13 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->magic = VPU_BOOT_PARAMS_MAGIC;
 	boot_params->vpu_id = to_pci_dev(vdev->drm.dev)->bus->number;
 	boot_params->frequency = ivpu_hw_reg_pll_freq_get(vdev);
+
+	/*
+	 * This param is a debug firmware feature.  It switches default clock
+	 * to higher resolution one for fine-grained and more accurate firmware
+	 * task profiling.
+	 */
+	boot_params->perf_clk_frequency = ivpu_hw_profiling_freq_get(vdev);
 
 	/*
 	 * Uncached region of VPU address space, covers IPC buffers, job queues
@@ -493,6 +556,11 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);
 	boot_params->vpu_telemetry_enable = ivpu_hw_reg_telemetry_enable_get(vdev);
+	boot_params->dvfs_mode = vdev->fw->dvfs_mode;
+	if (!IVPU_WA(disable_d0i3_msg))
+		boot_params->d0i3_delayed_entry = 1;
+	boot_params->d0i3_residency_time_us = 0;
+	boot_params->d0i3_entry_vpu_ts = 0;
 
 	wmb(); /* Flush WC buffers after writing bootparams */
 

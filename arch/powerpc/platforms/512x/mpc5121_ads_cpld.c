@@ -17,6 +17,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
+#include "mpc5121_ads.h"
+
 static struct device_node *cpld_pic_node;
 static struct irq_domain *cpld_pic_host;
 

@@ -16,17 +16,6 @@ static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp5_kms(to_mdp_kms(priv->kms));
 }
 
-static void mdp5_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
-	drm_encoder_cleanup(encoder);
-	kfree(mdp5_encoder);
-}
-
-static const struct drm_encoder_funcs mdp5_encoder_funcs = {
-	.destroy = mdp5_encoder_destroy,
-};
-
 static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
@@ -342,13 +331,11 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 	struct mdp5_encoder *mdp5_encoder;
 	int enc_type = (intf->type == INTF_DSI) ?
 		DRM_MODE_ENCODER_DSI : DRM_MODE_ENCODER_TMDS;
-	int ret;
 
-	mdp5_encoder = kzalloc(sizeof(*mdp5_encoder), GFP_KERNEL);
-	if (!mdp5_encoder) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	mdp5_encoder = drmm_encoder_alloc(dev, struct mdp5_encoder, base,
+					  NULL, enc_type, NULL);
+	if (IS_ERR(mdp5_encoder))
+		return ERR_CAST(mdp5_encoder);
 
 	encoder = &mdp5_encoder->base;
 	mdp5_encoder->ctl = ctl;
@@ -356,15 +343,7 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 
-	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type, NULL);
-
 	drm_encoder_helper_add(encoder, &mdp5_encoder_helper_funcs);
 
 	return encoder;
-
-fail:
-	if (encoder)
-		mdp5_encoder_destroy(encoder);
-
-	return ERR_PTR(ret);
 }

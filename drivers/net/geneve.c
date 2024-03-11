@@ -221,7 +221,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 	struct genevehdr *gnvh = geneve_hdr(skb);
 	struct metadata_dst *tun_dst = NULL;
 	unsigned int len;
-	int err = 0;
+	int nh, err = 0;
 	void *oiph;
 
 	if (ip_tunnel_collect_metadata() || gs->collect_md) {
@@ -234,7 +234,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 					 vni_to_tunnel_id(gnvh->vni),
 					 gnvh->opt_len * 4);
 		if (!tun_dst) {
-			geneve->dev->stats.rx_dropped++;
+			DEV_STATS_INC(geneve->dev, rx_dropped);
 			goto drop;
 		}
 		/* Update tunnel dst according to Geneve options. */
@@ -246,8 +246,8 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		 * since we don't support any...
 		 */
 		if (gnvh->critical) {
-			geneve->dev->stats.rx_frame_errors++;
-			geneve->dev->stats.rx_errors++;
+			DEV_STATS_INC(geneve->dev, rx_frame_errors);
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	}
@@ -263,7 +263,7 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		/* Ignore packet loops (and multicast echo) */
 		if (ether_addr_equal(eth_hdr(skb)->h_source,
 				     geneve->dev->dev_addr)) {
-			geneve->dev->stats.rx_errors++;
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	} else {
@@ -272,8 +272,22 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		skb->pkt_type = PACKET_HOST;
 	}
 
-	oiph = skb_network_header(skb);
+	/* Save offset of outer header relative to skb->head,
+	 * because we are going to reset the network header to the inner header
+	 * and might change skb->head.
+	 */
+	nh = skb_network_header(skb) - skb->head;
+
 	skb_reset_network_header(skb);
+
+	if (!pskb_inet_may_pull(skb)) {
+		DEV_STATS_INC(geneve->dev, rx_length_errors);
+		DEV_STATS_INC(geneve->dev, rx_errors);
+		goto drop;
+	}
+
+	/* Get the outer header. */
+	oiph = skb->head + nh;
 
 	if (geneve_get_sk_family(gs) == AF_INET)
 		err = IP_ECN_decapsulate(oiph, skb);
@@ -296,8 +310,8 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 #endif
 		}
 		if (err > 1) {
-			++geneve->dev->stats.rx_frame_errors;
-			++geneve->dev->stats.rx_errors;
+			DEV_STATS_INC(geneve->dev, rx_frame_errors);
+			DEV_STATS_INC(geneve->dev, rx_errors);
 			goto drop;
 		}
 	}
@@ -377,14 +391,14 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (unlikely((!geneve->cfg.inner_proto_inherit &&
 		      inner_proto != htons(ETH_P_TEB)))) {
-		geneve->dev->stats.rx_dropped++;
+		DEV_STATS_INC(geneve->dev, rx_dropped);
 		goto drop;
 	}
 
 	opts_len = geneveh->opt_len * 4;
 	if (iptunnel_pull_header(skb, GENEVE_BASE_HLEN + opts_len, inner_proto,
 				 !net_eq(geneve->net, dev_net(geneve->dev)))) {
-		geneve->dev->stats.rx_dropped++;
+		DEV_STATS_INC(geneve->dev, rx_dropped);
 		goto drop;
 	}
 
@@ -1007,7 +1021,7 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(!info || !(info->mode & IP_TUNNEL_INFO_TX))) {
 			netdev_dbg(dev, "no tunnel metadata\n");
 			dev_kfree_skb(skb);
-			dev->stats.tx_dropped++;
+			DEV_STATS_INC(dev, tx_dropped);
 			return NETDEV_TX_OK;
 		}
 	} else {
@@ -1030,11 +1044,11 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 
 	if (err == -ELOOP)
-		dev->stats.collisions++;
+		DEV_STATS_INC(dev, collisions);
 	else if (err == -ENETUNREACH)
-		dev->stats.tx_carrier_errors++;
+		DEV_STATS_INC(dev, tx_carrier_errors);
 
-	dev->stats.tx_errors++;
+	DEV_STATS_INC(dev, tx_errors);
 	return NETDEV_TX_OK;
 }
 

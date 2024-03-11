@@ -130,7 +130,7 @@ When an Arm system boots, it can either have DT information, ACPI tables,
 or in some very unusual cases, both.  If no command line parameters are used,
 the kernel will try to use DT for device enumeration; if there is no DT
 present, the kernel will try to use ACPI tables, but only if they are present.
-In neither is available, the kernel will not boot.  If acpi=force is used
+If neither is available, the kernel will not boot.  If acpi=force is used
 on the command line, the kernel will attempt to use ACPI tables first, but
 fall back to DT if there are no ACPI tables present.  The basic idea is that
 the kernel will not fail to boot unless it absolutely has no other choice.

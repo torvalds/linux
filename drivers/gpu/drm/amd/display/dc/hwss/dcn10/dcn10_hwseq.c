@@ -56,6 +56,7 @@
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
 #include "link.h"
+#include "dc_state_priv.h"
 
 #define DC_LOGGER \
 	dc_logger
@@ -115,7 +116,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		    !pipe_ctx->stream ||
 		    (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state) ||
 		    !tg->funcs->is_tg_enabled(tg) ||
-			pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM)
+			dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM)
 			continue;
 
 		if (lock)
@@ -1057,7 +1058,8 @@ static void dcn10_reset_back_end_for_pipe(
 		if (pipe_ctx->stream_res.tg->funcs->set_drr)
 			pipe_ctx->stream_res.tg->funcs->set_drr(
 					pipe_ctx->stream_res.tg, NULL);
-		pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
+		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+			pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1180,7 +1182,9 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn10_plane_atomic_disconnect(struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
@@ -1200,7 +1204,7 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
 	// Phantom pipes have OTG disabled by default, so MPCC_STATUS will never assert idle,
 	// so don't wait for MPCC_IDLE in the programming sequence
-	if (opp != NULL && !pipe_ctx->plane_state->is_phantom)
+	if (opp != NULL && dc_state_get_pipe_subvp_type(state, pipe_ctx) != SUBVP_PHANTOM)
 		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
@@ -1290,7 +1294,7 @@ void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_state = NULL;
 }
 
-void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn10_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -1416,12 +1420,12 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -1486,6 +1490,7 @@ void dcn10_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
+	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	bool   is_optimized_init_done = false;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -1583,12 +1588,14 @@ void dcn10_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			struct dc_link *link = dc->links[i];
 
-			if (link->panel_cntl)
+			if (link->panel_cntl) {
 				backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
+				user_level = link->panel_cntl->stored_backlight_registers.USER_LEVEL;
+			}
 		}
 
 		if (abm != NULL)
-			abm->funcs->abm_init(abm, backlight);
+			abm->funcs->abm_init(abm, backlight, user_level);
 
 		if (dmcu != NULL && !dmcu->auto_load_dmcu)
 			dmcu->funcs->dmcu_init(dmcu);
@@ -2262,6 +2269,7 @@ void dcn10_enable_vblanks_synchronization(
 
 void dcn10_enable_timing_synchronization(
 	struct dc *dc,
+	struct dc_state *state,
 	int group_index,
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
@@ -2276,7 +2284,7 @@ void dcn10_enable_timing_synchronization(
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		opp = grouped_pipes[i]->stream_res.opp;
@@ -2296,14 +2304,14 @@ void dcn10_enable_timing_synchronization(
 		if (grouped_pipes[i]->stream == NULL)
 			continue;
 
-		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream->vblank_synchronized = false;
 	}
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
@@ -2317,11 +2325,11 @@ void dcn10_enable_timing_synchronization(
 	 * synchronized. Look at last pipe programmed to reset.
 	 */
 
-	if (grouped_pipes[1]->stream && grouped_pipes[1]->stream->mall_stream_config.type != SUBVP_PHANTOM)
+	if (grouped_pipes[1]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[1]) != SUBVP_PHANTOM)
 		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
@@ -2329,7 +2337,7 @@ void dcn10_enable_timing_synchronization(
 	}
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && grouped_pipes[i]->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		opp = grouped_pipes[i]->stream_res.opp;
@@ -3021,7 +3029,7 @@ void dcn10_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
-			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable) {

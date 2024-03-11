@@ -1244,6 +1244,7 @@ static int mana_create_eq(struct mana_context *ac)
 	spec.eq.log2_throttle_limit = LOG2_EQ_THROTTLE;
 
 	for (i = 0; i < gc->max_num_queues; i++) {
+		spec.eq.msix_index = (i + 1) % gc->num_msix_usable;
 		err = mana_gd_create_mana_eq(gd, &spec, &ac->eqs[i].eq);
 		if (err)
 			goto out;
@@ -2137,6 +2138,7 @@ static int mana_create_page_pool(struct mana_rxq *rxq, struct gdma_context *gc)
 	pprm.pool_size = RX_BUFFERS_PER_QUEUE;
 	pprm.nid = gc->numa_node;
 	pprm.napi = &rxq->rx_cq.napi;
+	pprm.netdev = rxq->ndev;
 
 	rxq->page_pool = page_pool_create(&pprm);
 
@@ -2385,13 +2387,33 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_GF_STAT,
 			     sizeof(req), sizeof(resp));
-	req.req_stats = STATISTICS_FLAGS_HC_TX_BYTES |
+	req.req_stats = STATISTICS_FLAGS_RX_DISCARDS_NO_WQE |
+			STATISTICS_FLAGS_RX_ERRORS_VPORT_DISABLED |
+			STATISTICS_FLAGS_HC_RX_BYTES |
+			STATISTICS_FLAGS_HC_RX_UCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_UCAST_BYTES |
+			STATISTICS_FLAGS_HC_RX_MCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_MCAST_BYTES |
+			STATISTICS_FLAGS_HC_RX_BCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_BCAST_BYTES |
+			STATISTICS_FLAGS_TX_ERRORS_GF_DISABLED |
+			STATISTICS_FLAGS_TX_ERRORS_VPORT_DISABLED |
+			STATISTICS_FLAGS_TX_ERRORS_INVAL_VPORT_OFFSET_PACKETS |
+			STATISTICS_FLAGS_TX_ERRORS_VLAN_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_ETH_TYPE_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_SA_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_SQPDID_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_CQPDID_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_MTU_VIOLATION |
+			STATISTICS_FLAGS_TX_ERRORS_INVALID_OOB |
+			STATISTICS_FLAGS_HC_TX_BYTES |
 			STATISTICS_FLAGS_HC_TX_UCAST_PACKETS |
 			STATISTICS_FLAGS_HC_TX_UCAST_BYTES |
 			STATISTICS_FLAGS_HC_TX_MCAST_PACKETS |
 			STATISTICS_FLAGS_HC_TX_MCAST_BYTES |
 			STATISTICS_FLAGS_HC_TX_BCAST_PACKETS |
-			STATISTICS_FLAGS_HC_TX_BCAST_BYTES;
+			STATISTICS_FLAGS_HC_TX_BCAST_BYTES |
+			STATISTICS_FLAGS_TX_ERRORS_GDMA_ERROR;
 
 	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
 				sizeof(resp));
@@ -2407,6 +2429,30 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 		return;
 	}
 
+	apc->eth_stats.hc_rx_discards_no_wqe = resp.rx_discards_nowqe;
+	apc->eth_stats.hc_rx_err_vport_disabled = resp.rx_err_vport_disabled;
+	apc->eth_stats.hc_rx_bytes = resp.hc_rx_bytes;
+	apc->eth_stats.hc_rx_ucast_pkts = resp.hc_rx_ucast_pkts;
+	apc->eth_stats.hc_rx_ucast_bytes = resp.hc_rx_ucast_bytes;
+	apc->eth_stats.hc_rx_bcast_pkts = resp.hc_rx_bcast_pkts;
+	apc->eth_stats.hc_rx_bcast_bytes = resp.hc_rx_bcast_bytes;
+	apc->eth_stats.hc_rx_mcast_pkts = resp.hc_rx_mcast_pkts;
+	apc->eth_stats.hc_rx_mcast_bytes = resp.hc_rx_mcast_bytes;
+	apc->eth_stats.hc_tx_err_gf_disabled = resp.tx_err_gf_disabled;
+	apc->eth_stats.hc_tx_err_vport_disabled = resp.tx_err_vport_disabled;
+	apc->eth_stats.hc_tx_err_inval_vportoffset_pkt =
+					     resp.tx_err_inval_vport_offset_pkt;
+	apc->eth_stats.hc_tx_err_vlan_enforcement =
+					     resp.tx_err_vlan_enforcement;
+	apc->eth_stats.hc_tx_err_eth_type_enforcement =
+					     resp.tx_err_ethtype_enforcement;
+	apc->eth_stats.hc_tx_err_sa_enforcement = resp.tx_err_SA_enforcement;
+	apc->eth_stats.hc_tx_err_sqpdid_enforcement =
+					     resp.tx_err_SQPDID_enforcement;
+	apc->eth_stats.hc_tx_err_cqpdid_enforcement =
+					     resp.tx_err_CQPDID_enforcement;
+	apc->eth_stats.hc_tx_err_mtu_violation = resp.tx_err_mtu_violation;
+	apc->eth_stats.hc_tx_err_inval_oob = resp.tx_err_inval_oob;
 	apc->eth_stats.hc_tx_bytes = resp.hc_tx_bytes;
 	apc->eth_stats.hc_tx_ucast_pkts = resp.hc_tx_ucast_pkts;
 	apc->eth_stats.hc_tx_ucast_bytes = resp.hc_tx_ucast_bytes;
@@ -2414,6 +2460,7 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 	apc->eth_stats.hc_tx_bcast_bytes = resp.hc_tx_bcast_bytes;
 	apc->eth_stats.hc_tx_mcast_pkts = resp.hc_tx_mcast_pkts;
 	apc->eth_stats.hc_tx_mcast_bytes = resp.hc_tx_mcast_bytes;
+	apc->eth_stats.hc_tx_err_gdma = resp.tx_err_gdma;
 }
 
 static int mana_init_port(struct net_device *ndev)

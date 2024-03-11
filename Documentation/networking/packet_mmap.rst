@@ -263,20 +263,20 @@ the name indicates, this function allocates pages of memory, and the second
 argument is "order" or a power of two number of pages, that is
 (for PAGE_SIZE == 4096) order=0 ==> 4096 bytes, order=1 ==> 8192 bytes,
 order=2 ==> 16384 bytes, etc. The maximum size of a
-region allocated by __get_free_pages is determined by the MAX_ORDER macro. More
-precisely the limit can be calculated as::
+region allocated by __get_free_pages is determined by the MAX_PAGE_ORDER macro.
+More precisely the limit can be calculated as::
 
-   PAGE_SIZE << MAX_ORDER
+   PAGE_SIZE << MAX_PAGE_ORDER
 
    In a i386 architecture PAGE_SIZE is 4096 bytes
-   In a 2.4/i386 kernel MAX_ORDER is 10
-   In a 2.6/i386 kernel MAX_ORDER is 11
+   In a 2.4/i386 kernel MAX_PAGE_ORDER is 10
+   In a 2.6/i386 kernel MAX_PAGE_ORDER is 11
 
 So get_free_pages can allocate as much as 4MB or 8MB in a 2.4/2.6 kernel
 respectively, with an i386 architecture.
 
 User space programs can include /usr/include/sys/user.h and
-/usr/include/linux/mmzone.h to get PAGE_SIZE MAX_ORDER declarations.
+/usr/include/linux/mmzone.h to get PAGE_SIZE MAX_PAGE_ORDER declarations.
 
 The pagesize can also be determined dynamically with the getpagesize (2)
 system call.
@@ -324,7 +324,7 @@ Definitions:
 		(see /proc/slabinfo)
 <pointer size>  depends on the architecture -- ``sizeof(void *)``
 <page size>     depends on the architecture -- PAGE_SIZE or getpagesize (2)
-<max-order>     is the value defined with MAX_ORDER
+<max-order>     is the value defined with MAX_PAGE_ORDER
 <frame size>    it's an upper bound of frame's capture size (more on this later)
 ==============  ================================================================
 

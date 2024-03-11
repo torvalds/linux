@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
+#include <linux/timekeeping.h>
 
 struct dma_fence;
 struct dma_fence_ops;

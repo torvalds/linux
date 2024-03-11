@@ -14,44 +14,59 @@ struct map_def {
 	u64 end;
 };
 
+struct check_maps_cb_args {
+	struct map_def *merged;
+	unsigned int i;
+};
+
+static int check_maps_cb(struct map *map, void *data)
+{
+	struct check_maps_cb_args *args = data;
+	struct map_def *merged = &args->merged[args->i];
+
+	if (map__start(map) != merged->start ||
+	    map__end(map) != merged->end ||
+	    strcmp(map__dso(map)->name, merged->name) ||
+	    refcount_read(map__refcnt(map)) != 1) {
+		return 1;
+	}
+	args->i++;
+	return 0;
+}
+
+static int failed_cb(struct map *map, void *data __maybe_unused)
+{
+	pr_debug("\tstart: %" PRIu64 " end: %" PRIu64 " name: '%s' refcnt: %d\n",
+		map__start(map),
+		map__end(map),
+		map__dso(map)->name,
+		refcount_read(map__refcnt(map)));
+
+	return 0;
+}
+
 static int check_maps(struct map_def *merged, unsigned int size, struct maps *maps)
 {
-	struct map_rb_node *rb_node;
-	unsigned int i = 0;
 	bool failed = false;
 
 	if (maps__nr_maps(maps) != size) {
 		pr_debug("Expected %d maps, got %d", size, maps__nr_maps(maps));
 		failed = true;
 	} else {
-		maps__for_each_entry(maps, rb_node) {
-			struct map *map = rb_node->map;
-
-			if (map__start(map) != merged[i].start ||
-			    map__end(map) != merged[i].end ||
-			    strcmp(map__dso(map)->name, merged[i].name) ||
-			    refcount_read(map__refcnt(map)) != 1) {
-				failed = true;
-			}
-			i++;
-		}
+		struct check_maps_cb_args args = {
+			.merged = merged,
+			.i = 0,
+		};
+		failed = maps__for_each_map(maps, check_maps_cb, &args);
 	}
 	if (failed) {
 		pr_debug("Expected:\n");
-		for (i = 0; i < size; i++) {
+		for (unsigned int i = 0; i < size; i++) {
 			pr_debug("\tstart: %" PRIu64 " end: %" PRIu64 " name: '%s' refcnt: 1\n",
 				merged[i].start, merged[i].end, merged[i].name);
 		}
 		pr_debug("Got:\n");
-		maps__for_each_entry(maps, rb_node) {
-			struct map *map = rb_node->map;
-
-			pr_debug("\tstart: %" PRIu64 " end: %" PRIu64 " name: '%s' refcnt: %d\n",
-				map__start(map),
-				map__end(map),
-				map__dso(map)->name,
-				refcount_read(map__refcnt(map)));
-		}
+		maps__for_each_map(maps, failed_cb, NULL);
 	}
 	return failed ? TEST_FAIL : TEST_OK;
 }

@@ -7,7 +7,6 @@
 
 #include <linux/bitfield.h>
 #include <linux/highmem.h>
-#include <linux/kthread.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <uapi/drm/ivpu_accel.h>
@@ -23,10 +22,6 @@
 #define JOB_ID_JOB_MASK	     GENMASK(7, 0)
 #define JOB_ID_CONTEXT_MASK  GENMASK(31, 8)
 #define JOB_MAX_BUFFER_COUNT 65535
-
-static unsigned int ivpu_tdr_timeout_ms;
-module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, uint, 0644);
-MODULE_PARM_DESC(tdr_timeout_ms, "Timeout for device hang detection, in milliseconds, 0 - default");
 
 static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 {
@@ -117,22 +112,20 @@ static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engin
 	}
 }
 
-void ivpu_cmdq_release_all(struct ivpu_file_priv *file_priv)
+void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
 {
 	int i;
 
-	mutex_lock(&file_priv->lock);
+	lockdep_assert_held(&file_priv->lock);
 
 	for (i = 0; i < IVPU_NUM_ENGINES; i++)
 		ivpu_cmdq_release_locked(file_priv, i);
-
-	mutex_unlock(&file_priv->lock);
 }
 
 /*
  * Mark the doorbell as unregistered and reset job queue pointers.
  * This function needs to be called when the VPU hardware is restarted
- * and FW looses job queue state. The next time job queue is used it
+ * and FW loses job queue state. The next time job queue is used it
  * will be registered again.
  */
 static void ivpu_cmdq_reset_locked(struct ivpu_file_priv *file_priv, u16 engine)
@@ -166,15 +159,13 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 	struct ivpu_file_priv *file_priv;
 	unsigned long ctx_id;
 
-	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
-		file_priv = ivpu_file_priv_get_by_ctx_id(vdev, ctx_id);
-		if (!file_priv)
-			continue;
+	mutex_lock(&vdev->context_list_lock);
 
+	xa_for_each(&vdev->context_xa, ctx_id, file_priv)
 		ivpu_cmdq_reset_all(file_priv);
 
-		ivpu_file_priv_put(&file_priv);
-	}
+	mutex_unlock(&vdev->context_list_lock);
+
 }
 
 static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
@@ -196,6 +187,8 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	entry->batch_buf_addr = job->cmd_buf_vpu_addr;
 	entry->job_id = job->job_id;
 	entry->flags = 0;
+	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
+		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
 	wmb(); /* Ensure that tail is updated after filling entry */
 	header->tail = next_entry;
 	wmb(); /* Flush WC buffer for jobq header */
@@ -246,60 +239,32 @@ static struct dma_fence *ivpu_fence_create(struct ivpu_device *vdev)
 	return &fence->base;
 }
 
-static void job_get(struct ivpu_job *job, struct ivpu_job **link)
+static void ivpu_job_destroy(struct ivpu_job *job)
 {
-	struct ivpu_device *vdev = job->vdev;
-
-	kref_get(&job->ref);
-	*link = job;
-
-	ivpu_dbg(vdev, KREF, "Job get: id %u refcount %u\n", job->job_id, kref_read(&job->ref));
-}
-
-static void job_release(struct kref *ref)
-{
-	struct ivpu_job *job = container_of(ref, struct ivpu_job, ref);
 	struct ivpu_device *vdev = job->vdev;
 	u32 i;
 
+	ivpu_dbg(vdev, JOB, "Job destroyed: id %3u ctx %2d engine %d",
+		 job->job_id, job->file_priv->ctx.id, job->engine_idx);
+
 	for (i = 0; i < job->bo_count; i++)
 		if (job->bos[i])
-			drm_gem_object_put(&job->bos[i]->base);
+			drm_gem_object_put(&job->bos[i]->base.base);
 
 	dma_fence_put(job->done_fence);
 	ivpu_file_priv_put(&job->file_priv);
-
-	ivpu_dbg(vdev, KREF, "Job released: id %u\n", job->job_id);
 	kfree(job);
-
-	/* Allow the VPU to get suspended, must be called after ivpu_file_priv_put() */
-	ivpu_rpm_put(vdev);
-}
-
-static void job_put(struct ivpu_job *job)
-{
-	struct ivpu_device *vdev = job->vdev;
-
-	ivpu_dbg(vdev, KREF, "Job put: id %u refcount %u\n", job->job_id, kref_read(&job->ref));
-	kref_put(&job->ref, job_release);
 }
 
 static struct ivpu_job *
-ivpu_create_job(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
+ivpu_job_create(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
-	int ret;
-
-	ret = ivpu_rpm_get(vdev);
-	if (ret < 0)
-		return NULL;
 
 	job = kzalloc(struct_size(job, bos, bo_count), GFP_KERNEL);
 	if (!job)
-		goto err_rpm_put;
-
-	kref_init(&job->ref);
+		return NULL;
 
 	job->vdev = vdev;
 	job->engine_idx = engine_idx;
@@ -313,17 +278,14 @@ ivpu_create_job(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 	job->file_priv = ivpu_file_priv_get(file_priv);
 
 	ivpu_dbg(vdev, JOB, "Job created: ctx %2d engine %d", file_priv->ctx.id, job->engine_idx);
-
 	return job;
 
 err_free_job:
 	kfree(job);
-err_rpm_put:
-	ivpu_rpm_put(vdev);
 	return NULL;
 }
 
-static int ivpu_job_done(struct ivpu_device *vdev, u32 job_id, u32 job_status)
+static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 {
 	struct ivpu_job *job;
 
@@ -332,7 +294,7 @@ static int ivpu_job_done(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 		return -ENOENT;
 
 	if (job->file_priv->has_mmu_faults)
-		job_status = VPU_JSM_STATUS_ABORTED;
+		job_status = DRM_IVPU_JOB_STATUS_ABORTED;
 
 	job->bos[CMD_BUF_IDX]->job_status = job_status;
 	dma_fence_signal(job->done_fence);
@@ -340,21 +302,11 @@ static int ivpu_job_done(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d engine %d status 0x%x\n",
 		 job->job_id, job->file_priv->ctx.id, job->engine_idx, job_status);
 
-	job_put(job);
+	ivpu_job_destroy(job);
+	ivpu_stop_job_timeout_detection(vdev);
+
+	ivpu_rpm_put(vdev);
 	return 0;
-}
-
-static void ivpu_job_done_message(struct ivpu_device *vdev, void *msg)
-{
-	struct vpu_ipc_msg_payload_job_done *payload;
-	struct vpu_jsm_msg *job_ret_msg = msg;
-	int ret;
-
-	payload = (struct vpu_ipc_msg_payload_job_done *)&job_ret_msg->payload;
-
-	ret = ivpu_job_done(vdev, payload->job_id, payload->job_status);
-	if (ret)
-		ivpu_err(vdev, "Failed to finish job %d: %d\n", payload->job_id, ret);
 }
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev)
@@ -363,10 +315,10 @@ void ivpu_jobs_abort_all(struct ivpu_device *vdev)
 	unsigned long id;
 
 	xa_for_each(&vdev->submitted_jobs_xa, id, job)
-		ivpu_job_done(vdev, id, VPU_JSM_STATUS_ABORTED);
+		ivpu_job_signal_and_destroy(vdev, id, DRM_IVPU_JOB_STATUS_ABORTED);
 }
 
-static int ivpu_direct_job_submission(struct ivpu_job *job)
+static int ivpu_job_submit(struct ivpu_job *job)
 {
 	struct ivpu_file_priv *file_priv = job->file_priv;
 	struct ivpu_device *vdev = job->vdev;
@@ -374,51 +326,65 @@ static int ivpu_direct_job_submission(struct ivpu_job *job)
 	struct ivpu_cmdq *cmdq;
 	int ret;
 
+	ret = ivpu_rpm_get(vdev);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&file_priv->lock);
 
 	cmdq = ivpu_cmdq_acquire(job->file_priv, job->engine_idx);
 	if (!cmdq) {
-		ivpu_warn(vdev, "Failed get job queue, ctx %d engine %d\n",
-			  file_priv->ctx.id, job->engine_idx);
+		ivpu_warn_ratelimited(vdev, "Failed get job queue, ctx %d engine %d\n",
+				      file_priv->ctx.id, job->engine_idx);
 		ret = -EINVAL;
-		goto err_unlock;
+		goto err_unlock_file_priv;
 	}
 
 	job_id_range.min = FIELD_PREP(JOB_ID_CONTEXT_MASK, (file_priv->ctx.id - 1));
 	job_id_range.max = job_id_range.min | JOB_ID_JOB_MASK;
 
-	job_get(job, &job);
-	ret = xa_alloc(&vdev->submitted_jobs_xa, &job->job_id, job, job_id_range, GFP_KERNEL);
+	xa_lock(&vdev->submitted_jobs_xa);
+	ret = __xa_alloc(&vdev->submitted_jobs_xa, &job->job_id, job, job_id_range, GFP_KERNEL);
 	if (ret) {
-		ivpu_warn_ratelimited(vdev, "Failed to allocate job id: %d\n", ret);
-		goto err_job_put;
+		ivpu_dbg(vdev, JOB, "Too many active jobs in ctx %d\n",
+			 file_priv->ctx.id);
+		ret = -EBUSY;
+		goto err_unlock_submitted_jobs_xa;
 	}
 
 	ret = ivpu_cmdq_push_job(cmdq, job);
 	if (ret)
-		goto err_xa_erase;
+		goto err_erase_xa;
 
-	ivpu_dbg(vdev, JOB, "Job submitted: id %3u addr 0x%llx ctx %2d engine %d next %d\n",
-		 job->job_id, job->cmd_buf_vpu_addr, file_priv->ctx.id,
-		 job->engine_idx, cmdq->jobq->header.tail);
+	ivpu_start_job_timeout_detection(vdev);
 
-	if (ivpu_test_mode == IVPU_TEST_MODE_NULL_HW) {
-		ivpu_job_done(vdev, job->job_id, VPU_JSM_STATUS_SUCCESS);
+	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_HW)) {
 		cmdq->jobq->header.head = cmdq->jobq->header.tail;
 		wmb(); /* Flush WC buffer for jobq header */
 	} else {
 		ivpu_cmdq_ring_db(vdev, cmdq);
 	}
 
+	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d addr 0x%llx next %d\n",
+		 job->job_id, file_priv->ctx.id, job->engine_idx,
+		 job->cmd_buf_vpu_addr, cmdq->jobq->header.tail);
+
+	xa_unlock(&vdev->submitted_jobs_xa);
+
 	mutex_unlock(&file_priv->lock);
+
+	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_HW))
+		ivpu_job_signal_and_destroy(vdev, job->job_id, VPU_JSM_STATUS_SUCCESS);
+
 	return 0;
 
-err_xa_erase:
-	xa_erase(&vdev->submitted_jobs_xa, job->job_id);
-err_job_put:
-	job_put(job);
-err_unlock:
+err_erase_xa:
+	__xa_erase(&vdev->submitted_jobs_xa, job->job_id);
+err_unlock_submitted_jobs_xa:
+	xa_unlock(&vdev->submitted_jobs_xa);
+err_unlock_file_priv:
 	mutex_unlock(&file_priv->lock);
+	ivpu_rpm_put(vdev);
 	return ret;
 }
 
@@ -448,7 +414,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 	}
 
 	bo = job->bos[CMD_BUF_IDX];
-	if (!dma_resv_test_signaled(bo->base.resv, DMA_RESV_USAGE_READ)) {
+	if (!dma_resv_test_signaled(bo->base.base.resv, DMA_RESV_USAGE_READ)) {
 		ivpu_warn(vdev, "Buffer is already in use\n");
 		return -EBUSY;
 	}
@@ -468,7 +434,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 	}
 
 	for (i = 0; i < buf_count; i++) {
-		ret = dma_resv_reserve_fences(job->bos[i]->base.resv, 1);
+		ret = dma_resv_reserve_fences(job->bos[i]->base.base.resv, 1);
 		if (ret) {
 			ivpu_warn(vdev, "Failed to reserve fences: %d\n", ret);
 			goto unlock_reservations;
@@ -477,7 +443,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 
 	for (i = 0; i < buf_count; i++) {
 		usage = (i == CMD_BUF_IDX) ? DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_BOOKKEEP;
-		dma_resv_add_fence(job->bos[i]->base.resv, job->done_fence, usage);
+		dma_resv_add_fence(job->bos[i]->base.base.resv, job->done_fence, usage);
 	}
 
 unlock_reservations:
@@ -498,6 +464,9 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	int idx, ret;
 
 	if (params->engine > DRM_IVPU_ENGINE_COPY)
+		return -EINVAL;
+
+	if (params->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
 		return -EINVAL;
 
 	if (params->buffer_count == 0 || params->buffer_count > JOB_MAX_BUFFER_COUNT)
@@ -521,102 +490,82 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			     params->buffer_count * sizeof(u32));
 	if (ret) {
 		ret = -EFAULT;
-		goto free_handles;
+		goto err_free_handles;
 	}
 
 	if (!drm_dev_enter(&vdev->drm, &idx)) {
 		ret = -ENODEV;
-		goto free_handles;
+		goto err_free_handles;
 	}
 
 	ivpu_dbg(vdev, JOB, "Submit ioctl: ctx %u buf_count %u\n",
 		 file_priv->ctx.id, params->buffer_count);
 
-	job = ivpu_create_job(file_priv, params->engine, params->buffer_count);
+	job = ivpu_job_create(file_priv, params->engine, params->buffer_count);
 	if (!job) {
 		ivpu_err(vdev, "Failed to create job\n");
 		ret = -ENOMEM;
-		goto dev_exit;
+		goto err_exit_dev;
 	}
 
 	ret = ivpu_job_prepare_bos_for_submit(file, job, buf_handles, params->buffer_count,
 					      params->commands_offset);
 	if (ret) {
-		ivpu_err(vdev, "Failed to prepare job, ret %d\n", ret);
-		goto job_put;
+		ivpu_err(vdev, "Failed to prepare job: %d\n", ret);
+		goto err_destroy_job;
 	}
 
-	ret = ivpu_direct_job_submission(job);
-	if (ret) {
-		dma_fence_signal(job->done_fence);
-		ivpu_err(vdev, "Failed to submit job to the HW, ret %d\n", ret);
-	}
+	down_read(&vdev->pm->reset_lock);
+	ret = ivpu_job_submit(job);
+	up_read(&vdev->pm->reset_lock);
+	if (ret)
+		goto err_signal_fence;
 
-job_put:
-	job_put(job);
-dev_exit:
 	drm_dev_exit(idx);
-free_handles:
 	kfree(buf_handles);
+	return ret;
 
+err_signal_fence:
+	dma_fence_signal(job->done_fence);
+err_destroy_job:
+	ivpu_job_destroy(job);
+err_exit_dev:
+	drm_dev_exit(idx);
+err_free_handles:
+	kfree(buf_handles);
 	return ret;
 }
 
-static int ivpu_job_done_thread(void *arg)
+static void
+ivpu_job_done_callback(struct ivpu_device *vdev, struct ivpu_ipc_hdr *ipc_hdr,
+		       struct vpu_jsm_msg *jsm_msg)
 {
-	struct ivpu_device *vdev = (struct ivpu_device *)arg;
-	struct ivpu_ipc_consumer cons;
-	struct vpu_jsm_msg jsm_msg;
-	bool jobs_submitted;
-	unsigned int timeout;
+	struct vpu_ipc_msg_payload_job_done *payload;
 	int ret;
 
-	ivpu_dbg(vdev, JOB, "Started %s\n", __func__);
-
-	ivpu_ipc_consumer_add(vdev, &cons, VPU_IPC_CHAN_JOB_RET);
-
-	while (!kthread_should_stop()) {
-		timeout = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
-		jobs_submitted = !xa_empty(&vdev->submitted_jobs_xa);
-		ret = ivpu_ipc_receive(vdev, &cons, NULL, &jsm_msg, timeout);
-		if (!ret) {
-			ivpu_job_done_message(vdev, &jsm_msg);
-		} else if (ret == -ETIMEDOUT) {
-			if (jobs_submitted && !xa_empty(&vdev->submitted_jobs_xa)) {
-				ivpu_err(vdev, "TDR detected, timeout %d ms", timeout);
-				ivpu_hw_diagnose_failure(vdev);
-				ivpu_pm_schedule_recovery(vdev);
-			}
-		}
+	if (!jsm_msg) {
+		ivpu_err(vdev, "IPC message has no JSM payload\n");
+		return;
 	}
 
-	ivpu_ipc_consumer_del(vdev, &cons);
-
-	ivpu_jobs_abort_all(vdev);
-
-	ivpu_dbg(vdev, JOB, "Stopped %s\n", __func__);
-	return 0;
-}
-
-int ivpu_job_done_thread_init(struct ivpu_device *vdev)
-{
-	struct task_struct *thread;
-
-	thread = kthread_run(&ivpu_job_done_thread, (void *)vdev, "ivpu_job_done_thread");
-	if (IS_ERR(thread)) {
-		ivpu_err(vdev, "Failed to start job completion thread\n");
-		return -EIO;
+	if (jsm_msg->result != VPU_JSM_STATUS_SUCCESS) {
+		ivpu_err(vdev, "Invalid JSM message result: %d\n", jsm_msg->result);
+		return;
 	}
 
-	get_task_struct(thread);
-	wake_up_process(thread);
-
-	vdev->job_done_thread = thread;
-
-	return 0;
+	payload = (struct vpu_ipc_msg_payload_job_done *)&jsm_msg->payload;
+	ret = ivpu_job_signal_and_destroy(vdev, payload->job_id, payload->job_status);
+	if (!ret && !xa_empty(&vdev->submitted_jobs_xa))
+		ivpu_start_job_timeout_detection(vdev);
 }
 
-void ivpu_job_done_thread_fini(struct ivpu_device *vdev)
+void ivpu_job_done_consumer_init(struct ivpu_device *vdev)
 {
-	kthread_stop_put(vdev->job_done_thread);
+	ivpu_ipc_consumer_add(vdev, &vdev->job_done_consumer,
+			      VPU_IPC_CHAN_JOB_RET, ivpu_job_done_callback);
+}
+
+void ivpu_job_done_consumer_fini(struct ivpu_device *vdev)
+{
+	ivpu_ipc_consumer_del(vdev, &vdev->job_done_consumer);
 }

@@ -772,18 +772,29 @@ static unsigned int get_mpc_factor(struct dml2_context *ctx,
 		const struct dc_state *state,
 		const struct dml_display_cfg_st *disp_cfg,
 		struct dml2_dml_to_dc_pipe_mapping *mapping,
-		const struct dc_stream_status *status, unsigned int stream_id,
+		const struct dc_stream_status *status,
+		const struct dc_stream_state *stream,
 		int plane_idx)
 {
 	unsigned int plane_id;
 	unsigned int cfg_idx;
+	unsigned int mpc_factor;
 
-	get_plane_id(ctx, state, status->plane_states[plane_idx], stream_id, plane_idx, &plane_id);
+	get_plane_id(ctx, state, status->plane_states[plane_idx],
+			stream->stream_id, plane_idx, &plane_id);
 	cfg_idx = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
-	if (ctx->architecture == dml2_architecture_20)
-		return (unsigned int)disp_cfg->hw.DPPPerSurface[cfg_idx];
-	ASSERT(false);
-	return 1;
+	if (ctx->architecture == dml2_architecture_20) {
+		mpc_factor = (unsigned int)disp_cfg->hw.DPPPerSurface[cfg_idx];
+	} else {
+		mpc_factor = 1;
+		ASSERT(false);
+	}
+
+	/* For stereo timings, we need to pipe split */
+	if (dml2_is_stereo_timing(stream))
+		mpc_factor = 2;
+
+	return mpc_factor;
 }
 
 static unsigned int get_odm_factor(
@@ -820,14 +831,13 @@ static void populate_mpc_factors_for_stream(
 		unsigned int mpc_factors[MAX_PIPES])
 {
 	const struct dc_stream_status *status = &state->stream_status[stream_idx];
-	unsigned int stream_id = state->streams[stream_idx]->stream_id;
 	int i;
 
 	for (i = 0; i < status->plane_count; i++)
 		if (odm_factor == 1)
 			mpc_factors[i] = get_mpc_factor(
 					ctx, state, disp_cfg, mapping, status,
-					stream_id, i);
+					state->streams[stream_idx], i);
 		else
 			mpc_factors[i] = 1;
 }

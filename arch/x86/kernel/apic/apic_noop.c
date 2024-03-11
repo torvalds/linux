@@ -47,7 +47,6 @@ static void noop_apic_write(u32 reg, u32 val)
 struct apic apic_noop __ro_after_init = {
 	.name				= "noop",
 
-	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,

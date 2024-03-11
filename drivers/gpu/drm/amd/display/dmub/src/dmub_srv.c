@@ -64,7 +64,7 @@
 
 
 /* Default scratch mem size. */
-#define DMUB_SCRATCH_MEM_SIZE (256)
+#define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Number of windows in use. */
 #define DMUB_NUM_WINDOWS (DMUB_WINDOW_TOTAL)
@@ -713,6 +713,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub->hw_funcs.reset_release(dmub);
 
 	dmub->hw_init = true;
+	dmub->power_state = DMUB_POWER_STATE_D0;
 
 	return DMUB_STATUS_OK;
 }
@@ -766,6 +767,9 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
+	if (dmub->power_state != DMUB_POWER_STATE_D0)
+		return DMUB_STATUS_POWER_STATE_D3;
+
 	if (dmub->inbox1_rb.rptr > dmub->inbox1_rb.capacity ||
 	    dmub->inbox1_rb.wrpt > dmub->inbox1_rb.capacity) {
 		return DMUB_STATUS_HW_FAILURE;
@@ -783,6 +787,9 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
+
+	if (dmub->power_state != DMUB_POWER_STATE_D0)
+		return DMUB_STATUS_POWER_STATE_D3;
 
 	/**
 	 * Read back all the queued commands to ensure that they've
@@ -1099,4 +1106,12 @@ void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_
 				addr,
 				subvp_index);
 	}
+}
+
+void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state)
+{
+	if (!dmub || !dmub->hw_init)
+		return;
+
+	dmub->power_state = dmub_srv_power_state;
 }

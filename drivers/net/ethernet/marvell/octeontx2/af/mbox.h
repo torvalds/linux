@@ -304,6 +304,13 @@ M(NIX_BANDPROF_GET_HWINFO, 0x801f, nix_bandprof_get_hwinfo, msg_req,		\
 				nix_bandprof_get_hwinfo_rsp)		    \
 M(NIX_READ_INLINE_IPSEC_CFG, 0x8023, nix_read_inline_ipsec_cfg,		\
 				msg_req, nix_inline_ipsec_cfg)		\
+M(NIX_MCAST_GRP_CREATE,	0x802b, nix_mcast_grp_create, nix_mcast_grp_create_req,	\
+				nix_mcast_grp_create_rsp)			\
+M(NIX_MCAST_GRP_DESTROY, 0x802c, nix_mcast_grp_destroy, nix_mcast_grp_destroy_req,	\
+				msg_rsp)					\
+M(NIX_MCAST_GRP_UPDATE, 0x802d, nix_mcast_grp_update,				\
+				nix_mcast_grp_update_req,			\
+				nix_mcast_grp_update_rsp)			\
 /* MCS mbox IDs (range 0xA000 - 0xBFFF) */					\
 M(MCS_ALLOC_RESOURCES,	0xa000, mcs_alloc_resources, mcs_alloc_rsrc_req,	\
 				mcs_alloc_rsrc_rsp)				\
@@ -830,6 +837,9 @@ enum nix_af_status {
 	NIX_AF_ERR_CQ_CTX_WRITE_ERR  = -429,
 	NIX_AF_ERR_AQ_CTX_RETRY_WRITE  = -430,
 	NIX_AF_ERR_LINK_CREDITS  = -431,
+	NIX_AF_ERR_INVALID_MCAST_GRP	= -436,
+	NIX_AF_ERR_INVALID_MCAST_DEL_REQ = -437,
+	NIX_AF_ERR_NON_CONTIG_MCE_LIST = -438,
 };
 
 /* For NIX RX vtag action  */
@@ -1204,6 +1214,68 @@ struct nix_bp_cfg_rsp {
 	u8	chan_cnt; /* Number of channel for which bpids are assigned */
 };
 
+struct nix_mcast_grp_create_req {
+	struct mbox_msghdr hdr;
+#define NIX_MCAST_INGRESS	0
+#define NIX_MCAST_EGRESS	1
+	u8 dir;
+	u8 reserved[11];
+	/* Reserving few bytes for future requirement */
+};
+
+struct nix_mcast_grp_create_rsp {
+	struct mbox_msghdr hdr;
+	/* This mcast_grp_idx should be passed during MCAM
+	 * write entry for multicast. AF will identify the
+	 * corresponding multicast table index associated
+	 * with the group id and program the same to MCAM entry.
+	 * This group id is also needed during group delete
+	 * and update request.
+	 */
+	u32 mcast_grp_idx;
+};
+
+struct nix_mcast_grp_destroy_req {
+	struct mbox_msghdr hdr;
+	/* Group id returned by nix_mcast_grp_create_rsp */
+	u32 mcast_grp_idx;
+	/* If AF is requesting for destroy, then set
+	 * it to '1'. Otherwise keep it to '0'
+	 */
+	u8 is_af;
+};
+
+struct nix_mcast_grp_update_req {
+	struct mbox_msghdr hdr;
+	/* Group id returned by nix_mcast_grp_create_rsp */
+	u32 mcast_grp_idx;
+	/* Number of multicast/mirror entries requested */
+	u32 num_mce_entry;
+#define NIX_MCE_ENTRY_MAX 64
+#define NIX_RX_RQ	0
+#define NIX_RX_RSS	1
+	/* Receive queue or RSS index within pf_func */
+	u32 rq_rss_index[NIX_MCE_ENTRY_MAX];
+	/* pcifunc is required for both ingress and egress multicast */
+	u16 pcifunc[NIX_MCE_ENTRY_MAX];
+	/* channel is required for egress multicast */
+	u16 channel[NIX_MCE_ENTRY_MAX];
+#define NIX_MCAST_OP_ADD_ENTRY	0
+#define NIX_MCAST_OP_DEL_ENTRY	1
+	/* Destination type. 0:Receive queue, 1:RSS*/
+	u8 dest_type[NIX_MCE_ENTRY_MAX];
+	u8 op;
+	/* If AF is requesting for update, then set
+	 * it to '1'. Otherwise keep it to '0'
+	 */
+	u8 is_af;
+};
+
+struct nix_mcast_grp_update_rsp {
+	struct mbox_msghdr hdr;
+	u32 mce_start_index;
+};
+
 /* Global NIX inline IPSec configuration */
 struct nix_inline_ipsec_cfg {
 	struct mbox_msghdr hdr;
@@ -1479,6 +1551,8 @@ struct flow_msg {
 #define OTX2_FLOWER_MASK_MPLS_TTL		GENMASK(7, 0)
 #define OTX2_FLOWER_MASK_MPLS_NON_TTL		GENMASK(31, 8)
 	u32 mpls_lse[4];
+	u8 icmp_type;
+	u8 icmp_code;
 };
 
 struct npc_install_flow_req {

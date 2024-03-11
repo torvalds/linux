@@ -76,7 +76,7 @@ struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 	/* there shouldn't be an existing inode */
 	BUG_ON(!(inode->i_state & I_NEW));
 
-	netfs_inode_init(&vnode->netfs, NULL);
+	netfs_inode_init(&vnode->netfs, NULL, false);
 	inode->i_size		= 0;
 	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
 	if (root) {
@@ -258,16 +258,7 @@ const struct inode_operations afs_dynroot_inode_operations = {
 	.lookup		= afs_dynroot_lookup,
 };
 
-/*
- * Dirs in the dynamic root don't need revalidation.
- */
-static int afs_dynroot_d_revalidate(struct dentry *dentry, unsigned int flags)
-{
-	return 1;
-}
-
 const struct dentry_operations afs_dynroot_dentry_operations = {
-	.d_revalidate	= afs_dynroot_d_revalidate,
 	.d_delete	= always_delete_dentry,
 	.d_release	= afs_d_release,
 	.d_automount	= afs_d_automount,
@@ -373,7 +364,7 @@ error:
 void afs_dynroot_depopulate(struct super_block *sb)
 {
 	struct afs_net *net = afs_sb2net(sb);
-	struct dentry *root = sb->s_root, *subdir, *tmp;
+	struct dentry *root = sb->s_root, *subdir;
 
 	/* Prevent more subdirs from being created */
 	mutex_lock(&net->proc_cells_lock);
@@ -382,10 +373,11 @@ void afs_dynroot_depopulate(struct super_block *sb)
 	mutex_unlock(&net->proc_cells_lock);
 
 	if (root) {
+		struct hlist_node *n;
 		inode_lock(root->d_inode);
 
 		/* Remove all the pins for dirs created for manually added cells */
-		list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
+		hlist_for_each_entry_safe(subdir, n, &root->d_children, d_sib) {
 			if (subdir->d_fsdata) {
 				subdir->d_fsdata = NULL;
 				dput(subdir);

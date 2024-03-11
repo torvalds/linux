@@ -326,6 +326,9 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			if (!connector->state || connector->state->crtc != crtc)
 				continue;
 
+			if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+				continue;
+
 			aconn = to_amdgpu_dm_connector(connector);
 			break;
 		}

@@ -475,11 +475,11 @@ static int __net_init fib6_rules_net_init(struct net *net)
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 
-	err = fib_default_rule_add(ops, 0, RT6_TABLE_LOCAL, 0);
+	err = fib_default_rule_add(ops, 0, RT6_TABLE_LOCAL);
 	if (err)
 		goto out_fib6_rules_ops;
 
-	err = fib_default_rule_add(ops, 0x7FFE, RT6_TABLE_MAIN, 0);
+	err = fib_default_rule_add(ops, 0x7FFE, RT6_TABLE_MAIN);
 	if (err)
 		goto out_fib6_rules_ops;
 

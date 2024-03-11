@@ -42,17 +42,17 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 
 	/* fill up the first buffer */
 	prod = txr->tx_prod;
-	tx_buf = &txr->tx_buf_ring[prod];
+	tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 	tx_buf->nr_frags = num_frags;
 	if (xdp)
 		tx_buf->page = virt_to_head_page(xdp->data);
 
-	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+	txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 	flags = (len << TX_BD_LEN_SHIFT) |
 		((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT) |
 		bnxt_lhint_arr[len >> 9];
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
-	txbd->tx_bd_opaque = prod;
+	txbd->tx_bd_opaque = SET_TX_OPAQUE(bp, txr, prod, 1 + num_frags);
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
 
 	/* now let us fill up the frags into the next buffers */
@@ -66,10 +66,10 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 		WRITE_ONCE(txr->tx_prod, prod);
 
 		/* first fill up the first buffer */
-		frag_tx_buf = &txr->tx_buf_ring[prod];
+		frag_tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 		frag_tx_buf->page = skb_frag_page(frag);
 
-		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+		txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 
 		frag_len = skb_frag_size(frag);
 		flags = frag_len << TX_BD_LEN_SHIFT;
@@ -120,20 +120,20 @@ static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
 
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 {
-	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+	struct bnxt_tx_ring_info *txr = bnapi->tx_ring[0];
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	u16 tx_hw_cons = txr->tx_hw_cons;
 	bool rx_doorbell_needed = false;
-	int nr_pkts = bnapi->tx_pkts;
 	struct bnxt_sw_tx_bd *tx_buf;
 	u16 tx_cons = txr->tx_cons;
 	u16 last_tx_cons = tx_cons;
-	int i, j, frags;
+	int j, frags;
 
 	if (!budget)
 		return;
 
-	for (i = 0; i < nr_pkts; i++) {
-		tx_buf = &txr->tx_buf_ring[tx_cons];
+	while (RING_TX(bp, tx_cons) != tx_hw_cons) {
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, tx_cons)];
 
 		if (tx_buf->action == XDP_REDIRECT) {
 			struct pci_dev *pdev = bp->pdev;
@@ -153,20 +153,20 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 			frags = tx_buf->nr_frags;
 			for (j = 0; j < frags; j++) {
 				tx_cons = NEXT_TX(tx_cons);
-				tx_buf = &txr->tx_buf_ring[tx_cons];
+				tx_buf = &txr->tx_buf_ring[RING_TX(bp, tx_cons)];
 				page_pool_recycle_direct(rxr->page_pool, tx_buf->page);
 			}
 		} else {
-			bnxt_sched_reset_txr(bp, txr, i);
+			bnxt_sched_reset_txr(bp, txr, tx_cons);
 			return;
 		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
 
-	bnapi->tx_pkts = 0;
+	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 	WRITE_ONCE(txr->tx_cons, tx_cons);
 	if (rx_doorbell_needed) {
-		tx_buf = &txr->tx_buf_ring[last_tx_cons];
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, last_tx_cons)];
 		bnxt_db_write(bp, &rxr->rx_db, tx_buf->rx_prod);
 
 	}
@@ -242,7 +242,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	pdev = bp->pdev;
 	offset = bp->rx_offset;
 
-	txr = rxr->bnapi->tx_ring;
+	txr = rxr->bnapi->tx_ring[0];
 	/* BNXT_RX_PAGE_MODE(bp) when XDP enabled */
 	orig_data = xdp.data;
 
@@ -268,7 +268,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	case XDP_TX:
 		rx_buf = &rxr->rx_buf_ring[cons];
 		mapping = rx_buf->mapping - bp->rx_dma_offset;
-		*event = 0;
+		*event &= BNXT_TX_CMP_EVENT;
 
 		if (unlikely(xdp_buff_has_frags(&xdp))) {
 			struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(&xdp);
@@ -391,7 +391,7 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 {
 	struct net_device *dev = bp->dev;
-	int tx_xdp = 0, rc, tc;
+	int tx_xdp = 0, tx_cp, rc, tc;
 	struct bpf_prog *old;
 
 	if (prog && !prog->aux->xdp_has_frags &&
@@ -407,7 +407,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	if (prog)
 		tx_xdp = bp->rx_nr_rings;
 
-	tc = netdev_get_num_tc(dev);
+	tc = bp->num_tc;
 	if (!tc)
 		tc = 1;
 	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
@@ -439,7 +439,8 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	}
 	bp->tx_nr_rings_xdp = tx_xdp;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc + tx_xdp;
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = max_t(int, tx_cp, bp->rx_nr_rings);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 

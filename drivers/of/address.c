@@ -955,7 +955,6 @@ int of_dma_get_range(struct device_node *np, const struct bus_dma_region **map)
 		r->cpu_start = range.cpu_addr;
 		r->dma_start = range.bus_addr;
 		r->size = range.size;
-		r->offset = range.cpu_addr - range.bus_addr;
 		r++;
 	}
 out:

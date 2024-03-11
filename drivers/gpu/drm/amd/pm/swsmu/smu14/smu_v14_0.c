@@ -224,18 +224,16 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 	if (smu->is_apu)
 		adev->pm.fw_version = smu_version;
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(14, 0, 2):
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
 		break;
 	case IP_VERSION(14, 0, 0):
-		if ((smu->smc_fw_version < 0x5d3a00))
-			dev_warn(smu->adev->dev, "The PMFW version(%x) is behind in this BIOS!\n", smu->smc_fw_version);
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_0;
 		break;
 	default:
 		dev_err(adev->dev, "smu unsupported IP version: 0x%x.\n",
-			adev->ip_versions[MP1_HWIP][0]);
+			amdgpu_ip_version(adev, MP1_HWIP, 0));
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_INV;
 		break;
 	}
@@ -733,7 +731,7 @@ int smu_v14_0_gfx_off_control(struct smu_context *smu, bool enable)
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 0):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))

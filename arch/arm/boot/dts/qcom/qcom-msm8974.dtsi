@@ -346,6 +346,20 @@
 			reg = <0xf9011000 0x1000>;
 		};
 
+		saw_l2: power-controller@f9012000 {
+			compatible = "qcom,saw2";
+			reg = <0xf9012000 0x1000>;
+			regulator;
+		};
+
+		watchdog@f9017000 {
+			compatible = "qcom,apss-wdt-msm8974", "qcom,kpss-wdt";
+			reg = <0xf9017000 0x1000>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sleep_clk>;
+		};
+
 		timer@f9020000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -405,35 +419,14 @@
 			};
 		};
 
-		saw0: power-controller@f9089000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw1: power-controller@f9099000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw2: power-controller@f90a9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw3: power-controller@f90b9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw_l2: power-controller@f9012000 {
-			compatible = "qcom,saw2";
-			reg = <0xf9012000 0x1000>;
-			regulator;
-		};
-
 		acc0: power-manager@f9088000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf9088000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw0: power-controller@f9089000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		acc1: power-manager@f9098000 {
@@ -441,14 +434,29 @@
 			reg = <0xf9098000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw1: power-controller@f9099000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc2: power-manager@f90a8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90a8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw2: power-controller@f90a9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc3: power-manager@f90b8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90b8000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw3: power-controller@f90b9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		sdhc_1: mmc@f9824900 {
@@ -1063,6 +1071,15 @@
 			};
 		};
 
+		bimc: interconnect@fc380000 {
+			reg = <0xfc380000 0x6a000>;
+			compatible = "qcom,msm8974-bimc";
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
+				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
+		};
+
 		gcc: clock-controller@fc400000 {
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
@@ -1101,22 +1118,13 @@
 			};
 		};
 
-		bimc: interconnect@fc380000 {
-			reg = <0xfc380000 0x6a000>;
-			compatible = "qcom,msm8974-bimc";
-			#interconnect-cells = <1>;
-			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
-			         <&rpmcc RPM_SMD_BIMC_A_CLK>;
-		};
-
 		snoc: interconnect@fc460000 {
 			reg = <0xfc460000 0x4000>;
 			compatible = "qcom,msm8974-snoc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
-			         <&rpmcc RPM_SMD_SNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
 		};
 
 		pnoc: interconnect@fc468000 {
@@ -1125,7 +1133,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
-			         <&rpmcc RPM_SMD_PNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_PNOC_A_CLK>;
 		};
 
 		ocmemnoc: interconnect@fc470000 {
@@ -1134,7 +1142,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
-			         <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
+				 <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
 		};
 
 		mmssnoc: interconnect@fc478000 {
@@ -1143,7 +1151,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&mmcc MMSS_S0_AXI_CLK>,
-			         <&mmcc MMSS_S0_AXI_CLK>;
+				 <&mmcc MMSS_S0_AXI_CLK>;
 		};
 
 		cnoc: interconnect@fc480000 {
@@ -1152,7 +1160,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
-			         <&rpmcc RPM_SMD_CNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
 		};
 
 		tsens: thermal-sensor@fc4a9000 {
@@ -1631,13 +1639,6 @@
 				data-pins {
 					pins = "sdc2_data";
 					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				cd-pins {
-					pins = "gpio54";
-					function = "gpio";
-					bias-disable;
 					drive-strength = <2>;
 				};
 			};
@@ -2407,32 +2408,5 @@
 			     <GIC_PPI 4 0xf08>,
 			     <GIC_PPI 1 0xf08>;
 		clock-frequency = <19200000>;
-	};
-
-	vreg_boost: vreg-boost {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vreg-boost";
-		regulator-min-microvolt = <3150000>;
-		regulator-max-microvolt = <3150000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-
-		gpio = <&pm8941_gpios 21 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&boost_bypass_n_pin>;
-	};
-
-	vreg_vph_pwr: vreg-vph-pwr {
-		compatible = "regulator-fixed";
-		regulator-name = "vph-pwr";
-
-		regulator-min-microvolt = <3600000>;
-		regulator-max-microvolt = <3600000>;
-
-		regulator-always-on;
 	};
 };

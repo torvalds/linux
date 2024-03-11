@@ -70,35 +70,42 @@ When the time comes for Xe, the protection will be lifted on Xe and kept in i915
 Xe – Pre-Merge Goals - Work-in-Progress
 =======================================
 
-Drm_scheduler
--------------
-Xe primarily uses Firmware based scheduling (GuC FW). However, it will use
-drm_scheduler as the scheduler ‘frontend’ for userspace submission in order to
-resolve syncobj and dma-buf implicit sync dependencies. However, drm_scheduler is
-not yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
-drm_sched_entity.
+Display integration with i915
+-----------------------------
+In order to share the display code with the i915 driver so that there is maximum
+reuse, the i915/display/ code is built twice, once for i915.ko and then for
+xe.ko. Currently, the i915/display code in Xe tree is polluted with many 'ifdefs'
+depending on the build target. The goal is to refactor both Xe and i915/display
+code simultaneously in order to get a clean result before they land upstream, so
+that display can already be part of the initial pull request towards drm-next.
 
-Deeper changes to drm_scheduler should *not* be required to get Xe accepted, but
-some consensus needs to be reached between Xe and other community drivers that
-could also benefit from this work, for coupling FW based/assisted submission such
-as the ARM’s new Mali GPU driver, and others.
+However, display code should not gate the acceptance of Xe in upstream. Xe
+patches will be refactored in a way that display code can be removed, if needed,
+from the first pull request of Xe towards drm-next. The expectation is that when
+both drivers are part of the drm-tip, the introduction of cleaner patches will be
+easier and speed up.
 
-As a key measurable result, the patch series introducing Xe itself shall not
-depend on any other patch touching drm_scheduler itself that was not yet merged
-through drm-misc. This, by itself, already includes the reach of an agreement for
-uniform 1 to 1 relationship implementation / usage across drivers.
+Xe – uAPI high level overview
+=============================
 
-ASYNC VM_BIND
--------------
-Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
-Xe merged, it is mandatory to have a consensus with other drivers and Mesa.
-It needs to be clear how to handle async VM_BIND and interactions with userspace
-memory fences. Ideally with helper support so people don't get it wrong in all
-possible ways.
+...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
 
-As a key measurable result, the benefits of ASYNC VM_BIND and a discussion of
-various flavors, error handling and sample API suggestions are documented in
-:doc:`The ASYNC VM_BIND document </gpu/drm-vm-bind-async>`.
+Xe – Pre-Merge Goals - Completed
+================================
+
+Drm_exec
+--------
+Helper to make dma_resv locking for a big number of buffers is getting removed in
+the drm_exec series proposed in https://patchwork.freedesktop.org/patch/524376/
+If that happens, Xe needs to change and incorporate the changes in the driver.
+The goal is to engage with the Community to understand if the best approach is to
+move that to the drivers that are using it or if we should keep the helpers in
+place waiting for Xe to get merged.
+
+This item ties into the GPUVA, VM_BIND, and even long-running compute support.
+
+As a key measurable result, we need to have a community consensus documented in
+this document and the Xe driver prepared for the changes, if necessary.
 
 Userptr integration and vm_bind
 -------------------------------
@@ -123,9 +130,44 @@ Documentation should include:
 
  * O(1) complexity under VM_BIND.
 
+The document is now included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
+
 Some parts of userptr like mmu_notifiers should become GPUVA or DRM helpers when
 the second driver supporting VM_BIND+userptr appears. Details to be defined when
 the time comes.
+
+The DRM GPUVM helpers do not yet include the userptr parts, but discussions
+about implementing them are ongoing.
+
+ASYNC VM_BIND
+-------------
+Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
+Xe merged, it is mandatory to have a consensus with other drivers and Mesa.
+It needs to be clear how to handle async VM_BIND and interactions with userspace
+memory fences. Ideally with helper support so people don't get it wrong in all
+possible ways.
+
+As a key measurable result, the benefits of ASYNC VM_BIND and a discussion of
+various flavors, error handling and sample API suggestions are documented in
+:doc:`The ASYNC VM_BIND document </gpu/drm-vm-bind-async>`.
+
+Drm_scheduler
+-------------
+Xe primarily uses Firmware based scheduling (GuC FW). However, it will use
+drm_scheduler as the scheduler ‘frontend’ for userspace submission in order to
+resolve syncobj and dma-buf implicit sync dependencies. However, drm_scheduler is
+not yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
+drm_sched_entity.
+
+Deeper changes to drm_scheduler should *not* be required to get Xe accepted, but
+some consensus needs to be reached between Xe and other community drivers that
+could also benefit from this work, for coupling FW based/assisted submission such
+as the ARM’s new Mali GPU driver, and others.
+
+As a key measurable result, the patch series introducing Xe itself shall not
+depend on any other patch touching drm_scheduler itself that was not yet merged
+through drm-misc. This, by itself, already includes the reach of an agreement for
+uniform 1 to 1 relationship implementation / usage across drivers.
 
 Long running compute: minimal data structure/scaffolding
 --------------------------------------------------------
@@ -138,46 +180,6 @@ The goal is to achieve a consensus ahead of Xe initial pull-request, ideally wit
 this minimal drm/scheduler work, if needed, merged to drm-misc in a way that any
 drm driver, including Xe, could re-use and add their own individual needs on top
 in a next stage. However, this should not block the initial merge.
-
-This is a non-blocker item since the driver without the support for the long
-running compute enabled is not a showstopper.
-
-Display integration with i915
------------------------------
-In order to share the display code with the i915 driver so that there is maximum
-reuse, the i915/display/ code is built twice, once for i915.ko and then for
-xe.ko. Currently, the i915/display code in Xe tree is polluted with many 'ifdefs'
-depending on the build target. The goal is to refactor both Xe and i915/display
-code simultaneously in order to get a clean result before they land upstream, so
-that display can already be part of the initial pull request towards drm-next.
-
-However, display code should not gate the acceptance of Xe in upstream. Xe
-patches will be refactored in a way that display code can be removed, if needed,
-from the first pull request of Xe towards drm-next. The expectation is that when
-both drivers are part of the drm-tip, the introduction of cleaner patches will be
-easier and speed up.
-
-Drm_exec
---------
-Helper to make dma_resv locking for a big number of buffers is getting removed in
-the drm_exec series proposed in https://patchwork.freedesktop.org/patch/524376/
-If that happens, Xe needs to change and incorporate the changes in the driver.
-The goal is to engage with the Community to understand if the best approach is to
-move that to the drivers that are using it or if we should keep the helpers in
-place waiting for Xe to get merged.
-
-This item ties into the GPUVA, VM_BIND, and even long-running compute support.
-
-As a key measurable result, we need to have a community consensus documented in
-this document and the Xe driver prepared for the changes, if necessary.
-
-Xe – uAPI high level overview
-=============================
-
-...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
-
-Xe – Pre-Merge Goals - Completed
-================================
 
 Dev_coredump
 ------------

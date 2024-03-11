@@ -15,8 +15,11 @@
 struct ethtool_ts_info;
 void efx_siena_ptp_defer_probe_with_channel(struct efx_nic *efx);
 struct efx_channel *efx_siena_ptp_channel(struct efx_nic *efx);
-int efx_siena_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
-int efx_siena_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
+int efx_siena_ptp_set_ts_config(struct efx_nic *efx,
+				struct kernel_hwtstamp_config *config,
+				struct netlink_ext_ack *extack);
+int efx_siena_ptp_get_ts_config(struct efx_nic *efx,
+				struct kernel_hwtstamp_config *config);
 void efx_siena_ptp_get_ts_info(struct efx_nic *efx,
 			       struct ethtool_ts_info *ts_info);
 bool efx_siena_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);

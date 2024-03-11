@@ -194,7 +194,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	int requested_events, i;
+	int requested_events;
 
 	if (period_ns < lpc18xx_pwm->min_period_ns ||
 	    period_ns > lpc18xx_pwm->max_period_ns) {
@@ -223,8 +223,6 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if ((requested_events <= 2 && lpc18xx_pwm->period_ns != period_ns) ||
 	    !lpc18xx_pwm->period_ns) {
 		lpc18xx_pwm->period_ns = period_ns;
-		for (i = 0; i < chip->npwm; i++)
-			pwm_set_period(&chip->pwms[i], period_ns);
 		lpc18xx_pwm_config_period(chip, period_ns);
 	}
 
@@ -328,7 +326,7 @@ static int lpc18xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = lpc18xx_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = lpc18xx_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 

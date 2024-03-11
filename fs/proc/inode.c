@@ -30,7 +30,6 @@
 
 static void proc_evict_inode(struct inode *inode)
 {
-	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
 	struct proc_inode *ei = PROC_I(inode);
 
@@ -38,17 +37,8 @@ static void proc_evict_inode(struct inode *inode)
 	clear_inode(inode);
 
 	/* Stop tracking associated processes */
-	if (ei->pid) {
+	if (ei->pid)
 		proc_pid_evict_inode(ei);
-		ei->pid = NULL;
-	}
-
-	/* Let go of any associated proc directory entry */
-	de = ei->pde;
-	if (de) {
-		pde_put(de);
-		ei->pde = NULL;
-	}
 
 	head = ei->sysctl;
 	if (head) {
@@ -80,6 +70,13 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 
 static void proc_free_inode(struct inode *inode)
 {
+	struct proc_inode *ei = PROC_I(inode);
+
+	if (ei->pid)
+		put_pid(ei->pid);
+	/* Let go of any associated proc directory entry */
+	if (ei->pde)
+		pde_put(ei->pde);
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 

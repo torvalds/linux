@@ -4,11 +4,8 @@
 Linux Input Subsystem kernel API
 ################################
 
-.. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+   :caption: Table of Contents
    :maxdepth: 2
    :numbered:
 

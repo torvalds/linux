@@ -237,14 +237,16 @@ static int hgcm_call_preprocess_linaddr(
 }
 
 /**
- * Preprocesses the HGCM call, validate parameters, alloc bounce buffers and
- * figure out how much extra storage we need for page lists.
- * Return: 0 or negative errno value.
+ * hgcm_call_preprocess - Preprocesses the HGCM call, validate parameters,
+ *	alloc bounce buffers and figure out how much extra storage we need for
+ *	page lists.
  * @src_parm:         Pointer to source function call parameters
  * @parm_count:       Number of function call parameters.
  * @bounce_bufs_ret:  Where to return the allocated bouncebuffer array
  * @extra:            Where to return the extra request space needed for
  *                    physical page lists.
+ *
+ * Return: %0 or negative errno value.
  */
 static int hgcm_call_preprocess(
 	const struct vmmdev_hgcm_function_parameter *src_parm,
@@ -301,10 +303,11 @@ static int hgcm_call_preprocess(
 }
 
 /**
- * Translates linear address types to page list direction flags.
+ * hgcm_call_linear_addr_type_to_pagelist_flags - Translates linear address
+ *	types to page list direction flags.
+ * @type:  The type.
  *
  * Return: page list flags.
- * @type:  The type.
  */
 static u32 hgcm_call_linear_addr_type_to_pagelist_flags(
 	enum vmmdev_hgcm_function_parameter_type type)
@@ -369,7 +372,8 @@ static void hgcm_call_init_linaddr(struct vmmdev_hgcm_call *call,
 }
 
 /**
- * Initializes the call request that we're sending to the host.
+ * hgcm_call_init_call - Initializes the call request that we're sending
+ *	to the host.
  * @call:            The call to initialize.
  * @client_id:       The client ID of the caller.
  * @function:        The function number of the function to call.
@@ -425,7 +429,9 @@ static void hgcm_call_init_call(
 }
 
 /**
- * Tries to cancel a pending HGCM call.
+ * hgcm_cancel_call - Tries to cancel a pending HGCM call.
+ * @gdev:        The VBoxGuest device extension.
+ * @call:        The call to cancel.
  *
  * Return: VBox status code
  */
@@ -459,13 +465,15 @@ static int hgcm_cancel_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call)
 }
 
 /**
- * Performs the call and completion wait.
- * Return: 0 or negative errno value.
+ * vbg_hgcm_do_call - Performs the call and completion wait.
  * @gdev:        The VBoxGuest device extension.
  * @call:        The call to execute.
  * @timeout_ms:  Timeout in ms.
+ * @interruptible: whether this call is interruptible
  * @leak_it:     Where to return the leak it / free it, indicator.
  *               Cancellation fun.
+ *
+ * Return: %0 or negative errno value.
  */
 static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 			    u32 timeout_ms, bool interruptible, bool *leak_it)
@@ -545,13 +553,14 @@ static int vbg_hgcm_do_call(struct vbg_dev *gdev, struct vmmdev_hgcm_call *call,
 }
 
 /**
- * Copies the result of the call back to the caller info structure and user
- * buffers.
- * Return: 0 or negative errno value.
+ * hgcm_call_copy_back_result - Copies the result of the call back to
+ *	the caller info structure and user buffers.
  * @call:            HGCM call request.
  * @dst_parm:        Pointer to function call parameters destination.
  * @parm_count:      Number of function call parameters.
  * @bounce_bufs:     The bouncebuffer array.
+ *
+ * Return: %0 or negative errno value.
  */
 static int hgcm_call_copy_back_result(
 	const struct vmmdev_hgcm_call *call,

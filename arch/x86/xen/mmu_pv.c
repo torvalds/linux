@@ -34,7 +34,7 @@
  * would need to validate the whole pagetable before going on.
  * Naturally, this is quite slow.  The solution is to "pin" a
  * pagetable, which enforces all the constraints on the pagetable even
- * when it is not actively in use.  This menas that Xen can be assured
+ * when it is not actively in use.  This means that Xen can be assured
  * that it is still valid when you do load it into %cr3, and doesn't
  * need to revalidate it.
  *

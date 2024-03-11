@@ -259,7 +259,9 @@
 	__SMU_DUMMY_MAP(PowerUpUmsch),	\
 	__SMU_DUMMY_MAP(PowerDownUmsch),	\
 	__SMU_DUMMY_MAP(SetSoftMaxVpe),	\
-	__SMU_DUMMY_MAP(SetSoftMinVpe),
+	__SMU_DUMMY_MAP(SetSoftMinVpe), \
+	__SMU_DUMMY_MAP(GetMetricsVersion), \
+	__SMU_DUMMY_MAP(EnableUCLKShadow),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

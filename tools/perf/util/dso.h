@@ -154,6 +154,8 @@ struct dso {
 	size_t		 symbol_names_len;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
+	struct rb_root	data_types;
+
 	struct {
 		u64		addr;
 		struct symbol	*symbol;

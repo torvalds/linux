@@ -192,7 +192,7 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id,
 }
 
 /*
- * Shutdown a queue a free it's command buffers to the FPA. The
+ * Shutdown a queue and free its command buffers to the FPA. The
  * hardware connected to the queue must be stopped before this
  * function is called.
  *
@@ -285,7 +285,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 
 /*
  * Return the command buffer to be written to. The purpose of this
- * function is to allow CVMX routine access t othe low level buffer
+ * function is to allow CVMX routine access to the low level buffer
  * for initial hardware setup. User applications should not call this
  * function directly.
  *

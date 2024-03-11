@@ -76,12 +76,10 @@ static int syscon_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int syscon_poweroff_remove(struct platform_device *pdev)
+static void syscon_poweroff_remove(struct platform_device *pdev)
 {
 	if (pm_power_off == syscon_poweroff)
 		pm_power_off = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id syscon_poweroff_of_match[] = {
@@ -91,7 +89,7 @@ static const struct of_device_id syscon_poweroff_of_match[] = {
 
 static struct platform_driver syscon_poweroff_driver = {
 	.probe = syscon_poweroff_probe,
-	.remove = syscon_poweroff_remove,
+	.remove_new = syscon_poweroff_remove,
 	.driver = {
 		.name = "syscon-poweroff",
 		.of_match_table = syscon_poweroff_of_match,

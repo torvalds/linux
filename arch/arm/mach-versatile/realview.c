@@ -9,7 +9,6 @@
 static const char *const realview_dt_platform_compat[] __initconst = {
 	"arm,realview-eb",
 	"arm,realview-pb1176",
-	"arm,realview-pb11mp",
 	"arm,realview-pba8",
 	"arm,realview-pbx",
 	NULL,

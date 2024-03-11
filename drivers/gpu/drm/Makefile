@@ -22,6 +22,7 @@ drm-y := \
 	drm_drv.o \
 	drm_dumb_buffers.o \
 	drm_edid.o \
+	drm_eld.o \
 	drm_encoder.o \
 	drm_file.o \
 	drm_fourcc.o \
@@ -46,18 +47,6 @@ drm-y := \
 	drm_vblank_work.o \
 	drm_vma_manager.o \
 	drm_writeback.o
-drm-$(CONFIG_DRM_LEGACY) += \
-	drm_agpsupport.o \
-	drm_bufs.o \
-	drm_context.o \
-	drm_dma.o \
-	drm_hashtab.o \
-	drm_irq.o \
-	drm_legacy_misc.o \
-	drm_lock.o \
-	drm_memory.o \
-	drm_scatter.o \
-	drm_vm.o
 drm-$(CONFIG_DRM_LIB_RANDOM) += lib/drm_random.o
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o
@@ -145,6 +134,7 @@ obj-$(CONFIG_DRM_RADEON)+= radeon/
 obj-$(CONFIG_DRM_AMDGPU)+= amd/amdgpu/
 obj-$(CONFIG_DRM_AMDGPU)+= amd/amdxcp/
 obj-$(CONFIG_DRM_I915)	+= i915/
+obj-$(CONFIG_DRM_XE)	+= xe/
 obj-$(CONFIG_DRM_KMB_DISPLAY)  += kmb/
 obj-$(CONFIG_DRM_MGAG200) += mgag200/
 obj-$(CONFIG_DRM_V3D)  += v3d/
@@ -198,3 +188,4 @@ obj-$(CONFIG_DRM_HYPERV) += hyperv/
 obj-y			+= solomon/
 obj-$(CONFIG_DRM_SPRD) += sprd/
 obj-$(CONFIG_DRM_LOONGSON) += loongson/
+obj-$(CONFIG_DRM_POWERVR) += imagination/

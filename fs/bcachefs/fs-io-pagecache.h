@@ -143,7 +143,7 @@ int bch2_folio_set(struct bch_fs *, subvol_inum, struct folio **, unsigned);
 void bch2_bio_page_state_set(struct bio *, struct bkey_s_c);
 
 void bch2_mark_pagecache_unallocated(struct bch_inode_info *, u64, u64);
-void bch2_mark_pagecache_reserved(struct bch_inode_info *, u64, u64);
+int bch2_mark_pagecache_reserved(struct bch_inode_info *, u64 *, u64, bool);
 
 int bch2_get_folio_disk_reservation(struct bch_fs *,
 				struct bch_inode_info *,

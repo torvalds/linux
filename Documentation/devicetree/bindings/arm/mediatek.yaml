@@ -176,6 +176,10 @@ properties:
           - const: mediatek,mt8186
       - items:
           - enum:
+              - mediatek,mt8188-evb
+          - const: mediatek,mt8188
+      - items:
+          - enum:
               - mediatek,mt8192-evb
           - const: mediatek,mt8192
       - items:
@@ -235,6 +239,13 @@ properties:
         items:
           - const: google,kappa
           - const: mediatek,mt8183
+      - description: Google Katsu (ASUS Chromebook Detachable CZ1)
+        items:
+          - enum:
+              - google,katsu-sku32
+              - google,katsu-sku38
+          - const: google,katsu
+          - const: mediatek,mt8183
       - description: Google Kodama (Lenovo 10e Chromebook Tablet)
         items:
           - enum:
@@ -243,6 +254,20 @@ properties:
               - google,kodama-sku288
               - google,kodama-sku32
           - const: google,kodama
+          - const: mediatek,mt8183
+      - description: Google Makomo (Lenovo 100e Chromebook 2nd Gen MTK 2)
+        items:
+          - enum:
+              - google,makomo-sku0
+              - google,makomo-sku1
+          - const: google,makomo
+          - const: mediatek,mt8183
+      - description: Google Pico (Acer Chromebook Spin 311)
+        items:
+          - enum:
+              - google,pico-sku1
+              - google,pico-sku2
+          - const: google,pico
           - const: mediatek,mt8183
       - description: Google Willow (Acer Chromebook 311 C722/C722T)
         items:

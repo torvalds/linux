@@ -38,9 +38,9 @@
 		pinctrl-names = "default";
 		gpios = <&gpio1 14 GPIO_ACTIVE_HIGH
 			 &gpio1 13 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <0    0
-				      3000 1
-				      6000 2>;
+		gpio-fan,speed-map = <0    0>,
+				     <3000 1>,
+				     <6000 2>;
 	};
 
 	gpio_poweroff {

@@ -9,14 +9,26 @@
  * Common bits of the IOT2050 Basic and Advanced variants, PG1 and PG2
  */
 
-#include "k3-am654.dtsi"
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/net/ti-dp83867.h>
 
 / {
 	aliases {
+		serial0 = &wkup_uart0;
+		serial1 = &mcu_uart0;
+		serial2 = &main_uart0;
+		serial3 = &main_uart1;
+		i2c0 = &wkup_i2c0;
+		i2c1 = &mcu_i2c0;
+		i2c2 = &main_i2c0;
+		i2c3 = &main_i2c1;
+		i2c4 = &main_i2c2;
+		i2c5 = &main_i2c3;
 		spi0 = &mcu_spi0;
 		mmc0 = &sdhci1;
 		mmc1 = &sdhci0;
+		ethernet1 = &icssg0_emac0;
+		ethernet2 = &icssg0_emac1;
 	};
 
 	chosen {
@@ -101,9 +113,498 @@
 		#clock-cells = <0>;
 		clock-frequency = <19200000>;
 	};
+
+	/* Dual Ethernet application node on PRU-ICSSG0 */
+	icssg0_eth: icssg0-eth {
+		compatible = "ti,am654-icssg-prueth";
+		pinctrl-names = "default";
+		pinctrl-0 = <&icssg0_rgmii_pins_default>;
+		sram = <&msmc_ram>;
+
+		ti,prus = <&pru0_0>, <&rtu0_0>, <&tx_pru0_0>,
+			<&pru0_1>, <&rtu0_1>, <&tx_pru0_1>;
+		firmware-name = "ti-pruss/am65x-sr2-pru0-prueth-fw.elf",
+				"ti-pruss/am65x-sr2-rtu0-prueth-fw.elf",
+				"ti-pruss/am65x-sr2-txpru0-prueth-fw.elf",
+				"ti-pruss/am65x-sr2-pru1-prueth-fw.elf",
+				"ti-pruss/am65x-sr2-rtu1-prueth-fw.elf",
+				"ti-pruss/am65x-sr2-txpru1-prueth-fw.elf";
+
+		ti,pruss-gp-mux-sel = <2>,      /* MII mode */
+				      <2>,
+				      <2>,
+				      <2>,	/* MII mode */
+				      <2>,
+				      <2>;
+
+		ti,mii-g-rt = <&icssg0_mii_g_rt>;
+		ti,mii-rt = <&icssg0_mii_rt>;
+		ti,iep = <&icssg0_iep0>,  <&icssg0_iep1>;
+
+		interrupt-parent = <&icssg0_intc>;
+		interrupts = <24 0 2>, <25 1 3>;
+		interrupt-names = "tx_ts0", "tx_ts1";
+
+		dmas = <&main_udmap 0xc100>, /* egress slice 0 */
+		       <&main_udmap 0xc101>, /* egress slice 0 */
+		       <&main_udmap 0xc102>, /* egress slice 0 */
+		       <&main_udmap 0xc103>, /* egress slice 0 */
+		       <&main_udmap 0xc104>, /* egress slice 1 */
+		       <&main_udmap 0xc105>, /* egress slice 1 */
+		       <&main_udmap 0xc106>, /* egress slice 1 */
+		       <&main_udmap 0xc107>, /* egress slice 1 */
+		       <&main_udmap 0x4100>, /* ingress slice 0 */
+		       <&main_udmap 0x4101>; /* ingress slice 1 */
+		dma-names = "tx0-0", "tx0-1", "tx0-2", "tx0-3",
+			    "tx1-0", "tx1-1", "tx1-2", "tx1-3",
+			    "rx0", "rx1";
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			icssg0_emac0: port@0 {
+				reg = <0>;
+				phy-handle = <&icssg0_eth0_phy>;
+				phy-mode = "rgmii-id";
+				ti,syscon-rgmii-delay = <&scm_conf 0x4100>;
+				ti,half-duplex-capable;
+				/* Filled in by bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+			};
+
+			icssg0_emac1: port@1 {
+				reg = <1>;
+				phy-handle = <&icssg0_eth1_phy>;
+				phy-mode = "rgmii-id";
+				ti,syscon-rgmii-delay = <&scm_conf 0x4104>;
+				ti,half-duplex-capable;
+				/* Filled in by bootloader */
+				local-mac-address = [00 00 00 00 00 00];
+			};
+		};
+	};
 };
 
 &wkup_pmx0 {
+	pinctrl-names =
+		"default",
+		"d0-uart0-rxd",  "d0-gpio",  "d0-gpio-pullup",  "d0-gpio-pulldown",
+		"d1-uart0-txd",  "d1-gpio",  "d1-gpio-pullup",  "d1-gpio-pulldown",
+		"d2-uart0-ctsn", "d2-gpio",  "d2-gpio-pullup",  "d2-gpio-pulldown",
+		"d3-uart0-rtsn", "d3-gpio",  "d3-gpio-pullup",  "d3-gpio-pulldown",
+		"d10-spi0-cs0",  "d10-gpio", "d10-gpio-pullup", "d10-gpio-pulldown",
+		"d11-spi0-d0",   "d11-gpio", "d11-gpio-pullup", "d11-gpio-pulldown",
+		"d12-spi0-d1",   "d12-gpio", "d12-gpio-pullup", "d12-gpio-pulldown",
+		"d13-spi0-clk",  "d13-gpio", "d13-gpio-pullup", "d13-gpio-pulldown",
+		"a0-gpio", "a0-gpio-pullup", "a0-gpio-pulldown",
+		"a1-gpio", "a1-gpio-pullup", "a1-gpio-pulldown",
+		"a2-gpio", "a2-gpio-pullup", "a2-gpio-pulldown",
+		"a3-gpio", "a3-gpio-pullup", "a3-gpio-pulldown",
+		"a4-gpio", "a4-gpio-pullup", "a4-gpio-pulldown",
+		"a5-gpio", "a5-gpio-pullup", "a5-gpio-pulldown";
+
+	pinctrl-0 = <&d0_uart0_rxd>;
+	pinctrl-1 = <&d0_uart0_rxd>;
+	pinctrl-2 = <&d0_gpio>;
+	pinctrl-3 = <&d0_gpio_pullup>;
+	pinctrl-4 = <&d0_gpio_pulldown>;
+	pinctrl-5 = <&d1_uart0_txd>;
+	pinctrl-6 = <&d1_gpio>;
+	pinctrl-7 = <&d1_gpio_pullup>;
+	pinctrl-8 = <&d1_gpio_pulldown>;
+	pinctrl-9 = <&d2_uart0_ctsn>;
+	pinctrl-10 = <&d2_gpio>;
+	pinctrl-11 = <&d2_gpio_pullup>;
+	pinctrl-12 = <&d2_gpio_pulldown>;
+	pinctrl-13 = <&d3_uart0_rtsn>;
+	pinctrl-14 = <&d3_gpio>;
+	pinctrl-15 = <&d3_gpio_pullup>;
+	pinctrl-16 = <&d3_gpio_pulldown>;
+	pinctrl-17 = <&d10_spi0_cs0>;
+	pinctrl-18 = <&d10_gpio>;
+	pinctrl-19 = <&d10_gpio_pullup>;
+	pinctrl-20 = <&d10_gpio_pulldown>;
+	pinctrl-21 = <&d11_spi0_d0>;
+	pinctrl-22 = <&d11_gpio>;
+	pinctrl-23 = <&d11_gpio_pullup>;
+	pinctrl-24 = <&d11_gpio_pulldown>;
+	pinctrl-25 = <&d12_spi0_d1>;
+	pinctrl-26 = <&d12_gpio>;
+	pinctrl-27 = <&d12_gpio_pullup>;
+	pinctrl-28 = <&d12_gpio_pulldown>;
+	pinctrl-29 = <&d13_spi0_clk>;
+	pinctrl-30 = <&d13_gpio>;
+	pinctrl-31 = <&d13_gpio_pullup>;
+	pinctrl-32 = <&d13_gpio_pulldown>;
+	pinctrl-33 = <&a0_gpio>;
+	pinctrl-34 = <&a0_gpio_pullup>;
+	pinctrl-35 = <&a0_gpio_pulldown>;
+	pinctrl-36 = <&a1_gpio>;
+	pinctrl-37 = <&a1_gpio_pullup>;
+	pinctrl-38 = <&a1_gpio_pulldown>;
+	pinctrl-39 = <&a2_gpio>;
+	pinctrl-40 = <&a2_gpio_pullup>;
+	pinctrl-41 = <&a2_gpio_pulldown>;
+	pinctrl-42 = <&a3_gpio>;
+	pinctrl-43 = <&a3_gpio_pullup>;
+	pinctrl-44 = <&a3_gpio_pulldown>;
+	pinctrl-45 = <&a4_gpio>;
+	pinctrl-46 = <&a4_gpio_pullup>;
+	pinctrl-47 = <&a4_gpio_pulldown>;
+	pinctrl-48 = <&a5_gpio>;
+	pinctrl-49 = <&a5_gpio_pullup>;
+	pinctrl-50 = <&a5_gpio_pulldown>;
+
+	d0_uart0_rxd: d0-uart0-rxd-pins {
+		pinctrl-single,pins = <
+			/* (P4) MCU_UART0_RXD */
+			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT, 4)
+		>;
+	};
+
+	d0_gpio: d0-gpio-pins {
+		pinctrl-single,pins = <
+			/* (P4) WKUP_GPIO0_29 */
+			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT, 7)
+		>;
+	};
+
+	d0_gpio_pullup: d0-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (P4) WKUP_GPIO0_29 */
+			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d0_gpio_pulldown: d0-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (P4) WKUP_GPIO0_29 */
+			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d1_uart0_txd: d1-uart0-txd-pins {
+		pinctrl-single,pins = <
+			/* (P5) MCU_UART0_TXD */
+			AM65X_WKUP_IOPAD(0x0048, PIN_OUTPUT, 4)
+		>;
+	};
+
+	d1_gpio: d1-gpio-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_30 */
+			AM65X_WKUP_IOPAD(0x0048, PIN_INPUT, 7)
+		>;
+	};
+
+	d1_gpio_pullup: d1-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_30 */
+			AM65X_WKUP_IOPAD(0x0048, PIN_INPUT, 7)
+		>;
+	};
+
+	d1_gpio_pulldown: d1-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_30 */
+			AM65X_WKUP_IOPAD(0x0048, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d2_uart0_ctsn: d2-uart0-ctsn-pins {
+		pinctrl-single,pins = <
+			/* (P1) MCU_UART0_CTSn */
+			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 4)
+		>;
+	};
+
+	d2_gpio: d2-gpio-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_31 */
+			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 7)
+		>;
+	};
+
+	d2_gpio_pullup: d2-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_31 */
+			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 7)
+		>;
+	};
+
+	d2_gpio_pulldown: d2-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (P5) WKUP_GPIO0_31 */
+			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d3_uart0_rtsn: d3-uart0-rtsn-pins {
+		pinctrl-single,pins = <
+			/* (N3) MCU_UART0_RTSn */
+			AM65X_WKUP_IOPAD(0x0054, PIN_OUTPUT, 4)
+		>;
+	};
+
+	d3_gpio: d3-gpio-pins {
+		pinctrl-single,pins = <
+			/* (N3) WKUP_GPIO0_33 */
+			AM65X_WKUP_IOPAD(0x0054, PIN_INPUT, 7)
+		>;
+	};
+
+	d3_gpio_pullup: d3-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (N3) WKUP_GPIO0_33 */
+			AM65X_WKUP_IOPAD(0x0054, PIN_INPUT, 7)
+		>;
+	};
+
+	d3_gpio_pulldown: d3-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (N3) WKUP_GPIO0_33 */
+			AM65X_WKUP_IOPAD(0x0054, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d10_spi0_cs0: d10-spi0-cs0-pins {
+		pinctrl-single,pins = <
+			/* (Y4) MCU_SPI0_CS0 */
+			AM65X_WKUP_IOPAD(0x009c, PIN_OUTPUT, 0)
+		>;
+	};
+
+	d10_gpio: d10-gpio-pins {
+		pinctrl-single,pins = <
+			/* (Y4) WKUP_GPIO0_51 */
+			AM65X_WKUP_IOPAD(0x009c, PIN_INPUT, 7)
+		>;
+	};
+
+	d10_gpio_pullup: d10-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (Y4) WKUP_GPIO0_51 */
+			AM65X_WKUP_IOPAD(0x009c, PIN_INPUT, 7)
+		>;
+	};
+
+	d10_gpio_pulldown: d10-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (Y4) WKUP_GPIO0_51 */
+			AM65X_WKUP_IOPAD(0x009c, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d11_spi0_d0: d11-spi0-d0-pins {
+		pinctrl-single,pins = <
+			/* (Y3) MCU_SPI0_D0 */
+			AM65X_WKUP_IOPAD(0x0094, PIN_INPUT, 0)
+		>;
+	};
+
+	d11_gpio: d11-gpio-pins {
+		pinctrl-single,pins = <
+			/* (Y3) WKUP_GPIO0_49 */
+			AM65X_WKUP_IOPAD(0x0094, PIN_INPUT, 7)
+		>;
+	};
+
+	d11_gpio_pullup: d11-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (Y3) WKUP_GPIO0_49 */
+			AM65X_WKUP_IOPAD(0x0094, PIN_INPUT, 7)
+		>;
+	};
+
+	d11_gpio_pulldown: d11-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (Y3) WKUP_GPIO0_49 */
+			AM65X_WKUP_IOPAD(0x0094, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d12_spi0_d1: d12-spi0-d1-pins {
+		pinctrl-single,pins = <
+			/* (Y2) MCU_SPI0_D1 */
+			AM65X_WKUP_IOPAD(0x0098, PIN_INPUT, 0)
+		>;
+	};
+
+	d12_gpio: d12-gpio-pins {
+		pinctrl-single,pins = <
+			/* (Y2) WKUP_GPIO0_50 */
+			AM65X_WKUP_IOPAD(0x0098, PIN_INPUT, 7)
+		>;
+	};
+
+	d12_gpio_pullup: d12-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (Y2) WKUP_GPIO0_50 */
+			AM65X_WKUP_IOPAD(0x0098, PIN_INPUT, 7)
+		>;
+	};
+
+	d12_gpio_pulldown: d12-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (Y2) WKUP_GPIO0_50 */
+			AM65X_WKUP_IOPAD(0x0098, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d13_spi0_clk: d13-spi0-clk-pins {
+		pinctrl-single,pins = <
+			/* (Y1) MCU_SPI0_CLK */
+			AM65X_WKUP_IOPAD(0x0090, PIN_INPUT, 0)
+		>;
+	};
+
+	d13_gpio: d13-gpio-pins {
+		pinctrl-single,pins = <
+			/* (Y1) WKUP_GPIO0_48 */
+			AM65X_WKUP_IOPAD(0x0090, PIN_INPUT, 7)
+		>;
+	};
+
+	d13_gpio_pullup: d13-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (Y1) WKUP_GPIO0_48 */
+			AM65X_WKUP_IOPAD(0x0090, PIN_INPUT, 7)
+		>;
+	};
+
+	d13_gpio_pulldown: d13-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (Y1) WKUP_GPIO0_48 */
+			AM65X_WKUP_IOPAD(0x0090, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a0_gpio: a0-gpio-pins {
+		pinctrl-single,pins = <
+			/* (L6) WKUP_GPIO0_45 */
+			AM65X_WKUP_IOPAD(0x0084, PIN_INPUT, 7)
+		>;
+	};
+
+	a0_gpio_pullup: a0-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (L6) WKUP_GPIO0_45 */
+			AM65X_WKUP_IOPAD(0x0084, PIN_INPUT, 7)
+		>;
+	};
+
+	a0_gpio_pulldown: a0-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (L6) WKUP_GPIO0_45 */
+			AM65X_WKUP_IOPAD(0x0084, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a1_gpio: a1-gpio-pins {
+		pinctrl-single,pins = <
+			/* (M6) WKUP_GPIO0_44 */
+			AM65X_WKUP_IOPAD(0x0080, PIN_INPUT, 7)
+		>;
+	};
+
+	a1_gpio_pullup: a1-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (M6) WKUP_GPIO0_44 */
+			AM65X_WKUP_IOPAD(0x0080, PIN_INPUT, 7)
+		>;
+	};
+
+	a1_gpio_pulldown: a1-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (M6) WKUP_GPIO0_44 */
+			AM65X_WKUP_IOPAD(0x0080, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a2_gpio: a2-gpio-pins {
+		pinctrl-single,pins = <
+			/* (L5) WKUP_GPIO0_43 */
+			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT, 7)
+		>;
+	};
+
+	a2_gpio_pullup: a2-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (L5) WKUP_GPIO0_43 */
+			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT, 7)
+		>;
+	};
+
+	a2_gpio_pulldown: a2-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (L5) WKUP_GPIO0_43 */
+			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a3_gpio: a3-gpio-pins {
+		pinctrl-single,pins = <
+			/* (M5) WKUP_GPIO0_39 */
+			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT, 7)
+		>;
+	};
+
+	a3_gpio_pullup: a3-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (M5) WKUP_GPIO0_39 */
+			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT, 7)
+		>;
+	};
+
+	a3_gpio_pulldown: a3-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (M5) WKUP_GPIO0_39 */
+			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a4_gpio: a4-gpio-pins {
+		pinctrl-single,pins = <
+			/* (L2) WKUP_GPIO0_42 */
+			AM65X_WKUP_IOPAD(0x0078, PIN_INPUT, 7)
+		>;
+	};
+
+	a4_gpio_pullup: a4-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (L2) WKUP_GPIO0_42 */
+			AM65X_WKUP_IOPAD(0x0078, PIN_INPUT, 7)
+		>;
+	};
+
+	a4_gpio_pulldown: a4-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (L2) WKUP_GPIO0_42 */
+			AM65X_WKUP_IOPAD(0x0078, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	a5_gpio: a5-gpio-pins {
+		pinctrl-single,pins = <
+			/* (N5) WKUP_GPIO0_35 */
+			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT, 7)
+		>;
+	};
+
+	a5_gpio_pullup: a5-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (N5) WKUP_GPIO0_35 */
+			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	a5_gpio_pulldown: a5-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (N5) WKUP_GPIO0_35 */
+			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
 	wkup_i2c0_pins_default: wkup-i2c0-default-pins {
 		pinctrl-single,pins = <
 			/* (AC7) WKUP_I2C0_SCL */
@@ -136,23 +637,6 @@
 		>;
 	};
 
-	arduino_uart_pins_default: arduino-uart-default-pins {
-		pinctrl-single,pins = <
-			/* (P4) MCU_UART0_RXD */
-			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT,  4)
-			/* (P5) MCU_UART0_TXD */
-			AM65X_WKUP_IOPAD(0x0048, PIN_OUTPUT, 4)
-		>;
-	};
-
-	arduino_io_d2_to_d3_pins_default: arduino-io-d2-to-d3-default-pins {
-		pinctrl-single,pins = <
-			/* (P1) WKUP_GPIO0_31 */
-			AM65X_WKUP_IOPAD(0x004C, PIN_OUTPUT, 7)
-			/* (N3) WKUP_GPIO0_33 */
-			AM65X_WKUP_IOPAD(0x0054, PIN_OUTPUT, 7)
-		>;
-	};
 
 	arduino_io_oe_pins_default: arduino-io-oe-default-pins {
 		pinctrl-single,pins = <
@@ -232,6 +716,220 @@
 };
 
 &main_pmx0 {
+	pinctrl-names =
+		"default",
+		"d4-ehrpwm0-a", "d4-gpio", "d4-gpio-pullup", "d4-gpio-pulldown",
+		"d5-ehrpwm1-a", "d5-gpio", "d5-gpio-pullup", "d5-gpio-pulldown",
+		"d6-ehrpwm2-a", "d6-gpio", "d6-gpio-pullup", "d6-gpio-pulldown",
+		"d7-ehrpwm3-a", "d7-gpio", "d7-gpio-pullup", "d7-gpio-pulldown",
+		"d8-ehrpwm4-a", "d8-gpio", "d8-gpio-pullup", "d8-gpio-pulldown",
+		"d9-ehrpwm5-a", "d9-gpio", "d9-gpio-pullup", "d9-gpio-pulldown";
+
+	pinctrl-0 = <&d4_ehrpwm0_a>;
+	pinctrl-1 = <&d4_ehrpwm0_a>;
+	pinctrl-2 = <&d4_gpio>;
+	pinctrl-3 = <&d4_gpio_pullup>;
+	pinctrl-4 = <&d4_gpio_pulldown>;
+
+	pinctrl-5 = <&d5_ehrpwm1_a>;
+	pinctrl-6 = <&d5_gpio>;
+	pinctrl-7 = <&d5_gpio_pullup>;
+	pinctrl-8 = <&d5_gpio_pulldown>;
+
+	pinctrl-9 = <&d6_ehrpwm2_a>;
+	pinctrl-10 = <&d6_gpio>;
+	pinctrl-11 = <&d6_gpio_pullup>;
+	pinctrl-12 = <&d6_gpio_pulldown>;
+
+	pinctrl-13 = <&d7_ehrpwm3_a>;
+	pinctrl-14 = <&d7_gpio>;
+	pinctrl-15 = <&d7_gpio_pullup>;
+	pinctrl-16 = <&d7_gpio_pulldown>;
+
+	pinctrl-17 = <&d8_ehrpwm4_a>;
+	pinctrl-18 = <&d8_gpio>;
+	pinctrl-19 = <&d8_gpio_pullup>;
+	pinctrl-20 = <&d8_gpio_pulldown>;
+
+	pinctrl-21 = <&d9_ehrpwm5_a>;
+	pinctrl-22 = <&d9_gpio>;
+	pinctrl-23 = <&d9_gpio_pullup>;
+	pinctrl-24 = <&d9_gpio_pulldown>;
+
+	d4_ehrpwm0_a: d4-ehrpwm0-a-pins {
+		pinctrl-single,pins = <
+			/* (AG18) EHRPWM0_A */
+			AM65X_IOPAD(0x0084, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d4_gpio: d4-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AG18) GPIO0_33 */
+			AM65X_IOPAD(0x0084, PIN_INPUT, 7)
+		>;
+	};
+
+	d4_gpio_pullup: d4-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AG18) GPIO0_33 */
+			AM65X_IOPAD(0x0084, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d4_gpio_pulldown: d4-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AG18) GPIO0_33 */
+			AM65X_IOPAD(0x0084, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d5_ehrpwm1_a: d5-ehrpwm1-a-pins {
+		pinctrl-single,pins = <
+			/* (AF17) EHRPWM1_A */
+			AM65X_IOPAD(0x008C, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d5_gpio: d5-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AF17) GPIO0_35 */
+			AM65X_IOPAD(0x008C, PIN_INPUT, 7)
+		>;
+	};
+
+	d5_gpio_pullup: d5-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AF17) GPIO0_35 */
+			AM65X_IOPAD(0x008C, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d5_gpio_pulldown: d5-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AF17) GPIO0_35 */
+			AM65X_IOPAD(0x008C, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d6_ehrpwm2_a: d6-ehrpwm2-a-pins {
+		pinctrl-single,pins = <
+			/* (AH16) EHRPWM2_A */
+			AM65X_IOPAD(0x0098, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d6_gpio: d6-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AH16) GPIO0_38 */
+			AM65X_IOPAD(0x0098, PIN_INPUT, 7)
+		>;
+	};
+
+	d6_gpio_pullup: d6-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AH16) GPIO0_38 */
+			AM65X_IOPAD(0x0098, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d6_gpio_pulldown: d6-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AH16) GPIO0_38 */
+			AM65X_IOPAD(0x0098, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d7_ehrpwm3_a: d7-ehrpwm3-a-pins {
+		pinctrl-single,pins = <
+			/* (AH15) EHRPWM3_A */
+			AM65X_IOPAD(0x00AC, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d7_gpio: d7-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AH15) GPIO0_43 */
+			AM65X_IOPAD(0x00AC, PIN_INPUT, 7)
+		>;
+	};
+
+	d7_gpio_pullup: d7-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AH15) GPIO0_43 */
+			AM65X_IOPAD(0x00AC, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d7_gpio_pulldown: d7-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AH15) GPIO0_43 */
+			AM65X_IOPAD(0x00AC, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d8_ehrpwm4_a: d8-ehrpwm4-a-pins {
+		pinctrl-single,pins = <
+			/* (AG15) EHRPWM4_A */
+			AM65X_IOPAD(0x00C0, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d8_gpio: d8-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AG15) GPIO0_48 */
+			AM65X_IOPAD(0x00C0, PIN_INPUT, 7)
+		>;
+	};
+
+	d8_gpio_pullup: d8-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AG15) GPIO0_48 */
+			AM65X_IOPAD(0x00C0, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d8_gpio_pulldown: d8-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AG15) GPIO0_48 */
+			AM65X_IOPAD(0x00C0, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	d9_ehrpwm5_a: d9-ehrpwm5-a-pins {
+		pinctrl-single,pins = <
+			/* (AD15) EHRPWM5_A */
+			AM65X_IOPAD(0x00CC, PIN_OUTPUT, 5)
+		>;
+	};
+
+	d9_gpio: d9-gpio-pins {
+		pinctrl-single,pins = <
+			/* (AD15) GPIO0_51 */
+			AM65X_IOPAD(0x00CC, PIN_INPUT, 7)
+		>;
+	};
+
+	d9_gpio_pullup: d9-gpio-pullup-pins {
+		pinctrl-single,pins = <
+			/* (AD15) GPIO0_51 */
+			AM65X_IOPAD(0x00CC, PIN_INPUT_PULLUP, 7)
+		>;
+	};
+
+	d9_gpio_pulldown: d9-gpio-pulldown-pins {
+		pinctrl-single,pins = <
+			/* (AD15) GPIO0_51 */
+			AM65X_IOPAD(0x00CC, PIN_INPUT_PULLDOWN, 7)
+		>;
+	};
+
+	main_pcie_enable_pins_default: main-pcie-enable-default-pins {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x01c4, PIN_INPUT_PULLUP, 7)  /* (AH13) GPIO1_17 */
+		>;
+	};
+
 	main_uart1_pins_default: main-uart1-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x0174, PIN_INPUT,  6)  /* (AE23) UART1_RXD */
@@ -270,17 +968,6 @@
 	usb1_pins_default: usb1-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x02c0, PIN_OUTPUT, 0)  /* (AC8) USB1_DRVVBUS */
-		>;
-	};
-
-	arduino_io_d4_to_d9_pins_default: arduino-io-d4-to-d9-default-pins {
-		pinctrl-single,pins = <
-			AM65X_IOPAD(0x0084, PIN_OUTPUT, 7)  /* (AG18) GPIO0_33 */
-			AM65X_IOPAD(0x008C, PIN_OUTPUT, 7)  /* (AF17) GPIO0_35 */
-			AM65X_IOPAD(0x0098, PIN_OUTPUT, 7)  /* (AH16) GPIO0_38 */
-			AM65X_IOPAD(0x00AC, PIN_OUTPUT, 7)  /* (AH15) GPIO0_43 */
-			AM65X_IOPAD(0x00C0, PIN_OUTPUT, 7)  /* (AG15) GPIO0_48 */
-			AM65X_IOPAD(0x00CC, PIN_OUTPUT, 7)  /* (AD15) GPIO0_51 */
 		>;
 	};
 
@@ -329,6 +1016,43 @@
 			AM65X_IOPAD(0x0070, PIN_INPUT,  5)  /* (R25) I2C2_SDA */
 		>;
 	};
+
+	icssg0_mdio_pins_default: icssg0-mdio-default-pins {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x0294, PIN_INPUT, 0) /* (AE26) PRG0_MDIO0_MDIO */
+			AM65X_IOPAD(0x0298, PIN_OUTPUT, 0) /* (AE28) PRG0_MDIO0_MDC */
+		>;
+	};
+
+	icssg0_rgmii_pins_default: icssg0-rgmii-default-pins {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x0244, PIN_INPUT, 2) /* (AB28) PRG0_PRU1_GPO0.PRG0_RGMII2_RD0 */
+			AM65X_IOPAD(0x0248, PIN_INPUT, 2) /* (AC28) PRG0_PRU1_GPO1.PRG0_RGMII2_RD1 */
+			AM65X_IOPAD(0x024c, PIN_INPUT, 2) /* (AC27) PRG0_PRU1_GPO2.PRG0_RGMII2_RD2 */
+			AM65X_IOPAD(0x0250, PIN_INPUT, 2) /* (AB26) PRG0_PRU1_GPO3.PRG0_RGMII2_RD3 */
+			AM65X_IOPAD(0x0274, PIN_OUTPUT, 2) /* (AC25) PRG0_PRU1_GPO12.PRG0_RGMII2_TD0 */
+			AM65X_IOPAD(0x0278, PIN_OUTPUT, 2) /* (AD25) PRG0_PRU1_GPO13.PRG0_RGMII2_TD1 */
+			AM65X_IOPAD(0x027c, PIN_OUTPUT, 2) /* (AD24) PRG0_PRU1_GPO14.PRG0_RGMII2_TD2 */
+			AM65X_IOPAD(0x0280, PIN_OUTPUT, 2) /* (AE27) PRG0_PRU1_GPO15.PRG0_RGMII2_TD3 */
+			AM65X_IOPAD(0x0284, PIN_INPUT, 2) /* (AC24) PRG0_PRU1_GPO16.PRG0_RGMII2_TXC */
+			AM65X_IOPAD(0x0270, PIN_OUTPUT, 2) /* (AB24) PRG0_PRU1_GPO11.PRG0_RGMII2_TX_CTL */
+			AM65X_IOPAD(0x025c, PIN_INPUT, 2) /* (AB27) PRG0_PRU1_GPO6.PRG0_RGMII2_RXC */
+			AM65X_IOPAD(0x0254, PIN_INPUT, 2) /* (AA25) PRG0_PRU1_GPO4.PRG0_RGMII2_RX_CTL */
+
+			AM65X_IOPAD(0x01f4, PIN_INPUT, 2) /* (V24) PRG0_PRU0_GPO0.PRG0_RGMII1_RD0 */
+			AM65X_IOPAD(0x01f8, PIN_INPUT, 2) /* (W25) PRG0_PRU0_GPO1.PRG0_RGMII1_RD1 */
+			AM65X_IOPAD(0x01fc, PIN_INPUT, 2) /* (W24) PRG0_PRU0_GPO2.PRG0_RGMII1_RD2 */
+			AM65X_IOPAD(0x0200, PIN_INPUT, 2) /* (AA27) PRG0_PRU0_GPO3.PRG0_RGMII1_RD3 */
+			AM65X_IOPAD(0x0224, PIN_OUTPUT, 2) /* (AD27) PRG0_PRU0_GPO12.PRG0_RGMII1_TD0 */
+			AM65X_IOPAD(0x0228, PIN_OUTPUT, 2) /* (AC26) PRG0_PRU0_GPO13.PRG0_RGMII1_TD1 */
+			AM65X_IOPAD(0x022c, PIN_OUTPUT, 2) /* (AD26) PRG0_PRU0_GPO14.PRG0_RGMII1_TD2 */
+			AM65X_IOPAD(0x0230, PIN_OUTPUT, 2) /* (AA24) PRG0_PRU0_GPO15.PRG0_RGMII1_TD3 */
+			AM65X_IOPAD(0x0234, PIN_INPUT, 2) /* (AD28) PRG0_PRU0_GPO16.PRG0_RGMII1_TXC */
+			AM65X_IOPAD(0x0220, PIN_OUTPUT, 2) /* (AB25) PRG0_PRU0_GPO11.PRG0_RGMII1_TX_CTL */
+			AM65X_IOPAD(0x020c, PIN_INPUT, 2) /* (Y25) PRG0_PRU0_GPO6.PRG0_RGMII1_RXC */
+			AM65X_IOPAD(0x0204, PIN_INPUT, 2) /* (Y24) PRG0_PRU0_GPO4.PRG0_RGMII1_RX_CTL */
+		>;
+	};
 };
 
 &main_pmx1 {
@@ -343,12 +1067,6 @@
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x0008, PIN_INPUT,  0)  /* (B21) I2C1_SCL */
 			AM65X_IOPAD(0x000c, PIN_INPUT,  0)  /* (E21) I2C1_SDA */
-		>;
-	};
-
-	ecap0_pins_default: ecap0-default-pins {
-		pinctrl-single,pins = <
-			AM65X_IOPAD(0x0010, PIN_INPUT,  0)  /* (D21) ECAP0_IN_APWM_OUT */
 		>;
 	};
 };
@@ -366,13 +1084,9 @@
 
 &mcu_uart0 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&arduino_uart_pins_default>;
 };
 
 &main_gpio0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&arduino_io_d4_to_d9_pins_default>;
 	gpio-line-names =
 		"main_gpio0-base", "", "", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "", "", "",
@@ -382,10 +1096,14 @@
 		"", "IO9";
 };
 
+&main_gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_pcie_enable_pins_default>;
+};
+
 &wkup_gpio0 {
 	pinctrl-names = "default";
 	pinctrl-0 =
-		<&arduino_io_d2_to_d3_pins_default>,
 		<&arduino_i2c_aio_switch_pins_default>,
 		<&arduino_io_oe_pins_default>,
 		<&push_button_pins_default>,
@@ -547,13 +1265,8 @@
 	status = "disabled";
 };
 
-&ecap0 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&ecap0_pins_default>;
-};
-
 &sdhci1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
@@ -574,9 +1287,6 @@
 
 &mcu_spi0 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&mcu_spi0_pins_default>;
-
 	#address-cells = <1>;
 	#size-cells = <0>;
 	ti,pindir-d0-out-d1-in;
@@ -715,4 +1425,22 @@
 	memory-region = <&mcu_r5fss0_core1_dma_memory_region>,
 			<&mcu_r5fss0_core1_memory_region>;
 	mboxes = <&mailbox0_cluster1>, <&mbox_mcu_r5fss0_core1>;
+};
+
+&icssg0_mdio {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&icssg0_mdio_pins_default>;
+
+	icssg0_eth0_phy: ethernet-phy@0 {
+		reg = <0>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+	};
+
+	icssg0_eth1_phy: ethernet-phy@1 {
+		reg = <1>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
+	};
 };

@@ -38,14 +38,12 @@ config CRYPTO_DEV_ASPEED_HACE_CRYPTO
 	select CRYPTO_DES
 	select CRYPTO_ECB
 	select CRYPTO_CBC
-	select CRYPTO_CFB
-	select CRYPTO_OFB
 	select CRYPTO_CTR
 	help
 	  Select here to enable Aspeed Hash & Crypto Engine (HACE)
 	  crypto driver.
 	  Supports AES/DES symmetric-key encryption and decryption
-	  with ECB/CBC/CFB/OFB/CTR options.
+	  with ECB/CBC/CTR options.
 
 config CRYPTO_DEV_ASPEED_ACRY
 	bool "Enable Aspeed ACRY RSA Engine"

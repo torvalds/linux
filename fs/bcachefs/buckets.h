@@ -203,6 +203,7 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 }
 
 void bch2_dev_usage_init(struct bch_dev *);
+void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev_usage *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
@@ -301,6 +302,12 @@ u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage_online *);
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
 
+void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
+			   const struct bch_alloc_v4 *,
+			   const struct bch_alloc_v4 *, u64, bool);
+void bch2_dev_usage_update_m(struct bch_fs *, struct bch_dev *,
+			     struct bucket *, struct bucket *);
+
 /* key/bucket marking: */
 
 static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
@@ -315,43 +322,41 @@ static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
 			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
 }
 
+int bch2_update_replicas(struct bch_fs *, struct bkey_s_c,
+			 struct bch_replicas_entry_v1 *, s64,
+			 unsigned, bool);
+int bch2_update_replicas_list(struct btree_trans *,
+			 struct bch_replicas_entry_v1 *, s64);
+int bch2_update_cached_sectors_list(struct btree_trans *, unsigned, s64);
 int bch2_replicas_deltas_realloc(struct btree_trans *, unsigned);
 
 void bch2_fs_usage_initialize(struct bch_fs *);
+
+int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
+			  const struct bch_extent_ptr *,
+			  s64, enum bch_data_type, u8, u8, u32);
 
 int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			      size_t, enum bch_data_type, unsigned,
 			      struct gc_pos, unsigned);
 
-int bch2_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-		    struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
-		     struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
-		     struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_reservation(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s_c, unsigned);
+int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
+			struct bkey_s_c, struct bkey_s, unsigned);
+int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
+			  struct bkey_s_c, struct bkey_s, unsigned);
 
-int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-
-#define mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
+#define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
 ({												\
 	int ret = 0;										\
 												\
 	if (_old.k->type)									\
 		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_INSERT);	\
 	if (!ret && _new.k->type)								\
-		ret = _fn(_trans, _btree_id, _level, _new, _flags & ~BTREE_TRIGGER_OVERWRITE);	\
+		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_OVERWRITE);\
 	ret;											\
 })
 
-#define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)	\
-	mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, bkey_i_to_s_c(_new), _flags)
+void bch2_trans_account_disk_usage_change(struct btree_trans *);
 
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
@@ -380,6 +385,21 @@ static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
 	}
 
 	return false;
+}
+
+static inline const char *bch2_data_type_str(enum bch_data_type type)
+{
+	return type < BCH_DATA_NR
+		? __bch2_data_types[type]
+		: "(invalid data type)";
+}
+
+static inline void bch2_prt_data_type(struct printbuf *out, enum bch_data_type type)
+{
+	if (type < BCH_DATA_NR)
+		prt_str(out, __bch2_data_types[type]);
+	else
+		prt_printf(out, "(invalid data type %u)", type);
 }
 
 /* disk reservations: */

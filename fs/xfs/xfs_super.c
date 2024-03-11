@@ -350,7 +350,6 @@ xfs_setup_dax_always(
 		return -EINVAL;
 	}
 
-	xfs_warn(mp, "DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
 	return 0;
 
 disable_dax:
@@ -366,8 +365,9 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*handlep = bdev_open_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE,
-				     mp->m_super, &fs_holder_ops);
+	*handlep = bdev_open_by_path(name,
+		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
+		mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*handlep)) {
 		error = PTR_ERR(*handlep);
 		*handlep = NULL;
@@ -439,18 +439,12 @@ xfs_open_devices(
 	int			error;
 
 	/*
-	 * blkdev_put() can't be called under s_umount, see the comment
-	 * in get_tree_bdev() for more details
-	 */
-	up_write(&sb->s_umount);
-
-	/*
 	 * Open real time and log devices - order is important.
 	 */
 	if (mp->m_logname) {
 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev_handle);
 		if (error)
-			goto out_relock;
+			return error;
 	}
 
 	if (mp->m_rtname) {
@@ -493,10 +487,7 @@ xfs_open_devices(
 			bdev_release(logdev_handle);
 	}
 
-	error = 0;
-out_relock:
-	down_write(&sb->s_umount);
-	return error;
+	return 0;
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
@@ -509,7 +500,7 @@ out_relock:
  out_close_logdev:
 	if (logdev_handle)
 		bdev_release(logdev_handle);
-	goto out_relock;
+	return error;
 }
 
 /*
@@ -759,10 +750,6 @@ static void
 xfs_mount_free(
 	struct xfs_mount	*mp)
 {
-	/*
-	 * Free the buftargs here because blkdev_put needs to be called outside
-	 * of sb->s_umount, which is held around the call to ->put_super.
-	 */
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_logdev_targp);
 	if (mp->m_rtdev_targp)
@@ -906,10 +893,8 @@ xfs_fs_statfs(
 STATIC void
 xfs_save_resvblks(struct xfs_mount *mp)
 {
-	uint64_t resblks = 0;
-
 	mp->m_resblks_save = mp->m_resblks;
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	xfs_reserve_blocks(mp, 0);
 }
 
 STATIC void
@@ -923,7 +908,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 	} else
 		resblks = xfs_default_resblks(mp);
 
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	xfs_reserve_blocks(mp, resblks);
 }
 
 /*
@@ -1510,6 +1495,18 @@ xfs_fs_fill_super(
 
 	mp->m_super = sb;
 
+	/*
+	 * Copy VFS mount flags from the context now that all parameter parsing
+	 * is guaranteed to have been completed by either the old mount API or
+	 * the newer fsopen/fsconfig API.
+	 */
+	if (fc->sb_flags & SB_RDONLY)
+		set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
+	if (fc->sb_flags & SB_DIRSYNC)
+		mp->m_features |= XFS_FEAT_DIRSYNC;
+	if (fc->sb_flags & SB_SYNCHRONOUS)
+		mp->m_features |= XFS_FEAT_WSYNC;
+
 	error = xfs_fs_validate_params(mp);
 	if (error)
 		return error;
@@ -1979,6 +1976,11 @@ static const struct fs_context_operations xfs_context_ops = {
 	.free        = xfs_fs_free,
 };
 
+/*
+ * WARNING: do not initialise any parameters in this function that depend on
+ * mount option parsing having already been performed as this can be called from
+ * fsopen() before any parameters have been set.
+ */
 static int xfs_init_fs_context(
 	struct fs_context	*fc)
 {
@@ -2009,16 +2011,6 @@ static int xfs_init_fs_context(
 	mp->m_logbufs = -1;
 	mp->m_logbsize = -1;
 	mp->m_allocsize_log = 16; /* 64k */
-
-	/*
-	 * Copy binary VFS mount flags we are interested in.
-	 */
-	if (fc->sb_flags & SB_RDONLY)
-		set_bit(XFS_OPSTATE_READONLY, &mp->m_opstate);
-	if (fc->sb_flags & SB_DIRSYNC)
-		mp->m_features |= XFS_FEAT_DIRSYNC;
-	if (fc->sb_flags & SB_SYNCHRONOUS)
-		mp->m_features |= XFS_FEAT_WSYNC;
 
 	fc->s_fs_info = mp;
 	fc->ops = &xfs_context_ops;

@@ -73,7 +73,6 @@
 	x(ENOMEM,			ENOMEM_fsck_add_nlink)			\
 	x(ENOMEM,			ENOMEM_journal_key_insert)		\
 	x(ENOMEM,			ENOMEM_journal_keys_sort)		\
-	x(ENOMEM,			ENOMEM_journal_replay)			\
 	x(ENOMEM,			ENOMEM_read_superblock_clean)		\
 	x(ENOMEM,			ENOMEM_fs_alloc)			\
 	x(ENOMEM,			ENOMEM_fs_name_alloc)			\
@@ -152,7 +151,6 @@
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_mark_replicas)	\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_res)		\
 	x(BCH_ERR_btree_insert_fail,	btree_insert_need_journal_reclaim)	\
-	x(BCH_ERR_btree_insert_fail,	btree_insert_need_flush_buffer)		\
 	x(0,				backpointer_to_overwritten_btree_node)	\
 	x(0,				lock_fail_root_changed)			\
 	x(0,				journal_reclaim_would_deadlock)		\
@@ -172,10 +170,12 @@
 	x(EINVAL,			device_size_too_small)			\
 	x(EINVAL,			device_not_a_member_of_filesystem)	\
 	x(EINVAL,			device_has_been_removed)		\
+	x(EINVAL,			device_splitbrain)			\
 	x(EINVAL,			device_already_online)			\
 	x(EINVAL,			insufficient_devices_to_start)		\
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\
+	x(EINVAL,			opt_parse_error)			\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
@@ -224,6 +224,8 @@
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\
+	x(EIO,				sb_not_downgraded)			\
+	x(EIO,				btree_write_all_failed)			\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
@@ -235,6 +237,7 @@
 	x(BCH_ERR_nopromote,		nopromote_unwritten)			\
 	x(BCH_ERR_nopromote,		nopromote_congested)			\
 	x(BCH_ERR_nopromote,		nopromote_in_flight)			\
+	x(BCH_ERR_nopromote,		nopromote_no_writes)			\
 	x(BCH_ERR_nopromote,		nopromote_enomem)
 
 enum bch_errcode {

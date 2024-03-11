@@ -47,6 +47,9 @@ description:
   For pm8916, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
   l12, l13, l14, l15, l16, l17, l18
 
+  For pm8937, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10,
+  l11, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23
+
   For pm8941, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, lvs1, lvs2,
   lvs3, 5vs1, 5vs2
@@ -92,6 +95,7 @@ properties:
       - qcom,rpm-pm8841-regulators
       - qcom,rpm-pm8909-regulators
       - qcom,rpm-pm8916-regulators
+      - qcom,rpm-pm8937-regulators
       - qcom,rpm-pm8941-regulators
       - qcom,rpm-pm8950-regulators
       - qcom,rpm-pm8953-regulators

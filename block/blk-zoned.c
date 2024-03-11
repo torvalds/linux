@@ -498,7 +498,6 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		set_bit(idx, args->conv_zones_bitmap);
 		break;
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
-	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		if (!args->seq_zones_wlock) {
 			args->seq_zones_wlock =
 				blk_alloc_zone_bitmap(q->node, args->nr_zones);
@@ -506,6 +505,7 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 				return -ENOMEM;
 		}
 		break;
+	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 	default:
 		pr_warn("%s: Invalid zone type 0x%x at sectors %llu\n",
 			disk->disk_name, (int)zone->type, zone->start);
@@ -615,22 +615,3 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
-
-void disk_clear_zone_settings(struct gendisk *disk)
-{
-	struct request_queue *q = disk->queue;
-
-	blk_mq_freeze_queue(q);
-
-	disk_free_zone_bitmaps(disk);
-	blk_queue_flag_clear(QUEUE_FLAG_ZONE_RESETALL, q);
-	q->required_elevator_features &= ~ELEVATOR_F_ZBD_SEQ_WRITE;
-	disk->nr_zones = 0;
-	disk->max_open_zones = 0;
-	disk->max_active_zones = 0;
-	q->limits.chunk_sectors = 0;
-	q->limits.zone_write_granularity = 0;
-	q->limits.max_zone_append_sectors = 0;
-
-	blk_mq_unfreeze_queue(q);
-}

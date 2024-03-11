@@ -10,6 +10,7 @@
 #include "rtw8851b.h"
 
 static const struct rtw89_pci_info rtw8851b_pci_info = {
+	.gen_def		= &rtw89_pci_gen_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
@@ -33,6 +34,7 @@ static const struct rtw89_pci_info rtw8851b_pci_info = {
 	.max_tag_num_mask	= B_AX_MAX_TAG_NUM,
 	.rxbd_rwptr_clr_reg	= R_AX_RXBD_RWPTR_CLR,
 	.txbd_rwptr_clr2_reg	= 0,
+	.dma_io_stop		= {R_AX_PCIE_DMA_STOP1, B_AX_STOP_PCIEIO},
 	.dma_stop1		= {R_AX_PCIE_DMA_STOP1, B_AX_TX_STOP1_MASK_V1},
 	.dma_stop2		= {0},
 	.dma_busy1		= {R_AX_PCIE_DMA_BUSY1, DMA_BUSY1_CHECK_V1},
@@ -41,6 +43,7 @@ static const struct rtw89_pci_info rtw8851b_pci_info = {
 
 	.rpwm_addr		= R_AX_PCIE_HRPWM,
 	.cpwm_addr		= R_AX_CPWM,
+	.mit_addr		= R_AX_INT_MIT_RX,
 	.tx_dma_ch_mask		= BIT(RTW89_TXCH_ACH4) | BIT(RTW89_TXCH_ACH5) |
 				  BIT(RTW89_TXCH_ACH6) | BIT(RTW89_TXCH_ACH7) |
 				  BIT(RTW89_TXCH_CH10) | BIT(RTW89_TXCH_CH11),

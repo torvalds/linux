@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
 /* Do not edit directly, auto-generated from: */
-/*	Documentation/netlink/specs/mptcp.yaml */
+/*	Documentation/netlink/specs/mptcp_pm.yaml */
 /* YNL-GEN uapi header */
 
 #ifndef _UAPI_LINUX_MPTCP_PM_H

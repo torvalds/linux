@@ -489,7 +489,4 @@ struct ath5k_eeprom_info {
 
 	/* Spur mitigation data (fbin values for spur channels) */
 	u16	ee_spur_chans[AR5K_EEPROM_N_SPUR_CHANS][AR5K_EEPROM_N_FREQ_BANDS];
-
-	/* Antenna raw switch tables */
-	u32	ee_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
 };

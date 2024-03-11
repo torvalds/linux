@@ -294,7 +294,7 @@ static int twl4030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = twl_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -319,7 +319,7 @@ static int twl6030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = twl_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 

@@ -48,14 +48,14 @@
 	((void *)			((u64 *) (_s)->_data + __vstruct_u64s(_s)))
 
 #define vstruct_for_each(_s, _i)					\
-	for (_i = (_s)->start;						\
+	for (typeof(&(_s)->start[0]) _i = (_s)->start;			\
 	     _i < vstruct_last(_s);					\
 	     _i = vstruct_next(_i))
 
-#define vstruct_for_each_safe(_s, _i, _t)				\
-	for (_i = (_s)->start;						\
-	     _i < vstruct_last(_s) && (_t = vstruct_next(_i), true);	\
-	     _i = _t)
+#define vstruct_for_each_safe(_s, _i)					\
+	for (typeof(&(_s)->start[0]) _next, _i = (_s)->start;		\
+	     _i < vstruct_last(_s) && (_next = vstruct_next(_i), true);	\
+	     _i = _next)
 
 #define vstruct_idx(_s, _idx)						\
 	((typeof(&(_s)->start[0])) ((_s)->_data + (_idx)))

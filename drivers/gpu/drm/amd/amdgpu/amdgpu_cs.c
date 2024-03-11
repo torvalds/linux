@@ -66,7 +66,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p,
 
 	amdgpu_sync_create(&p->sync);
 	drm_exec_init(&p->exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
-		      DRM_EXEC_IGNORE_DUPLICATES);
+		      DRM_EXEC_IGNORE_DUPLICATES, 0);
 	return 0;
 }
 
@@ -870,9 +870,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo *bo = e->bo;
 		int i;
 
-		e->user_pages = kvmalloc_array(bo->tbo.ttm->num_pages,
-					sizeof(struct page *),
-					GFP_KERNEL | __GFP_ZERO);
+		e->user_pages = kvcalloc(bo->tbo.ttm->num_pages,
+					 sizeof(struct page *),
+					 GFP_KERNEL);
 		if (!e->user_pages) {
 			DRM_ERROR("kvmalloc_array failure\n");
 			r = -ENOMEM;

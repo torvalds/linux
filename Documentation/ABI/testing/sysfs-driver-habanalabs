@@ -149,6 +149,18 @@ Contact:        ogabbay@kernel.org
 Description:    Displays the current clock frequency, in Hz, of the MME compute
                 engine. This property is valid only for the Goya ASIC family
 
+What:           /sys/class/accel/accel<n>/device/module_id
+Date:           Nov 2023
+KernelVersion:  not yet upstreamed
+Contact:        ogabbay@kernel.org
+Description:    Displays the device's module id
+
+What:           /sys/class/accel/accel<n>/device/parent_device
+Date:           Nov 2023
+KernelVersion:  6.8
+Contact:        ttayar@habana.ai
+Description:    Displays the name of the parent device of the accel device
+
 What:           /sys/class/accel/accel<n>/device/pci_addr
 Date:           Jan 2019
 KernelVersion:  5.1

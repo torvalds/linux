@@ -98,8 +98,8 @@ int tegra_pcm_open(struct snd_soc_component *component,
 		return ret;
 	}
 
-	chan = dma_request_slave_channel(cpu_dai->dev, dmap->chan_name);
-	if (!chan) {
+	chan = dma_request_chan(cpu_dai->dev, dmap->chan_name);
+	if (IS_ERR(chan)) {
 		dev_err(cpu_dai->dev,
 			"dmaengine request slave channel failed! (%s)\n",
 			dmap->chan_name);

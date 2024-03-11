@@ -56,6 +56,18 @@ extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb, const char *path,
 				__u32 *reparse_tag);
+struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
+				     struct super_block *sb,
+				     const unsigned int xid,
+				     struct cifs_tcon *tcon,
+				     const char *full_path,
+				     struct kvec *iov);
+int smb2_query_reparse_point(const unsigned int xid,
+			     struct cifs_tcon *tcon,
+			     struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     u32 *tag, struct kvec *rsp,
+			     int *rsp_buftype);
 int smb2_query_path_info(const unsigned int xid,
 			 struct cifs_tcon *tcon,
 			 struct cifs_sb_info *cifs_sb,
@@ -80,12 +92,16 @@ extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern int smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon,
 		       const char *name, struct cifs_sb_info *cifs_sb);
-extern int smb2_rename_path(const unsigned int xid, struct cifs_tcon *tcon,
-			    const char *from_name, const char *to_name,
-			    struct cifs_sb_info *cifs_sb);
-extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
-				const char *from_name, const char *to_name,
-				struct cifs_sb_info *cifs_sb);
+int smb2_rename_path(const unsigned int xid,
+		     struct cifs_tcon *tcon,
+		     struct dentry *source_dentry,
+		     const char *from_name, const char *to_name,
+		     struct cifs_sb_info *cifs_sb);
+int smb2_create_hardlink(const unsigned int xid,
+			 struct cifs_tcon *tcon,
+			 struct dentry *source_dentry,
+			 const char *from_name, const char *to_name,
+			 struct cifs_sb_info *cifs_sb);
 extern int smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_sb_info *cifs_sb, const unsigned char *path,
 			char *pbuf, unsigned int *pbytes_written);
@@ -106,6 +122,11 @@ extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
 extern void smb2_set_next_command(struct cifs_tcon *tcon,
 				  struct smb_rqst *rqst);
 extern void smb2_set_related(struct smb_rqst *rqst);
+extern void smb2_set_replay(struct TCP_Server_Info *server,
+			    struct smb_rqst *rqst);
+extern bool smb2_should_replay(struct cifs_tcon *tcon,
+			  int *pretries,
+			  int *pcur_sleep);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -205,7 +226,7 @@ extern int SMB2_query_directory_init(unsigned int xid, struct cifs_tcon *tcon,
 extern void SMB2_query_directory_free(struct smb_rqst *rqst);
 extern int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, u32 pid,
-			__le64 *eof);
+			loff_t new_eof);
 extern int SMB2_set_info_init(struct cifs_tcon *tcon,
 			      struct TCP_Server_Info *server,
 			      struct smb_rqst *rqst,
@@ -283,10 +304,9 @@ int smb311_posix_query_path_info(const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 const char *full_path,
-				 struct cifs_open_info_data *data,
-				 struct cifs_sid *owner,
-				 struct cifs_sid *group);
+				 struct cifs_open_info_data *data);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);
+
 #endif			/* _SMB2PROTO_H */

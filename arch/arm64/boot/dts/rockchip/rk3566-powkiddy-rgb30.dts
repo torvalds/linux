@@ -5,67 +5,11 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "rk3566-anbernic-rg353x.dtsi"
+#include "rk3566-powkiddy-rk2023.dtsi"
 
 / {
 	model = "RGB30";
 	compatible = "powkiddy,rgb30", "rockchip,rk3566";
-
-	aliases {
-		mmc1 = &sdmmc0;
-		mmc2 = &sdmmc1;
-		mmc3 = &sdmmc2;
-	};
-
-	battery: battery {
-		compatible = "simple-battery";
-		charge-full-design-microamp-hours = <3151000>;
-		charge-term-current-microamp = <300000>;
-		constant-charge-current-max-microamp = <2000000>;
-		constant-charge-voltage-max-microvolt = <4250000>;
-		factory-internal-resistance-micro-ohms = <117000>;
-		voltage-max-design-microvolt = <4172000>;
-		voltage-min-design-microvolt = <3400000>;
-
-		ocv-capacity-celsius = <20>;
-		ocv-capacity-table-0 =  <4172000 100>, <4092000 95>, <4035000 90>, <3990000 85>,
-					<3939000 80>, <3895000 75>, <3852000 70>, <3807000 65>,
-					<3762000 60>, <3713000 55>, <3672000 50>, <3647000 45>,
-					<3629000 40>, <3613000 35>, <3598000 30>, <3578000 25>,
-					<3550000 20>, <3519000 15>, <3479000 10>, <3438000 5>,
-					<3400000 0>;
-	};
-
-	/*
-	 * Channels reversed for speakers. Headphones automatically switch via hardware when
-	 * detected with no ability to control output in software. Headphones appear to be mono
-	 * (each output channel receives all audio). No microphone support on 3.5mm jack.
-	 */
-	sound {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "rk817_ext";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,widgets =
-			"Headphone", "Headphones";
-		simple-audio-card,routing =
-			"Headphones", "HPOL",
-			"Headphones", "HPOR";
-
-		simple-audio-card,codec {
-			sound-dai = <&rk817>;
-		};
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s1_8ch>;
-		};
-	};
-};
-
-/delete-node/ &adc_keys;
-
-&chosen {
-	/delete-property/ stdout-path;
 };
 
 &cru {
@@ -75,87 +19,21 @@
 			       <200000000>, <292500000>;
 };
 
-&gpio_keys_control {
-	button-r1 {
-		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
-		label = "TR";
-		linux,code = <BTN_TR>;
-	};
+&dsi0 {
+	panel: panel@0 {
+		compatible = "powkiddy,rgb30-panel";
+		reg = <0>;
+		backlight = <&backlight>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst>;
+		reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&vcc3v3_lcd0_n>;
+		iovcc-supply = <&vcc3v3_lcd0_n>;
 
-	button-r2 {
-		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
-		label = "TR2";
-		linux,code = <BTN_TR2>;
-	};
-};
-
-/delete-node/ &{/i2c@fdd40000/regulator@40};
-
-&i2c0 {
-	vdd_cpu: regulator@1c {
-		compatible = "tcs,tcs4525";
-		reg = <0x1c>;
-		fcs,suspend-voltage-selector = <1>;
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <712500>;
-		regulator-max-microvolt = <1390000>;
-		regulator-name = "vdd_cpu";
-		regulator-ramp-delay = <2300>;
-		vin-supply = <&vcc_sys>;
-		regulator-state-mem {
-			regulator-off-in-suspend;
+		port {
+			mipi_in_panel: endpoint {
+				remote-endpoint = <&mipi_out_panel>;
+			};
 		};
 	};
 };
-
-/*
- * Device has 2 red LEDs instead of an amber and a red. Relabel LEDs as
- * red_led0 and red_led1.
- */
-/delete-node/ &{/pwm-leds/led-1};
-/delete-node/ &{/pwm-leds/led-2};
-
-&leds {
-	red_led0: led-1 {
-		color = <LED_COLOR_ID_RED>;
-		function = LED_FUNCTION_CHARGING;
-		max-brightness = <255>;
-		pwms = <&pwm7 0 25000 0>;
-	};
-
-	red_led1: led-2 {
-		color = <LED_COLOR_ID_RED>;
-		default-state = "off";
-		function = LED_FUNCTION_STATUS;
-		max-brightness = <255>;
-		pwms = <&pwm0 0 25000 0>;
-	};
-};
-
-&panel {
-	compatible = "powkiddy,rgb30-panel";
-	vcc-supply = <&vcc3v3_lcd0_n>;
-	iovcc-supply = <&vcc3v3_lcd0_n>;
-	/delete-property/ vdd-supply;
-};
-
-&pwm5 {
-	status = "disabled";
-};
-
-&rk817 {
-	rk817_charger: charger {
-		monitored-battery = <&battery>;
-		rockchip,resistor-sense-micro-ohms = <10000>;
-		rockchip,sleep-enter-current-microamp = <300000>;
-		rockchip,sleep-filter-current-microamp = <100000>;
-	};
-};
-
-/* There is no UART header visible on the board for this device. */
-&uart2 {
-	status = "disabled";
-};
-
-/delete-node/ &vibrator;

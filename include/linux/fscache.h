@@ -437,9 +437,6 @@ const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_r
  * indicates the cache resources to which the operation state should be
  * attached; @cookie indicates the cache object that will be accessed.
  *
- * This is intended to be called from the ->begin_cache_operation() netfs lib
- * operation as implemented by the network filesystem.
- *
  * @cres->inval_counter is set from @cookie->inval_counter for comparison at
  * the end of the operation.  This allows invalidation during the operation to
  * be detected by the caller.
@@ -627,48 +624,6 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
 	else if (term_func)
 		term_func(term_func_priv, -ENOBUFS, false);
 
-}
-
-#if __fscache_available
-bool fscache_dirty_folio(struct address_space *mapping, struct folio *folio,
-		struct fscache_cookie *cookie);
-#else
-#define fscache_dirty_folio(MAPPING, FOLIO, COOKIE) \
-		filemap_dirty_folio(MAPPING, FOLIO)
-#endif
-
-/**
- * fscache_unpin_writeback - Unpin writeback resources
- * @wbc: The writeback control
- * @cookie: The cookie referring to the cache object
- *
- * Unpin the writeback resources pinned by fscache_dirty_folio().  This is
- * intended to be called by the netfs's ->write_inode() method.
- */
-static inline void fscache_unpin_writeback(struct writeback_control *wbc,
-					   struct fscache_cookie *cookie)
-{
-	if (wbc->unpinned_fscache_wb)
-		fscache_unuse_cookie(cookie, NULL, NULL);
-}
-
-/**
- * fscache_clear_inode_writeback - Clear writeback resources pinned by an inode
- * @cookie: The cookie referring to the cache object
- * @inode: The inode to clean up
- * @aux: Auxiliary data to apply to the inode
- *
- * Clear any writeback resources held by an inode when the inode is evicted.
- * This must be called before clear_inode() is called.
- */
-static inline void fscache_clear_inode_writeback(struct fscache_cookie *cookie,
-						 struct inode *inode,
-						 const void *aux)
-{
-	if (inode->i_state & I_PINNING_FSCACHE_WB) {
-		loff_t i_size = i_size_read(inode);
-		fscache_unuse_cookie(cookie, aux, &i_size);
-	}
 }
 
 /**

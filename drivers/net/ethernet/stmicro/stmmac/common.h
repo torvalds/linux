@@ -59,27 +59,50 @@
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
 
+struct stmmac_q_tx_stats {
+	u64_stats_t tx_bytes;
+	u64_stats_t tx_set_ic_bit;
+	u64_stats_t tx_tso_frames;
+	u64_stats_t tx_tso_nfrags;
+};
+
+struct stmmac_napi_tx_stats {
+	u64_stats_t tx_packets;
+	u64_stats_t tx_pkt_n;
+	u64_stats_t poll;
+	u64_stats_t tx_clean;
+	u64_stats_t tx_set_ic_bit;
+};
+
 struct stmmac_txq_stats {
-	u64 tx_bytes;
-	u64 tx_packets;
-	u64 tx_pkt_n;
-	u64 tx_normal_irq_n;
-	u64 napi_poll;
-	u64 tx_clean;
-	u64 tx_set_ic_bit;
-	u64 tx_tso_frames;
-	u64 tx_tso_nfrags;
-	struct u64_stats_sync syncp;
+	/* Updates protected by tx queue lock. */
+	struct u64_stats_sync q_syncp;
+	struct stmmac_q_tx_stats q;
+
+	/* Updates protected by NAPI poll logic. */
+	struct u64_stats_sync napi_syncp;
+	struct stmmac_napi_tx_stats napi;
 } ____cacheline_aligned_in_smp;
 
+struct stmmac_napi_rx_stats {
+	u64_stats_t rx_bytes;
+	u64_stats_t rx_packets;
+	u64_stats_t rx_pkt_n;
+	u64_stats_t poll;
+};
+
 struct stmmac_rxq_stats {
-	u64 rx_bytes;
-	u64 rx_packets;
-	u64 rx_pkt_n;
-	u64 rx_normal_irq_n;
-	u64 napi_poll;
-	struct u64_stats_sync syncp;
+	/* Updates protected by NAPI poll logic. */
+	struct u64_stats_sync napi_syncp;
+	struct stmmac_napi_rx_stats napi;
 } ____cacheline_aligned_in_smp;
+
+/* Updates on each CPU protected by not allowing nested irqs. */
+struct stmmac_pcpu_stats {
+	struct u64_stats_sync syncp;
+	u64_stats_t rx_normal_irq_n[MTL_MAX_TX_QUEUES];
+	u64_stats_t tx_normal_irq_n[MTL_MAX_RX_QUEUES];
+};
 
 /* Extra statistic and debug information exposed by ethtool */
 struct stmmac_extra_stats {
@@ -205,6 +228,7 @@ struct stmmac_extra_stats {
 	/* per queue statistics */
 	struct stmmac_txq_stats txq_stats[MTL_MAX_TX_QUEUES];
 	struct stmmac_rxq_stats rxq_stats[MTL_MAX_RX_QUEUES];
+	struct stmmac_pcpu_stats __percpu *pcpu_stats;
 	unsigned long rx_dropped;
 	unsigned long rx_errors;
 	unsigned long tx_dropped;
@@ -216,6 +240,7 @@ struct stmmac_safety_stats {
 	unsigned long mac_errors[32];
 	unsigned long mtl_errors[32];
 	unsigned long dma_errors[32];
+	unsigned long dma_dpp_errors[32];
 };
 
 /* Number of fields in Safety Stats */
@@ -563,6 +588,7 @@ struct mac_device_info {
 	const struct stmmac_hwtimestamp *ptp;
 	const struct stmmac_tc_ops *tc;
 	const struct stmmac_mmc_ops *mmc;
+	const struct stmmac_est_ops *est;
 	struct dw_xpcs *xpcs;
 	struct phylink_pcs *lynx_pcs; /* Lynx external PCS */
 	struct mii_regs mii;	/* MII register Addresses */
@@ -580,6 +606,7 @@ struct mac_device_info {
 	u32 vlan_filter[32];
 	bool vlan_fail_q_en;
 	u8 vlan_fail_q;
+	bool hw_vlan_en;
 };
 
 struct stmmac_rx_routing {

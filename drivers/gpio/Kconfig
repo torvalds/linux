@@ -478,6 +478,13 @@ config GPIO_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
+config GPIO_NPCM_SGPIO
+	bool "Nuvoton SGPIO support"
+	depends on ARCH_NPCM || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support Nuvoton NPCM7XX/NPCM8XX SGPIO functionality.
+
 config GPIO_OCTEON
 	tristate "Cavium OCTEON GPIO"
 	depends on CAVIUM_OCTEON_SOC
@@ -552,6 +559,19 @@ config GPIO_ROCKCHIP
 	default ARCH_ROCKCHIP
 	help
 	  Say yes here to support GPIO on Rockchip SoCs.
+
+config GPIO_RTD
+	tristate "Realtek DHC GPIO support"
+	depends on ARCH_REALTEK
+	default y
+	select GPIOLIB_IRQCHIP
+	help
+	  This option enables support for GPIOs found on Realtek DHC(Digital
+	  Home Center) SoCs family, including RTD1295, RTD1315E, RTD1319,
+	  RTD1319D, RTD1395, RTD1619 and RTD1619B.
+
+	  Say yes here to support GPIO functionality and GPIO interrupt on
+	  Realtek DHC SoCs.
 
 config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"

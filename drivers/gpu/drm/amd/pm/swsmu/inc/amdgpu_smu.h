@@ -22,6 +22,9 @@
 #ifndef __AMDGPU_SMU_H__
 #define __AMDGPU_SMU_H__
 
+#include <linux/acpi_amd_wbrf.h>
+#include <linux/units.h>
+
 #include "amdgpu.h"
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
@@ -253,6 +256,7 @@ struct smu_table {
 	uint64_t mc_address;
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
+	uint32_t version;
 };
 
 enum smu_perf_level_designation {
@@ -317,6 +321,7 @@ enum smu_table_id {
 	SMU_TABLE_PACE,
 	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COMBO_PPTABLE,
+	SMU_TABLE_WIFIBAND,
 	SMU_TABLE_COUNT,
 };
 
@@ -419,7 +424,6 @@ enum smu_reset_mode {
 enum smu_baco_state {
 	SMU_BACO_STATE_ENTER = 0,
 	SMU_BACO_STATE_EXIT,
-	SMU_BACO_STATE_NONE,
 };
 
 struct smu_baco_context {
@@ -469,6 +473,12 @@ struct stb_context {
 };
 
 #define WORKLOAD_POLICY_MAX 7
+
+/*
+ * Configure wbrf event handling pace as there can be only one
+ * event processed every SMU_WBRF_EVENT_HANDLING_PACE ms.
+ */
+#define SMU_WBRF_EVENT_HANDLING_PACE	10
 
 struct smu_context {
 	struct amdgpu_device            *adev;
@@ -569,6 +579,11 @@ struct smu_context {
 	struct delayed_work		swctf_delayed_work;
 
 	enum pp_xgmi_plpd_mode plpd_mode;
+
+	/* data structures for wbrf feature support */
+	bool				wbrf_supported;
+	struct notifier_block		wbrf_notifier;
+	struct delayed_work		wbrf_delayed_work;
 };
 
 struct i2c_adapter;
@@ -1253,6 +1268,15 @@ struct pptable_funcs {
 	ssize_t (*get_gpu_metrics)(struct smu_context *smu, void **table);
 
 	/**
+	 * @get_pm_metrics: Get one snapshot of power management metrics from
+	 * PMFW.
+	 *
+	 * Return: Size of the metrics sample
+	 */
+	ssize_t (*get_pm_metrics)(struct smu_context *smu, void *pm_metrics,
+				  size_t size);
+
+	/**
 	 * @enable_mgpu_fan_boost: Enable multi-GPU fan boost.
 	 */
 	int (*enable_mgpu_fan_boost)(struct smu_context *smu);
@@ -1365,6 +1389,22 @@ struct pptable_funcs {
 	 * @notify_rlc_state: Notify RLC power state to SMU.
 	 */
 	int (*notify_rlc_state)(struct smu_context *smu, bool en);
+
+	/**
+	 * @is_asic_wbrf_supported: check whether PMFW supports the wbrf feature
+	 */
+	bool (*is_asic_wbrf_supported)(struct smu_context *smu);
+
+	/**
+	 * @enable_uclk_shadow: Enable the uclk shadow feature on wbrf supported
+	 */
+	int (*enable_uclk_shadow)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @set_wbrf_exclusion_ranges: notify SMU the wifi bands occupied
+	 */
+	int (*set_wbrf_exclusion_ranges)(struct smu_context *smu,
+					struct freq_band_range *exclusion_ranges);
 };
 
 typedef enum {
@@ -1490,6 +1530,17 @@ enum smu_baco_seq {
 			 (u8 *)(src) + __src_offset,			   \
 			 __dst_size);					   \
 })
+
+typedef struct {
+	uint16_t     LowFreq;
+	uint16_t     HighFreq;
+} WifiOneBand_t;
+
+typedef struct {
+	uint32_t		WifiBandEntryNum;
+	WifiOneBand_t	WifiBandEntry[11];
+	uint32_t		MmHubPadding[8];
+} WifiBandEntryTable_t;
 
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
 int smu_get_power_limit(void *handle,
