@@ -432,7 +432,7 @@ or itself is a reply to that mail:
  * Mark a regression as fixed by a commit that is heading upstream or already
    landed::
 
-       #regzbot fixed-by: 1f2e3d4c5d
+       #regzbot fix: 1f2e3d4c5d
 
  * Mark a regression as a duplicate of another one already tracked by regzbot::
 
