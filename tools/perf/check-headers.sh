@@ -11,7 +11,6 @@ FILES=(
   "include/uapi/drm/i915_drm.h"
   "include/uapi/linux/fadvise.h"
   "include/uapi/linux/fcntl.h"
-  "include/uapi/linux/fs.h"
   "include/uapi/linux/fscrypt.h"
   "include/uapi/linux/kcmp.h"
   "include/uapi/linux/kvm.h"
@@ -98,6 +97,7 @@ SYNC_CHECK_FILES=(
 declare -a BEAUTY_FILES
 BEAUTY_FILES=(
   "include/linux/socket.h"
+  "include/uapi/linux/fs.h"
 )
 
 declare -a FAILURES
