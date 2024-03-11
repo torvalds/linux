@@ -537,7 +537,7 @@ retry:
 		}
 	}
 
-	ret = __replace_page(vma, vaddr, old_page, new_page);
+	ret = __replace_page(vma, vaddr & PAGE_MASK, old_page, new_page);
 	if (new_page)
 		put_page(new_page);
 put_old:

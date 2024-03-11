@@ -819,6 +819,24 @@ static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 	return ERR_PTR(-ENODEV);
 }
 
+static inline struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc)
+{
+	WARN_ON(1);
+	return ERR_PTR(-ENODEV);
+}
+
+static inline int gpio_device_get_base(struct gpio_device *gdev)
+{
+	WARN_ON(1);
+	return -ENODEV;
+}
+
+static inline const char *gpio_device_get_label(struct gpio_device *gdev)
+{
+	WARN_ON(1);
+	return NULL;
+}
+
 static inline int gpiochip_lock_as_irq(struct gpio_chip *gc,
 				       unsigned int offset)
 {

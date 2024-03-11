@@ -1437,4 +1437,5 @@ static int __init plip_init (void)
 
 module_init(plip_init);
 module_exit(plip_cleanup_module);
+MODULE_DESCRIPTION("PLIP (parallel port) network module");
 MODULE_LICENSE("GPL");

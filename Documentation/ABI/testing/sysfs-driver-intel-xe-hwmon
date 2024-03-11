@@ -1,4 +1,4 @@
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_max
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_max
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -12,7 +12,7 @@ Description:	RW. Card reactive sustained  (PL1) power limit in microwatts.
 
 		Only supported for particular Intel xe graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_rated_max
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_rated_max
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -20,7 +20,7 @@ Description:	RO. Card default power limit (default TDP setting).
 
 		Only supported for particular Intel xe graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_crit
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_crit
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -33,7 +33,7 @@ Description:	RW. Card reactive critical (I1) power limit in microwatts.
 
 		Only supported for particular Intel xe graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/curr1_crit
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/curr1_crit
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -44,7 +44,7 @@ Description:	RW. Card reactive critical (I1) power limit in milliamperes.
 		the operating frequency if the power averaged over a window
 		exceeds this limit.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/in0_input
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/in0_input
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -52,7 +52,7 @@ Description:	RO. Current Voltage in millivolt.
 
 		Only supported for particular Intel xe graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/energy1_input
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/energy1_input
 Date:		September 2023
 KernelVersion:	6.5
 Contact:	intel-xe@lists.freedesktop.org
@@ -60,7 +60,7 @@ Description:	RO. Energy input of device in microjoules.
 
 		Only supported for particular Intel xe graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_max_interval
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_max_interval
 Date:		October 2023
 KernelVersion:	6.6
 Contact:	intel-xe@lists.freedesktop.org

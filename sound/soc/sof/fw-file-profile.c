@@ -89,6 +89,12 @@ static int sof_test_topology_file(struct device *dev,
 	return ret;
 }
 
+static bool sof_platform_uses_generic_loader(struct snd_sof_dev *sdev)
+{
+	return (sdev->pdata->desc->ops->load_firmware == snd_sof_load_firmware_raw ||
+		sdev->pdata->desc->ops->load_firmware == snd_sof_load_firmware_memcpy);
+}
+
 static int
 sof_file_profile_for_ipc_type(struct snd_sof_dev *sdev,
 			      enum sof_ipc_type ipc_type,
@@ -130,7 +136,8 @@ sof_file_profile_for_ipc_type(struct snd_sof_dev *sdev,
 	 * For default path and firmware name do a verification before
 	 * continuing further.
 	 */
-	if (base_profile->fw_path || base_profile->fw_name) {
+	if ((base_profile->fw_path || base_profile->fw_name) &&
+	    sof_platform_uses_generic_loader(sdev)) {
 		ret = sof_test_firmware_file(dev, out_profile, &ipc_type);
 		if (ret)
 			return ret;
@@ -181,7 +188,8 @@ sof_file_profile_for_ipc_type(struct snd_sof_dev *sdev,
 	out_profile->ipc_type = ipc_type;
 
 	/* Test only default firmware file */
-	if (!base_profile->fw_path && !base_profile->fw_name)
+	if ((!base_profile->fw_path && !base_profile->fw_name) &&
+	    sof_platform_uses_generic_loader(sdev))
 		ret = sof_test_firmware_file(dev, out_profile, NULL);
 
 	if (!ret)
@@ -267,7 +275,11 @@ static void sof_print_profile_info(struct snd_sof_dev *sdev,
 
 	dev_info(dev, "Firmware paths/files for ipc type %d:\n", profile->ipc_type);
 
-	dev_info(dev, " Firmware file:     %s/%s\n", profile->fw_path, profile->fw_name);
+	/* The firmware path is only valid when generic loader is used */
+	if (sof_platform_uses_generic_loader(sdev))
+		dev_info(dev, " Firmware file:     %s/%s\n",
+			 profile->fw_path, profile->fw_name);
+
 	if (profile->fw_lib_path)
 		dev_info(dev, " Firmware lib path: %s\n", profile->fw_lib_path);
 	dev_info(dev, " Topology file:     %s/%s\n", profile->tplg_path, profile->tplg_name);

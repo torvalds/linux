@@ -291,11 +291,14 @@ void dc_state_destruct(struct dc_state *state)
 		dc_stream_release(state->phantom_streams[i]);
 		state->phantom_streams[i] = NULL;
 	}
+	state->phantom_stream_count = 0;
 
 	for (i = 0; i < state->phantom_plane_count; i++) {
 		dc_plane_state_release(state->phantom_planes[i]);
 		state->phantom_planes[i] = NULL;
 	}
+	state->phantom_plane_count = 0;
+
 	state->stream_mask = 0;
 	memset(&state->res_ctx, 0, sizeof(state->res_ctx));
 	memset(&state->pp_display_cfg, 0, sizeof(state->pp_display_cfg));

@@ -151,6 +151,11 @@ xe_range_fence_tree_next(struct xe_range_fence *rfence, u64 start, u64 last)
 	return xe_range_fence_tree_iter_next(rfence, start, last);
 }
 
+static void xe_range_fence_free(struct xe_range_fence *rfence)
+{
+	kfree(rfence);
+}
+
 const struct xe_range_fence_ops xe_range_fence_kfree_ops = {
-	.free = (void (*)(struct xe_range_fence *rfence)) kfree,
+	.free = xe_range_fence_free,
 };

@@ -418,14 +418,15 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 		bch2_quantiles_update(&stats->quantiles, duration);
 	}
 
-	if (time_after64(end, stats->last_event)) {
+	if (stats->last_event && time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
 		mean_and_variance_update(&stats->freq_stats, freq);
 		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);
-		stats->last_event = end;
 	}
+
+	stats->last_event = end;
 }
 
 static void __bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,

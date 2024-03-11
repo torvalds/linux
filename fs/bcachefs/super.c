@@ -1428,10 +1428,10 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 
 		required = max(!(flags & BCH_FORCE_IF_METADATA_DEGRADED)
 			       ? c->opts.metadata_replicas
-			       : c->opts.metadata_replicas_required,
+			       : metadata_replicas_required(c),
 			       !(flags & BCH_FORCE_IF_DATA_DEGRADED)
 			       ? c->opts.data_replicas
-			       : c->opts.data_replicas_required);
+			       : data_replicas_required(c));
 
 		return nr_rw >= required;
 	case BCH_MEMBER_STATE_failed:

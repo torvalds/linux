@@ -299,7 +299,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		long i;
 
 		wc->memory_map = NULL;
-		pages = kvmalloc_array(p, sizeof(struct page *), GFP_KERNEL);
+		pages = vmalloc_array(p, sizeof(struct page *));
 		if (!pages) {
 			r = -ENOMEM;
 			goto err2;
@@ -330,7 +330,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 			r = -ENOMEM;
 			goto err3;
 		}
-		kvfree(pages);
+		vfree(pages);
 		wc->memory_vmapped = true;
 	}
 
@@ -341,7 +341,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 
 	return 0;
 err3:
-	kvfree(pages);
+	vfree(pages);
 err2:
 	dax_read_unlock(id);
 err1:
@@ -962,7 +962,7 @@ static int writecache_alloc_entries(struct dm_writecache *wc)
 
 	if (wc->entries)
 		return 0;
-	wc->entries = vmalloc(array_size(sizeof(struct wc_entry), wc->n_blocks));
+	wc->entries = vmalloc_array(wc->n_blocks, sizeof(struct wc_entry));
 	if (!wc->entries)
 		return -ENOMEM;
 	for (b = 0; b < wc->n_blocks; b++) {

@@ -42,7 +42,7 @@ properties:
 
   resets:
     description: Reset controller to reset the TPM
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
 
   reset-gpios:
     description: Output GPIO pin to reset the TPM

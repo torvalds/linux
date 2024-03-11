@@ -160,6 +160,18 @@ static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 	return xe_vma_has_no_bo(vma) && !xe_vma_is_null(vma);
 }
 
+/**
+ * to_userptr_vma() - Return a pointer to an embedding userptr vma
+ * @vma: Pointer to the embedded struct xe_vma
+ *
+ * Return: Pointer to the embedding userptr vma
+ */
+static inline struct xe_userptr_vma *to_userptr_vma(struct xe_vma *vma)
+{
+	xe_assert(xe_vma_vm(vma)->xe, xe_vma_is_userptr(vma));
+	return container_of(vma, struct xe_userptr_vma, vma);
+}
+
 u64 xe_vm_pdp4_descriptor(struct xe_vm *vm, struct xe_tile *tile);
 
 int xe_vm_create_ioctl(struct drm_device *dev, void *data,
@@ -224,9 +236,9 @@ static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
 	}
 }
 
-int xe_vma_userptr_pin_pages(struct xe_vma *vma);
+int xe_vma_userptr_pin_pages(struct xe_userptr_vma *uvma);
 
-int xe_vma_userptr_check_repin(struct xe_vma *vma);
+int xe_vma_userptr_check_repin(struct xe_userptr_vma *uvma);
 
 bool xe_vm_validate_should_retry(struct drm_exec *exec, int err, ktime_t *end);
 

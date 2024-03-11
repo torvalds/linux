@@ -2836,16 +2836,12 @@ static int nau8825_read_device_properties(struct device *dev,
 	if (nau8825->adc_delay < 125 || nau8825->adc_delay > 500)
 		dev_warn(dev, "Please set the suitable delay time!\n");
 
-	nau8825->mclk = devm_clk_get(dev, "mclk");
-	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (PTR_ERR(nau8825->mclk) == -ENOENT) {
+	nau8825->mclk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(nau8825->mclk))
+		return PTR_ERR(nau8825->mclk);
+	if (!nau8825->mclk)
 		/* The MCLK is managed externally or not used at all */
-		nau8825->mclk = NULL;
 		dev_info(dev, "No 'mclk' clock found, assume MCLK is managed externally");
-	} else if (IS_ERR(nau8825->mclk)) {
-		return -EINVAL;
-	}
 
 	return 0;
 }

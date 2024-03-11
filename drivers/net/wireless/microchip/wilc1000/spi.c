@@ -273,6 +273,7 @@ static struct spi_driver wilc_spi_driver = {
 	.remove = wilc_bus_remove,
 };
 module_spi_driver(wilc_spi_driver);
+MODULE_DESCRIPTION("Atmel WILC1000 SPI wireless driver");
 MODULE_LICENSE("GPL");
 
 static int wilc_spi_tx(struct wilc *wilc, u8 *b, u32 len)

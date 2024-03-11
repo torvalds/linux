@@ -314,5 +314,6 @@ void mt792xu_disconnect(struct usb_interface *usb_intf)
 }
 EXPORT_SYMBOL_GPL(mt792xu_disconnect);
 
+MODULE_DESCRIPTION("MediaTek MT792x USB helpers");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
