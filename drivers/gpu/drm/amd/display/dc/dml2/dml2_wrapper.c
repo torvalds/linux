@@ -681,7 +681,7 @@ static void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *d
 	}
 }
 
-bool dml2_validate(struct dc *in_dc, struct dc_state *context, bool fast_validate)
+bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_validate)
 {
 	bool out = false;
 

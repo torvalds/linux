@@ -103,7 +103,7 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 	/*register_flip_interrupt(surface);*/
 }
 
-struct dc_plane_state *dc_create_plane_state(struct dc *dc)
+struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
 {
 	struct dc_plane_state *plane_state = kvzalloc(sizeof(*plane_state),
 							GFP_KERNEL);

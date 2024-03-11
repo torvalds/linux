@@ -47,7 +47,7 @@ struct dc_stream_state *dc_state_get_paired_subvp_stream(const struct dc_state *
 struct dc_stream_state *dc_state_create_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *main_stream);
-struct dc_plane_state *dc_state_create_phantom_plane(struct dc *dc,
+struct dc_plane_state *dc_state_create_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *main_plane);
 
@@ -60,11 +60,11 @@ void dc_state_release_phantom_plane(const struct dc *dc,
 		struct dc_plane_state *phantom_plane);
 
 /* add/remove phantom stream to context and generate subvp meta data */
-enum dc_status dc_state_add_phantom_stream(struct dc *dc,
+enum dc_status dc_state_add_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream,
 		struct dc_stream_state *main_stream);
-enum dc_status dc_state_remove_phantom_stream(struct dc *dc,
+enum dc_status dc_state_remove_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream);
 
@@ -94,11 +94,11 @@ bool dc_state_add_all_phantom_planes_for_stream(
 		struct dc_state *state);
 
 bool dc_state_remove_phantom_streams_and_planes(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state);
 
 void dc_state_release_phantom_streams_and_planes(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state);
 
 #endif /* _DC_STATE_PRIV_H_ */

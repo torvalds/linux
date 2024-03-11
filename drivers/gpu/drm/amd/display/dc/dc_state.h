@@ -39,12 +39,12 @@ void dc_state_destruct(struct dc_state *state);
 void dc_state_retain(struct dc_state *state);
 void dc_state_release(struct dc_state *state);
 
-enum dc_status dc_state_add_stream(struct dc *dc,
+enum dc_status dc_state_add_stream(const struct dc *dc,
 				    struct dc_state *state,
 				    struct dc_stream_state *stream);
 
 enum dc_status dc_state_remove_stream(
-		struct dc *dc,
+		const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream);
 

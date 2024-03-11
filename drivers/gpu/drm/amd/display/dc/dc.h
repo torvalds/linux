@@ -996,6 +996,7 @@ struct dc_debug_options {
 	bool enable_idle_reg_checks;
 	unsigned int static_screen_wait_frames;
 	bool force_chroma_subsampling_1tap;
+	bool disable_422_left_edge_pixel;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

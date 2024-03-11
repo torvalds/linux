@@ -109,10 +109,10 @@ struct dml2_dc_svp_callbacks {
 	struct dc_stream_state* (*create_phantom_stream)(const struct dc *dc,
 			struct dc_state *state,
 			struct dc_stream_state *main_stream);
-	struct dc_plane_state* (*create_phantom_plane)(struct dc *dc,
+	struct dc_plane_state* (*create_phantom_plane)(const struct dc *dc,
 			struct dc_state *state,
 			struct dc_plane_state *main_plane);
-	enum dc_status (*add_phantom_stream)(struct dc *dc,
+	enum dc_status (*add_phantom_stream)(const struct dc *dc,
 			struct dc_state *state,
 			struct dc_stream_state *phantom_stream,
 			struct dc_stream_state *main_stream);
@@ -121,7 +121,7 @@ struct dml2_dc_svp_callbacks {
 			struct dc_stream_state *stream,
 			struct dc_plane_state *plane_state,
 			struct dc_state *context);
-	enum dc_status (*remove_phantom_stream)(struct dc *dc,
+	enum dc_status (*remove_phantom_stream)(const struct dc *dc,
 			struct dc_state *state,
 			struct dc_stream_state *stream);
 	void (*release_phantom_plane)(const struct dc *dc,
@@ -135,10 +135,10 @@ struct dml2_dc_svp_callbacks {
 	enum mall_stream_type (*get_stream_subvp_type)(const struct dc_state *state, const struct dc_stream_state *stream);
 	struct dc_stream_state *(*get_paired_subvp_stream)(const struct dc_state *state, const struct dc_stream_state *stream);
 	bool (*remove_phantom_streams_and_planes)(
-			struct dc *dc,
+			const struct dc *dc,
 			struct dc_state *state);
 	void (*release_phantom_streams_and_planes)(
-			struct dc *dc,
+			const struct dc *dc,
 			struct dc_state *state);
 	unsigned int (*calculate_mall_ways_from_bytes)(
 				const struct dc *dc,
@@ -264,7 +264,7 @@ void dml2_reinit(const struct dc *in_dc,
  *          separate dc_states for validation.
  * Return: True if mode is supported, false otherwise.
  */
-bool dml2_validate(struct dc *in_dc,
+bool dml2_validate(const struct dc *in_dc,
 				   struct dc_state *context,
 				   bool fast_validate);
 
