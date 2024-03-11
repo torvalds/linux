@@ -1348,6 +1348,15 @@ static const struct iio_chan_spec_ext_info inv_ext_info[] = {
 	{ }
 };
 
+static const struct iio_event_spec inv_wom_events[] = {
+	{
+		.type = IIO_EV_TYPE_ROC,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE) |
+				 BIT(IIO_EV_INFO_VALUE),
+	},
+};
+
 #define INV_MPU6050_CHAN(_type, _channel2, _index)                    \
 	{                                                             \
 		.type = _type,                                        \
@@ -1383,7 +1392,17 @@ static const struct iio_chan_spec_ext_info inv_ext_info[] = {
 		},						\
 	}
 
-static const struct iio_chan_spec inv_mpu_channels[] = {
+#define INV_MPU6050_EVENT_CHAN(_type, _channel2, _events, _events_nb)	\
+{									\
+	.type = _type,							\
+	.modified = 1,							\
+	.channel2 = _channel2,						\
+	.event_spec = _events,						\
+	.num_event_specs = _events_nb,					\
+	.scan_index = -1,						\
+}
+
+static const struct iio_chan_spec inv_mpu6050_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
 
 	INV_MPU6050_TEMP_CHAN(INV_MPU6050_SCAN_TEMP),
@@ -1395,6 +1414,23 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU6050_SCAN_ACCL_X),
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU6050_SCAN_ACCL_Y),
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
+};
+
+static const struct iio_chan_spec inv_mpu6500_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
+
+	INV_MPU6050_TEMP_CHAN(INV_MPU6050_SCAN_TEMP),
+
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
+
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU6050_SCAN_ACCL_X),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU6050_SCAN_ACCL_Y),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
+
+	INV_MPU6050_EVENT_CHAN(IIO_ACCEL, IIO_MOD_X_OR_Y_OR_Z,
+			       inv_wom_events, ARRAY_SIZE(inv_wom_events)),
 };
 
 #define INV_MPU6050_SCAN_MASK_3AXIS_ACCEL	\
@@ -1876,6 +1912,12 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		return result;
 
 	switch (chip_type) {
+	case INV_MPU6000:
+	case INV_MPU6050:
+		indio_dev->channels = inv_mpu6050_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu6050_channels);
+		indio_dev->available_scan_masks = inv_mpu_scan_masks;
+		break;
 	case INV_MPU9150:
 		indio_dev->channels = inv_mpu9150_channels;
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9150_channels);
@@ -1889,13 +1931,13 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		break;
 	case INV_ICM20600:
 	case INV_ICM20602:
-		indio_dev->channels = inv_mpu_channels;
-		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
+		indio_dev->channels = inv_mpu6500_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu6500_channels);
 		indio_dev->available_scan_masks = inv_icm20602_scan_masks;
 		break;
 	default:
-		indio_dev->channels = inv_mpu_channels;
-		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
+		indio_dev->channels = inv_mpu6500_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu6500_channels);
 		indio_dev->available_scan_masks = inv_mpu_scan_masks;
 		break;
 	}
@@ -1904,9 +1946,18 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	 * auxiliary device in use. Otherwise Going back to 6-axis only.
 	 */
 	if (st->magn_disabled) {
-		indio_dev->channels = inv_mpu_channels;
-		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
-		indio_dev->available_scan_masks = inv_mpu_scan_masks;
+		switch (chip_type) {
+		case INV_MPU9150:
+			indio_dev->channels = inv_mpu6050_channels;
+			indio_dev->num_channels = ARRAY_SIZE(inv_mpu6050_channels);
+			indio_dev->available_scan_masks = inv_mpu_scan_masks;
+			break;
+		default:
+			indio_dev->channels = inv_mpu6500_channels;
+			indio_dev->num_channels = ARRAY_SIZE(inv_mpu6500_channels);
+			indio_dev->available_scan_masks = inv_mpu_scan_masks;
+			break;
+		}
 	}
 
 	indio_dev->info = &mpu_info;
