@@ -2065,6 +2065,7 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	/* populate the opp table */
 	new_opp->rates[0] = data->freq;
 	new_opp->level = data->level;
+	new_opp->turbo = data->turbo;
 	tol = u_volt * opp_table->voltage_tolerance_v1 / 100;
 	new_opp->supplies[0].u_volt = u_volt;
 	new_opp->supplies[0].u_volt_min = u_volt - tol;

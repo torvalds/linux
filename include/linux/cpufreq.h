@@ -693,26 +693,6 @@ struct cpufreq_frequency_table {
 				    * order */
 };
 
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_PM_OPP)
-int dev_pm_opp_init_cpufreq_table(struct device *dev,
-				  struct cpufreq_frequency_table **table);
-void dev_pm_opp_free_cpufreq_table(struct device *dev,
-				   struct cpufreq_frequency_table **table);
-#else
-static inline int dev_pm_opp_init_cpufreq_table(struct device *dev,
-						struct cpufreq_frequency_table
-						**table)
-{
-	return -EINVAL;
-}
-
-static inline void dev_pm_opp_free_cpufreq_table(struct device *dev,
-						 struct cpufreq_frequency_table
-						 **table)
-{
-}
-#endif
-
 /*
  * cpufreq_for_each_entry -	iterate over a cpufreq_frequency_table
  * @pos:	the cpufreq_frequency_table * to use as a loop cursor.
