@@ -183,6 +183,10 @@
 	regulator-min-microvolt = <1200000>;
 };
 
+&pmi8950_wled {
+	qcom,num-strings = <3>;
+};
+
 &battery {
 	charge-full-design-microamp-hours = <4000000>;
 	constant-charge-current-max-microamp = <1000000>;
