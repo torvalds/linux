@@ -2774,6 +2774,8 @@
   woken_wake_function
   work_busy
   __write_overflow_field
+  ww_mutex_lock
+  ww_mutex_unlock
   __xa_alloc
   xa_clear_mark
   xa_destroy
