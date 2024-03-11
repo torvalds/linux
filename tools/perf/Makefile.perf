@@ -580,11 +580,10 @@ $(sockaddr_arrays): $(beauty_linux_dir)/socket.h $(sockaddr_tbl)
 	$(Q)$(SHELL) '$(sockaddr_tbl)' $(beauty_linux_dir) > $@
 
 vhost_virtio_ioctl_array := $(beauty_ioctl_outdir)/vhost_virtio_ioctl_array.c
-vhost_virtio_hdr_dir := $(srctree)/tools/include/uapi/linux
 vhost_virtio_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/vhost_virtio_ioctl.sh
 
-$(vhost_virtio_ioctl_array): $(vhost_virtio_hdr_dir)/vhost.h $(vhost_virtio_ioctl_tbl)
-	$(Q)$(SHELL) '$(vhost_virtio_ioctl_tbl)' $(vhost_virtio_hdr_dir) > $@
+$(vhost_virtio_ioctl_array): $(beauty_uapi_linux_dir)/vhost.h $(vhost_virtio_ioctl_tbl)
+	$(Q)$(SHELL) '$(vhost_virtio_ioctl_tbl)' $(beauty_uapi_linux_dir) > $@
 
 perf_ioctl_array := $(beauty_ioctl_outdir)/perf_ioctl_array.c
 perf_hdr_dir := $(srctree)/tools/include/uapi/linux
