@@ -1867,7 +1867,9 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.set_df_cstate = smu_v14_0_2_set_df_cstate,
 	.send_hbm_bad_pages_num = smu_v14_0_2_smu_send_bad_mem_page_num,
 	.send_hbm_bad_channel_flag = smu_v14_0_2_send_bad_mem_channel_flag,
+#if 0
 	.gpo_control = smu_v14_0_gpo_control,
+#endif
 	.get_ecc_info = smu_v14_0_2_get_ecc_info,
 };
 
