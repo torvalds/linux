@@ -1097,7 +1097,8 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
+	mvmvif->bf_enabled = false;
+	mvmvif->ba_enabled = false;
 	mvmvif->ap_sta = NULL;
 
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
@@ -1106,6 +1107,8 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 		mvmvif->link[link_id]->phy_ctxt = NULL;
 		mvmvif->link[link_id]->active = 0;
 		mvmvif->link[link_id]->igtk = NULL;
+		memset(&mvmvif->link[link_id]->bf_data, 0,
+		       sizeof(mvmvif->link[link_id]->bf_data));
 	}
 
 	probe_data = rcu_dereference_protected(mvmvif->deflink.probe_resp_data,
@@ -2538,6 +2541,7 @@ void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
+	int link_id;
 
 	/* The firmware tracks the MU-MIMO group on its own.
 	 * However, on HW restart we should restore this data.
@@ -2553,7 +2557,8 @@ void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
 	iwl_mvm_recalc_multicast(mvm);
 
 	/* reset rssi values */
-	mvmvif->bf_data.ave_beacon_signal = 0;
+	for_each_mvm_vif_valid_link(mvmvif, link_id)
+		mvmvif->link[link_id]->bf_data.ave_beacon_signal = 0;
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 	iwl_mvm_update_smps_on_active_links(mvm, vif, IWL_MVM_SMPS_REQ_TT,
@@ -2594,10 +2599,14 @@ iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
 	}
 
 	if (changes & BSS_CHANGED_CQM) {
-		IWL_DEBUG_MAC80211(mvm, "cqm info_changed\n");
-		/* reset cqm events tracking */
-		mvmvif->bf_data.last_cqm_event = 0;
-		if (mvmvif->bf_data.bf_enabled) {
+		struct iwl_mvm_vif_link_info *link_info =
+			mvmvif->link[link_conf->link_id];
+
+		IWL_DEBUG_MAC80211(mvm, "CQM info_changed\n");
+		if (link_info)
+			link_info->bf_data.last_cqm_event = 0;
+
+		if (mvmvif->bf_enabled) {
 			/* FIXME: need to update per link when FW API will
 			 * support it
 			 */
@@ -5391,7 +5400,7 @@ static int iwl_mvm_old_pre_chan_sw_sta(struct iwl_mvm *mvm,
 	if (chsw->block_tx)
 		iwl_mvm_csa_client_absent(mvm, vif);
 
-	if (mvmvif->bf_data.bf_enabled) {
+	if (mvmvif->bf_enabled) {
 		int ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 
 		if (ret)
