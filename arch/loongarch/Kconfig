@@ -134,6 +134,7 @@ config LOONGARCH
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_KRETPROBES
 	select HAVE_KVM
+	select HAVE_LIVEPATCH
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_OBJTOOL if AS_HAS_EXPLICIT_RELOCS
@@ -143,6 +144,7 @@ config LOONGARCH
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RELIABLE_STACKTRACE if UNWINDER_ORC
 	select HAVE_RETHOOK
 	select HAVE_RSEQ
 	select HAVE_RUST
@@ -635,6 +637,8 @@ config RANDOMIZE_BASE_MAX_OFFSET
 	  amount of physical RAM available in the target system.
 
 	  This is limited by the size of the lower address memory, 256MB.
+
+source "kernel/livepatch/Kconfig"
 
 endmenu
 
