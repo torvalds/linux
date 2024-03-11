@@ -91,6 +91,18 @@ static void trigger_kretprobe_setup(void)
 	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe);
 }
 
+static void trigger_kprobe_multi_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_multi);
+}
+
+static void trigger_kretprobe_multi_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_multi);
+}
+
 static void trigger_fentry_setup(void)
 {
 	setup_ctx();
@@ -277,6 +289,26 @@ const struct bench bench_trig_kretprobe = {
 	.name = "trig-kretprobe",
 	.validate = trigger_validate,
 	.setup = trigger_kretprobe_setup,
+	.producer_thread = trigger_producer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_kprobe_multi = {
+	.name = "trig-kprobe-multi",
+	.validate = trigger_validate,
+	.setup = trigger_kprobe_multi_setup,
+	.producer_thread = trigger_producer,
+	.measure = trigger_measure,
+	.report_progress = hits_drops_report_progress,
+	.report_final = hits_drops_report_final,
+};
+
+const struct bench bench_trig_kretprobe_multi = {
+	.name = "trig-kretprobe-multi",
+	.validate = trigger_validate,
+	.setup = trigger_kretprobe_multi_setup,
 	.producer_thread = trigger_producer,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
