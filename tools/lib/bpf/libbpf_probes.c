@@ -338,6 +338,13 @@ static int probe_map_create(enum bpf_map_type map_type)
 		key_size = 0;
 		max_entries = 1;
 		break;
+	case BPF_MAP_TYPE_ARENA:
+		key_size	= 0;
+		value_size	= 0;
+		max_entries	= 1; /* one page */
+		opts.map_extra	= 0; /* can mmap() at any address */
+		opts.map_flags	= BPF_F_MMAPABLE;
+		break;
 	case BPF_MAP_TYPE_HASH:
 	case BPF_MAP_TYPE_ARRAY:
 	case BPF_MAP_TYPE_PROG_ARRAY:

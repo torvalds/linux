@@ -120,6 +120,12 @@ static bool get_datasec_ident(const char *sec_name, char *buf, size_t buf_sz)
 	static const char *pfxs[] = { ".data", ".rodata", ".bss", ".kconfig" };
 	int i, n;
 
+	/* recognize hard coded LLVM section name */
+	if (strcmp(sec_name, ".arena.1") == 0) {
+		/* this is the name to use in skeleton */
+		snprintf(buf, buf_sz, "arena");
+		return true;
+	}
 	for  (i = 0, n = ARRAY_SIZE(pfxs); i < n; i++) {
 		const char *pfx = pfxs[i];
 
@@ -250,6 +256,13 @@ static const struct btf_type *find_type_for_map(struct btf *btf, const char *map
 
 static bool is_mmapable_map(const struct bpf_map *map, char *buf, size_t sz)
 {
+	size_t tmp_sz;
+
+	if (bpf_map__type(map) == BPF_MAP_TYPE_ARENA && bpf_map__initial_value(map, &tmp_sz)) {
+		snprintf(buf, sz, "arena");
+		return true;
+	}
+
 	if (!bpf_map__is_internal(map) || !(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 		return false;
 

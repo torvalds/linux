@@ -164,6 +164,7 @@ static int bpf_map_update_value(struct bpf_map *map, struct file *map_file,
 	if (bpf_map_is_offloaded(map)) {
 		return bpf_map_offload_update_elem(map, key, value, flags);
 	} else if (map->map_type == BPF_MAP_TYPE_CPUMAP ||
+		   map->map_type == BPF_MAP_TYPE_ARENA ||
 		   map->map_type == BPF_MAP_TYPE_STRUCT_OPS) {
 		return map->ops->map_update_elem(map, key, value, flags);
 	} else if (map->map_type == BPF_MAP_TYPE_SOCKHASH ||
@@ -478,6 +479,39 @@ static void bpf_map_release_memcg(struct bpf_map *map)
 {
 }
 #endif
+
+int bpf_map_alloc_pages(const struct bpf_map *map, gfp_t gfp, int nid,
+			unsigned long nr_pages, struct page **pages)
+{
+	unsigned long i, j;
+	struct page *pg;
+	int ret = 0;
+#ifdef CONFIG_MEMCG_KMEM
+	struct mem_cgroup *memcg, *old_memcg;
+
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
+#endif
+	for (i = 0; i < nr_pages; i++) {
+		pg = alloc_pages_node(nid, gfp | __GFP_ACCOUNT, 0);
+
+		if (pg) {
+			pages[i] = pg;
+			continue;
+		}
+		for (j = 0; j < i; j++)
+			__free_page(pages[j]);
+		ret = -ENOMEM;
+		break;
+	}
+
+#ifdef CONFIG_MEMCG_KMEM
+	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
+#endif
+	return ret;
+}
+
 
 static int btf_field_cmp(const void *a, const void *b)
 {
@@ -1176,6 +1210,7 @@ static int map_create(union bpf_attr *attr)
 	}
 
 	if (attr->map_type != BPF_MAP_TYPE_BLOOM_FILTER &&
+	    attr->map_type != BPF_MAP_TYPE_ARENA &&
 	    attr->map_extra != 0)
 		return -EINVAL;
 
@@ -1265,6 +1300,7 @@ static int map_create(union bpf_attr *attr)
 	case BPF_MAP_TYPE_LRU_PERCPU_HASH:
 	case BPF_MAP_TYPE_STRUCT_OPS:
 	case BPF_MAP_TYPE_CPUMAP:
+	case BPF_MAP_TYPE_ARENA:
 		if (!bpf_token_capable(token, CAP_BPF))
 			goto put_token;
 		break;
@@ -4414,6 +4450,12 @@ static struct bpf_insn *bpf_insn_prepare_dump(const struct bpf_prog *prog,
 		}
 		if (BPF_CLASS(code) == BPF_LDX && BPF_MODE(code) == BPF_PROBE_MEM) {
 			insns[i].code = BPF_LDX | BPF_SIZE(code) | BPF_MEM;
+			continue;
+		}
+
+		if ((BPF_CLASS(code) == BPF_LDX || BPF_CLASS(code) == BPF_STX ||
+		     BPF_CLASS(code) == BPF_ST) && BPF_MODE(code) == BPF_PROBE_MEM32) {
+			insns[i].code = BPF_CLASS(code) | BPF_SIZE(code) | BPF_MEM;
 			continue;
 		}
 
