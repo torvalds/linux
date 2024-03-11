@@ -245,6 +245,10 @@ Contributing new tests (details)
    TEST_PROGS, TEST_GEN_PROGS mean it is the executable tested by
    default.
 
+   TEST_GEN_MODS_DIR should be used by tests that require modules to be built
+   before the test starts. The variable will contain the name of the directory
+   containing the modules.
+
    TEST_CUSTOM_PROGS should be used by tests that require custom build
    rules and prevent common build rule use.
 

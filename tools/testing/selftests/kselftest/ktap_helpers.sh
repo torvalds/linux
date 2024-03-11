@@ -9,14 +9,27 @@ KTAP_CNT_PASS=0
 KTAP_CNT_FAIL=0
 KTAP_CNT_SKIP=0
 
+KSFT_PASS=0
+KSFT_FAIL=1
+KSFT_XFAIL=2
+KSFT_XPASS=3
+KSFT_SKIP=4
+
+KSFT_NUM_TESTS=0
+
 ktap_print_header() {
 	echo "TAP version 13"
 }
 
-ktap_set_plan() {
-	num_tests="$1"
+ktap_print_msg()
+{
+	echo "#" $@
+}
 
-	echo "1..$num_tests"
+ktap_set_plan() {
+	KSFT_NUM_TESTS="$1"
+
+	echo "1..$KSFT_NUM_TESTS"
 }
 
 ktap_skip_all() {
@@ -63,6 +76,34 @@ ktap_test_fail() {
 	__ktap_test "$result" "$description"
 
 	KTAP_CNT_FAIL=$((KTAP_CNT_FAIL+1))
+}
+
+ktap_test_result() {
+	description="$1"
+	shift
+
+	if $@; then
+		ktap_test_pass "$description"
+	else
+		ktap_test_fail "$description"
+	fi
+}
+
+ktap_exit_fail_msg() {
+	echo "Bail out! " $@
+	ktap_print_totals
+
+	exit "$KSFT_FAIL"
+}
+
+ktap_finished() {
+	ktap_print_totals
+
+	if [ $(("$KTAP_CNT_PASS" + "$KTAP_CNT_SKIP")) -eq "$KSFT_NUM_TESTS" ]; then
+		exit "$KSFT_PASS"
+	else
+		exit "$KSFT_FAIL"
+	fi
 }
 
 ktap_print_totals() {

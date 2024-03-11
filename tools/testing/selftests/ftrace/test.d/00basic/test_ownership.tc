@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
-# description: Test file and directory owership changes for eventfs
+# description: Test file and directory ownership changes for eventfs
 
 original_group=`stat -c "%g" .`
 original_owner=`stat -c "%u" .`
