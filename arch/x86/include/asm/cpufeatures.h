@@ -434,11 +434,12 @@
 
 /*
  * Extended auxiliary flags: Linux defined - for features scattered in various
- * CPUID levels like 0x80000022, etc.
+ * CPUID levels like 0x80000022, etc and Linux defined features.
  *
  * Reuse free bits when adding new feature flags!
  */
 #define X86_FEATURE_AMD_LBR_PMC_FREEZE	(21*32+ 0) /* AMD LBR and PMC Freeze */
+#define X86_FEATURE_CLEAR_BHB_LOOP	(21*32+ 1) /* "" Clear branch history at syscall entry using SW loop */
 
 /*
  * BUG word(s)

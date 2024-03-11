@@ -215,6 +215,14 @@
 .Lskip_verw_\@:
 .endm
 
+#ifdef CONFIG_X86_64
+.macro CLEAR_BRANCH_HISTORY
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP
+.endm
+#else
+#define CLEAR_BRANCH_HISTORY
+#endif
+
 #else /* __ASSEMBLY__ */
 
 #define ANNOTATE_RETPOLINE_SAFE					\
@@ -242,6 +250,10 @@ extern void srso_alias_untrain_ret(void);
 
 extern void entry_untrain_ret(void);
 extern void entry_ibpb(void);
+
+#ifdef CONFIG_X86_64
+extern void clear_bhb_loop(void);
+#endif
 
 extern void (*x86_return_thunk)(void);
 

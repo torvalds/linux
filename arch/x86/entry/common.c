@@ -141,7 +141,7 @@ static __always_inline bool int80_is_external(void)
 }
 
 /**
- * int80_emulation - 32-bit legacy syscall entry
+ * do_int80_emulation - 32-bit legacy syscall C entry from asm
  *
  * This entry point can be used by 32-bit and 64-bit programs to perform
  * 32-bit system calls.  Instances of INT $0x80 can be found inline in
@@ -159,7 +159,7 @@ static __always_inline bool int80_is_external(void)
  *   eax:				system call number
  *   ebx, ecx, edx, esi, edi, ebp:	arg1 - arg 6
  */
-DEFINE_IDTENTRY_RAW(int80_emulation)
+__visible noinstr void do_int80_emulation(struct pt_regs *regs)
 {
 	int nr;
 
