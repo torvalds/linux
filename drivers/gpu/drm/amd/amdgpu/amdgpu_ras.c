@@ -2848,12 +2848,35 @@ static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 		schedule_delayed_work(&con->page_retirement_dwork, 0);
 }
 
+static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
+			struct ras_poison_msg *poison_msg)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint32_t reset = poison_msg->reset;
+	uint16_t pasid = poison_msg->pasid;
+
+	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
+
+	if (poison_msg->pasid_fn)
+		poison_msg->pasid_fn(adev, pasid, poison_msg->data);
+
+	if (reset) {
+		flush_delayed_work(&con->page_retirement_dwork);
+
+		con->gpu_reset_flags |= reset;
+		amdgpu_ras_reset_gpu(adev);
+	}
+
+	return 0;
+}
+
 static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_poison_msg poison_msg;
 	enum amdgpu_ras_block ras_block;
+	bool poison_creation_is_handled = false;
 
 	while (!kthread_should_stop()) {
 
@@ -2874,12 +2897,24 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		dev_info(adev->dev, "Start processing ras block %s(%d)\n",
 				ras_block_str(ras_block), ras_block);
 
-		if (ras_block == AMDGPU_RAS_BLOCK__UMC)
+		if (ras_block == AMDGPU_RAS_BLOCK__UMC) {
 			amdgpu_ras_poison_creation_handler(adev,
 				MAX_UMC_POISON_POLLING_TIME_ASYNC);
-		else
-			amdgpu_umc_bad_page_polling_timeout(adev,
-				false, MAX_UMC_POISON_POLLING_TIME_ASYNC);
+			poison_creation_is_handled = true;
+		} else {
+			/* poison_creation_is_handled:
+			 *   false: no poison creation interrupt, but it has poison
+			 *          consumption interrupt.
+			 *   true: It has poison creation interrupt at the beginning,
+			 *         but it has no poison creation interrupt later.
+			 */
+			amdgpu_ras_poison_creation_handler(adev,
+					poison_creation_is_handled ?
+					0 : MAX_UMC_POISON_POLLING_TIME_ASYNC);
+
+			amdgpu_ras_poison_consumption_handler(adev, &poison_msg);
+			poison_creation_is_handled = false;
+		}
 	}
 
 	return 0;
