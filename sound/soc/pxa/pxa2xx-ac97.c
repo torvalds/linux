@@ -271,7 +271,6 @@ static void pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 	pxa2xx_ac97_hw_remove(pdev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pxa2xx_ac97_dev_suspend(struct device *dev)
 {
 	return pxa2xx_ac97_hw_suspend();
@@ -282,18 +281,15 @@ static int pxa2xx_ac97_dev_resume(struct device *dev)
 	return pxa2xx_ac97_hw_resume();
 }
 
-static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops,
+static DEFINE_SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops,
 		pxa2xx_ac97_dev_suspend, pxa2xx_ac97_dev_resume);
-#endif
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_dev_probe,
 	.remove_new	= pxa2xx_ac97_dev_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
-#ifdef CONFIG_PM_SLEEP
 		.pm	= &pxa2xx_ac97_pm_ops,
-#endif
 		.of_match_table = of_match_ptr(pxa2xx_ac97_dt_ids),
 	},
 };

@@ -972,6 +972,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 		return -ENODEV;
 	}
 
+	cs35l56->dsp.part = kasprintf(GFP_KERNEL, "cs35l%02x", cs35l56->base.type);
+	if (!cs35l56->dsp.part)
+		return -ENOMEM;
+
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
@@ -1001,6 +1005,9 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 		wm_adsp_power_down(&cs35l56->dsp);
 
 	wm_adsp2_component_remove(&cs35l56->dsp, component);
+
+	kfree(cs35l56->dsp.part);
+	cs35l56->dsp.part = NULL;
 
 	kfree(cs35l56->dsp.fwf_name);
 	cs35l56->dsp.fwf_name = NULL;
@@ -1221,7 +1228,12 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 
 	dsp = &cs35l56->dsp;
 	cs35l56_init_cs_dsp(&cs35l56->base, &dsp->cs_dsp);
-	dsp->part = "cs35l56";
+
+	/*
+	 * dsp->part is filled in later as it is based on the DEVID. In a
+	 * SoundWire system that cannot be read until enumeration has occurred
+	 * and the device has attached.
+	 */
 	dsp->fw = 12;
 	dsp->wmfw_optional = true;
 

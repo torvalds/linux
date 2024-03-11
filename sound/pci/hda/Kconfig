@@ -116,6 +116,9 @@ config SND_HDA_CS_DSP_CONTROLS
 	tristate
 	select FW_CS_DSP
 
+config SND_HDA_SCODEC_COMPONENT
+	tristate
+
 config SND_HDA_SCODEC_CS35L41_I2C
 	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"
 	depends on I2C
@@ -201,6 +204,7 @@ config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
 	select SND_HDA_GENERIC_LEDS
+	select SND_HDA_SCODEC_COMPONENT
 	help
 	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
