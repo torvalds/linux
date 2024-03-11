@@ -5461,6 +5461,11 @@ static void gfx_v11_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		amdgpu_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
 		amdgpu_ring_write(ring, 0x0);
 	}
+
+	/* Make sure that we can't skip the SET_Q_MODE packets when the VM
+	 * changed in any way.
+	 */
+	ring->set_q_mode_ptr = NULL;
 }
 
 static void gfx_v11_0_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
@@ -5510,15 +5515,80 @@ static void gfx_v11_0_ring_emit_cntxcntl(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, 0);
 }
 
+static unsigned gfx_v11_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring,
+						   uint64_t addr)
+{
+	unsigned ret;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_COND_EXEC, 3));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	/* discard following DWs if *cond_exec_gpu_addr==0 */
+	amdgpu_ring_write(ring, 0);
+	ret = ring->wptr & ring->buf_mask;
+	/* patch dummy value later */
+	amdgpu_ring_write(ring, 0);
+
+	return ret;
+}
+
 static void gfx_v11_0_ring_emit_gfx_shadow(struct amdgpu_ring *ring,
 					   u64 shadow_va, u64 csa_va,
 					   u64 gds_va, bool init_shadow,
 					   int vmid)
 {
 	struct amdgpu_device *adev = ring->adev;
+	unsigned int offs, end;
 
-	if (!adev->gfx.cp_gfx_shadow)
+	if (!adev->gfx.cp_gfx_shadow || !ring->ring_obj)
 		return;
+
+	/*
+	 * The logic here isn't easy to understand because we need to keep state
+	 * accross multiple executions of the function as well as between the
+	 * CPU and GPU. The general idea is that the newly written GPU command
+	 * has a condition on the previous one and only executed if really
+	 * necessary.
+	 */
+
+	/*
+	 * The dw in the NOP controls if the next SET_Q_MODE packet should be
+	 * executed or not. Reserve 64bits just to be on the save side.
+	 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_NOP, 1));
+	offs = ring->wptr & ring->buf_mask;
+
+	/*
+	 * We start with skipping the prefix SET_Q_MODE and always executing
+	 * the postfix SET_Q_MODE packet. This is changed below with a
+	 * WRITE_DATA command when the postfix executed.
+	 */
+	amdgpu_ring_write(ring, shadow_va ? 1 : 0);
+	amdgpu_ring_write(ring, 0);
+
+	if (ring->set_q_mode_offs) {
+		uint64_t addr;
+
+		addr = amdgpu_bo_gpu_offset(ring->ring_obj);
+		addr += ring->set_q_mode_offs << 2;
+		end = gfx_v11_0_ring_emit_init_cond_exec(ring, addr);
+	}
+
+	/*
+	 * When the postfix SET_Q_MODE packet executes we need to make sure that the
+	 * next prefix SET_Q_MODE packet executes as well.
+	 */
+	if (!shadow_va) {
+		uint64_t addr;
+
+		addr = amdgpu_bo_gpu_offset(ring->ring_obj);
+		addr += offs << 2;
+		amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+		amdgpu_ring_write(ring, WRITE_DATA_DST_SEL(5) | WR_CONFIRM);
+		amdgpu_ring_write(ring, lower_32_bits(addr));
+		amdgpu_ring_write(ring, upper_32_bits(addr));
+		amdgpu_ring_write(ring, 0x1);
+	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_Q_PREEMPTION_MODE, 7));
 	amdgpu_ring_write(ring, lower_32_bits(shadow_va));
@@ -5531,33 +5601,26 @@ static void gfx_v11_0_ring_emit_gfx_shadow(struct amdgpu_ring *ring,
 			  PACKET3_SET_Q_PREEMPTION_MODE_IB_VMID(vmid) : 0);
 	amdgpu_ring_write(ring, init_shadow ?
 			  PACKET3_SET_Q_PREEMPTION_MODE_INIT_SHADOW_MEM : 0);
-}
 
-static unsigned gfx_v11_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)
-{
-	unsigned ret;
+	if (ring->set_q_mode_offs)
+		amdgpu_ring_patch_cond_exec(ring, end);
 
-	amdgpu_ring_write(ring, PACKET3(PACKET3_COND_EXEC, 3));
-	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, 0); /* discard following DWs if *cond_exec_gpu_addr==0 */
-	ret = ring->wptr & ring->buf_mask;
-	amdgpu_ring_write(ring, 0x55aa55aa); /* patch dummy value later */
+	if (shadow_va) {
+		uint64_t token = shadow_va ^ csa_va ^ gds_va ^ vmid;
 
-	return ret;
-}
+		/*
+		 * If the tokens match try to skip the last postfix SET_Q_MODE
+		 * packet to avoid saving/restoring the state all the time.
+		 */
+		if (ring->set_q_mode_ptr && ring->set_q_mode_token == token)
+			*ring->set_q_mode_ptr = 0;
 
-static void gfx_v11_0_ring_emit_patch_cond_exec(struct amdgpu_ring *ring, unsigned offset)
-{
-	unsigned cur;
-	BUG_ON(offset > ring->buf_mask);
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
+		ring->set_q_mode_token = token;
+	} else {
+		ring->set_q_mode_ptr = &ring->ring[ring->set_q_mode_offs];
+	}
 
-	cur = (ring->wptr - 1) & ring->buf_mask;
-	if (likely(cur > offset))
-		ring->ring[offset] = cur - offset;
-	else
-		ring->ring[offset] = (ring->buf_mask + 1) - offset + cur;
+	ring->set_q_mode_offs = offs;
 }
 
 static int gfx_v11_0_ring_preempt_ib(struct amdgpu_ring *ring)
@@ -6124,7 +6187,7 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
 	.emit_frame_size = /* totally 247 maximum if 16 IBs */
 		5 + /* update_spm_vmid */
 		5 + /* COND_EXEC */
-		9 + /* SET_Q_PREEMPTION_MODE */
+		22 + /* SET_Q_PREEMPTION_MODE */
 		7 + /* PIPELINE_SYNC */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 5 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
@@ -6137,6 +6200,7 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
 		31 + /*	DE_META */
 		3 + /* CNTX_CTRL */
 		5 + /* HDP_INVL */
+		22 + /* SET_Q_PREEMPTION_MODE */
 		8 + 8 + /* FENCE x2 */
 		8, /* gfx_v11_0_emit_mem_sync */
 	.emit_ib_size =	4, /* gfx_v11_0_ring_emit_ib_gfx */
@@ -6153,7 +6217,6 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
 	.emit_cntxcntl = gfx_v11_0_ring_emit_cntxcntl,
 	.emit_gfx_shadow = gfx_v11_0_ring_emit_gfx_shadow,
 	.init_cond_exec = gfx_v11_0_ring_emit_init_cond_exec,
-	.patch_cond_exec = gfx_v11_0_ring_emit_patch_cond_exec,
 	.preempt_ib = gfx_v11_0_ring_preempt_ib,
 	.emit_frame_cntl = gfx_v11_0_ring_emit_frame_cntl,
 	.emit_wreg = gfx_v11_0_ring_emit_wreg,
