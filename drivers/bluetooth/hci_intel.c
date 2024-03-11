@@ -1190,7 +1190,7 @@ no_irq:
 	return 0;
 }
 
-static int intel_remove(struct platform_device *pdev)
+static void intel_remove(struct platform_device *pdev)
 {
 	struct intel_device *idev = platform_get_drvdata(pdev);
 
@@ -1201,13 +1201,11 @@ static int intel_remove(struct platform_device *pdev)
 	mutex_unlock(&intel_device_list_lock);
 
 	dev_info(&pdev->dev, "unregistered.\n");
-
-	return 0;
 }
 
 static struct platform_driver intel_driver = {
 	.probe = intel_probe,
-	.remove = intel_remove,
+	.remove_new = intel_remove,
 	.driver = {
 		.name = "hci_intel",
 		.acpi_match_table = ACPI_PTR(intel_acpi_match),
