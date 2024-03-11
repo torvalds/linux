@@ -970,14 +970,14 @@ SYM_CODE_START_LOCAL(paranoid_exit)
 	IBRS_EXIT save_reg=%r15
 
 	/*
-	 * The order of operations is important. RESTORE_CR3 requires
+	 * The order of operations is important. PARANOID_RESTORE_CR3 requires
 	 * kernel GSBASE.
 	 *
 	 * NB to anyone to try to optimize this code: this code does
 	 * not execute at all for exceptions from user mode. Those
 	 * exceptions go through error_return instead.
 	 */
-	RESTORE_CR3	scratch_reg=%rax save_reg=%r14
+	PARANOID_RESTORE_CR3 scratch_reg=%rax save_reg=%r14
 
 	/* Handle the three GSBASE cases */
 	ALTERNATIVE "jmp .Lparanoid_exit_checkgs", "", X86_FEATURE_FSGSBASE
@@ -1406,8 +1406,7 @@ end_repeat_nmi:
 	/* Always restore stashed SPEC_CTRL value (see paranoid_entry) */
 	IBRS_EXIT save_reg=%r15
 
-	/* Always restore stashed CR3 value (see paranoid_entry) */
-	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
+	PARANOID_RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
 
 	/*
 	 * The above invocation of paranoid_entry stored the GSBASE
