@@ -263,6 +263,7 @@ static inline bool cpufreq_supports_freq_invariance(void)
 	return false;
 }
 static inline void disable_cpufreq(void) { }
+static inline void cpufreq_update_limits(unsigned int cpu) { }
 #endif
 
 #ifdef CONFIG_CPU_FREQ_STAT
@@ -568,9 +569,7 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
 
 /*
  * The polling frequency depends on the capability of the processor. Default
- * polling frequency is 1000 times the transition latency of the processor. The
- * ondemand governor will work on any processor with transition latency <= 10ms,
- * using appropriate sampling rate.
+ * polling frequency is 1000 times the transition latency of the processor.
  */
 #define LATENCY_MULTIPLIER		(1000)
 
@@ -1021,6 +1020,18 @@ static inline int cpufreq_table_find_index_c(struct cpufreq_policy *policy,
 						   efficiencies);
 }
 
+static inline bool cpufreq_is_in_limits(struct cpufreq_policy *policy, int idx)
+{
+	unsigned int freq;
+
+	if (idx < 0)
+		return false;
+
+	freq = policy->freq_table[idx].frequency;
+
+	return freq == clamp_val(freq, policy->min, policy->max);
+}
+
 static inline int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 						 unsigned int target_freq,
 						 unsigned int relation)
@@ -1054,7 +1065,8 @@ retry:
 		return 0;
 	}
 
-	if (idx < 0 && efficiencies) {
+	/* Limit frequency index to honor policy->min/max */
+	if (!cpufreq_is_in_limits(policy, idx) && efficiencies) {
 		efficiencies = false;
 		goto retry;
 	}
