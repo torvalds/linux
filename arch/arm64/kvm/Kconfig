@@ -37,7 +37,6 @@ menuconfig KVM
 	select HAVE_KVM_VCPU_RUN_PID_CHANGE
 	select SCHED_INFO
 	select GUEST_PERF_EVENTS if PERF_EVENTS
-	select XARRAY_MULTI
 	help
 	  Support hosting virtualized guest machines.
 
@@ -65,5 +64,16 @@ config PROTECTED_NVHE_STACKTRACE
 	  say N.
 
 	  If unsure, or not using protected nVHE (pKVM), say N.
+
+config KVM_ARM64_RES_BITS_PARANOIA
+	bool "Build-time check of RES0/RES1 bits"
+	depends on KVM
+	default n
+	help
+	  Say Y here to validate that KVM's knowledge of most system
+	  registers' RES0/RES1 bits matches when the rest of the kernel
+	  defines. Expect the build to fail badly if you enable this.
+
+	  Just say N.
 
 endif # VIRTUALIZATION
