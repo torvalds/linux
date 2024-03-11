@@ -276,16 +276,13 @@ err_unregister:
  *
  * Remove an LCD display device, freeing private resources & ensuring that the
  * driver stops using the LCD display registers.
- *
- * Return: 0
  */
-static int img_ascii_lcd_remove(struct platform_device *pdev)
+static void img_ascii_lcd_remove(struct platform_device *pdev)
 {
 	struct img_ascii_lcd_ctx *ctx = platform_get_drvdata(pdev);
 
 	sysfs_remove_link(&pdev->dev.kobj, "message");
 	linedisp_unregister(&ctx->linedisp);
-	return 0;
 }
 
 static struct platform_driver img_ascii_lcd_driver = {
@@ -294,7 +291,7 @@ static struct platform_driver img_ascii_lcd_driver = {
 		.of_match_table	= img_ascii_lcd_matches,
 	},
 	.probe	= img_ascii_lcd_probe,
-	.remove	= img_ascii_lcd_remove,
+	.remove_new = img_ascii_lcd_remove,
 };
 module_platform_driver(img_ascii_lcd_driver);
 
