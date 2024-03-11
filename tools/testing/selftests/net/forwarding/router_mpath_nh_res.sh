@@ -5,9 +5,12 @@ ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
 	multipath_test
+	nh_stats_test_v4
+	nh_stats_test_v6
 "
 NUM_NETIFS=8
 source lib.sh
+source router_mpath_nh_lib.sh
 
 h1_create()
 {
@@ -331,6 +334,16 @@ multipath_test()
 	multipath6_l4_test "Weighted MP 11:45" 11 45
 
 	ip nexthop replace id 106 group 104,1/105,1 type resilient
+}
+
+nh_stats_test_v4()
+{
+	__nh_stats_test_v4 resilient
+}
+
+nh_stats_test_v6()
+{
+	__nh_stats_test_v6 resilient
 }
 
 setup_prepare()
