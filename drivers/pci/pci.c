@@ -2532,7 +2532,7 @@ static void pci_pme_list_scan(struct work_struct *work)
 			 * course of the call.
 			 */
 			if (bdev) {
-				bref = pm_runtime_get_if_active(bdev, true);
+				bref = pm_runtime_get_if_active(bdev);
 				if (!bref)
 					continue;
 
