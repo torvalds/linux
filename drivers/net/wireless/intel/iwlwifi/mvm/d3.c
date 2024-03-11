@@ -2552,6 +2552,12 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	int i;
 	bool keep = false;
 	struct iwl_mvm_sta *mvm_ap_sta;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int link_id = vif->active_links ? __ffs(vif->active_links) : 0;
+	struct iwl_mvm_vif_link_info *mvm_link = mvmvif->link[link_id];
+
+	if (WARN_ON(!mvm_link))
+		goto out_unlock;
 
 	if (!status)
 		goto out_unlock;
@@ -2559,8 +2565,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	IWL_DEBUG_WOWLAN(mvm, "wakeup reason 0x%x\n",
 			 status->wakeup_reasons);
 
-	/* still at hard-coded place 0 for D3 image */
-	mvm_ap_sta = iwl_mvm_sta_from_staid_protected(mvm, 0);
+	mvm_ap_sta = iwl_mvm_sta_from_staid_protected(mvm, mvm_link->ap_sta_id);
 	if (!mvm_ap_sta)
 		goto out_unlock;
 
