@@ -127,8 +127,7 @@ static int erdma_cmdq_cq_init(struct erdma_dev *dev)
 
 	cq->depth = cmdq->sq.depth;
 	cq->qbuf = dma_alloc_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
-				      &cq->qbuf_dma_addr,
-				      GFP_KERNEL | __GFP_ZERO);
+				      &cq->qbuf_dma_addr, GFP_KERNEL);
 	if (!cq->qbuf)
 		return -ENOMEM;
 
@@ -162,8 +161,7 @@ static int erdma_cmdq_eq_init(struct erdma_dev *dev)
 
 	eq->depth = cmdq->max_outstandings;
 	eq->qbuf = dma_alloc_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT,
-				      &eq->qbuf_dma_addr,
-				      GFP_KERNEL | __GFP_ZERO);
+				      &eq->qbuf_dma_addr, GFP_KERNEL);
 	if (!eq->qbuf)
 		return -ENOMEM;
 

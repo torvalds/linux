@@ -87,8 +87,7 @@ int erdma_aeq_init(struct erdma_dev *dev)
 	eq->depth = ERDMA_DEFAULT_EQ_DEPTH;
 
 	eq->qbuf = dma_alloc_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT,
-				      &eq->qbuf_dma_addr,
-				      GFP_KERNEL | __GFP_ZERO);
+				      &eq->qbuf_dma_addr, GFP_KERNEL);
 	if (!eq->qbuf)
 		return -ENOMEM;
 
@@ -237,8 +236,7 @@ static int erdma_ceq_init_one(struct erdma_dev *dev, u16 ceqn)
 
 	eq->depth = ERDMA_DEFAULT_EQ_DEPTH;
 	eq->qbuf = dma_alloc_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT,
-				      &eq->qbuf_dma_addr,
-				      GFP_KERNEL | __GFP_ZERO);
+				      &eq->qbuf_dma_addr, GFP_KERNEL);
 	if (!eq->qbuf)
 		return -ENOMEM;
 
