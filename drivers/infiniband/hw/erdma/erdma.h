@@ -33,8 +33,8 @@ struct erdma_eq {
 	atomic64_t notify_num;
 
 	void __iomem *db;
-	u64 *db_record;
-	dma_addr_t db_record_dma_addr;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_cmdq_sq {
@@ -49,8 +49,8 @@ struct erdma_cmdq_sq {
 
 	u16 wqebb_cnt;
 
-	u64 *db_record;
-	dma_addr_t db_record_dma_addr;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_cmdq_cq {
@@ -63,8 +63,8 @@ struct erdma_cmdq_cq {
 	u32 ci;
 	u32 cmdsn;
 
-	u64 *db_record;
-	dma_addr_t db_record_dma_addr;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 
 	atomic64_t armed_num;
 };

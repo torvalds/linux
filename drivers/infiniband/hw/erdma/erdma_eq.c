@@ -13,7 +13,7 @@ void notify_eq(struct erdma_eq *eq)
 	u64 db_data = FIELD_PREP(ERDMA_EQDB_CI_MASK, eq->ci) |
 		      FIELD_PREP(ERDMA_EQDB_ARM_MASK, 1);
 
-	*eq->db_record = db_data;
+	*eq->dbrec = db_data;
 	writeq(db_data, eq->db);
 
 	atomic64_inc(&eq->notify_num);
@@ -97,9 +97,8 @@ int erdma_aeq_init(struct erdma_dev *dev)
 	atomic64_set(&eq->notify_num, 0);
 
 	eq->db = dev->func_bar + ERDMA_REGS_AEQ_DB_REG;
-	eq->db_record = dma_pool_zalloc(dev->db_pool, GFP_KERNEL,
-					&eq->db_record_dma_addr);
-	if (!eq->db_record)
+	eq->dbrec = dma_pool_zalloc(dev->db_pool, GFP_KERNEL, &eq->dbrec_dma);
+	if (!eq->dbrec)
 		goto err_out;
 
 	erdma_reg_write32(dev, ERDMA_REGS_AEQ_ADDR_H_REG,
@@ -107,8 +106,7 @@ int erdma_aeq_init(struct erdma_dev *dev)
 	erdma_reg_write32(dev, ERDMA_REGS_AEQ_ADDR_L_REG,
 			  lower_32_bits(eq->qbuf_dma_addr));
 	erdma_reg_write32(dev, ERDMA_REGS_AEQ_DEPTH_REG, eq->depth);
-	erdma_reg_write64(dev, ERDMA_AEQ_DB_HOST_ADDR_REG,
-			  eq->db_record_dma_addr);
+	erdma_reg_write64(dev, ERDMA_AEQ_DB_HOST_ADDR_REG, eq->dbrec_dma);
 
 	return 0;
 
@@ -126,7 +124,7 @@ void erdma_aeq_destroy(struct erdma_dev *dev)
 	dma_free_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT, eq->qbuf,
 			  eq->qbuf_dma_addr);
 
-	dma_pool_free(dev->db_pool, eq->db_record, eq->db_record_dma_addr);
+	dma_pool_free(dev->db_pool, eq->dbrec, eq->dbrec_dma);
 }
 
 void erdma_ceq_completion_handler(struct erdma_eq_cb *ceq_cb)
@@ -226,8 +224,8 @@ static int create_eq_cmd(struct erdma_dev *dev, u32 eqn, struct erdma_eq *eq)
 	req.qtype = ERDMA_EQ_TYPE_CEQ;
 	/* Vector index is the same as EQN. */
 	req.vector_idx = eqn;
-	req.db_dma_addr_l = lower_32_bits(eq->db_record_dma_addr);
-	req.db_dma_addr_h = upper_32_bits(eq->db_record_dma_addr);
+	req.db_dma_addr_l = lower_32_bits(eq->dbrec_dma);
+	req.db_dma_addr_h = upper_32_bits(eq->dbrec_dma);
 
 	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
@@ -251,9 +249,8 @@ static int erdma_ceq_init_one(struct erdma_dev *dev, u16 ceqn)
 	eq->db = dev->func_bar + ERDMA_REGS_CEQ_DB_BASE_REG +
 		 (ceqn + 1) * ERDMA_DB_SIZE;
 
-	eq->db_record = dma_pool_zalloc(dev->db_pool, GFP_KERNEL,
-					&eq->db_record_dma_addr);
-	if (!eq->db_record) {
+	eq->dbrec = dma_pool_zalloc(dev->db_pool, GFP_KERNEL, &eq->dbrec_dma);
+	if (!eq->dbrec) {
 		dma_free_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT,
 				  eq->qbuf, eq->qbuf_dma_addr);
 		return -ENOMEM;
@@ -290,7 +287,7 @@ static void erdma_ceq_uninit_one(struct erdma_dev *dev, u16 ceqn)
 
 	dma_free_coherent(&dev->pdev->dev, eq->depth << EQE_SHIFT, eq->qbuf,
 			  eq->qbuf_dma_addr);
-	dma_pool_free(dev->db_pool, eq->db_record, eq->db_record_dma_addr);
+	dma_pool_free(dev->db_pool, eq->dbrec, eq->dbrec_dma);
 }
 
 int erdma_ceqs_init(struct erdma_dev *dev)
