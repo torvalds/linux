@@ -359,8 +359,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	/* Set this early since we need to have it for the check below */
 	if (mvm->mld_api_is_used && mvm->nvm_data->sku_cap_11be_enable &&
 	    !iwlwifi_mod_params.disable_11ax &&
-	    !iwlwifi_mod_params.disable_11be)
+	    !iwlwifi_mod_params.disable_11be) {
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+		/* we handle this already earlier, but need it for MLO */
+		ieee80211_hw_set(hw, HANDLES_QUIET_CSA);
+	}
 
 	/* With MLD FW API, it tracks timing by itself,
 	 * no need for any timing from the host
@@ -903,6 +906,8 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 					&mvmtxq->state) &&
 			      !test_bit(IWL_MVM_TXQ_STATE_STOP_REDIRECT,
 					&mvmtxq->state) &&
+			      !test_bit(IWL_MVM_TXQ_STATE_STOP_AP_CSA,
+					&mvmtxq->state) &&
 			      !test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))) {
 			skb = ieee80211_tx_dequeue(hw, txq);
 
@@ -1421,6 +1426,20 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
 
+static void iwl_mvm_post_csa_tx(void *data, struct ieee80211_sta *sta)
+{
+	struct ieee80211_hw *hw = data;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+		struct iwl_mvm_txq *mvmtxq =
+			iwl_mvm_txq_from_mac80211(sta->txq[i]);
+
+		clear_bit(IWL_MVM_TXQ_STATE_STOP_AP_CSA, &mvmtxq->state);
+		iwl_mvm_mac_itxq_xmit(hw, sta->txq[i]);
+	}
+}
+
 int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *link_conf)
@@ -1459,6 +1478,18 @@ int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 
 			iwl_mvm_stop_session_protection(mvm, vif);
 		}
+	} else if (vif->type == NL80211_IFTYPE_AP && mvmvif->csa_blocks_tx) {
+		struct iwl_mvm_txq *mvmtxq =
+			iwl_mvm_txq_from_mac80211(vif->txq);
+
+		clear_bit(IWL_MVM_TXQ_STATE_STOP_AP_CSA, &mvmtxq->state);
+
+		local_bh_disable();
+		iwl_mvm_mac_itxq_xmit(hw, vif->txq);
+		ieee80211_iterate_stations_atomic(hw, iwl_mvm_post_csa_tx, hw);
+		local_bh_enable();
+
+		mvmvif->csa_blocks_tx = false;
 	}
 
 	mvmvif->ps_disabled = false;
@@ -5414,6 +5445,18 @@ static int iwl_mvm_old_pre_chan_sw_sta(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_csa_block_txqs(void *data, struct ieee80211_sta *sta)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sta->txq); i++) {
+		struct iwl_mvm_txq *mvmtxq =
+			iwl_mvm_txq_from_mac80211(sta->txq[i]);
+
+		set_bit(IWL_MVM_TXQ_STATE_STOP_AP_CSA, &mvmtxq->state);
+	}
+}
+
 #define IWL_MAX_CSA_BLOCK_TX 1500
 int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
@@ -5422,6 +5465,7 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *csa_vif;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_txq *mvmtxq;
 	int ret;
 
 	mutex_lock(&mvm->mutex);
@@ -5464,6 +5508,18 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 		mvmvif->csa_target_freq = chsw->chandef.chan->center_freq;
 
+		if (!chsw->block_tx)
+			break;
+		/* don't need blocking in driver otherwise - mac80211 will do */
+		if (!ieee80211_hw_check(mvm->hw, HANDLES_QUIET_CSA))
+			break;
+
+		mvmvif->csa_blocks_tx = true;
+		mvmtxq = iwl_mvm_txq_from_mac80211(vif->txq);
+		set_bit(IWL_MVM_TXQ_STATE_STOP_AP_CSA, &mvmtxq->state);
+		ieee80211_iterate_stations_atomic(mvm->hw,
+						  iwl_mvm_csa_block_txqs,
+						  NULL);
 		break;
 	case NL80211_IFTYPE_STATION:
 		mvmvif->csa_blocks_tx = chsw->block_tx;
