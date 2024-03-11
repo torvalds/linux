@@ -1829,6 +1829,10 @@ static void iwl_mvm_d3_find_last_keys(struct ieee80211_hw *hw,
 				      void *_data)
 {
 	struct iwl_mvm_d3_gtk_iter_data *data = _data;
+	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+
+	if (link_id >= 0 && key->link_id >= 0 && link_id != key->link_id)
+		return;
 
 	if (data->unhandled_cipher)
 		return;
@@ -1917,6 +1921,10 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 	struct iwl_mvm_d3_gtk_iter_data *data = _data;
 	struct iwl_wowlan_status_data *status = data->status;
 	s8 keyidx;
+	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+
+	if (link_id >= 0 && key->link_id >= 0 && link_id != key->link_id)
+		return;
 
 	if (data->unhandled_cipher)
 		return;
