@@ -1181,6 +1181,15 @@ int bch2_delete_dead_inodes(struct bch_fs *c)
 	bool need_another_pass;
 	int ret;
 again:
+	/*
+	 * if we ran check_inodes() unlinked inodes will have already been
+	 * cleaned up but the write buffer will be out of sync; therefore we
+	 * alway need a write buffer flush
+	 */
+	ret = bch2_btree_write_buffer_flush_sync(trans);
+	if (ret)
+		goto err;
+
 	need_another_pass = false;
 
 	/*
@@ -1213,12 +1222,8 @@ again:
 		ret;
 	}));
 
-	if (!ret && need_another_pass) {
-		ret = bch2_btree_write_buffer_flush_sync(trans);
-		if (ret)
-			goto err;
+	if (!ret && need_another_pass)
 		goto again;
-	}
 err:
 	bch2_trans_put(trans);
 	return ret;
