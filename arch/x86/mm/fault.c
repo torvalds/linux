@@ -1299,20 +1299,13 @@ void do_user_addr_fault(struct pt_regs *regs,
 		return;
 	}
 
-	/*
-	 * It's safe to allow irq's after cr2 has been saved and the
-	 * vmalloc fault has been handled.
-	 *
-	 * User-mode registers count as a user access even for any
-	 * potential system fault or CPU buglet:
-	 */
-	if (user_mode(regs)) {
-		local_irq_enable();
-		flags |= FAULT_FLAG_USER;
-	} else {
-		if (regs->flags & X86_EFLAGS_IF)
-			local_irq_enable();
+	/* Legacy check - remove this after verifying that it doesn't trigger */
+	if (WARN_ON_ONCE(!(regs->flags & X86_EFLAGS_IF))) {
+		bad_area_nosemaphore(regs, error_code, address);
+		return;
 	}
+
+	local_irq_enable();
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
@@ -1328,6 +1321,14 @@ void do_user_addr_fault(struct pt_regs *regs,
 		flags |= FAULT_FLAG_WRITE;
 	if (error_code & X86_PF_INSTR)
 		flags |= FAULT_FLAG_INSTRUCTION;
+
+	/*
+	 * We set FAULT_FLAG_USER based on the register state, not
+	 * based on X86_PF_USER. User space accesses that cause
+	 * system page faults are still user accesses.
+	 */
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 
 #ifdef CONFIG_X86_64
 	/*
