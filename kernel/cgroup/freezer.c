@@ -13,37 +13,32 @@
  */
 static void cgroup_propagate_frozen(struct cgroup *cgrp, bool frozen)
 {
-	int desc = 1;
+    struct list_head updates;
+    INIT_LIST_HEAD(&updates);
 
-	/*
-	 * If the new state is frozen, some freezing ancestor cgroups may change
-	 * their state too, depending on if all their descendants are frozen.
-	 *
-	 * Otherwise, all ancestor cgroups are forced into the non-frozen state.
-	 */
-	while ((cgrp = cgroup_parent(cgrp))) {
-		if (frozen) {
-			cgrp->freezer.nr_frozen_descendants += desc;
-			if (!test_bit(CGRP_FROZEN, &cgrp->flags) &&
-			    test_bit(CGRP_FREEZE, &cgrp->flags) &&
-			    cgrp->freezer.nr_frozen_descendants ==
-			    cgrp->nr_descendants) {
-				set_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 1);
-				desc++;
-			}
-		} else {
-			cgrp->freezer.nr_frozen_descendants -= desc;
-			if (test_bit(CGRP_FROZEN, &cgrp->flags)) {
-				clear_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 0);
-				desc++;
-			}
-		}
-	}
+    /* Collect updates */
+    while ((cgrp = cgroup_parent(cgrp))) {
+        struct cgroup_update_entry *entry = kmalloc(sizeof(struct cgroup_update_entry), GFP_KERNEL);
+        if (!entry)
+            break;
+
+        entry->cgrp = cgrp;
+        entry->frozen = frozen;
+        list_add(&entry->list, &updates);
+    }
+
+    /* Apply updates */
+    list_for_each_entry_reverse(struct cgroup_update_entry, entry, &updates, list) {
+        if (entry->frozen)
+            set_bit(CGRP_FROZEN, &entry->cgrp->flags);
+        else
+            clear_bit(CGRP_FROZEN, &entry->cgrp->flags);
+        cgroup_file_notify(&entry->cgrp->events_file);
+        TRACE_CGROUP_PATH(notify_frozen, entry->cgrp, frozen);
+        kfree(entry);
+    }
 }
+
 
 /*
  * Revisit the cgroup frozen state.
