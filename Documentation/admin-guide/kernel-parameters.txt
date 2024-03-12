@@ -4668,6 +4668,11 @@
 			may be specified.
 			Format: <port>,<port>....
 
+	possible_cpus=  [SMP,S390,X86]
+			Format: <unsigned int>
+			Set the number of possible CPUs, overriding the
+			regular discovery mechanisms (such as ACPI/FW, etc).
+
 	powersave=off	[PPC] This option disables power saving features.
 			It specifically disables cpuidle and sets the
 			platform machine description specific power_save
