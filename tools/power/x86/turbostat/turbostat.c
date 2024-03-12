@@ -276,6 +276,19 @@ bool no_msr;
 bool no_perf;
 enum amperf_source amperf_source;
 
+enum gfx_sysfs_idx {
+	GFX_rc6,
+	GFX_MHz,
+	GFX_ACTMHz,
+	GFX_MAX
+};
+
+struct gfx_sysfs_info {
+	const char *path;
+};
+
+static struct gfx_sysfs_info gfx_info[GFX_MAX];
+
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
 
 /* Model specific support Start */
@@ -4620,7 +4633,7 @@ int snapshot_gfx_rc6_ms(void)
 	FILE *fp;
 	int retval;
 
-	fp = fopen_or_die("/sys/class/drm/card0/power/rc6_residency_ms", "r");
+	fp = fopen_or_die(gfx_info[GFX_rc6].path, "r");
 
 	retval = fscanf(fp, "%lld", &gfx_cur_rc6_ms);
 	if (retval != 1)
@@ -4645,9 +4658,7 @@ int snapshot_gfx_mhz(void)
 	int retval;
 
 	if (fp == NULL) {
-		fp = fopen("/sys/class/drm/card0/gt_cur_freq_mhz", "r");
-		if (!fp)
-			fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", "r");
+		fp = fopen_or_die(gfx_info[GFX_MHz].path, "r");
 	} else {
 		rewind(fp);
 		fflush(fp);
@@ -4674,9 +4685,7 @@ int snapshot_gfx_act_mhz(void)
 	int retval;
 
 	if (fp == NULL) {
-		fp = fopen("/sys/class/drm/card0/gt_act_freq_mhz", "r");
-		if (!fp)
-			fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", "r");
+		fp = fopen_or_die(gfx_info[GFX_ACTMHz].path, "r");
 	} else {
 		rewind(fp);
 		fflush(fp);
@@ -5338,14 +5347,24 @@ probe_cluster:
 static void probe_graphics(void)
 {
 	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
+		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/power/rc6_residency_ms";
+
+	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK))
+		gfx_info[GFX_MHz].path = "/sys/class/drm/card0/gt_cur_freq_mhz";
+	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
+		gfx_info[GFX_MHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz";
+
+
+	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK))
+		gfx_info[GFX_ACTMHz].path = "/sys/class/drm/card0/gt_act_freq_mhz";
+	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+		gfx_info[GFX_ACTMHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz";
+
+	if (gfx_info[GFX_rc6].path)
 		BIC_PRESENT(BIC_GFX_rc6);
-
-	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
+	if (gfx_info[GFX_MHz].path)
 		BIC_PRESENT(BIC_GFXMHz);
-
-	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK) ||
-	    !access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
+	if (gfx_info[GFX_ACTMHz].path)
 		BIC_PRESENT(BIC_GFXACTMHz);
 }
 
