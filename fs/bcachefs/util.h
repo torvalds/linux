@@ -864,4 +864,9 @@ static inline int copy_from_user_errcode(void *to, const void __user *from, unsi
 
 #endif
 
+static inline void __set_bit_le64(size_t bit, __le64 *addr)
+{
+	addr[bit / 64] |= cpu_to_le64(BIT_ULL(bit % 64));
+}
+
 #endif /* _BCACHEFS_UTIL_H */

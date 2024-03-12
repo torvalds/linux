@@ -1052,14 +1052,13 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (k.k->type != discard_key_type &&
-	    (c->opts.reconstruct_alloc ||
-	     fsck_err(c, need_discard_key_wrong,
-		      "incorrect key in need_discard btree (got %s should be %s)\n"
-		      "  %s",
-		      bch2_bkey_types[k.k->type],
-		      bch2_bkey_types[discard_key_type],
-		      (bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
+	if (fsck_err_on(k.k->type != discard_key_type,
+			c, need_discard_key_wrong,
+			"incorrect key in need_discard btree (got %s should be %s)\n"
+			"  %s",
+			bch2_bkey_types[k.k->type],
+			bch2_bkey_types[discard_key_type],
+			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
 		struct bkey_i *update =
 			bch2_trans_kmalloc(trans, sizeof(*update));
 
@@ -1083,15 +1082,14 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (k.k->type != freespace_key_type &&
-	    (c->opts.reconstruct_alloc ||
-	     fsck_err(c, freespace_key_wrong,
-		      "incorrect key in freespace btree (got %s should be %s)\n"
-		      "  %s",
-		      bch2_bkey_types[k.k->type],
-		      bch2_bkey_types[freespace_key_type],
-		      (printbuf_reset(&buf),
-		       bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
+	if (fsck_err_on(k.k->type != freespace_key_type,
+			c, freespace_key_wrong,
+			"incorrect key in freespace btree (got %s should be %s)\n"
+			"  %s",
+			bch2_bkey_types[k.k->type],
+			bch2_bkey_types[freespace_key_type],
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
 		struct bkey_i *update =
 			bch2_trans_kmalloc(trans, sizeof(*update));
 
@@ -1115,14 +1113,13 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (a->gen != alloc_gen(k, gens_offset) &&
-	    (c->opts.reconstruct_alloc ||
-	     fsck_err(c, bucket_gens_key_wrong,
-		      "incorrect gen in bucket_gens btree (got %u should be %u)\n"
-		      "  %s",
-		      alloc_gen(k, gens_offset), a->gen,
-		      (printbuf_reset(&buf),
-		       bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
+	if (fsck_err_on(a->gen != alloc_gen(k, gens_offset),
+			c, bucket_gens_key_wrong,
+			"incorrect gen in bucket_gens btree (got %u should be %u)\n"
+			"  %s",
+			alloc_gen(k, gens_offset), a->gen,
+			(printbuf_reset(&buf),
+			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
 		struct bkey_i_bucket_gens *g =
 			bch2_trans_kmalloc(trans, sizeof(*g));
 
@@ -1174,14 +1171,13 @@ int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
 
 	*end = bkey_min(k.k->p, *end);
 
-	if (k.k->type != KEY_TYPE_set &&
-	    (c->opts.reconstruct_alloc ||
-	     fsck_err(c, freespace_hole_missing,
-		      "hole in alloc btree missing in freespace btree\n"
-		      "  device %llu buckets %llu-%llu",
-		      freespace_iter->pos.inode,
-		      freespace_iter->pos.offset,
-		      end->offset))) {
+	if (fsck_err_on(k.k->type != KEY_TYPE_set,
+			c, freespace_hole_missing,
+			"hole in alloc btree missing in freespace btree\n"
+			"  device %llu buckets %llu-%llu",
+			freespace_iter->pos.inode,
+			freespace_iter->pos.offset,
+			end->offset)) {
 		struct bkey_i *update =
 			bch2_trans_kmalloc(trans, sizeof(*update));
 

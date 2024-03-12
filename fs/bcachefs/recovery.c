@@ -52,14 +52,47 @@ static bool btree_id_is_alloc(enum btree_id id)
 }
 
 /* for -o reconstruct_alloc: */
-static void drop_alloc_keys(struct journal_keys *keys)
+static void do_reconstruct_alloc(struct bch_fs *c)
 {
+	bch2_journal_log_msg(c, "dropping alloc info");
+	bch_info(c, "dropping and reconstructing all alloc info");
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_allocations, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_alloc_info, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_lrus, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_extents_to_backpointers, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_alloc_to_lru_refs, ext->recovery_passes_required);
+
+	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_alloc_key, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_stale_dirty_ptr, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_data_type_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_gen_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_redundancy_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_need_discard_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_freespace_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_bucket_gens_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_freespace_hole_missing, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_backpointer, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_lru_entry_bad, ext->errors_silent);
+	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+
+	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
+	struct journal_keys *keys = &c->journal_keys;
 	size_t src, dst;
 
 	for (src = 0, dst = 0; src < keys->nr; src++)
 		if (!btree_id_is_alloc(keys->data[src].btree_id))
 			keys->data[dst++] = keys->data[src];
-
 	keys->nr = dst;
 }
 
@@ -395,11 +428,8 @@ static int read_btree_roots(struct bch_fs *c)
 		if (!r->alive)
 			continue;
 
-		if (btree_id_is_alloc(i) &&
-		    c->opts.reconstruct_alloc) {
-			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
+		if (btree_id_is_alloc(i) && c->opts.reconstruct_alloc)
 			continue;
-		}
 
 		if (r->error) {
 			__fsck_err(c,
@@ -930,10 +960,8 @@ use_clean:
 	c->journal_replay_seq_start	= last_seq;
 	c->journal_replay_seq_end	= blacklist_seq - 1;
 
-	if (c->opts.reconstruct_alloc) {
-		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
-		drop_alloc_keys(&c->journal_keys);
-	}
+	if (c->opts.reconstruct_alloc)
+		do_reconstruct_alloc(c);
 
 	zero_out_btree_mem_ptr(&c->journal_keys);
 
@@ -967,9 +995,6 @@ use_clean:
 		bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
 		goto err;
-
-	if (c->opts.reconstruct_alloc)
-		bch2_journal_log_msg(c, "dropping alloc info");
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),

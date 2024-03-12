@@ -259,7 +259,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 				if (e < BCH_SB_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
-					ext->errors_silent[e / 64] |= cpu_to_le64(BIT_ULL(e % 64));
+					__set_bit_le64(e, ext->errors_silent);
 			}
 		}
 	}

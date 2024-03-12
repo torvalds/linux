@@ -477,8 +477,7 @@ missing:
 	prt_printf(&buf, "\nbp pos ");
 	bch2_bpos_to_text(&buf, bp_iter.pos);
 
-	if (c->opts.reconstruct_alloc ||
-	    fsck_err(c, ptr_to_missing_backpointer, "%s", buf.buf))
+	if (fsck_err(c, ptr_to_missing_backpointer, "%s", buf.buf))
 		ret = bch2_bucket_backpointer_mod(trans, bucket, bp, orig_k, true);
 
 	goto out;

@@ -125,8 +125,7 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 			goto out;
 		}
 
-		if (c->opts.reconstruct_alloc ||
-		    fsck_err(c, lru_entry_bad,
+		if (fsck_err(c, lru_entry_bad,
 			     "incorrect lru entry: lru %s time %llu\n"
 			     "  %s\n"
 			     "  for %s",
