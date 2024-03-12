@@ -471,6 +471,7 @@ static const struct qcom_reset_map gpu_cc_pitti_resets[] = {
 	[GPUCC_GPU_CC_GMU_BCR] = { 0x915c },
 	[GPUCC_GPU_CC_GX_BCR] = { 0x9050 },
 	[GPUCC_GPU_CC_XO_BCR] = { 0x9000 },
+	[GPU_CC_FREQUENCY_LIMITER_IRQ_CLEAR] = { 0x91b0 },
 };
 
 static const struct regmap_config gpu_cc_pitti_regmap_config = {
