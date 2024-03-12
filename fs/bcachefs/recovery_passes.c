@@ -4,6 +4,7 @@
 #include "alloc_background.h"
 #include "backpointers.h"
 #include "btree_gc.h"
+#include "btree_node_scan.h"
 #include "ec.h"
 #include "fsck.h"
 #include "inode.h"

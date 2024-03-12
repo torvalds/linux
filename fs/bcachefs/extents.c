@@ -978,6 +978,31 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 	return bkey_deleted(k.k);
 }
 
+void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struct bch_extent_ptr *ptr)
+{
+	struct bch_dev *ca = c && ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
+		? bch_dev_bkey_exists(c, ptr->dev)
+		: NULL;
+
+	if (!ca) {
+		prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
+			   (u64) ptr->offset, ptr->gen,
+			   ptr->cached ? " cached" : "");
+	} else {
+		u32 offset;
+		u64 b = sector_to_bucket_and_offset(ca, ptr->offset, &offset);
+
+		prt_printf(out, "ptr: %u:%llu:%u gen %u",
+			   ptr->dev, b, offset, ptr->gen);
+		if (ptr->cached)
+			prt_str(out, " cached");
+		if (ptr->unwritten)
+			prt_str(out, " unwritten");
+		if (ca && ptr_stale(ca, ptr))
+			prt_printf(out, " stale");
+	}
+}
+
 void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
@@ -993,31 +1018,10 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			prt_printf(out, " ");
 
 		switch (__extent_entry_type(entry)) {
-		case BCH_EXTENT_ENTRY_ptr: {
-			const struct bch_extent_ptr *ptr = entry_to_ptr(entry);
-			struct bch_dev *ca = c && ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
-				? bch_dev_bkey_exists(c, ptr->dev)
-				: NULL;
-
-			if (!ca) {
-				prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
-				       (u64) ptr->offset, ptr->gen,
-				       ptr->cached ? " cached" : "");
-			} else {
-				u32 offset;
-				u64 b = sector_to_bucket_and_offset(ca, ptr->offset, &offset);
-
-				prt_printf(out, "ptr: %u:%llu:%u gen %u",
-					   ptr->dev, b, offset, ptr->gen);
-				if (ptr->cached)
-					prt_str(out, " cached");
-				if (ptr->unwritten)
-					prt_str(out, " unwritten");
-				if (ca && ptr_stale(ca, ptr))
-					prt_printf(out, " stale");
-			}
+		case BCH_EXTENT_ENTRY_ptr:
+			bch2_extent_ptr_to_text(out, c, entry_to_ptr(entry));
 			break;
-		}
+
 		case BCH_EXTENT_ENTRY_crc32:
 		case BCH_EXTENT_ENTRY_crc64:
 		case BCH_EXTENT_ENTRY_crc128: {
