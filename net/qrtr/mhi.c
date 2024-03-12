@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/mhi.h>
@@ -65,6 +65,8 @@ static int __qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	rc = wait_for_completion_interruptible_timeout(&qdev->prepared, msecs_to_jiffies(5000));
 	if (rc <= 0) {
 		pr_err("%s : timeout:%d\n", __func__, rc);
+		if (rc == 0)
+			rc = -ETIMEDOUT;
 		goto free_skb;
 	}
 
