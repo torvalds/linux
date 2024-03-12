@@ -2860,3 +2860,49 @@ void hl_eq_heartbeat_event_handle(struct hl_device *hdev)
 	hdev->heartbeat_debug_info.heartbeat_event_counter++;
 	hdev->eq_heartbeat_received = true;
 }
+
+void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *event_mask)
+{
+	struct hl_clk_throttle *clk_throttle = &hdev->clk_throttling;
+	ktime_t zero_time = ktime_set(0, 0);
+
+	mutex_lock(&clk_throttle->lock);
+
+	switch (event_type) {
+	case EQ_EVENT_POWER_EVT_START:
+		clk_throttle->current_reason |= HL_CLK_THROTTLE_POWER;
+		clk_throttle->aggregated_reason |= HL_CLK_THROTTLE_POWER;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].start = ktime_get();
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = zero_time;
+		dev_dbg_ratelimited(hdev->dev, "Clock throttling due to power consumption\n");
+		break;
+
+	case EQ_EVENT_POWER_EVT_END:
+		clk_throttle->current_reason &= ~HL_CLK_THROTTLE_POWER;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_POWER].end = ktime_get();
+		dev_dbg_ratelimited(hdev->dev, "Power envelop is safe, back to optimal clock\n");
+		break;
+
+	case EQ_EVENT_THERMAL_EVT_START:
+		clk_throttle->current_reason |= HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->aggregated_reason |= HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].start = ktime_get();
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = zero_time;
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		dev_info_ratelimited(hdev->dev, "Clock throttling due to overheating\n");
+		break;
+
+	case EQ_EVENT_THERMAL_EVT_END:
+		clk_throttle->current_reason &= ~HL_CLK_THROTTLE_THERMAL;
+		clk_throttle->timestamp[HL_CLK_THROTTLE_TYPE_THERMAL].end = ktime_get();
+		*event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		dev_info_ratelimited(hdev->dev, "Thermal envelop is safe, back to optimal clock\n");
+		break;
+
+	default:
+		dev_err(hdev->dev, "Received invalid clock change event %d\n", event_type);
+		break;
+	}
+
+	mutex_unlock(&clk_throttle->lock);
+}

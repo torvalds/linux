@@ -4063,6 +4063,7 @@ void hl_enable_err_info_capture(struct hl_error_info *captured_err_info);
 void hl_init_cpu_for_irq(struct hl_device *hdev);
 void hl_set_irq_affinity(struct hl_device *hdev, int irq);
 void hl_eq_heartbeat_event_handle(struct hl_device *hdev);
+void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *event_mask);
 
 #ifdef CONFIG_DEBUG_FS
 
