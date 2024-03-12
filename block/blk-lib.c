@@ -35,6 +35,26 @@ static sector_t bio_discard_limit(struct block_device *bdev, sector_t sector)
 	return round_down(UINT_MAX, discard_granularity) >> SECTOR_SHIFT;
 }
 
+static void await_bio_endio(struct bio *bio)
+{
+	complete(bio->bi_private);
+	bio_put(bio);
+}
+
+/*
+ * await_bio_chain - ends @bio and waits for every chained bio to complete
+ */
+static void await_bio_chain(struct bio *bio)
+{
+	DECLARE_COMPLETION_ONSTACK_MAP(done,
+			bio->bi_bdev->bd_disk->lockdep_map);
+
+	bio->bi_private = &done;
+	bio->bi_end_io = await_bio_endio;
+	bio_endio(bio);
+	blk_wait_io(&done);
+}
+
 int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop)
 {
@@ -77,6 +97,10 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		 * is disabled.
 		 */
 		cond_resched();
+		if (fatal_signal_pending(current)) {
+			await_bio_chain(bio);
+			return -EINTR;
+		}
 	}
 
 	*biop = bio;
@@ -120,32 +144,33 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		struct bio **biop, unsigned flags)
 {
 	struct bio *bio = *biop;
-	unsigned int max_write_zeroes_sectors;
+	unsigned int max_sectors;
 
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
-	/* Ensure that max_write_zeroes_sectors doesn't overflow bi_size */
-	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bdev);
+	/* Ensure that max_sectors doesn't overflow bi_size */
+	max_sectors = bdev_write_zeroes_sectors(bdev);
 
-	if (max_write_zeroes_sectors == 0)
+	if (max_sectors == 0)
 		return -EOPNOTSUPP;
 
 	while (nr_sects) {
+		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		if (flags & BLKDEV_ZERO_NOUNMAP)
 			bio->bi_opf |= REQ_NOUNMAP;
 
-		if (nr_sects > max_write_zeroes_sectors) {
-			bio->bi_iter.bi_size = max_write_zeroes_sectors << 9;
-			nr_sects -= max_write_zeroes_sectors;
-			sector += max_write_zeroes_sectors;
-		} else {
-			bio->bi_iter.bi_size = nr_sects << 9;
-			nr_sects = 0;
-		}
+		bio->bi_iter.bi_size = len << SECTOR_SHIFT;
+		nr_sects -= len;
+		sector += len;
 		cond_resched();
+		if (fatal_signal_pending(current)) {
+			await_bio_chain(bio);
+			return -EINTR;
+		}
 	}
 
 	*biop = bio;
@@ -190,6 +215,10 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
 				break;
 		}
 		cond_resched();
+		if (fatal_signal_pending(current)) {
+			await_bio_chain(bio);
+			return -EINTR;
+		}
 	}
 
 	*biop = bio;
@@ -280,7 +309,7 @@ retry:
 		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
-	if (ret && try_write_zeroes) {
+	if (ret && ret != -EINTR && try_write_zeroes) {
 		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
 			try_write_zeroes = false;
 			goto retry;
@@ -322,7 +351,7 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 		return -EPERM;
 
 	blk_start_plug(&plug);
-	for (;;) {
+	while (nr_sects) {
 		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
 
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
@@ -331,12 +360,17 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 
 		sector += len;
 		nr_sects -= len;
-		if (!nr_sects) {
-			ret = submit_bio_wait(bio);
-			bio_put(bio);
+		cond_resched();
+		if (fatal_signal_pending(current)) {
+			await_bio_chain(bio);
+			ret = -EINTR;
+			bio = NULL;
 			break;
 		}
-		cond_resched();
+	}
+	if (bio) {
+		ret = submit_bio_wait(bio);
+		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
 

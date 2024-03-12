@@ -1564,7 +1564,7 @@ struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id
 	if (id_is_cpu) {
 		rp->id = topology_logical_die_id(id);
 		rp->lead_cpu = id;
-		if (topology_max_die_per_package() > 1)
+		if (topology_max_dies_per_package() > 1)
 			snprintf(rp->name, PACKAGE_DOMAIN_NAME_LENGTH, "package-%d-die-%d",
 				 topology_physical_package_id(id), topology_die_id(id));
 		else

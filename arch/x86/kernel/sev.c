@@ -60,6 +60,25 @@
 #define AP_INIT_CR0_DEFAULT		0x60000010
 #define AP_INIT_MXCSR_DEFAULT		0x1f80
 
+static const char * const sev_status_feat_names[] = {
+	[MSR_AMD64_SEV_ENABLED_BIT]		= "SEV",
+	[MSR_AMD64_SEV_ES_ENABLED_BIT]		= "SEV-ES",
+	[MSR_AMD64_SEV_SNP_ENABLED_BIT]		= "SEV-SNP",
+	[MSR_AMD64_SNP_VTOM_BIT]		= "vTom",
+	[MSR_AMD64_SNP_REFLECT_VC_BIT]		= "ReflectVC",
+	[MSR_AMD64_SNP_RESTRICTED_INJ_BIT]	= "RI",
+	[MSR_AMD64_SNP_ALT_INJ_BIT]		= "AI",
+	[MSR_AMD64_SNP_DEBUG_SWAP_BIT]		= "DebugSwap",
+	[MSR_AMD64_SNP_PREVENT_HOST_IBS_BIT]	= "NoHostIBS",
+	[MSR_AMD64_SNP_BTB_ISOLATION_BIT]	= "BTBIsol",
+	[MSR_AMD64_SNP_VMPL_SSS_BIT]		= "VmplSSS",
+	[MSR_AMD64_SNP_SECURE_TSC_BIT]		= "SecureTSC",
+	[MSR_AMD64_SNP_VMGEXIT_PARAM_BIT]	= "VMGExitParam",
+	[MSR_AMD64_SNP_IBS_VIRT_BIT]		= "IBSVirt",
+	[MSR_AMD64_SNP_VMSA_REG_PROT_BIT]	= "VMSARegProt",
+	[MSR_AMD64_SNP_SMT_PROT_BIT]		= "SMTProt",
+};
+
 /* For early boot hypervisor communication in SEV-ES enabled guests */
 static struct ghcb boot_ghcb_page __bss_decrypted __aligned(PAGE_SIZE);
 
@@ -2276,4 +2295,20 @@ void kdump_sev_callback(void)
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_SEV_SNP))
 		wbinvd();
+}
+
+void sev_show_status(void)
+{
+	int i;
+
+	pr_info("Status: ");
+	for (i = 0; i < MSR_AMD64_SNP_RESV_BIT; i++) {
+		if (sev_status & BIT_ULL(i)) {
+			if (!sev_status_feat_names[i])
+				continue;
+
+			pr_cont("%s ", sev_status_feat_names[i]);
+		}
+	}
+	pr_cont("\n");
 }

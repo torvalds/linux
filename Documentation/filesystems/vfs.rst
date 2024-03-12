@@ -1264,7 +1264,7 @@ defined:
 		char *(*d_dname)(struct dentry *, char *, int);
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
-		struct dentry *(*d_real)(struct dentry *, const struct inode *);
+		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
 	};
 
 ``d_revalidate``
@@ -1419,16 +1419,14 @@ defined:
 	the dentry being transited from.
 
 ``d_real``
-	overlay/union type filesystems implement this method to return
-	one of the underlying dentries hidden by the overlay.  It is
-	used in two different modes:
+	overlay/union type filesystems implement this method to return one
+	of the underlying dentries of a regular file hidden by the overlay.
 
-	Called from file_dentry() it returns the real dentry matching
-	the inode argument.  The real dentry may be from a lower layer
-	already copied up, but still referenced from the file.  This
-	mode is selected with a non-NULL inode argument.
+	The 'type' argument takes the values D_REAL_DATA or D_REAL_METADATA
+	for returning the real underlying dentry that refers to the inode
+	hosting the file's data or metadata respectively.
 
-	With NULL inode the topmost real underlying dentry is returned.
+	For non-regular files, the 'dentry' argument is returned.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a

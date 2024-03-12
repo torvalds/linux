@@ -352,7 +352,7 @@ int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 EXPORT_SYMBOL(may_setattr);
 
 /**
- * notify_change - modify attributes of a filesytem object
+ * notify_change - modify attributes of a filesystem object
  * @idmap:	idmap of the mount the inode was found from
  * @dentry:	object affected
  * @attr:	new attributes

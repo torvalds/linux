@@ -523,6 +523,7 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 				ys->mcast_groups[i].name[GENL_NAMSIZ - 1] = 0;
 			}
 		}
+		i++;
 	}
 
 	return 0;

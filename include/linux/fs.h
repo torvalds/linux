@@ -43,6 +43,8 @@
 #include <linux/cred.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/slab.h>
+#include <linux/maple_tree.h>
+#include <linux/rw_hint.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -309,19 +311,6 @@ struct address_space;
 struct writeback_control;
 struct readahead_control;
 
-/*
- * Write life time hint values.
- * Stored in struct inode as u8.
- */
-enum rw_hint {
-	WRITE_LIFE_NOT_SET	= 0,
-	WRITE_LIFE_NONE		= RWH_WRITE_LIFE_NONE,
-	WRITE_LIFE_SHORT	= RWH_WRITE_LIFE_SHORT,
-	WRITE_LIFE_MEDIUM	= RWH_WRITE_LIFE_MEDIUM,
-	WRITE_LIFE_LONG		= RWH_WRITE_LIFE_LONG,
-	WRITE_LIFE_EXTREME	= RWH_WRITE_LIFE_EXTREME,
-};
-
 /* Match RWF_* bits to IOCB bits */
 #define IOCB_HIPRI		(__force int) RWF_HIPRI
 #define IOCB_DSYNC		(__force int) RWF_DSYNC
@@ -484,10 +473,10 @@ struct address_space {
 	pgoff_t			writeback_index;
 	const struct address_space_operations *a_ops;
 	unsigned long		flags;
-	struct rw_semaphore	i_mmap_rwsem;
 	errseq_t		wb_err;
 	spinlock_t		i_private_lock;
 	struct list_head	i_private_list;
+	struct rw_semaphore	i_mmap_rwsem;
 	void *			i_private_data;
 } __attribute__((aligned(sizeof(long)))) __randomize_layout;
 	/*
@@ -679,7 +668,7 @@ struct inode {
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned short          i_bytes;
 	u8			i_blkbits;
-	u8			i_write_hint;
+	enum rw_hint		i_write_hint;
 	blkcnt_t		i_blocks;
 
 #ifdef __NEED_I_SIZE_ORDERED
@@ -909,7 +898,8 @@ static inline loff_t i_size_read(const struct inode *inode)
 	preempt_enable();
 	return i_size;
 #else
-	return inode->i_size;
+	/* Pairs with smp_store_release() in i_size_write() */
+	return smp_load_acquire(&inode->i_size);
 #endif
 }
 
@@ -931,7 +921,12 @@ static inline void i_size_write(struct inode *inode, loff_t i_size)
 	inode->i_size = i_size;
 	preempt_enable();
 #else
-	inode->i_size = i_size;
+	/*
+	 * Pairs with smp_load_acquire() in i_size_read() to ensure
+	 * changes related to inode size (such as page contents) are
+	 * visible before we see the changed inode size.
+	 */
+	smp_store_release(&inode->i_size, i_size);
 #endif
 }
 
@@ -1066,6 +1061,7 @@ struct file *get_file_active(struct file **f);
 typedef void *fl_owner_t;
 
 struct file_lock;
+struct file_lease;
 
 /* The following constant reflects the upper bound of the file/locking space */
 #ifndef OFFSET_MAX
@@ -1080,9 +1076,20 @@ static inline struct inode *file_inode(const struct file *f)
 	return f->f_inode;
 }
 
+/*
+ * file_dentry() is a relic from the days that overlayfs was using files with a
+ * "fake" path, meaning, f_path on overlayfs and f_inode on underlying fs.
+ * In those days, file_dentry() was needed to get the underlying fs dentry that
+ * matches f_inode.
+ * Files with "fake" path should not exist nowadays, so use an assertion to make
+ * sure that file_dentry() was not papering over filesystem bugs.
+ */
 static inline struct dentry *file_dentry(const struct file *file)
 {
-	return d_real(file->f_path.dentry, file_inode(file));
+	struct dentry *dentry = file->f_path.dentry;
+
+	WARN_ON_ONCE(d_inode(dentry) != file_inode(file));
+	return dentry;
 }
 
 struct fasync_struct {
@@ -1230,8 +1237,8 @@ struct super_block {
 #endif
 	struct hlist_bl_head	s_roots;	/* alternate root dentries for NFS */
 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
-	struct block_device	*s_bdev;
-	struct bdev_handle	*s_bdev_handle;
+	struct block_device	*s_bdev;	/* can go away once we use an accessor for @s_bdev_file */
+	struct file		*s_bdev_file;
 	struct backing_dev_info *s_bdi;
 	struct mtd_info		*s_mtd;
 	struct hlist_node	s_instances;
@@ -1257,8 +1264,22 @@ struct super_block {
 	struct fsnotify_mark_connector __rcu	*s_fsnotify_marks;
 #endif
 
+	/*
+	 * q: why are s_id and s_sysfs_name not the same? both are human
+	 * readable strings that identify the filesystem
+	 * a: s_id is allowed to change at runtime; it's used in log messages,
+	 * and we want to when a device starts out as single device (s_id is dev
+	 * name) but then a device is hot added and we have to switch to
+	 * identifying it by UUID
+	 * but s_sysfs_name is a handle for programmatic access, and can't
+	 * change at runtime
+	 */
 	char			s_id[32];	/* Informational name */
 	uuid_t			s_uuid;		/* UUID */
+	u8			s_uuid_len;	/* Default 16, possibly smaller for weird filesystems */
+
+	/* if set, fs shows up under sysfs at /sys/fs/$FSTYP/s_sysfs_name */
+	char			s_sysfs_name[UUID_STRING_LEN + 1];
 
 	unsigned int		s_max_links;
 
@@ -2007,7 +2028,7 @@ struct file_operations {
 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
 	void (*splice_eof)(struct file *file);
-	int (*setlease)(struct file *, int, struct file_lock **, void **);
+	int (*setlease)(struct file *, int, struct file_lease **, void **);
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
@@ -2531,6 +2552,44 @@ extern __printf(2, 3)
 int super_setup_bdi_name(struct super_block *sb, char *fmt, ...);
 extern int super_setup_bdi(struct super_block *sb);
 
+static inline void super_set_uuid(struct super_block *sb, const u8 *uuid, unsigned len)
+{
+	if (WARN_ON(len > sizeof(sb->s_uuid)))
+		len = sizeof(sb->s_uuid);
+	sb->s_uuid_len = len;
+	memcpy(&sb->s_uuid, uuid, len);
+}
+
+/* set sb sysfs name based on sb->s_bdev */
+static inline void super_set_sysfs_name_bdev(struct super_block *sb)
+{
+	snprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), "%pg", sb->s_bdev);
+}
+
+/* set sb sysfs name based on sb->s_uuid */
+static inline void super_set_sysfs_name_uuid(struct super_block *sb)
+{
+	WARN_ON(sb->s_uuid_len != sizeof(sb->s_uuid));
+	snprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), "%pU", sb->s_uuid.b);
+}
+
+/* set sb sysfs name based on sb->s_id */
+static inline void super_set_sysfs_name_id(struct super_block *sb)
+{
+	strscpy(sb->s_sysfs_name, sb->s_id, sizeof(sb->s_sysfs_name));
+}
+
+/* try to use something standard before you use this */
+__printf(2, 3)
+static inline void super_set_sysfs_name_generic(struct super_block *sb, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(sb->s_sysfs_name, sizeof(sb->s_sysfs_name), fmt, args);
+	va_end(args);
+}
+
 extern int current_umask(void);
 
 extern void ihold(struct inode * inode);
@@ -2927,6 +2986,17 @@ extern bool path_is_under(const struct path *, const struct path *);
 
 extern char *file_path(struct file *, char *, int);
 
+/**
+ * is_dot_dotdot - returns true only if @name is "." or ".."
+ * @name: file name to check
+ * @len: length of file name, in bytes
+ */
+static inline bool is_dot_dotdot(const char *name, size_t len)
+{
+	return len && unlikely(name[0] == '.') &&
+		(len == 1 || (len == 2 && name[1] == '.'));
+}
+
 #include <linux/err.h>
 
 /* needed for stackable file system support */
@@ -3237,7 +3307,7 @@ extern int simple_write_begin(struct file *file, struct address_space *mapping,
 extern const struct address_space_operations ram_aops;
 extern int always_delete_dentry(const struct dentry *);
 extern struct inode *alloc_anon_inode(struct super_block *);
-extern int simple_nosetlease(struct file *, int, struct file_lock **, void **);
+extern int simple_nosetlease(struct file *, int, struct file_lease **, void **);
 extern const struct dentry_operations simple_dentry_operations;
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
@@ -3259,13 +3329,14 @@ extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 		const void __user *from, size_t count);
 
 struct offset_ctx {
-	struct xarray		xa;
-	u32			next_offset;
+	struct maple_tree	mt;
+	unsigned long		next_offset;
 };
 
 void simple_offset_init(struct offset_ctx *octx);
 int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry);
 void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry);
+int simple_offset_empty(struct dentry *dentry);
 int simple_offset_rename_exchange(struct inode *old_dir,
 				  struct dentry *old_dentry,
 				  struct inode *new_dir,
@@ -3279,7 +3350,16 @@ extern int generic_file_fsync(struct file *, loff_t, loff_t, int);
 
 extern int generic_check_addressable(unsigned, u64);
 
-extern void generic_set_encrypted_ci_d_ops(struct dentry *dentry);
+extern void generic_set_sb_d_ops(struct super_block *sb);
+
+static inline bool sb_has_encoding(const struct super_block *sb)
+{
+#if IS_ENABLED(CONFIG_UNICODE)
+	return !!sb->s_encoding;
+#else
+	return false;
+#endif
+}
 
 int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid);
@@ -3334,6 +3414,8 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 		return 0;
 	if (unlikely(flags & ~RWF_SUPPORTED))
 		return -EOPNOTSUPP;
+	if (unlikely((flags & RWF_APPEND) && (flags & RWF_NOAPPEND)))
+		return -EINVAL;
 
 	if (flags & RWF_NOWAIT) {
 		if (!(ki->ki_filp->f_mode & FMODE_NOWAIT))
@@ -3343,6 +3425,12 @@ static inline int kiocb_set_rw_flags(struct kiocb *ki, rwf_t flags)
 	kiocb_flags |= (__force int) (flags & RWF_SUPPORTED);
 	if (flags & RWF_SYNC)
 		kiocb_flags |= IOCB_DSYNC;
+
+	if ((flags & RWF_NOAPPEND) && (ki->ki_flags & IOCB_APPEND)) {
+		if (IS_APPEND(file_inode(ki->ki_filp)))
+			return -EPERM;
+		ki->ki_flags &= ~IOCB_APPEND;
+	}
 
 	ki->ki_flags |= kiocb_flags;
 	return 0;

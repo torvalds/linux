@@ -1189,8 +1189,8 @@ TRACE_EVENT(afs_flock_op,
 		    __entry->from = fl->fl_start;
 		    __entry->len = fl->fl_end - fl->fl_start + 1;
 		    __entry->op = op;
-		    __entry->type = fl->fl_type;
-		    __entry->flags = fl->fl_flags;
+		    __entry->type = fl->c.flc_type;
+		    __entry->flags = fl->c.flc_flags;
 		    __entry->debug_id = fl->fl_u.afs.debug_id;
 			   ),
 

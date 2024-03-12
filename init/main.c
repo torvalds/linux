@@ -99,6 +99,7 @@
 #include <linux/init_syscalls.h>
 #include <linux/stackdepot.h>
 #include <linux/randomize_kstack.h>
+#include <linux/pidfs.h>
 #include <net/net_namespace.h>
 
 #include <asm/io.h>
@@ -603,7 +604,6 @@ static int __init rdinit_setup(char *str)
 __setup("rdinit=", rdinit_setup);
 
 #ifndef CONFIG_SMP
-static const unsigned int setup_max_cpus = NR_CPUS;
 static inline void setup_nr_cpu_ids(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 #endif
@@ -773,6 +773,10 @@ void __init parse_early_param(void)
 void __init __weak arch_post_acpi_subsys_init(void) { }
 
 void __init __weak smp_setup_processor_id(void)
+{
+}
+
+void __init __weak smp_prepare_boot_cpu(void)
 {
 }
 
@@ -1059,6 +1063,7 @@ void start_kernel(void)
 	seq_file_init();
 	proc_root_init();
 	nsfs_init();
+	pidfs_init();
 	cpuset_init();
 	cgroup_init();
 	taskstats_init_early();
@@ -1545,6 +1550,7 @@ static noinline void __init kernel_init_freeable(void)
 	sched_init_smp();
 
 	workqueue_init_topology();
+	async_init();
 	padata_init();
 	page_alloc_init_late();
 

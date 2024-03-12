@@ -95,11 +95,11 @@
 #endif
 
 /*
- * Optional: only supported since gcc >= 14
+ * Optional: only supported since gcc >= 15
  * Optional: only supported since clang >= 18
  *
  *   gcc: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108896
- * clang: https://reviews.llvm.org/D148381
+ * clang: https://github.com/llvm/llvm-project/pull/76348
  */
 #if __has_attribute(__counted_by__)
 # define __counted_by(member)		__attribute__((__counted_by__(member)))

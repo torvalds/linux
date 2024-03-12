@@ -699,7 +699,7 @@ DECLARE_EVENT_CLASS(nfs4_lock_event,
 
 			__entry->error = error < 0 ? -error : 0;
 			__entry->cmd = cmd;
-			__entry->type = request->fl_type;
+			__entry->type = request->c.flc_type;
 			__entry->start = request->fl_start;
 			__entry->end = request->fl_end;
 			__entry->dev = inode->i_sb->s_dev;
@@ -771,7 +771,7 @@ TRACE_EVENT(nfs4_set_lock,
 
 			__entry->error = error < 0 ? -error : 0;
 			__entry->cmd = cmd;
-			__entry->type = request->fl_type;
+			__entry->type = request->c.flc_type;
 			__entry->start = request->fl_start;
 			__entry->end = request->fl_end;
 			__entry->dev = inode->i_sb->s_dev;

@@ -142,8 +142,8 @@ void bch2_sb_field_delete(struct bch_sb_handle *sb,
 void bch2_free_super(struct bch_sb_handle *sb)
 {
 	kfree(sb->bio);
-	if (!IS_ERR_OR_NULL(sb->bdev_handle))
-		bdev_release(sb->bdev_handle);
+	if (!IS_ERR_OR_NULL(sb->s_bdev_file))
+		fput(sb->s_bdev_file);
 	kfree(sb->holder);
 	kfree(sb->sb_name);
 
@@ -704,22 +704,22 @@ retry:
 	if (!opt_get(*opts, nochanges))
 		sb->mode |= BLK_OPEN_WRITE;
 
-	sb->bdev_handle = bdev_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
-	if (IS_ERR(sb->bdev_handle) &&
-	    PTR_ERR(sb->bdev_handle) == -EACCES &&
+	sb->s_bdev_file = bdev_file_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
+	if (IS_ERR(sb->s_bdev_file) &&
+	    PTR_ERR(sb->s_bdev_file) == -EACCES &&
 	    opt_get(*opts, read_only)) {
 		sb->mode &= ~BLK_OPEN_WRITE;
 
-		sb->bdev_handle = bdev_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
-		if (!IS_ERR(sb->bdev_handle))
+		sb->s_bdev_file = bdev_file_open_by_path(path, sb->mode, sb->holder, &bch2_sb_handle_bdev_ops);
+		if (!IS_ERR(sb->s_bdev_file))
 			opt_set(*opts, nochanges, true);
 	}
 
-	if (IS_ERR(sb->bdev_handle)) {
-		ret = PTR_ERR(sb->bdev_handle);
+	if (IS_ERR(sb->s_bdev_file)) {
+		ret = PTR_ERR(sb->s_bdev_file);
 		goto err;
 	}
-	sb->bdev = sb->bdev_handle->bdev;
+	sb->bdev = file_bdev(sb->s_bdev_file);
 
 	ret = bch2_sb_realloc(sb, 0);
 	if (ret) {

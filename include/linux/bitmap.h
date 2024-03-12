@@ -6,6 +6,7 @@
 
 #include <linux/align.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/find.h>
 #include <linux/limits.h>
@@ -126,6 +127,8 @@ unsigned long *bitmap_zalloc(unsigned int nbits, gfp_t flags);
 unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node);
 unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node);
 void bitmap_free(const unsigned long *bitmap);
+
+DEFINE_FREE(bitmap, unsigned long *, if (_T) bitmap_free(_T))
 
 /* Managed variants of the above. */
 unsigned long *devm_bitmap_alloc(struct device *dev,

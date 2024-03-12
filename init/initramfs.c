@@ -16,8 +16,9 @@
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/init_syscalls.h>
-#include <linux/task_work.h>
 #include <linux/umh.h>
+
+#include "do_mounts.h"
 
 static __initdata bool csum_present;
 static __initdata u32 io_csum;
@@ -679,8 +680,6 @@ static void __init populate_initrd_image(char *err)
 	struct file *file;
 	loff_t pos = 0;
 
-	unpack_to_rootfs(__initramfs_start, __initramfs_size);
-
 	printk(KERN_INFO "rootfs image is not initramfs (%s); looks like an initrd\n",
 			err);
 	file = filp_open("/initrd.image", O_WRONLY | O_CREAT, 0700);
@@ -736,8 +735,7 @@ done:
 	initrd_start = 0;
 	initrd_end = 0;
 
-	flush_delayed_fput();
-	task_work_run();
+	init_flush_fput();
 }
 
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);

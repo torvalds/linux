@@ -122,7 +122,7 @@ configure specific aspects of kernel behavior to your liking.
    pmf
    pnp
    rapidio
-   ras
+   RAS/index
    rtc
    serial-console
    svga

@@ -451,6 +451,11 @@ static int pmem_attach_disk(struct device *dev,
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct queue_limits lim = {
+		.logical_block_size	= pmem_sector_size(ndns),
+		.physical_block_size	= PAGE_SIZE,
+		.max_hw_sectors		= UINT_MAX,
+	};
 	int nid = dev_to_node(dev), fua;
 	struct resource *res = &nsio->res;
 	struct range bb_range;
@@ -497,9 +502,9 @@ static int pmem_attach_disk(struct device *dev,
 		return -EBUSY;
 	}
 
-	disk = blk_alloc_disk(nid);
-	if (!disk)
-		return -ENOMEM;
+	disk = blk_alloc_disk(&lim, nid);
+	if (IS_ERR(disk))
+		return PTR_ERR(disk);
 	q = disk->queue;
 
 	pmem->disk = disk;
@@ -539,9 +544,6 @@ static int pmem_attach_disk(struct device *dev,
 	pmem->virt_addr = addr;
 
 	blk_queue_write_cache(q, true, fua);
-	blk_queue_physical_block_size(q, PAGE_SIZE);
-	blk_queue_logical_block_size(q, pmem_sector_size(ndns));
-	blk_queue_max_hw_sectors(q, UINT_MAX);
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, q);
 	if (pmem->pfn_flags & PFN_MAP)

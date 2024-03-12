@@ -535,6 +535,7 @@ static const struct acpi_device_id vsc_tp_acpi_ids[] = {
 	{ "INTC1009" }, /* Raptor Lake */
 	{ "INTC1058" }, /* Tiger Lake */
 	{ "INTC1094" }, /* Alder Lake */
+	{ "INTC10D0" }, /* Meteor Lake */
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, vsc_tp_acpi_ids);
