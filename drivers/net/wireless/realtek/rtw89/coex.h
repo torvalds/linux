@@ -201,6 +201,25 @@ enum btc_3cx_type {
 	BTC_3CX_MAX,
 };
 
+enum btc_chip_feature {
+	BTC_FEAT_PTA_ONOFF_CTRL  = BIT(0), /* on/off ctrl by HW (not 0x73[2]) */
+	BTC_FEAT_NONBTG_GWL_THRU = BIT(1), /* non-BTG GNT_WL!=0 if GNT_BT = 1 */
+	BTC_FEAT_WLAN_ACT_MUX = BIT(2), /* separate wlan_act/gnt mux */
+	BTC_FEAT_NEW_BBAPI_FLOW = BIT(3), /* new btg_ctrl/pre_agc_ctrl */
+	BTC_FEAT_MLO_SUPPORT = BIT(4),
+	BTC_FEAT_H2C_MACRO = BIT(5),
+};
+
+enum btc_wl_mode {
+	BTC_WL_MODE_11B = 0,
+	BTC_WL_MODE_11A = 1,
+	BTC_WL_MODE_11G = 2,
+	BTC_WL_MODE_HT = 3,
+	BTC_WL_MODE_VHT = 4,
+	BTC_WL_MODE_HE = 5,
+	BTC_WL_MODE_NUM,
+};
+
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode);

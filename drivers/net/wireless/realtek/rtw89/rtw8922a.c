@@ -2436,6 +2436,11 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.efuse_blocks		= rtw8922a_efuse_blocks,
 	.phycap_addr		= 0x1700,
 	.phycap_size		= 0x38,
+	.para_ver		= 0xf,
+	.wlcx_desired		= 0x07110000,
+	.btcx_desired		= 0x7,
+	.scbd			= 0x1,
+	.mailbox		= 0x1,
 
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED) |
