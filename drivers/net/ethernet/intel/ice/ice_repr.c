@@ -10,39 +10,6 @@
 #include "ice_dcb_lib.h"
 
 /**
- * ice_repr_get_sw_port_id - get port ID associated with representor
- * @repr: pointer to port representor
- */
-static int ice_repr_get_sw_port_id(struct ice_repr *repr)
-{
-	return repr->src_vsi->back->hw.port_info->lport;
-}
-
-/**
- * ice_repr_get_phys_port_name - get phys port name
- * @netdev: pointer to port representor netdev
- * @buf: write here port name
- * @len: max length of buf
- */
-static int
-ice_repr_get_phys_port_name(struct net_device *netdev, char *buf, size_t len)
-{
-	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_repr *repr = np->repr;
-	int res;
-
-	/* Devlink port is registered and devlink core is taking care of name formatting. */
-	if (repr->vf->devlink_port.devlink)
-		return -EOPNOTSUPP;
-
-	res = snprintf(buf, len, "pf%dvfr%d", ice_repr_get_sw_port_id(repr),
-		       repr->id);
-	if (res <= 0)
-		return -EOPNOTSUPP;
-	return 0;
-}
-
-/**
  * ice_repr_inc_tx_stats - increment Tx statistic by one packet
  * @repr: repr to increment stats on
  * @len: length of the packet
@@ -279,7 +246,6 @@ ice_repr_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 }
 
 static const struct net_device_ops ice_repr_netdev_ops = {
-	.ndo_get_phys_port_name = ice_repr_get_phys_port_name,
 	.ndo_get_stats64 = ice_repr_get_stats64,
 	.ndo_open = ice_repr_open,
 	.ndo_stop = ice_repr_stop,
