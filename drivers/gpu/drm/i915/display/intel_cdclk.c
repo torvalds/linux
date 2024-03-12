@@ -40,6 +40,7 @@
 #include "intel_psr.h"
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
+#include "skl_watermark_regs.h"
 #include "vlv_sideband.h"
 
 /**
@@ -1683,6 +1684,8 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	}
 
  out:
+	if (DISPLAY_VER(dev_priv) >= 20)
+		cdclk_config->joined_mbus = intel_de_read(dev_priv, MBUS_CTL) & MBUS_JOIN;
 	/*
 	 * Can't read this out :( Let's assume it's
 	 * at least what the CDCLK frequency requires.
@@ -1900,6 +1903,14 @@ u8 intel_mdclk_cdclk_ratio(struct drm_i915_private *i915,
 	return 2;
 }
 
+static void xe2lpd_mdclk_cdclk_ratio_program(struct drm_i915_private *i915,
+					     const struct intel_cdclk_config *cdclk_config)
+{
+	intel_dbuf_mdclk_cdclk_ratio_update(i915,
+					    intel_mdclk_cdclk_ratio(i915, cdclk_config),
+					    cdclk_config->joined_mbus);
+}
+
 static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i915,
 						    const struct intel_cdclk_config *old_cdclk_config,
 						    const struct intel_cdclk_config *new_cdclk_config,
@@ -2080,6 +2091,9 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		return;
 	}
 
+	if (DISPLAY_VER(dev_priv) >= 20 && cdclk < dev_priv->display.cdclk.hw.cdclk)
+		xe2lpd_mdclk_cdclk_ratio_program(dev_priv, cdclk_config);
+
 	if (cdclk_compute_crawl_and_squash_midpoint(dev_priv, &dev_priv->display.cdclk.hw,
 						    cdclk_config, &mid_cdclk_config)) {
 		_bxt_set_cdclk(dev_priv, &mid_cdclk_config, pipe);
@@ -2087,6 +2101,9 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	} else {
 		_bxt_set_cdclk(dev_priv, cdclk_config, pipe);
 	}
+
+	if (DISPLAY_VER(dev_priv) >= 20 && cdclk > dev_priv->display.cdclk.hw.cdclk)
+		xe2lpd_mdclk_cdclk_ratio_program(dev_priv, cdclk_config);
 
 	if (DISPLAY_VER(dev_priv) >= 14)
 		/*
@@ -3168,6 +3185,20 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 		*need_cdclk_calc = true;
 
 	return 0;
+}
+
+int intel_cdclk_state_set_joined_mbus(struct intel_atomic_state *state, bool joined_mbus)
+{
+	struct intel_cdclk_state *cdclk_state;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	cdclk_state->actual.joined_mbus = joined_mbus;
+	cdclk_state->logical.joined_mbus = joined_mbus;
+
+	return intel_atomic_lock_global_state(&cdclk_state->base);
 }
 
 int intel_cdclk_init(struct drm_i915_private *dev_priv)
