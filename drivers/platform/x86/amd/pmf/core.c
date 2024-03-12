@@ -297,7 +297,8 @@ static int amd_pmf_suspend_handler(struct device *dev)
 {
 	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
 
-	kfree(pdev->buf);
+	if (pdev->smart_pc_enabled)
+		cancel_delayed_work_sync(&pdev->pb_work);
 
 	if (is_apmf_func_supported(pdev, APMF_FUNC_SBIOS_HEARTBEAT_V2))
 		amd_pmf_notify_sbios_heartbeat_event_v2(pdev, ON_SUSPEND);
@@ -319,6 +320,9 @@ static int amd_pmf_resume_handler(struct device *dev)
 	if (is_apmf_func_supported(pdev, APMF_FUNC_SBIOS_HEARTBEAT_V2))
 		amd_pmf_notify_sbios_heartbeat_event_v2(pdev, ON_RESUME);
 
+	if (pdev->smart_pc_enabled)
+		schedule_delayed_work(&pdev->pb_work, msecs_to_jiffies(2000));
+
 	return 0;
 }
 
@@ -337,9 +341,14 @@ static void amd_pmf_init_features(struct amd_pmf_dev *dev)
 		dev_dbg(dev->dev, "SPS enabled and Platform Profiles registered\n");
 	}
 
-	if (!amd_pmf_init_smart_pc(dev)) {
+	amd_pmf_init_smart_pc(dev);
+	if (dev->smart_pc_enabled) {
 		dev_dbg(dev->dev, "Smart PC Solution Enabled\n");
-	} else if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
+		/* If Smart PC is enabled, no need to check for other features */
+		return;
+	}
+
+	if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
 		amd_pmf_init_auto_mode(dev);
 		dev_dbg(dev->dev, "Auto Mode Init done\n");
 	} else if (is_apmf_func_supported(dev, APMF_FUNC_DYN_SLIDER_AC) ||
@@ -358,7 +367,7 @@ static void amd_pmf_deinit_features(struct amd_pmf_dev *dev)
 		amd_pmf_deinit_sps(dev);
 	}
 
-	if (!dev->smart_pc_enabled) {
+	if (dev->smart_pc_enabled) {
 		amd_pmf_deinit_smart_pc(dev);
 	} else if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
 		amd_pmf_deinit_auto_mode(dev);
