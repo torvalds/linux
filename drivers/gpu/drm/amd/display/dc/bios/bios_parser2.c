@@ -1594,8 +1594,6 @@ static bool bios_parser_is_device_id_supported(
 		return (le16_to_cpu(bp->object_info_tbl.v1_5->supporteddevices) & mask) != 0;
 		break;
 	}
-
-	return false;
 }
 
 static uint32_t bios_parser_get_ss_entry_number(

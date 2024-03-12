@@ -566,7 +566,8 @@ static void vg_clk_mgr_helper_populate_bw_params(
 
 	j = -1;
 
-	ASSERT(VG_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
+	static_assert(VG_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL,
+		"number of reported FCLK DPM levels exceeds maximum");
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
 

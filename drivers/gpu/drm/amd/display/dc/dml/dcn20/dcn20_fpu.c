@@ -1102,8 +1102,6 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 	} else {
 		return DCN_ZSTATE_SUPPORT_DISALLOW;
 	}
-
-	return DCN_ZSTATE_SUPPORT_DISALLOW;
 }
 
 static void dcn20_adjust_freesync_v_startup(

@@ -3535,7 +3535,6 @@ static double TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-	return BPP_INVALID;
 }
 
 void dml30_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)

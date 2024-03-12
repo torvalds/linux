@@ -224,7 +224,7 @@ static int find_dml_pipe_idx_by_plane_id(struct dml2_context *ctx, unsigned int 
 static bool get_plane_id(struct dml2_context *dml2, const struct dc_state *state, const struct dc_plane_state *plane,
 	unsigned int stream_id, unsigned int plane_index, unsigned int *plane_id)
 {
-	int i, j;
+	unsigned int i, j;
 	bool is_plane_duplicate = dml2->v20.scratch.plane_duplicate_exists;
 
 	if (!plane_id)

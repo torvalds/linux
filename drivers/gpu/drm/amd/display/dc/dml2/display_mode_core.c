@@ -2784,6 +2784,8 @@ static dml_float_t TruncToValidBPP(
 		}
 	}
 
+	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
+
 	if (DesiredBPP == 0) {
 		if (DSCEnable) {
 			if (MaxLinkBPP < MinDSCBPP) {
@@ -2812,10 +2814,6 @@ static dml_float_t TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-
-	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
-
-	return __DML_DPP_INVALID__;
 } // TruncToValidBPP
 
 static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
@@ -3792,9 +3790,9 @@ static void CalculateStutterEfficiency(struct display_mode_lib_scratch_st *scrat
 	dml_bool_t FoundCriticalSurface = false;
 
 	dml_uint_t TotalNumberOfActiveOTG = 0;
-	dml_float_t SinglePixelClock;
-	dml_uint_t SingleHTotal;
-	dml_uint_t SingleVTotal;
+	dml_float_t SinglePixelClock = 0;
+	dml_uint_t SingleHTotal = 0;
+	dml_uint_t SingleVTotal = 0;
 	dml_bool_t SameTiming = true;
 
 	dml_float_t LastStutterPeriod = 0.0;

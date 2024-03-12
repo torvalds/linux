@@ -474,7 +474,7 @@ int dcn351_populate_dml_pipes_from_context_fpu(struct dc *dc,
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	bool upscaled = false;
 	const unsigned int max_allowed_vblank_nom = 1023;
 

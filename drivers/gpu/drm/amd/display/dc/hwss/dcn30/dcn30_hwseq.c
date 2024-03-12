@@ -885,7 +885,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
 	uint32_t tmr_delay = 0, tmr_scale = 0;
-	struct dc_cursor_attributes cursor_attr;
+	struct dc_cursor_attributes cursor_attr = {0};
 	bool cursor_cache_enable = false;
 	struct dc_stream_state *stream = NULL;
 	struct dc_plane_state *plane = NULL;

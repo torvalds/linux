@@ -80,7 +80,6 @@ enum signal_type dcn35_get_dig_mode(
 	default:
 		return SIGNAL_TYPE_NONE;
 	}
-	return SIGNAL_TYPE_NONE;
 }
 
 void dcn35_link_encoder_setup(

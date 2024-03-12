@@ -1059,7 +1059,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	struct fixed31_32 min_display;
 	struct fixed31_32 max_content;
 	struct fixed31_32 clip = dc_fixpt_one;
-	struct fixed31_32 output;
+	struct fixed31_32 output = dc_fixpt_zero;
 	bool use_eetf = false;
 	bool is_clipped = false;
 	struct fixed31_32 sdr_white_level;

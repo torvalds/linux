@@ -382,7 +382,7 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	bool disable_unbounded_requesting = dc->debug.disable_z9_mpc || dc->debug.disable_unbounded_requesting;
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {

@@ -1316,7 +1316,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
-	uint32_t rcg_exit_count, ips1_exit_count, ips2_exit_count;
+	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0;
 
 	if (dc->debug.dmcub_emulation)
 		return;

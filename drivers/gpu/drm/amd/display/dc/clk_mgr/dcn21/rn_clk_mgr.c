@@ -642,7 +642,8 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 
 	j = -1;
 
-	ASSERT(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL);
+	static_assert(PP_SMU_NUM_FCLK_DPM_LEVELS <= MAX_NUM_DPM_LVL,
+		"number of reported FCLK DPM levels exceed maximum");
 
 	/* Find lowest DPM, FCLK is filled in reverse order*/
 
