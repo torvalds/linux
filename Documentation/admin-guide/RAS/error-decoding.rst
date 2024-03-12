@@ -1,15 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Reliability, Availability and Serviceability features
-=====================================================
-
-This documents different aspects of the RAS functionality present in the
-kernel.
-
 Error decoding
----------------
+==============
 
-* x86
+x86
+---
 
 Error decoding on AMD systems should be done using the rasdaemon tool:
 https://github.com/mchehab/rasdaemon/

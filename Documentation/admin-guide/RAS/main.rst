@@ -1,8 +1,12 @@
+.. SPDX-License-Identifier: GPL-2.0
 .. include:: <isonum.txt>
 
-============================================
-Reliability, Availability and Serviceability
-============================================
+==================================================
+Reliability, Availability and Serviceability (RAS)
+==================================================
+
+This documents different aspects of the RAS functionality present in the
+kernel.
 
 RAS concepts
 ************
