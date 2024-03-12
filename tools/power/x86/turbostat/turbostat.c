@@ -5380,6 +5380,57 @@ probe_cluster:
 
 static void probe_graphics(void)
 {
+	/* Xe graphics sysfs knobs */
+	if (!access("/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms", R_OK)) {
+		FILE *fp;
+		char buf[8];
+		bool gt0_is_gt;
+		int idx;
+
+		fp = fopen("/sys/class/drm/card0/device/tile0/gt0/gtidle/name", "r");
+		if (!fp)
+			goto next;
+
+		if (!fread(buf, sizeof(char), 7, fp)) {
+			fclose(fp);
+			goto next;
+		}
+		fclose(fp);
+
+		if (!strncmp(buf, "gt0-rc", strlen("gt0-rc")))
+			gt0_is_gt = true;
+		else if (!strncmp(buf, "gt0-mc", strlen("gt0-mc")))
+			gt0_is_gt = false;
+		else
+			goto next;
+
+		idx = gt0_is_gt ? GFX_rc6 : SAM_mc6;
+		gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms";
+
+		idx = gt0_is_gt ? GFX_MHz : SAM_MHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq";
+
+		idx = gt0_is_gt ? GFX_ACTMHz : SAM_ACTMHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq";
+
+		idx = gt0_is_gt ? SAM_mc6 : GFX_rc6;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms";
+
+		idx = gt0_is_gt ? SAM_MHz : GFX_MHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq";
+
+		idx = gt0_is_gt ? SAM_ACTMHz : GFX_ACTMHz;
+		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq", R_OK))
+			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq";
+
+		goto end;
+	}
+
+next:
 	/* New i915 graphics sysfs knobs */
 	if (!access("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", R_OK)) {
 		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/gt/gt0/rc6_residency_ms";
