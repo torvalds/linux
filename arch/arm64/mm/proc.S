@@ -546,12 +546,6 @@ alternative_else_nop_endif
 	 * Prepare SCTLR
 	 */
 	mov_q	x0, INIT_SCTLR_EL1_MMU_ON
-#ifdef CONFIG_ARM64_WXN
-	ldr_l	x1, arm64_sw_feature_override + FTR_OVR_VAL_OFFSET
-	tst	x1, #0xf << ARM64_SW_FEATURE_OVERRIDE_NOWXN
-	orr	x1, x0, #SCTLR_ELx_WXN
-	csel	x0, x0, x1, ne
-#endif
 	ret					// return to head.S
 
 	.unreq	mair

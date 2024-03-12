@@ -132,25 +132,6 @@ static void __init map_kernel(u64 kaslr_offset, u64 va_offset, int root_level)
 	idmap_cpu_replace_ttbr1(swapper_pg_dir);
 }
 
-static void noinline __section(".idmap.text") disable_wxn(void)
-{
-	u64 sctlr = read_sysreg(sctlr_el1) & ~SCTLR_ELx_WXN;
-
-	/*
-	 * We cannot safely clear the WXN bit while the MMU and caches are on,
-	 * so turn the MMU off, flush the TLBs and turn it on again but with
-	 * the WXN bit cleared this time.
-	 */
-	asm("	msr	sctlr_el1, %0		;"
-	    "	isb				;"
-	    "	tlbi    vmalle1			;"
-	    "	dsb     nsh			;"
-	    "	isb				;"
-	    "	msr     sctlr_el1, %1		;"
-	    "	isb				;"
-	    ::	"r"(sctlr & ~SCTLR_ELx_M), "r"(sctlr));
-}
-
 static void noinline __section(".idmap.text") set_ttbr0_for_lpa2(u64 ttbr)
 {
 	u64 sctlr = read_sysreg(sctlr_el1);
@@ -247,10 +228,6 @@ asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 
 	if (va_bits > VA_BITS_MIN)
 		sysreg_clear_set(tcr_el1, TCR_T1SZ_MASK, TCR_T1SZ(va_bits));
-
-	if (IS_ENABLED(CONFIG_ARM64_WXN) &&
-	    arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_NOWXN))
-		disable_wxn();
 
 	/*
 	 * The virtual KASLR displacement modulo 2MiB is decided by the
