@@ -45,7 +45,7 @@ static void sas_ex_add_parent_port(struct domain_device *dev, int phy_id)
 		BUG_ON(sas_port_add(ex->parent_port));
 		sas_port_mark_backlink(ex->parent_port);
 	}
-	sas_port_add_phy(ex->parent_port, ex_phy->phy);
+	sas_port_add_ex_phy(ex->parent_port, ex_phy);
 }
 
 /* ---------- SMP task management ---------- */
@@ -1864,9 +1864,12 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 	if (phy->port) {
 		sas_port_delete_phy(phy->port, phy->phy);
 		sas_device_set_phy(found, phy->port);
-		if (phy->port->num_phys == 0)
+		if (phy->port->num_phys == 0) {
 			list_add_tail(&phy->port->del_list,
 				&parent->port->sas_port_del_list);
+			if (ex_dev->parent_port == phy->port)
+				ex_dev->parent_port = NULL;
+		}
 		phy->port = NULL;
 	}
 }
