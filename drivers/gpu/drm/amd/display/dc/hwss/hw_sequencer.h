@@ -424,8 +424,6 @@ struct hw_sequencer_funcs {
 		struct pg_block_update *update_state);
 	void (*root_clock_control)(struct dc *dc,
 		struct pg_block_update *update_state, bool power_on);
-	void (*set_idle_state)(const struct dc *dc, bool allow_idle);
-	uint32_t (*get_idle_state)(const struct dc *dc);
 	bool (*is_pipe_topology_transition_seamless)(struct dc *dc,
 			const struct dc_state *cur_ctx,
 			const struct dc_state *new_ctx);
