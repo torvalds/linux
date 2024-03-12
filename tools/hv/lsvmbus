@@ -4,7 +4,7 @@
 import os
 from optparse import OptionParser
 
-help_msg = "print verbose messages. Try -vv, -vvv for  more verbose messages"
+help_msg = "print verbose messages. Try -vv, -vvv for more verbose messages"
 parser = OptionParser()
 parser.add_option(
 	"-v", "--verbose", dest="verbose", help=help_msg, action="count")
