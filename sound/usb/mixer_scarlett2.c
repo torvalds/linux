@@ -174,11 +174,10 @@
 /* some gui mixers can't handle negative ctl values */
 #define SCARLETT2_VOLUME_BIAS 127
 
-/* maximum preamp input gain and value
- * values are from 0 to 70, preamp gain is from 0 to 69 dB
+/* maximum preamp input gain value
+ * (the corresponding value in dB is per-device)
  */
 #define SCARLETT2_MAX_GAIN_VALUE 70
-#define SCARLETT2_MAX_GAIN_DB 69
 
 /* mixer range from -80dB to +6dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
@@ -460,8 +459,14 @@ struct scarlett2_config {
 struct scarlett2_config_set {
 	const struct scarlett2_notification *notifications;
 	u16 param_buf_addr;
+	const unsigned int *input_gain_tlv;
 	const struct scarlett2_config items[SCARLETT2_CONFIG_COUNT];
 };
+
+/* Input gain TLV dB ranges */
+static const DECLARE_TLV_DB_MINMAX(
+	db_scale_gen4_gain, 0, 69 * 100
+);
 
 /* Gen 2 devices without SW/HW volume switch: 6i6, 18i8 */
 
@@ -658,6 +663,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_solo = {
 static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 	.notifications = scarlett4_2i2_notifications,
 	.param_buf_addr = 0xfc,
+	.input_gain_tlv = db_scale_gen4_gain,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x49, .size = 8, .activate = 4 },
@@ -703,6 +709,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 	.notifications = scarlett4_4i4_notifications,
 	.param_buf_addr = 0x130,
+	.input_gain_tlv = db_scale_gen4_gain,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x5c, .size = 8, .activate = 4 },
@@ -3587,10 +3594,6 @@ unlock:
 	return err;
 }
 
-static const DECLARE_TLV_DB_MINMAX(
-	db_scale_scarlett2_gain, 0, SCARLETT2_MAX_GAIN_DB * 100
-);
-
 static const struct snd_kcontrol_new scarlett2_input_gain_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -3600,7 +3603,6 @@ static const struct snd_kcontrol_new scarlett2_input_gain_ctl = {
 	.get  = scarlett2_input_gain_ctl_get,
 	.put  = scarlett2_input_gain_ctl_put,
 	.private_value = 0, /* max value */
-	.tlv = { .p = db_scale_scarlett2_gain }
 };
 
 /*** Safe Controls ***/
@@ -5557,6 +5559,8 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 			i, 1, s, &private->input_gain_ctls[i]);
 		if (err < 0)
 			return err;
+		private->input_gain_ctls[i]->tlv.p =
+			private->config_set->input_gain_tlv;
 
 		scnprintf(s, sizeof(s), fmt, i + 1,
 			  "Autogain", "Switch");
