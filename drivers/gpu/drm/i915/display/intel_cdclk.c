@@ -1876,6 +1876,19 @@ static bool cdclk_pll_is_unknown(unsigned int vco)
 	return vco == ~0;
 }
 
+static bool mdclk_source_is_cdclk_pll(struct drm_i915_private *i915)
+{
+	return DISPLAY_VER(i915) >= 20;
+}
+
+static u32 xe2lpd_mdclk_source_sel(struct drm_i915_private *i915)
+{
+	if (mdclk_source_is_cdclk_pll(i915))
+		return MDCLK_SOURCE_SEL_CDCLK_PLL;
+
+	return MDCLK_SOURCE_SEL_CD2XCLK;
+}
+
 static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i915,
 						    const struct intel_cdclk_config *old_cdclk_config,
 						    const struct intel_cdclk_config *new_cdclk_config,
@@ -1980,7 +1993,7 @@ static u32 bxt_cdclk_ctl(struct drm_i915_private *i915,
 		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 	if (DISPLAY_VER(i915) >= 20)
-		val |= MDCLK_SOURCE_SEL_CDCLK_PLL;
+		val |= xe2lpd_mdclk_source_sel(i915);
 	else
 		val |= skl_cdclk_decimal(cdclk);
 
