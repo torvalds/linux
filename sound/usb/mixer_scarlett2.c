@@ -436,7 +436,7 @@ enum {
 };
 
 /* Location, size, and activation command number for the configuration
- * parameters. Size is in bits and may be 1, 8, or 16.
+ * parameters. Size is in bits and may be 1, 8, 16, or 32.
  *
  * Vocaster and 4th Gen devices have a parameter buffer to set certain
  * configuration parameters. When pbuf is set, rather than writing to
@@ -2102,6 +2102,11 @@ static int scarlett2_usb_get_config(
 
 			for (i = 0; i < count; i++, buf_16++)
 				*buf_16 = le16_to_cpu(*(__le16 *)buf_16);
+		} else if (size == 4) {
+			u32 *buf_32 = buf;
+
+			for (i = 0; i < count; i++, buf_32++)
+				*buf_32 = le32_to_cpu(*(__le32 *)buf_32);
 		}
 		return 0;
 	}
