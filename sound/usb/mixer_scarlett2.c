@@ -321,6 +321,7 @@ struct scarlett2_notification {
 	void (*func)(struct usb_mixer_interface *mixer);
 };
 
+static void scarlett2_notify_ack(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_sync(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_dim_mute(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_monitor(struct usb_mixer_interface *mixer);
@@ -343,7 +344,7 @@ static void scarlett2_notify_pcm_input_switch(
 /* Arrays of notification callback functions */
 
 static const struct scarlett2_notification scarlett2_notifications[] = {
-	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00000008, scarlett2_notify_sync },
 	{ 0x00200000, scarlett2_notify_dim_mute },
 	{ 0x00400000, scarlett2_notify_monitor },
@@ -353,14 +354,14 @@ static const struct scarlett2_notification scarlett2_notifications[] = {
 };
 
 static const struct scarlett2_notification scarlett3a_notifications[] = {
-	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00800000, scarlett2_notify_input_other },
 	{ 0x01000000, scarlett2_notify_direct_monitor },
 	{ 0, NULL }
 };
 
 static const struct scarlett2_notification scarlett4_solo_notifications[] = {
-	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00000008, scarlett2_notify_sync },
 	{ 0x00400000, scarlett2_notify_input_air },
 	{ 0x00800000, scarlett2_notify_direct_monitor },
@@ -371,7 +372,7 @@ static const struct scarlett2_notification scarlett4_solo_notifications[] = {
 };
 
 static const struct scarlett2_notification scarlett4_2i2_notifications[] = {
-	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00000008, scarlett2_notify_sync },
 	{ 0x00200000, scarlett2_notify_input_safe },
 	{ 0x00400000, scarlett2_notify_autogain },
@@ -387,7 +388,7 @@ static const struct scarlett2_notification scarlett4_2i2_notifications[] = {
 };
 
 static const struct scarlett2_notification scarlett4_4i4_notifications[] = {
-	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00000008, scarlett2_notify_sync },
 	{ 0x00200000, scarlett2_notify_input_safe },
 	{ 0x00400000, scarlett2_notify_autogain },
@@ -942,7 +943,9 @@ struct scarlett2_device_info {
 struct scarlett2_data {
 	struct usb_mixer_interface *mixer;
 	struct mutex usb_mutex; /* prevent sending concurrent USB requests */
+	struct completion cmd_done;
 	struct mutex data_mutex; /* lock access to this data */
+	u8 running;
 	u8 hwdep_in_use;
 	u8 selected_flash_segment_id;
 	u8 flash_write_state;
@@ -1957,6 +1960,17 @@ static int scarlett2_usb(
 			"%s USB request result cmd %x was %d\n",
 			private->series_name, cmd, err);
 		err = -EINVAL;
+		goto unlock;
+	}
+
+	if (!wait_for_completion_timeout(&private->cmd_done,
+					 msecs_to_jiffies(1000))) {
+		usb_audio_err(
+			mixer->chip,
+			"%s USB request timed out, cmd %x\n",
+			private->series_name, cmd);
+
+		err = -ETIMEDOUT;
 		goto unlock;
 	}
 
@@ -6702,6 +6716,18 @@ static void scarlett2_notify_pcm_input_switch(struct usb_mixer_interface *mixer)
 	scarlett2_notify_mux(mixer);
 }
 
+/* Handle acknowledgement that a command was received; let
+ * scarlett2_usb() know that it can proceed
+ */
+static void scarlett2_notify_ack(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	/* if running == 0, ignore ACKs */
+	if (private->running)
+		complete(&private->cmd_done);
+}
+
 /* Interrupt callback */
 static void scarlett2_notify(struct urb *urb)
 {
@@ -6717,6 +6743,12 @@ static void scarlett2_notify(struct urb *urb)
 		goto requeue;
 
 	data = le32_to_cpu(*(__le32 *)urb->transfer_buffer);
+
+	/* Ignore notifications except ACK during initialisation.
+	 * ACK is 0x00000001 on every device.
+	 */
+	if (private->running < 2)
+		data &= 1;
 
 	while (data && notifications->mask) {
 		if (data & notifications->mask) {
@@ -6738,6 +6770,8 @@ requeue:
 	    ustatus != -ESHUTDOWN) {
 		urb->dev = mixer->chip->dev;
 		usb_submit_urb(urb, GFP_ATOMIC);
+	} else {
+		complete(&private->cmd_done);
 	}
 }
 
@@ -6889,6 +6923,8 @@ static int scarlett2_init_notify(struct usb_mixer_interface *mixer)
 			 transfer_buffer, private->wMaxPacketSize,
 			 scarlett2_notify, mixer, private->bInterval);
 
+	init_completion(&private->cmd_done);
+
 	return usb_submit_urb(mixer->urb, GFP_KERNEL);
 }
 
@@ -6910,6 +6946,24 @@ static int scarlett2_usb_init(struct usb_mixer_interface *mixer)
 			       step0_buf, sizeof(step0_buf));
 	if (err < 0)
 		return err;
+
+	/* Set up the interrupt polling for notifications.
+	 * When running is:
+	 * 0: all notifications are ignored
+	 * 1: only ACKs are handled
+	 * 2: all notifications are handled
+	 */
+	err = scarlett2_init_notify(mixer);
+	if (err < 0)
+		return err;
+
+	/* sleep for a moment in case of an outstanding ACK */
+	msleep(20);
+
+	/* start handling ACKs, but no other notifications until the
+	 * ALSA controls have been created
+	 */
+	private->running = 1;
 
 	/* step 1 */
 	private->scarlett2_seq = 1;
@@ -7308,10 +7362,8 @@ static int snd_scarlett2_controls_create(
 		scarlett2_phantom_update_access(mixer);
 	}
 
-	/* Set up the interrupt polling */
-	err = scarlett2_init_notify(mixer);
-	if (err < 0)
-		return err;
+	/* Start handling all notifications */
+	private->running = 2;
 
 	return 0;
 }
