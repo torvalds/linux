@@ -179,7 +179,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -202,7 +202,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -220,7 +220,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(8))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(9))>;
@@ -248,7 +248,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -271,7 +271,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -289,7 +289,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(10))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(11))>;
@@ -377,7 +377,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(22))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(23))>;
@@ -399,7 +399,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(22))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(23))>;
@@ -426,7 +426,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(24))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(25))>;
@@ -448,7 +448,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(24))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(25))>;
@@ -583,7 +583,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(12))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(13))>;
@@ -605,7 +605,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(12))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(13))>;
@@ -632,7 +632,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(14))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(15))>;
@@ -654,7 +654,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(14))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(15))>;
@@ -681,7 +681,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(16))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(17))>;
@@ -703,7 +703,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(16))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(17))>;
@@ -730,7 +730,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -753,7 +753,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -771,7 +771,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(0))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(1))>;
@@ -798,7 +798,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -821,7 +821,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -839,7 +839,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(2))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(3))>;
@@ -866,7 +866,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -889,7 +889,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -907,7 +907,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(4))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(5))>;
@@ -934,7 +934,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -957,7 +957,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -975,7 +975,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(6))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(7))>;
@@ -1057,7 +1057,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(18))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(19))>;
@@ -1079,7 +1079,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(18))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(19))>;
@@ -1106,7 +1106,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(20))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(21))>;
@@ -1128,7 +1128,7 @@
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(20))>,
-						<&dma0
+					       <&dma0
 						(AT91_XDMAC_DT_MEM_IF(0) |
 						 AT91_XDMAC_DT_PER_IF(1) |
 						 AT91_XDMAC_DT_PERID(21))>;

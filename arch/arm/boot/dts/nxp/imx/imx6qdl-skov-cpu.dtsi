@@ -13,10 +13,14 @@
 	aliases {
 		can0 = &can1;
 		can1 = &can2;
+		ethernet0 = &fec;
+		ethernet1 = &lan1;
+		ethernet2 = &lan2;
 		mdio-gpio0 = &mdio;
 		nand = &gpmi;
 		rtc0 = &i2c_rtc;
 		rtc1 = &snvs;
+		switch0 = &switch;
 		usb0 = &usbh1;
 		usb1 = &usbotg;
 	};
@@ -60,7 +64,7 @@
 		gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>,
 			<&gpio1 22 GPIO_ACTIVE_HIGH>;
 
-		switch@0 {
+		switch: switch@0 {
 			compatible = "microchip,ksz8873";
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_switch>;
@@ -73,13 +77,13 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				ports@0 {
+				lan1: ports@0 {
 					reg = <0>;
 					phy-mode = "internal";
 					label = "lan1";
 				};
 
-				ports@1 {
+				lan2: ports@1 {
 					reg = <1>;
 					phy-mode = "internal";
 					label = "lan2";

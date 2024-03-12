@@ -64,6 +64,14 @@ properties:
       - items:
           - const: asus,tf700t
           - const: nvidia,tegra30
+      - description: LG Optimus 4X P880
+        items:
+          - const: lg,p880
+          - const: nvidia,tegra30
+      - description: LG Optimus Vu P895
+        items:
+          - const: lg,p895
+          - const: nvidia,tegra30
       - items:
           - const: toradex,apalis_t30-eval
           - const: toradex,apalis_t30

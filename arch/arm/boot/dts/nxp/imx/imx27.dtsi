@@ -568,7 +568,7 @@
 			status = "disabled";
 		};
 
-		weim: weim@d8002000 {
+		weim: memory-controller@d8002000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "fsl,imx27-weim";

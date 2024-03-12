@@ -54,7 +54,7 @@
 			enable-method = "psci";
 		};
 
-		cpu101: cpu@101{
+		cpu101: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0 0x101>;
