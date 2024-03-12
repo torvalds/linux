@@ -370,6 +370,13 @@
 &i2c13 {
 	status = "okay";
 	bus-frequency = <400000>;
+	multi-master;
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+		i2c-protocol;
+	};
 };
 
 &i2c14 {
