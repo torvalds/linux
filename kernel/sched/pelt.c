@@ -208,7 +208,7 @@ ___update_load_sum(u64 now, struct sched_avg *sa,
 	 * se has been already dequeued but cfs_rq->curr still points to it.
 	 * This means that weight will be 0 but not running for a sched_entity
 	 * but also for a cfs_rq if the latter becomes idle. As an example,
-	 * this happens during idle_balance() which calls
+	 * this happens during sched_balance_newidle() which calls
 	 * sched_balance_update_blocked_averages().
 	 *
 	 * Also see the comment in accumulate_sum().

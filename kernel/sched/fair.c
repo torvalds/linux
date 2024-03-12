@@ -6866,7 +6866,7 @@ dequeue_throttle:
 
 #ifdef CONFIG_SMP
 
-/* Working cpumask for: sched_balance_rq, load_balance_newidle. */
+/* Working cpumask for: sched_balance_rq(), sched_balance_newidle(). */
 static DEFINE_PER_CPU(cpumask_var_t, load_balance_mask);
 static DEFINE_PER_CPU(cpumask_var_t, select_rq_mask);
 static DEFINE_PER_CPU(cpumask_var_t, should_we_balance_tmpmask);
