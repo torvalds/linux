@@ -796,10 +796,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 	pm_runtime_use_autosuspend(tas_hda->dev);
 	pm_runtime_mark_last_busy(tas_hda->dev);
 	pm_runtime_set_active(tas_hda->dev);
-	pm_runtime_get_noresume(tas_hda->dev);
 	pm_runtime_enable(tas_hda->dev);
-
-	pm_runtime_put_autosuspend(tas_hda->dev);
 
 	tas2781_reset(tas_hda->priv);
 
