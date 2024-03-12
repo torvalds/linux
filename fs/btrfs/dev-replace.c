@@ -11,10 +11,8 @@
 #include <linux/math64.h>
 #include "misc.h"
 #include "ctree.h"
-#include "extent_map.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "print-tree.h"
 #include "volumes.h"
 #include "async-thread.h"
 #include "dev-replace.h"
@@ -1000,8 +998,7 @@ error:
 	btrfs_sysfs_remove_device(src_device);
 	btrfs_sysfs_update_devid(tgt_device);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &src_device->dev_state))
-		btrfs_scratch_superblocks(fs_info, src_device->bdev,
-					  src_device->name->str);
+		btrfs_scratch_superblocks(fs_info, src_device);
 
 	/* write back the superblocks */
 	trans = btrfs_start_transaction(root, 0);
