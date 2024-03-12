@@ -686,9 +686,15 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static inline void io_recv_prep_retry(struct io_kiocb *req)
+static inline void io_recv_prep_retry(struct io_kiocb *req,
+				      struct io_async_msghdr *kmsg)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+
+	if (kmsg->free_iov) {
+		kfree(kmsg->free_iov);
+		kmsg->free_iov = NULL;
+	}
 
 	req->flags &= ~REQ_F_BL_EMPTY;
 	sr->done_io = 0;
@@ -721,7 +727,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 		int mshot_retry_ret = IOU_ISSUE_SKIP_COMPLETE;
 
-		io_recv_prep_retry(req);
+		io_recv_prep_retry(req, kmsg);
 		/* Known not-empty or unknown state, retry */
 		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || kmsg->msg.msg_inq < 0) {
 			if (sr->nr_multishot_loops++ < MULTISHOT_MAX_RETRY)
@@ -730,10 +736,9 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 			sr->nr_multishot_loops = 0;
 			mshot_retry_ret = IOU_REQUEUE;
 		}
-		if (issue_flags & IO_URING_F_MULTISHOT)
+		*ret = io_setup_async_msg(req, kmsg, issue_flags);
+		if (*ret == -EAGAIN && issue_flags & IO_URING_F_MULTISHOT)
 			*ret = mshot_retry_ret;
-		else
-			*ret = -EAGAIN;
 		return true;
 	}
 
@@ -744,6 +749,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		*ret = IOU_STOP_MULTISHOT;
 	else
 		*ret = IOU_OK;
+	io_req_msg_cleanup(req, kmsg, issue_flags);
 	return true;
 }
 
@@ -927,11 +933,6 @@ retry_multishot:
 	if (!io_recv_finish(req, &ret, kmsg, mshot_finished, issue_flags))
 		goto retry_multishot;
 
-	if (mshot_finished)
-		io_req_msg_cleanup(req, kmsg, issue_flags);
-	else if (ret == -EAGAIN)
-		return io_setup_async_msg(req, kmsg, issue_flags);
-
 	return ret;
 }
 
@@ -1034,11 +1035,6 @@ out_free:
 
 	if (!io_recv_finish(req, &ret, kmsg, ret <= 0, issue_flags))
 		goto retry_multishot;
-
-	if (ret == -EAGAIN)
-		return io_setup_async_msg(req, kmsg, issue_flags);
-	else if (ret != IOU_OK && ret != IOU_STOP_MULTISHOT)
-		io_req_msg_cleanup(req, kmsg, issue_flags);
 
 	return ret;
 }
