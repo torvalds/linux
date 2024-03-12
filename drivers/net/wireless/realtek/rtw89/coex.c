@@ -311,6 +311,7 @@ enum btc_ant_phase {
 	BTC_ANT_W25G,
 	BTC_ANT_FREERUN,
 	BTC_ANT_WRFK,
+	BTC_ANT_WRFK2,
 	BTC_ANT_BRFK,
 	BTC_ANT_MAX
 };
@@ -613,6 +614,13 @@ enum btc_gnt_state {
 enum btc_ctr_path {
 	BTC_CTRL_BY_BT = 0,
 	BTC_CTRL_BY_WL
+};
+
+enum btc_wlact_state {
+	BTC_WLACT_HW = 0,
+	BTC_WLACT_SW_LO,
+	BTC_WLACT_SW_HI,
+	BTC_WLACT_MAX,
 };
 
 enum btc_wl_max_tx_time {
@@ -2247,6 +2255,76 @@ static void _set_gnt(struct rtw89_dev *rtwdev, u8 phy_map, u8 wl_state, u8 bt_st
 	rtw89_chip_mac_cfg_gnt(rtwdev, &dm->gnt);
 }
 
+static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
+			u8 wl_state, u8 bt_state, u8 wlact_state)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
+	u8 i, bt_idx = dm->bt_select + 1;
+
+	if (phy_map > BTC_PHY_ALL)
+		return;
+
+	for (i = 0; i < RTW89_PHY_MAX; i++) {
+		if (!(phy_map & BIT(i)))
+			continue;
+
+		switch (wl_state) {
+		case BTC_GNT_HW:
+			g[i].gnt_wl_sw_en = 0;
+			g[i].gnt_wl = 0;
+			break;
+		case BTC_GNT_SW_LO:
+			g[i].gnt_wl_sw_en = 1;
+			g[i].gnt_wl = 0;
+			break;
+		case BTC_GNT_SW_HI:
+			g[i].gnt_wl_sw_en = 1;
+			g[i].gnt_wl = 1;
+			break;
+		}
+
+		switch (bt_state) {
+		case BTC_GNT_HW:
+			g[i].gnt_bt_sw_en = 0;
+			g[i].gnt_bt = 0;
+			break;
+		case BTC_GNT_SW_LO:
+			g[i].gnt_bt_sw_en = 1;
+			g[i].gnt_bt = 0;
+			break;
+		case BTC_GNT_SW_HI:
+			g[i].gnt_bt_sw_en = 1;
+			g[i].gnt_bt = 1;
+			break;
+		}
+	}
+
+	if (rtwdev->chip->para_ver & BTC_FEAT_WLAN_ACT_MUX) {
+		for (i = 0; i < 2; i++) {
+			if (!(bt_idx & BIT(i)))
+				continue;
+
+			switch (wlact_state) {
+			case BTC_WLACT_HW:
+				dm->gnt.bt[i].wlan_act_en = 0;
+				dm->gnt.bt[i].wlan_act = 0;
+				break;
+			case BTC_WLACT_SW_LO:
+				dm->gnt.bt[i].wlan_act_en = 1;
+				dm->gnt.bt[i].wlan_act = 0;
+				break;
+			case BTC_WLACT_SW_HI:
+				dm->gnt.bt[i].wlan_act_en = 1;
+				dm->gnt.bt[i].wlan_act = 1;
+				break;
+			}
+		}
+	}
+	rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+}
+
 #define BTC_TDMA_WLROLE_MAX 2
 
 static void _set_bt_ignore_wlan_act(struct rtw89_dev *rtwdev, u8 enable)
@@ -3512,8 +3590,8 @@ static void _set_bt_plut(struct rtw89_dev *rtwdev, u8 phy_map,
 		rtw89_mac_cfg_plt(rtwdev, &plt);
 }
 
-static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
-		     u8 phy_map, u8 type)
+static void _set_ant_v0(struct rtw89_dev *rtwdev, bool force_exec,
+			u8 phy_map, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
@@ -3637,6 +3715,117 @@ static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
 	default:
 		break;
 	}
+}
+
+static void _set_ant_v1(struct rtw89_dev *rtwdev, bool force_exec,
+			u8 phy_map, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &wl->role_info_v8;
+	u32 ant_path_type = rtw89_get_antpath_type(phy_map, type);
+	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u8 gwl = BTC_GNT_HW;
+
+	if (btc->dm.run_reason == BTC_RSN_NTFY_POWEROFF ||
+	    btc->dm.run_reason == BTC_RSN_NTFY_RADIO_STATE ||
+	    btc->dm.run_reason == BTC_RSN_CMD_SET_COEX || wl_rinfo->dbcc_chg)
+		force_exec = FC_EXEC;
+
+	if (wl_rinfo->link_mode != BTC_WLINK_25G_MCC &&
+	    btc->dm.wl_btg_rx == 2)
+		force_exec = FC_EXEC;
+
+	if (!force_exec && ant_path_type == dm->set_ant_path) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): return by no change!!\n",
+			     __func__);
+		return;
+	} else if (bt->rfk_info.map.run) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): return by bt rfk!!\n", __func__);
+		return;
+	} else if (btc->dm.run_reason != BTC_RSN_NTFY_WL_RFK &&
+		   wl->rfk_info.state != BTC_WRFK_STOP) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): return by wl rfk!!\n", __func__);
+		return;
+	}
+
+	dm->set_ant_path = ant_path_type;
+
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s(): path=0x%x, set_type=0x%x\n",
+		    __func__, phy_map, dm->set_ant_path & 0xff);
+
+	switch (type) {
+	case BTC_ANT_WINIT:
+		/* To avoid BT MP driver case (bt_enable but no mailbox) */
+		if (bt->enable.now && bt->run_patch_code)
+			_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_LO, BTC_GNT_SW_HI,
+				    BTC_WLACT_SW_LO);
+		else
+			_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_SW_LO,
+				    BTC_WLACT_SW_HI);
+		break;
+	case BTC_ANT_WONLY:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_SW_LO,
+			    BTC_WLACT_SW_HI);
+		break;
+	case BTC_ANT_WOFF:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_LO, BTC_GNT_SW_HI,
+			    BTC_WLACT_SW_LO);
+		break;
+	case BTC_ANT_W2G:
+	case BTC_ANT_W25G:
+		if (wl_rinfo->dbcc_en) {
+			if (wl_dinfo->real_band[RTW89_PHY_0] == RTW89_BAND_2G)
+				gwl = BTC_GNT_HW;
+			else
+				gwl = BTC_GNT_SW_HI;
+			_set_gnt_v1(rtwdev, BTC_PHY_0, gwl, BTC_GNT_HW, BTC_WLACT_HW);
+
+			if (wl_dinfo->real_band[RTW89_PHY_1] == RTW89_BAND_2G)
+				gwl = BTC_GNT_HW;
+			else
+				gwl = BTC_GNT_SW_HI;
+			_set_gnt_v1(rtwdev, BTC_PHY_1, gwl, BTC_GNT_HW, BTC_WLACT_HW);
+		} else {
+			gwl = BTC_GNT_HW;
+			_set_gnt_v1(rtwdev, phy_map, gwl, BTC_GNT_HW, BTC_WLACT_HW);
+		}
+		break;
+	case BTC_ANT_W5G:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_HW, BTC_WLACT_HW);
+		break;
+	case BTC_ANT_FREERUN:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_SW_HI,
+			    BTC_WLACT_SW_LO);
+		break;
+	case BTC_ANT_WRFK:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_SW_LO,
+			    BTC_WLACT_HW);
+		break;
+	case BTC_ANT_WRFK2:
+		_set_gnt_v1(rtwdev, phy_map, BTC_GNT_SW_HI, BTC_GNT_SW_LO,
+			    BTC_WLACT_SW_HI); /* no BT-Tx */
+		break;
+	default:
+		return;
+	}
+
+	_set_bt_plut(rtwdev, phy_map, BTC_PLT_GNT_WL, BTC_PLT_GNT_WL);
+}
+
+static void _set_ant(struct rtw89_dev *rtwdev, bool force_exec,
+		     u8 phy_map, u8 type)
+{
+	if (rtwdev->chip->chip_id == RTL8922A)
+		_set_ant_v1(rtwdev, force_exec, phy_map, type);
+	else
+		_set_ant_v0(rtwdev, force_exec, phy_map, type);
 }
 
 static void _action_wl_only(struct rtw89_dev *rtwdev)
