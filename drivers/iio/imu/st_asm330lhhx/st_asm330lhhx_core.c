@@ -2314,11 +2314,108 @@ static int st_asm330lhhx_power_enable(struct st_asm330lhhx_hw *hw)
 	return 0;
 }
 
+static int st_asm330lhh_regulator_init(struct st_asm330lhhx_hw *hw)
+{
+	hw->vdd  = devm_regulator_get(hw->dev, "vdd");
+	if (IS_ERR(hw->vdd))
+		return dev_err_probe(hw->dev, PTR_ERR(hw->vdd), "Failed to get vdd");
+
+	hw->vio = devm_regulator_get(hw->dev, "vio");
+	if (IS_ERR(hw->vio))
+		return dev_err_probe(hw->dev, PTR_ERR(hw->vio), "Failed to get vio");
+
+	return 0;
+}
+
+static int st_asm330lhh_regulator_power_up(struct st_asm330lhhx_hw *hw)
+{
+	struct device_node *np;
+	u32 vdd_voltage[2];
+	u32 vio_voltage[2];
+	u32 vdd_current = 30000;
+	u32 vio_current = 30000;
+	int err = 0;
+
+	np = hw->dev->of_node;
+
+	if (of_property_read_u32(np, "vio-min-voltage", &vio_voltage[0]))
+		vio_voltage[0] = 1620000;
+
+	if (of_property_read_u32(np, "vio-max-voltage", &vio_voltage[1]))
+		vio_voltage[1] = 3600000;
+
+	if (of_property_read_u32(np, "vdd-min-voltage", &vdd_voltage[0]))
+		vdd_voltage[0] = 3000000;
+
+	if (of_property_read_u32(np, "vdd-max-voltage", &vdd_voltage[1]))
+		vdd_voltage[1] = 3600000;
+
+	/* Enable VDD for ASM330 */
+	if (vdd_voltage[0] > 0 && vdd_voltage[0] <= vdd_voltage[1]) {
+		err = regulator_set_voltage(hw->vdd, vdd_voltage[0],
+						vdd_voltage[1]);
+		if (err) {
+			pr_err("Error %d during vdd set_voltage\n", err);
+			return err;
+		}
+	}
+
+	err = regulator_set_load(hw->vdd, vdd_current);
+	if (err < 0) {
+		pr_err("vdd regulator_set_load failed,err=%d\n", err);
+		goto remove_vdd_voltage;
+	}
+
+	err = regulator_enable(hw->vdd);
+	if (err) {
+		dev_err(hw->dev, "vdd enable failed with error %d\n", err);
+		goto remove_vdd_current;
+	}
+
+	/* Enable VIO for ASM330 */
+	if (vio_voltage[0] > 0 && vio_voltage[0] <= vio_voltage[1]) {
+		err = regulator_set_voltage(hw->vio, vio_voltage[0],
+						vio_voltage[1]);
+		if (err) {
+			pr_err("Error %d during vio set_voltage\n", err);
+			goto disable_vdd;
+		}
+	}
+
+	err = regulator_set_load(hw->vio, vio_current);
+	if (err < 0) {
+		pr_err("vio regulator_set_load failed,err=%d\n", err);
+		goto remove_vio_voltage;
+	}
+
+	err = regulator_enable(hw->vio);
+	if (err) {
+		dev_err(hw->dev, "vio enable failed with error %d\n", err);
+		goto remove_vio_current;
+	}
+
+	return 0;
+
+remove_vio_current:
+	regulator_set_load(hw->vio, 0);
+remove_vio_voltage:
+	regulator_set_voltage(hw->vio, 0, INT_MAX);
+disable_vdd:
+	regulator_disable(hw->vdd);
+remove_vdd_current:
+	regulator_set_load(hw->vdd, 0);
+remove_vdd_voltage:
+	regulator_set_voltage(hw->vdd, 0, INT_MAX);
+
+	return err;
+}
+
 int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 			struct regmap *regmap)
 {
 	struct st_asm330lhhx_hw *hw;
-	int i, err;
+	struct device_node *np;
+	int i = 0, err = 0;
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
 	if (!hw)
@@ -2335,6 +2432,23 @@ int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 	hw->irq = irq;
 	hw->odr_table_entry = st_asm330lhhx_odr_table;
 	hw->hw_timestamp_global = 0;
+
+	np = hw->dev->of_node;
+	/* use qtimer if property is enabled */
+	err = st_asm330lhh_regulator_init(hw);
+	if (err < 0) {
+		dev_err(hw->dev, "regulator init failed\n");
+		return err;
+	}
+
+	err = st_asm330lhh_regulator_power_up(hw);
+	if (err < 0) {
+		dev_err(hw->dev, "regulator power up failed\n");
+		return err;
+	}
+
+	/* allow time for enabling regulators */
+	usleep_range(1000, 2000);
 
 	err = st_asm330lhhx_power_enable(hw);
 	if (err != 0)
