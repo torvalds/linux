@@ -25,6 +25,7 @@
 		i2c7 = &mpcie1_i2c;
 		i2c8 = &mpcie0_i2c;
 		i2c9 = &pcieclk_i2c;
+		i2c10 = &i2c5;
 		mmc0 = &esdhc0;
 		mmc1 = &esdhc1;
 		serial0 = &uart0;
