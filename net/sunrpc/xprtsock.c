@@ -2987,19 +2987,10 @@ static int bc_send_request(struct rpc_rqst *req)
 	return len;
 }
 
-/*
- * The close routine. Since this is client initiated, we do nothing
- */
-
 static void bc_close(struct rpc_xprt *xprt)
 {
 	xprt_disconnect_done(xprt);
 }
-
-/*
- * The xprt destroy routine. Again, because this connection is client
- * initiated, we do nothing
- */
 
 static void bc_destroy(struct rpc_xprt *xprt)
 {
