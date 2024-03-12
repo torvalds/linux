@@ -1963,27 +1963,26 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	bool wc = false, fua = false;
 	int r;
 
+	/*
+	 * Copy table's limits to the DM device's request_queue
+	 */
+	q->limits = *limits;
+
 	if (dm_table_supports_nowait(t))
 		blk_queue_flag_set(QUEUE_FLAG_NOWAIT, q);
 	else
 		blk_queue_flag_clear(QUEUE_FLAG_NOWAIT, q);
 
 	if (!dm_table_supports_discards(t)) {
-		limits->max_hw_discard_sectors = 0;
-		limits->discard_granularity = 0;
-		limits->discard_alignment = 0;
-		limits->discard_misaligned = 0;
+		q->limits.max_discard_sectors = 0;
+		q->limits.max_hw_discard_sectors = 0;
+		q->limits.discard_granularity = 0;
+		q->limits.discard_alignment = 0;
+		q->limits.discard_misaligned = 0;
 	}
 
-	if (!dm_table_supports_write_zeroes(t))
-		limits->max_write_zeroes_sectors = 0;
-
 	if (!dm_table_supports_secure_erase(t))
-		limits->max_secure_erase_sectors = 0;
-
-	r = queue_limits_set(q, limits);
-	if (r)
-		return r;
+		q->limits.max_secure_erase_sectors = 0;
 
 	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
 		wc = true;
@@ -2007,6 +2006,9 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
 	else
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+
+	if (!dm_table_supports_write_zeroes(t))
+		q->limits.max_write_zeroes_sectors = 0;
 
 	dm_table_verify_integrity(t);
 
@@ -2045,6 +2047,7 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 
 	dm_update_crypto_profile(q, t);
+	disk_update_readahead(t->md->disk);
 
 	/*
 	 * Check for request-based device is left to
