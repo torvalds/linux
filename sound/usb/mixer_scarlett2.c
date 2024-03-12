@@ -1859,6 +1859,7 @@ static int scarlett2_get_port_start_num(
 #define SCARLETT2_USB_ERASE_SEGMENT 0x00004002
 #define SCARLETT2_USB_GET_ERASE     0x00004003
 #define SCARLETT2_USB_WRITE_SEGMENT 0x00004004
+#define SCARLETT2_USB_READ_SEGMENT  0x00004005
 #define SCARLETT2_USB_GET_SYNC      0x00006004
 #define SCARLETT2_USB_GET_DATA      0x00800000
 #define SCARLETT2_USB_SET_DATA      0x00800001
@@ -1869,7 +1870,7 @@ static int scarlett2_get_port_start_num(
 #define SCARLETT2_USB_METER_LEVELS_GET_MAGIC 1
 
 #define SCARLETT2_FLASH_BLOCK_SIZE 4096
-#define SCARLETT2_FLASH_WRITE_MAX 1024
+#define SCARLETT2_FLASH_RW_MAX 1024
 #define SCARLETT2_SEGMENT_NUM_MIN 1
 #define SCARLETT2_SEGMENT_NUM_MAX 4
 
@@ -7452,7 +7453,7 @@ static int scarlett2_reboot(struct usb_mixer_interface *mixer)
 	return scarlett2_usb(mixer, SCARLETT2_USB_REBOOT, NULL, 0, NULL, 0);
 }
 
-/* Select a flash segment for erasing (and possibly writing to) */
+/* Select a flash segment for reading/erasing/writing */
 static int scarlett2_ioctl_select_flash_segment(
 	struct usb_mixer_interface *mixer,
 	unsigned long arg)
@@ -7633,6 +7634,84 @@ static int scarlett2_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	}
 }
 
+static long scarlett2_hwdep_read(struct snd_hwdep *hw,
+				 char __user *buf,
+				 long count, loff_t *offset)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+	struct scarlett2_data *private = mixer->private_data;
+	int segment_id, segment_num, err;
+	int flash_size;
+
+	/* SCARLETT2_USB_READ_SEGMENT request data */
+	struct {
+		__le32 segment_num;
+		__le32 offset;
+		__le32 len;
+	} __packed req;
+
+	u8 *resp;
+
+	/* Flash segment must first be selected */
+	if (private->flash_write_state != SCARLETT2_FLASH_WRITE_STATE_SELECTED)
+		return -EINVAL;
+
+	/* Get the selected flash segment number */
+	segment_id = private->selected_flash_segment_id;
+	if (segment_id < 0 || segment_id >= SCARLETT2_SEGMENT_ID_COUNT)
+		return -EINVAL;
+
+	segment_num = private->flash_segment_nums[segment_id];
+	if (segment_num < 0 ||
+	    segment_num > SCARLETT2_SEGMENT_NUM_MAX)
+		return -EFAULT;
+
+	/* Validate the offset and count */
+	if (count < 0 || *offset < 0)
+		return -EINVAL;
+
+	/* Reached EOF? */
+	flash_size = private->flash_segment_blocks[segment_id] *
+		     SCARLETT2_FLASH_BLOCK_SIZE;
+	if (!count || *offset >= flash_size)
+		return 0;
+
+	/* Limit the numbers of bytes read to SCARLETT2_FLASH_RW_MAX */
+	if (count > SCARLETT2_FLASH_RW_MAX)
+		count = SCARLETT2_FLASH_RW_MAX;
+
+	/* Limit read to EOF */
+	if (*offset + count >= flash_size)
+		count = flash_size - *offset;
+
+	/* Create and send the request */
+	req.segment_num = cpu_to_le32(segment_num);
+	req.offset = cpu_to_le32(*offset);
+	req.len = cpu_to_le32(count);
+
+	resp = kzalloc(count, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_READ_SEGMENT,
+			    &req, sizeof(req), resp, count);
+	if (err < 0)
+		goto error;
+
+	/* Copy the response to userspace */
+	if (copy_to_user(buf, resp, count)) {
+		err = -EFAULT;
+		goto error;
+	}
+
+	*offset += count;
+	err = count;
+
+error:
+	kfree(resp);
+	return err;
+}
+
 static long scarlett2_hwdep_write(struct snd_hwdep *hw,
 				  const char __user *buf,
 				  long count, loff_t *offset)
@@ -7651,7 +7730,7 @@ static long scarlett2_hwdep_write(struct snd_hwdep *hw,
 	} __packed *req;
 
 	/* Calculate the maximum permitted in data[] */
-	const size_t max_data_size = SCARLETT2_FLASH_WRITE_MAX -
+	const size_t max_data_size = SCARLETT2_FLASH_RW_MAX -
 				     offsetof(typeof(*req), data);
 
 	/* If erasing, wait for it to complete */
@@ -7688,7 +7767,7 @@ static long scarlett2_hwdep_write(struct snd_hwdep *hw,
 	if (!count)
 		return 0;
 
-	/* Limit the *req size to SCARLETT2_FLASH_WRITE_MAX */
+	/* Limit the *req size to SCARLETT2_FLASH_RW_MAX */
 	if (count > max_data_size)
 		count = max_data_size;
 
@@ -7749,6 +7828,7 @@ static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
 	hw->exclusive = 1;
 	hw->ops.open = scarlett2_hwdep_open;
 	hw->ops.ioctl = scarlett2_hwdep_ioctl;
+	hw->ops.read = scarlett2_hwdep_read;
 	hw->ops.write = scarlett2_hwdep_write;
 	hw->ops.release = scarlett2_hwdep_release;
 
