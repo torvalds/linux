@@ -4291,6 +4291,9 @@ static int initialize_empty_surface_updates(
 	struct dc_stream_status *status = dc_stream_get_status(stream);
 	int i;
 
+	if (!status)
+		return 0;
+
 	for (i = 0; i < status->plane_count; i++)
 		srf_updates[i].surface = status->plane_states[i];
 
