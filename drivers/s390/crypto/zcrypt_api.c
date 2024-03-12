@@ -12,6 +12,9 @@
  *  Multiple device nodes: Harald Freudenberger <freude@linux.ibm.com>
  */
 
+#define KMSG_COMPONENT "zcrypt"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -57,10 +60,6 @@ DEFINE_SPINLOCK(zcrypt_list_lock);
 LIST_HEAD(zcrypt_card_list);
 
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
-static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
-
-atomic_t zcrypt_rescan_req = ATOMIC_INIT(0);
-EXPORT_SYMBOL(zcrypt_rescan_req);
 
 static LIST_HEAD(zcrypt_ops_list);
 
@@ -69,20 +68,15 @@ debug_info_t *zcrypt_dbf_info;
 
 /*
  * Process a rescan of the transport layer.
- *
- * Returns 1, if the rescan has been processed, otherwise 0.
+ * Runs a synchronous AP bus rescan.
+ * Returns true if something has changed (for example the
+ * bus scan has found and build up new devices) and it is
+ * worth to do a retry. Otherwise false is returned meaning
+ * no changes on the AP bus level.
  */
-static inline int zcrypt_process_rescan(void)
+static inline bool zcrypt_process_rescan(void)
 {
-	if (atomic_read(&zcrypt_rescan_req)) {
-		atomic_set(&zcrypt_rescan_req, 0);
-		atomic_inc(&zcrypt_rescan_count);
-		ap_bus_force_rescan();
-		ZCRYPT_DBF_INFO("%s rescan count=%07d\n", __func__,
-				atomic_inc_return(&zcrypt_rescan_count));
-		return 1;
-	}
-	return 0;
+	return ap_bus_force_rescan();
 }
 
 void zcrypt_msgtype_register(struct zcrypt_ops *zops)
@@ -715,8 +709,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
-			       __func__);
+		pr_debug("%s no matching queue found => ENODEV\n", __func__);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -820,8 +813,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
-			       __func__);
+		pr_debug("%s no matching queue found => ENODEV\n", __func__);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -865,6 +857,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	rc = prep_cca_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
+	print_hex_dump_debug("ccareq: ", DUMP_PREFIX_ADDRESS, 16, 1,
+			     ap_msg.msg, ap_msg.len, false);
 
 	tdom = *domain;
 	if (perms != &ap_perms && tdom < AP_DOMAINS) {
@@ -940,8 +934,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		ZCRYPT_DBF_DBG("%s no match for address %02x.%04x => ENODEV\n",
-			       __func__, xcrb->user_defined, *domain);
+		pr_debug("%s no match for address %02x.%04x => ENODEV\n",
+			 __func__, xcrb->user_defined, *domain);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -952,6 +946,10 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 		*domain = AP_QID_QUEUE(qid);
 
 	rc = pref_zq->ops->send_cprb(userspace, pref_zq, xcrb, &ap_msg);
+	if (!rc) {
+		print_hex_dump_debug("ccarpl: ", DUMP_PREFIX_ADDRESS, 16, 1,
+				     ap_msg.msg, ap_msg.len, false);
+	}
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
@@ -970,7 +968,26 @@ out:
 
 long zcrypt_send_cprb(struct ica_xcRB *xcrb)
 {
-	return _zcrypt_send_cprb(false, &ap_perms, NULL, xcrb);
+	struct zcrypt_track tr;
+	int rc;
+
+	memset(&tr, 0, sizeof(tr));
+
+	do {
+		rc = _zcrypt_send_cprb(false, &ap_perms, &tr, xcrb);
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
+		do {
+			rc = _zcrypt_send_cprb(false, &ap_perms, &tr, xcrb);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
+		rc = -EIO;
+	if (rc)
+		pr_debug("%s rc=%d\n", __func__, rc);
+
+	return rc;
 }
 EXPORT_SYMBOL(zcrypt_send_cprb);
 
@@ -1045,6 +1062,8 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out_free;
+	print_hex_dump_debug("ep11req: ", DUMP_PREFIX_ADDRESS, 16, 1,
+			     ap_msg.msg, ap_msg.len, false);
 
 	if (perms != &ap_perms && domain < AUTOSEL_DOM) {
 		if (ap_msg.flags & AP_MSG_FLAG_ADMIN) {
@@ -1113,15 +1132,15 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 
 	if (!pref_zq) {
 		if (targets && target_num == 1) {
-			ZCRYPT_DBF_DBG("%s no match for address %02x.%04x => ENODEV\n",
-				       __func__, (int)targets->ap_id,
-				       (int)targets->dom_id);
+			pr_debug("%s no match for address %02x.%04x => ENODEV\n",
+				 __func__, (int)targets->ap_id,
+				 (int)targets->dom_id);
 		} else if (targets) {
-			ZCRYPT_DBF_DBG("%s no match for %d target addrs => ENODEV\n",
-				       __func__, (int)target_num);
+			pr_debug("%s no match for %d target addrs => ENODEV\n",
+				 __func__, (int)target_num);
 		} else {
-			ZCRYPT_DBF_DBG("%s no match for address ff.ffff => ENODEV\n",
-				       __func__);
+			pr_debug("%s no match for address ff.ffff => ENODEV\n",
+				 __func__);
 		}
 		rc = -ENODEV;
 		goto out_free;
@@ -1129,6 +1148,10 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 
 	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->send_ep11_cprb(userspace, pref_zq, xcrb, &ap_msg);
+	if (!rc) {
+		print_hex_dump_debug("ep11rpl: ", DUMP_PREFIX_ADDRESS, 16, 1,
+				     ap_msg.msg, ap_msg.len, false);
+	}
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
@@ -1149,7 +1172,26 @@ out:
 
 long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 {
-	return _zcrypt_send_ep11_cprb(false, &ap_perms, NULL, xcrb);
+	struct zcrypt_track tr;
+	int rc;
+
+	memset(&tr, 0, sizeof(tr));
+
+	do {
+		rc = _zcrypt_send_ep11_cprb(false, &ap_perms, &tr, xcrb);
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
+		do {
+			rc = _zcrypt_send_ep11_cprb(false, &ap_perms, &tr, xcrb);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
+		rc = -EIO;
+	if (rc)
+		pr_debug("%s rc=%d\n", __func__, rc);
+
+	return rc;
 }
 EXPORT_SYMBOL(zcrypt_send_ep11_cprb);
 
@@ -1199,8 +1241,7 @@ static long zcrypt_rng(char *buffer)
 	spin_unlock(&zcrypt_list_lock);
 
 	if (!pref_zq) {
-		ZCRYPT_DBF_DBG("%s no matching queue found => ENODEV\n",
-			       __func__);
+		pr_debug("%s no matching queue found => ENODEV\n", __func__);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -1431,20 +1472,17 @@ static int icarsamodexpo_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = zcrypt_rsa_modexpo(perms, &tr, &mex);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_modexpo(perms, &tr, &mex);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
-		ZCRYPT_DBF_DBG("ioctl ICARSAMODEXPO rc=%d\n", rc);
+		pr_debug("ioctl ICARSAMODEXPO rc=%d\n", rc);
 		return rc;
 	}
 	return put_user(mex.outputdatalength, &umex->outputdatalength);
@@ -1463,20 +1501,17 @@ static int icarsacrt_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = zcrypt_rsa_crt(perms, &tr, &crt);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_crt(perms, &tr, &crt);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
-		ZCRYPT_DBF_DBG("ioctl ICARSACRT rc=%d\n", rc);
+		pr_debug("ioctl ICARSACRT rc=%d\n", rc);
 		return rc;
 	}
 	return put_user(crt.outputdatalength, &ucrt->outputdatalength);
@@ -1495,21 +1530,18 @@ static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		ZCRYPT_DBF_DBG("ioctl ZSENDCPRB rc=%d status=0x%x\n",
-			       rc, xcrb.status);
+		pr_debug("ioctl ZSENDCPRB rc=%d status=0x%x\n",
+			 rc, xcrb.status);
 	if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 		return -EFAULT;
 	return rc;
@@ -1528,20 +1560,17 @@ static int zsendep11cprb_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = _zcrypt_send_ep11_cprb(true, perms, &tr, &xcrb);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_ep11_cprb(true, perms, &tr, &xcrb);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
-		ZCRYPT_DBF_DBG("ioctl ZSENDEP11CPRB rc=%d\n", rc);
+		pr_debug("ioctl ZSENDEP11CPRB rc=%d\n", rc);
 	if (copy_to_user(uxcrb, &xcrb, sizeof(xcrb)))
 		return -EFAULT;
 	return rc;
@@ -1670,7 +1699,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 	/* unknown ioctl number */
 	default:
-		ZCRYPT_DBF_DBG("unknown ioctl 0x%08x\n", cmd);
+		pr_debug("unknown ioctl 0x%08x\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -1708,16 +1737,13 @@ static long trans_modexpo32(struct ap_perms *perms, struct file *filp,
 	mex64.n_modulus = compat_ptr(mex32.n_modulus);
 	do {
 		rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1761,16 +1787,13 @@ static long trans_modexpo_crt32(struct ap_perms *perms, struct file *filp,
 	crt64.u_mult_inv = compat_ptr(crt32.u_mult_inv);
 	do {
 		rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1833,16 +1856,13 @@ static long trans_xcrb32(struct ap_perms *perms, struct file *filp,
 	xcrb64.status = xcrb32.status;
 	do {
 		rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	xcrb32.reply_control_blk_length = xcrb64.reply_control_blk_length;
@@ -1914,8 +1934,8 @@ static int zcrypt_rng_data_read(struct hwrng *rng, u32 *data)
 	 */
 	if (zcrypt_rng_buffer_index == 0) {
 		rc = zcrypt_rng((char *)zcrypt_rng_buffer);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		/* on ENODEV failure: retry once again after an AP bus rescan */
+		if (rc == -ENODEV && zcrypt_process_rescan())
 			rc = zcrypt_rng((char *)zcrypt_rng_buffer);
 		if (rc < 0)
 			return -EIO;
@@ -1977,7 +1997,7 @@ void zcrypt_rng_device_remove(void)
  * an asynchronous job. This function waits until these initial jobs
  * are done and so the zcrypt api should be ready to serve crypto
  * requests - if there are resources available. The function uses an
- * internal timeout of 60s. The very first caller will either wait for
+ * internal timeout of 30s. The very first caller will either wait for
  * ap bus bindings complete or the timeout happens. This state will be
  * remembered for further callers which will only be blocked until a
  * decision is made (timeout or bindings complete).
@@ -1996,8 +2016,8 @@ int zcrypt_wait_api_operational(void)
 	switch (zcrypt_wait_api_state) {
 	case 0:
 		/* initial state, invoke wait for the ap bus complete */
-		rc = ap_wait_init_apqn_bindings_complete(
-			msecs_to_jiffies(60 * 1000));
+		rc = ap_wait_apqn_bindings_complete(
+			msecs_to_jiffies(ZCRYPT_WAIT_BINDINGS_COMPLETE_MS));
 		switch (rc) {
 		case 0:
 			/* ap bus bindings are complete */
@@ -2014,8 +2034,8 @@ int zcrypt_wait_api_operational(void)
 			break;
 		default:
 			/* other failure */
-			ZCRYPT_DBF_DBG("%s ap_wait_init_apqn_bindings_complete()=%d\n",
-				       __func__, rc);
+			pr_debug("%s ap_wait_init_apqn_bindings_complete()=%d\n",
+				 __func__, rc);
 			break;
 		}
 		break;
@@ -2038,7 +2058,7 @@ EXPORT_SYMBOL(zcrypt_wait_api_operational);
 int __init zcrypt_debug_init(void)
 {
 	zcrypt_dbf_info = debug_register("zcrypt", 2, 1,
-					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
+					 ZCRYPT_DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
 	debug_set_level(zcrypt_dbf_info, DBF_ERR);
 

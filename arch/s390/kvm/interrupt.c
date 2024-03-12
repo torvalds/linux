@@ -19,13 +19,13 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/vmalloc.h>
+#include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
 #include <asm/dis.h>
 #include <linux/uaccess.h>
 #include <asm/sclp.h>
 #include <asm/isc.h>
 #include <asm/gmap.h>
-#include <asm/switch_to.h>
 #include <asm/nmi.h>
 #include <asm/airq.h>
 #include <asm/tpi.h>
@@ -584,7 +584,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 
 	mci.val = mchk->mcic;
 	/* take care of lazy register loading */
-	save_fpu_regs();
+	kvm_s390_fpu_store(vcpu->run);
 	save_access_regs(vcpu->run->s.regs.acrs);
 	if (MACHINE_HAS_GS && vcpu->arch.gs_enabled)
 		save_gs_cb(current->thread.gs_cb);
@@ -648,7 +648,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	}
 	rc |= write_guest_lc(vcpu, __LC_GPREGS_SAVE_AREA,
 			     vcpu->run->s.regs.gprs, 128);
-	rc |= put_guest_lc(vcpu, current->thread.fpu.fpc,
+	rc |= put_guest_lc(vcpu, vcpu->run->s.regs.fpc,
 			   (u32 __user *) __LC_FP_CREG_SAVE_AREA);
 	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->todpr,
 			   (u32 __user *) __LC_TOD_PROGREG_SAVE_AREA);

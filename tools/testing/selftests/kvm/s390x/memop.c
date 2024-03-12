@@ -375,6 +375,32 @@ static void test_copy(void)
 	kvm_vm_free(t.kvm_vm);
 }
 
+static void test_copy_access_register(void)
+{
+	struct test_default t = test_default_init(guest_copy);
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+
+	prepare_mem12();
+	t.run->psw_mask &= ~(3UL << (63 - 17));
+	t.run->psw_mask |= 1UL << (63 - 17);  /* Enable AR mode */
+
+	/*
+	 * Primary address space gets used if an access register
+	 * contains zero. The host makes use of AR[1] so is a good
+	 * candidate to ensure the guest AR (of zero) is used.
+	 */
+	CHECK_N_DO(MOP, t.vcpu, LOGICAL, WRITE, mem1, t.size,
+		   GADDR_V(mem1), AR(1));
+	HOST_SYNC(t.vcpu, STAGE_COPIED);
+
+	CHECK_N_DO(MOP, t.vcpu, LOGICAL, READ, mem2, t.size,
+		   GADDR_V(mem2), AR(1));
+	ASSERT_MEM_EQ(mem1, mem2, t.size);
+
+	kvm_vm_free(t.kvm_vm);
+}
+
 static void set_storage_key_range(void *addr, size_t len, uint8_t key)
 {
 	uintptr_t _addr, abs, i;
@@ -1100,6 +1126,11 @@ int main(int argc, char *argv[])
 			.name = "copy with key fetch protection override",
 			.test = test_copy_key_fetch_prot_override,
 			.requirements_met = extension_cap > 0,
+		},
+		{
+			.name = "copy with access register mode",
+			.test = test_copy_access_register,
+			.requirements_met = true,
 		},
 		{
 			.name = "error checks with key",

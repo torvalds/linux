@@ -203,6 +203,10 @@ static inline int test_and_clear_pt_regs_flag(struct pt_regs *regs, int flag)
 	return ret;
 }
 
+struct task_struct;
+
+void update_cr_regs(struct task_struct *task);
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */

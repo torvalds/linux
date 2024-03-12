@@ -11,11 +11,11 @@
 #include <linux/err.h>
 #include <linux/pgtable.h>
 #include <linux/bitfield.h>
+#include <asm/access-regs.h>
 #include <asm/fault.h>
 #include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
-#include <asm/switch_to.h>
 
 union asce {
 	unsigned long val;
@@ -391,7 +391,8 @@ static int ar_translation(struct kvm_vcpu *vcpu, union asce *asce, u8 ar,
 	if (ar >= NUM_ACRS)
 		return -EINVAL;
 
-	save_access_regs(vcpu->run->s.regs.acrs);
+	if (vcpu->arch.acrs_loaded)
+		save_access_regs(vcpu->run->s.regs.acrs);
 	alet.val = vcpu->run->s.regs.acrs[ar];
 
 	if (ar == 0 || alet.val == 0) {

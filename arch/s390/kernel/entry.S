@@ -24,7 +24,7 @@
 #include <asm/page.h>
 #include <asm/sigp.h>
 #include <asm/irq.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
 #include <asm/nospec-insn.h>
@@ -171,13 +171,13 @@ _LPP_OFFSET	= __LC_LPP
 	nop	0
 
 /*
- * Scheduler resume function, called by switch_to
- *  gpr2 = (task_struct *) prev
- *  gpr3 = (task_struct *) next
+ * Scheduler resume function, called by __switch_to
+ *  gpr2 = (task_struct *)prev
+ *  gpr3 = (task_struct *)next
  * Returns:
  *  gpr2 = prev
  */
-SYM_FUNC_START(__switch_to)
+SYM_FUNC_START(__switch_to_asm)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lghi	%r4,__TASK_stack
 	lghi	%r1,__TASK_thread
@@ -193,7 +193,7 @@ SYM_FUNC_START(__switch_to)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
-SYM_FUNC_END(__switch_to)
+SYM_FUNC_END(__switch_to_asm)
 
 #if IS_ENABLED(CONFIG_KVM)
 /*
@@ -220,8 +220,6 @@ SYM_FUNC_START(__sie64a)
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_skip
-	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	jo	.Lsie_skip			# exit if fp/vx regs changed
 	lg	%r14,__SF_SIE_CONTROL_PHYS(%r15)	# get sie block phys addr
 	BPEXIT	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 .Lsie_entry:
@@ -489,16 +487,11 @@ SYM_FUNC_END(psw_idle)
  */
 SYM_CODE_START(mcck_int_handler)
 	BPOFF
-	la	%r1,4095		# validate r1
-	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
-	LBEAR	__LC_LAST_BREAK_SAVE_AREA-4095(%r1)		# validate bear
-	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA		# validate gprs
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
 	jno	.Lmcck_panic		# control registers invalid -> panic
-	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA		# validate ctl regs
 	ptlb
 	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)

@@ -9,11 +9,11 @@
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 
-#ifndef __ASM_S390_VX_INSN_INTERNAL_H
-#define __ASM_S390_VX_INSN_INTERNAL_H
+#ifndef __ASM_S390_FPU_INSN_ASM_H
+#define __ASM_S390_FPU_INSN_ASM_H
 
-#ifndef __ASM_S390_VX_INSN_H
-#error only <asm/vx-insn.h> can be included directly
+#ifndef __ASM_S390_FPU_INSN_H
+#error only <asm/fpu-insn.h> can be included directly
 #endif
 
 #ifdef __ASSEMBLY__
@@ -195,10 +195,26 @@
 /* RXB - Compute most significant bit used vector registers
  *
  * @rxb:	Operand to store computed RXB value
- * @v1:		First vector register designated operand
- * @v2:		Second vector register designated operand
- * @v3:		Third vector register designated operand
- * @v4:		Fourth vector register designated operand
+ * @v1:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 0 (instruction bit 36) and whose remaining bits
+ *		are stored in instruction bits 8-11.
+ * @v2:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 1 (instruction bit 37) and whose remaining bits
+ *		are stored in instruction bits 12-15.
+ * @v3:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 2 (instruction bit 38) and whose remaining bits
+ *		are stored in instruction bits 16-19.
+ * @v4:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 3 (instruction bit 39) and whose remaining bits
+ *		are stored in instruction bits 32-35.
+ *
+ * Note: In most vector instruction formats [1] V1, V2, V3, and V4 directly
+ * correspond to @v1, @v2, @v3, and @v4. But there are exceptions, such as but
+ * not limited to the vector instruction formats VRR-g, VRR-h, VRS-a, VRS-d,
+ * and VSI.
+ *
+ * [1] IBM z/Architecture Principles of Operation, chapter "Program
+ * Execution, section "Instructions", subsection "Instruction Formats".
  */
 .macro	RXB	rxb v1 v2=0 v3=0 v4=0
 	\rxb = 0
@@ -223,6 +239,9 @@
  * @v2:		Second vector register designated operand (for RXB)
  * @v3:		Third vector register designated operand (for RXB)
  * @v4:		Fourth vector register designated operand (for RXB)
+ *
+ * Note: For @v1, @v2, @v3, and @v4 also refer to the RXB macro
+ * description for further details.
  */
 .macro	MRXB	m v1 v2=0 v3=0 v4=0
 	rxb = 0
@@ -238,6 +257,9 @@
  * @v2:		Second vector register designated operand (for RXB)
  * @v3:		Third vector register designated operand (for RXB)
  * @v4:		Fourth vector register designated operand (for RXB)
+ *
+ * Note: For @v1, @v2, @v3, and @v4 also refer to the RXB macro
+ * description for further details.
  */
 .macro	MRXBOPC	m opc v1 v2=0 v3=0 v4=0
 	MRXB	\m, \v1, \v2, \v3, \v4
@@ -350,7 +372,7 @@
 	VX_NUM	v3, \vr
 	.word	0xE700 | (r1 << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
-	MRXBOPC	\m, 0x21, v3
+	MRXBOPC	\m, 0x21, 0, v3
 .endm
 .macro	VLGVB	gr, vr, disp, base="%r0"
 	VLGV	\gr, \vr, \disp, \base, 0
@@ -499,6 +521,25 @@
 	VMRL	\vr1, \vr2, \vr3, 3
 .endm
 
+/* VECTOR LOAD WITH LENGTH */
+.macro VLL	v, gr, disp, base
+	VX_NUM	v1, \v
+	GR_NUM	b2, \base
+	GR_NUM	r3, \gr
+	.word	0xE700 | ((v1&15) << 4) | r3
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC 0, 0x37, v1
+.endm
+
+/* VECTOR STORE WITH LENGTH */
+.macro VSTL	v, gr, disp, base
+	VX_NUM	v1, \v
+	GR_NUM	b2, \base
+	GR_NUM	r3, \gr
+	.word	0xE700 | ((v1&15) << 4) | r3
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC 0, 0x3f, v1
+.endm
 
 /* Vector integer instructions */
 
@@ -510,6 +551,16 @@
 	.word	0xE700 | ((v1&15) << 4) | (v2&15)
 	.word	((v3&15) << 12)
 	MRXBOPC	0, 0x68, v1, v2, v3
+.endm
+
+/* VECTOR CHECKSUM */
+.macro VCKSM	vr1, vr2, vr3
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC 0, 0x66, v1, v2, v3
 .endm
 
 /* VECTOR EXCLUSIVE OR */
@@ -678,4 +729,4 @@
 .endm
 
 #endif	/* __ASSEMBLY__ */
-#endif	/* __ASM_S390_VX_INSN_INTERNAL_H */
+#endif	/* __ASM_S390_FPU_INSN_ASM_H */

@@ -12,20 +12,17 @@
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 
-#include <linux/linkage.h>
-#include <asm/nospec-insn.h>
-#include <asm/vx-insn.h>
+#include <linux/types.h>
+#include <asm/fpu.h>
+#include "crc32-vx.h"
 
 /* Vector register range containing CRC-32 constants */
-#define CONST_R1R2		%v9
-#define CONST_R3R4		%v10
-#define CONST_R5		%v11
-#define CONST_R6		%v12
-#define CONST_RU_POLY		%v13
-#define CONST_CRC_POLY		%v14
-
-	.data
-	.balign	8
+#define CONST_R1R2		9
+#define CONST_R3R4		10
+#define CONST_R5		11
+#define CONST_R6		12
+#define CONST_RU_POLY		13
+#define CONST_CRC_POLY		14
 
 /*
  * The CRC-32 constant block contains reduction constants to fold and
@@ -58,105 +55,74 @@
  *	P'(x) = 0xEDB88320
  */
 
-SYM_DATA_START_LOCAL(constants_CRC_32_BE)
-	.quad		0x08833794c, 0x0e6228b11	# R1, R2
-	.quad		0x0c5b9cd4c, 0x0e8a45605	# R3, R4
-	.quad		0x0f200aa66, 1 << 32		# R5, x32
-	.quad		0x0490d678d, 1			# R6, 1
-	.quad		0x104d101df, 0			# u
-	.quad		0x104C11DB7, 0			# P(x)
-SYM_DATA_END(constants_CRC_32_BE)
+static unsigned long constants_CRC_32_BE[] = {
+	0x08833794c, 0x0e6228b11,	/* R1, R2 */
+	0x0c5b9cd4c, 0x0e8a45605,	/* R3, R4 */
+	0x0f200aa66, 1UL << 32,		/* R5, x32 */
+	0x0490d678d, 1,			/* R6, 1 */
+	0x104d101df, 0,			/* u */
+	0x104C11DB7, 0,			/* P(x) */
+};
 
-	.previous
-
-	GEN_BR_THUNK %r14
-
-	.text
-/*
- * The CRC-32 function(s) use these calling conventions:
- *
- * Parameters:
- *
- *	%r2:	Initial CRC value, typically ~0; and final CRC (return) value.
- *	%r3:	Input buffer pointer, performance might be improved if the
- *		buffer is on a doubleword boundary.
- *	%r4:	Length of the buffer, must be 64 bytes or greater.
+/**
+ * crc32_be_vgfm_16 - Compute CRC-32 (BE variant) with vector registers
+ * @crc: Initial CRC value, typically ~0.
+ * @buf: Input buffer pointer, performance might be improved if the
+ *	  buffer is on a doubleword boundary.
+ * @size: Size of the buffer, must be 64 bytes or greater.
  *
  * Register usage:
- *
- *	%r5:	CRC-32 constant pool base pointer.
  *	V0:	Initial CRC value and intermediate constants and results.
  *	V1..V4:	Data for CRC computation.
  *	V5..V8:	Next data chunks that are fetched from the input buffer.
- *
  *	V9..V14: CRC-32 constants.
  */
-SYM_FUNC_START(crc32_be_vgfm_16)
+u32 crc32_be_vgfm_16(u32 crc, unsigned char const *buf, size_t size)
+{
 	/* Load CRC-32 constants */
-	larl	%r5,constants_CRC_32_BE
-	VLM	CONST_R1R2,CONST_CRC_POLY,0,%r5
+	fpu_vlm(CONST_R1R2, CONST_CRC_POLY, &constants_CRC_32_BE);
+	fpu_vzero(0);
 
 	/* Load the initial CRC value into the leftmost word of V0. */
-	VZERO	%v0
-	VLVGF	%v0,%r2,0
+	fpu_vlvgf(0, crc, 0);
 
 	/* Load a 64-byte data chunk and XOR with CRC */
-	VLM	%v1,%v4,0,%r3		/* 64-bytes into V1..V4 */
-	VX	%v1,%v0,%v1		/* V1 ^= CRC */
-	aghi	%r3,64			/* BUF = BUF + 64 */
-	aghi	%r4,-64			/* LEN = LEN - 64 */
+	fpu_vlm(1, 4, buf);
+	fpu_vx(1, 0, 1);
+	buf += 64;
+	size -= 64;
 
-	/* Check remaining buffer size and jump to proper folding method */
-	cghi	%r4,64
-	jl	.Lless_than_64bytes
+	while (size >= 64) {
+		/* Load the next 64-byte data chunk into V5 to V8 */
+		fpu_vlm(5, 8, buf);
 
-.Lfold_64bytes_loop:
-	/* Load the next 64-byte data chunk into V5 to V8 */
-	VLM	%v5,%v8,0,%r3
+		/*
+		 * Perform a GF(2) multiplication of the doublewords in V1 with
+		 * the reduction constants in V0.  The intermediate result is
+		 * then folded (accumulated) with the next data chunk in V5 and
+		 * stored in V1.  Repeat this step for the register contents
+		 * in V2, V3, and V4 respectively.
+		 */
+		fpu_vgfmag(1, CONST_R1R2, 1, 5);
+		fpu_vgfmag(2, CONST_R1R2, 2, 6);
+		fpu_vgfmag(3, CONST_R1R2, 3, 7);
+		fpu_vgfmag(4, CONST_R1R2, 4, 8);
+		buf += 64;
+		size -= 64;
+	}
 
-	/*
-	 * Perform a GF(2) multiplication of the doublewords in V1 with
-	 * the reduction constants in V0.  The intermediate result is
-	 * then folded (accumulated) with the next data chunk in V5 and
-	 * stored in V1.  Repeat this step for the register contents
-	 * in V2, V3, and V4 respectively.
-	 */
-	VGFMAG	%v1,CONST_R1R2,%v1,%v5
-	VGFMAG	%v2,CONST_R1R2,%v2,%v6
-	VGFMAG	%v3,CONST_R1R2,%v3,%v7
-	VGFMAG	%v4,CONST_R1R2,%v4,%v8
-
-	/* Adjust buffer pointer and length for next loop */
-	aghi	%r3,64			/* BUF = BUF + 64 */
-	aghi	%r4,-64			/* LEN = LEN - 64 */
-
-	cghi	%r4,64
-	jnl	.Lfold_64bytes_loop
-
-.Lless_than_64bytes:
 	/* Fold V1 to V4 into a single 128-bit value in V1 */
-	VGFMAG	%v1,CONST_R3R4,%v1,%v2
-	VGFMAG	%v1,CONST_R3R4,%v1,%v3
-	VGFMAG	%v1,CONST_R3R4,%v1,%v4
+	fpu_vgfmag(1, CONST_R3R4, 1, 2);
+	fpu_vgfmag(1, CONST_R3R4, 1, 3);
+	fpu_vgfmag(1, CONST_R3R4, 1, 4);
 
-	/* Check whether to continue with 64-bit folding */
-	cghi	%r4,16
-	jl	.Lfinal_fold
+	while (size >= 16) {
+		fpu_vl(2, buf);
+		fpu_vgfmag(1, CONST_R3R4, 1, 2);
+		buf += 16;
+		size -= 16;
+	}
 
-.Lfold_16bytes_loop:
-
-	VL	%v2,0,,%r3		/* Load next data chunk */
-	VGFMAG	%v1,CONST_R3R4,%v1,%v2	/* Fold next data chunk */
-
-	/* Adjust buffer pointer and size for folding next data chunk */
-	aghi	%r3,16
-	aghi	%r4,-16
-
-	/* Process remaining data chunks */
-	cghi	%r4,16
-	jnl	.Lfold_16bytes_loop
-
-.Lfinal_fold:
 	/*
 	 * The R5 constant is used to fold a 128-bit value into an 96-bit value
 	 * that is XORed with the next 96-bit input data chunk.  To use a single
@@ -164,7 +130,7 @@ SYM_FUNC_START(crc32_be_vgfm_16)
 	 * form an intermediate 96-bit value (with appended zeros) which is then
 	 * XORed with the intermediate reduction result.
 	 */
-	VGFMG	%v1,CONST_R5,%v1
+	fpu_vgfmg(1, CONST_R5, 1);
 
 	/*
 	 * Further reduce the remaining 96-bit value to a 64-bit value using a
@@ -173,7 +139,7 @@ SYM_FUNC_START(crc32_be_vgfm_16)
 	 * doubleword with R6.	The result is a 64-bit value and is subject to
 	 * the Barret reduction.
 	 */
-	VGFMG	%v1,CONST_R6,%v1
+	fpu_vgfmg(1, CONST_R6, 1);
 
 	/*
 	 * The input values to the Barret reduction are the degree-63 polynomial
@@ -194,20 +160,15 @@ SYM_FUNC_START(crc32_be_vgfm_16)
 	 */
 
 	/* T1(x) = floor( R(x) / x^32 ) GF2MUL u */
-	VUPLLF	%v2,%v1
-	VGFMG	%v2,CONST_RU_POLY,%v2
+	fpu_vupllf(2, 1);
+	fpu_vgfmg(2, CONST_RU_POLY, 2);
 
 	/*
 	 * Compute the GF(2) product of the CRC polynomial in VO with T1(x) in
 	 * V2 and XOR the intermediate result, T2(x),  with the value in V1.
 	 * The final result is in the rightmost word of V2.
 	 */
-	VUPLLF	%v2,%v2
-	VGFMAG	%v2,CONST_CRC_POLY,%v2,%v1
-
-.Ldone:
-	VLGVF	%r2,%v2,3
-	BR_EX	%r14
-SYM_FUNC_END(crc32_be_vgfm_16)
-
-.previous
+	fpu_vupllf(2, 2);
+	fpu_vgfmag(2, CONST_CRC_POLY, 2, 1);
+	return fpu_vlgvf(2, 3);
+}

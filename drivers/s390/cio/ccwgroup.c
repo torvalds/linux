@@ -31,7 +31,7 @@
  * to devices that use multiple subchannels.
  */
 
-static struct bus_type ccwgroup_bus_type;
+static const struct bus_type ccwgroup_bus_type;
 
 static void __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 {
@@ -465,7 +465,7 @@ static void ccwgroup_shutdown(struct device *dev)
 		gdrv->shutdown(gdev);
 }
 
-static struct bus_type ccwgroup_bus_type = {
+static const struct bus_type ccwgroup_bus_type = {
 	.name   = "ccwgroup",
 	.dev_groups = ccwgroup_dev_groups,
 	.remove = ccwgroup_remove,
