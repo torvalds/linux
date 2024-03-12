@@ -3057,7 +3057,8 @@ static void backup_planes_and_stream_state(
 		scratch->blend_tf[i] = *status->plane_states[i]->blend_tf;
 	}
 	scratch->stream_state = *stream;
-	scratch->out_transfer_func = *stream->out_transfer_func;
+	if (stream->out_transfer_func)
+		scratch->out_transfer_func = *stream->out_transfer_func;
 }
 
 static void restore_planes_and_stream_state(
@@ -3079,7 +3080,8 @@ static void restore_planes_and_stream_state(
 		*status->plane_states[i]->blend_tf = scratch->blend_tf[i];
 	}
 	*stream = scratch->stream_state;
-	*stream->out_transfer_func = scratch->out_transfer_func;
+	if (stream->out_transfer_func)
+		*stream->out_transfer_func = scratch->out_transfer_func;
 }
 
 /**
