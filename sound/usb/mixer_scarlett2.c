@@ -438,9 +438,9 @@ enum {
 /* Location, size, and activation command number for the configuration
  * parameters. Size is in bits and may be 0, 1, 8, or 16.
  *
- * A size of 0 indicates that the parameter is a byte-sized Scarlett
- * Gen 4 configuration which is written through the gen4_write_addr
- * location (but still read through the given offset location).
+ * A size of 0 indicates that the parameter is a byte-sized
+ * configuration which is set through the parameter buffer (but still
+ * read through the given offset location).
  *
  * Some Gen 4 configuration parameters are written with 0x02 for a
  * desired value of 0x01, and 0x03 for 0x00. These are indicated with
@@ -457,7 +457,7 @@ struct scarlett2_config {
 
 struct scarlett2_config_set {
 	const struct scarlett2_notification *notifications;
-	u16 gen4_write_addr;
+	u16 param_buf_addr;
 	const struct scarlett2_config items[SCARLETT2_CONFIG_COUNT];
 };
 
@@ -625,7 +625,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen3c = {
 /* Solo Gen 4 */
 static const struct scarlett2_config_set scarlett2_config_set_gen4_solo = {
 	.notifications = scarlett4_solo_notifications,
-	.gen4_write_addr = 0xd8,
+	.param_buf_addr = 0xd8,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x47, .size = 8, .activate = 4 },
@@ -653,7 +653,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_solo = {
 /* 2i2 Gen 4 */
 static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 	.notifications = scarlett4_2i2_notifications,
-	.gen4_write_addr = 0xfc,
+	.param_buf_addr = 0xfc,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x49, .size = 8, .activate = 4 }, // 0x41 ??
@@ -696,7 +696,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 /* 4i4 Gen 4 */
 static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 	.notifications = scarlett4_4i4_notifications,
-	.gen4_write_addr = 0x130,
+	.param_buf_addr = 0x130,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x5c, .size = 8, .activate = 4 },
@@ -2080,7 +2080,7 @@ static int scarlett2_usb_get_config(
 	if (!config_item->offset)
 		return -EFAULT;
 
-	/* Gen 4 style parameters are always 1 byte */
+	/* Writes to the parameter buffer are always 1 byte */
 	size = config_item->size ? config_item->size : 8;
 
 	/* For byte-sized parameters, retrieve directly into buf */
@@ -2167,23 +2167,23 @@ static int scarlett2_usb_set_config(
 	if (!config_item->offset)
 		return -EFAULT;
 
-	/* Gen 4 style writes are selected with size = 0;
+	/* Writes via the parameter buffer are selected with size = 0;
 	 * these are only byte-sized values written through a shared
 	 * location, different to the read address
 	 */
 	if (!config_item->size) {
-		if (!config_set->gen4_write_addr)
+		if (!config_set->param_buf_addr)
 			return -EFAULT;
 
-		/* Place index in gen4_write_addr + 1 */
+		/* Place index in param_buf_addr + 1 */
 		err = scarlett2_usb_set_data(
-			mixer, config_set->gen4_write_addr + 1, 1, index);
+			mixer, config_set->param_buf_addr + 1, 1, index);
 		if (err < 0)
 			return err;
 
-		/* Place value in gen4_write_addr */
+		/* Place value in param_buf_addr */
 		err = scarlett2_usb_set_data(
-			mixer, config_set->gen4_write_addr, 1, value);
+			mixer, config_set->param_buf_addr, 1, value);
 		if (err < 0)
 			return err;
 
@@ -2192,9 +2192,8 @@ static int scarlett2_usb_set_config(
 			mixer, config_item->activate);
 	}
 
-	/* Not-Gen 4 style needs NVRAM save, supports
-	 * bit-modification, and writing is done to the same place
-	 * that the value can be read from
+	/* Direct writes (not via the parameter buffer) need NVRAM
+	 * save and support bit-modification
 	 */
 
 	/* Cancel any pending NVRAM save */
@@ -2238,8 +2237,8 @@ static int scarlett2_usb_set_config(
 	if (err < 0)
 		return err;
 
-	/* Gen 2 style writes to Gen 4 devices don't need saving */
-	if (config_set->gen4_write_addr)
+	/* Writes via the parameter buffer don't need a separate save step */
+	if (config_set->param_buf_addr)
 		return 0;
 
 	/* Schedule the change to be written to NVRAM */
