@@ -120,6 +120,12 @@ static bool get_datasec_ident(const char *sec_name, char *buf, size_t buf_sz)
 	static const char *pfxs[] = { ".data", ".rodata", ".bss", ".kconfig" };
 	int i, n;
 
+	/* recognize hard coded LLVM section name */
+	if (strcmp(sec_name, ".arena.1") == 0) {
+		/* this is the name to use in skeleton */
+		snprintf(buf, buf_sz, "arena");
+		return true;
+	}
 	for  (i = 0, n = ARRAY_SIZE(pfxs); i < n; i++) {
 		const char *pfx = pfxs[i];
 
@@ -248,8 +254,15 @@ static const struct btf_type *find_type_for_map(struct btf *btf, const char *map
 	return NULL;
 }
 
-static bool is_internal_mmapable_map(const struct bpf_map *map, char *buf, size_t sz)
+static bool is_mmapable_map(const struct bpf_map *map, char *buf, size_t sz)
 {
+	size_t tmp_sz;
+
+	if (bpf_map__type(map) == BPF_MAP_TYPE_ARENA && bpf_map__initial_value(map, &tmp_sz)) {
+		snprintf(buf, sz, "arena");
+		return true;
+	}
+
 	if (!bpf_map__is_internal(map) || !(bpf_map__map_flags(map) & BPF_F_MMAPABLE))
 		return false;
 
@@ -274,7 +287,7 @@ static int codegen_datasecs(struct bpf_object *obj, const char *obj_name)
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
-		if (!is_internal_mmapable_map(map, map_ident, sizeof(map_ident)))
+		if (!is_mmapable_map(map, map_ident, sizeof(map_ident)))
 			continue;
 
 		sec = find_type_for_map(btf, map_ident);
@@ -327,7 +340,7 @@ static int codegen_subskel_datasecs(struct bpf_object *obj, const char *obj_name
 
 	bpf_object__for_each_map(map, obj) {
 		/* only generate definitions for memory-mapped internal maps */
-		if (!is_internal_mmapable_map(map, map_ident, sizeof(map_ident)))
+		if (!is_mmapable_map(map, map_ident, sizeof(map_ident)))
 			continue;
 
 		sec = find_type_for_map(btf, map_ident);
@@ -504,7 +517,7 @@ static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
 		", obj_name);
 
 	bpf_object__for_each_map(map, obj) {
-		if (!is_internal_mmapable_map(map, map_ident, sizeof(map_ident)))
+		if (!is_mmapable_map(map, map_ident, sizeof(map_ident)))
 			continue;
 
 		sec = find_type_for_map(btf, map_ident);
@@ -720,7 +733,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 		const void *mmap_data = NULL;
 		size_t mmap_size = 0;
 
-		if (!is_internal_mmapable_map(map, ident, sizeof(ident)))
+		if (!is_mmapable_map(map, ident, sizeof(ident)))
 			continue;
 
 		codegen("\
@@ -782,7 +795,7 @@ static int gen_trace(struct bpf_object *obj, const char *obj_name, const char *h
 	bpf_object__for_each_map(map, obj) {
 		const char *mmap_flags;
 
-		if (!is_internal_mmapable_map(map, ident, sizeof(ident)))
+		if (!is_mmapable_map(map, ident, sizeof(ident)))
 			continue;
 
 		if (bpf_map__map_flags(map) & BPF_F_RDONLY_PROG)
@@ -871,7 +884,7 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped)
 			",
 			i, bpf_map__name(map), i, ident);
 		/* memory-mapped internal maps */
-		if (mmaped && is_internal_mmapable_map(map, ident, sizeof(ident))) {
+		if (mmaped && is_mmapable_map(map, ident, sizeof(ident))) {
 			printf("\ts->maps[%zu].mmaped = (void **)&obj->%s;\n",
 				i, ident);
 		}
@@ -1617,7 +1630,7 @@ static int do_subskeleton(int argc, char **argv)
 		/* Also count all maps that have a name */
 		map_cnt++;
 
-		if (!is_internal_mmapable_map(map, ident, sizeof(ident)))
+		if (!is_mmapable_map(map, ident, sizeof(ident)))
 			continue;
 
 		map_type_id = bpf_map__btf_value_type_id(map);
@@ -1739,7 +1752,7 @@ static int do_subskeleton(int argc, char **argv)
 
 	/* walk through each symbol and emit the runtime representation */
 	bpf_object__for_each_map(map, obj) {
-		if (!is_internal_mmapable_map(map, ident, sizeof(ident)))
+		if (!is_mmapable_map(map, ident, sizeof(ident)))
 			continue;
 
 		map_type_id = bpf_map__btf_value_type_id(map);

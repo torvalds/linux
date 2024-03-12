@@ -809,9 +809,23 @@ static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
 	return __btf_name_valid(btf, offset);
 }
 
+/* Allow any printable character in DATASEC names */
 static bool btf_name_valid_section(const struct btf *btf, u32 offset)
 {
-	return __btf_name_valid(btf, offset);
+	/* offset must be valid */
+	const char *src = btf_str_by_offset(btf, offset);
+	const char *src_limit;
+
+	/* set a limit on identifier length */
+	src_limit = src + KSYM_NAME_LEN;
+	src++;
+	while (*src && src < src_limit) {
+		if (!isprint(*src))
+			return false;
+		src++;
+	}
+
+	return !*src;
 }
 
 static const char *__btf_name_by_offset(const struct btf *btf, u32 offset)
@@ -7097,10 +7111,11 @@ cand_cache_unlock:
 }
 
 enum btf_arg_tag {
-	ARG_TAG_CTX = 0x1,
-	ARG_TAG_NONNULL = 0x2,
-	ARG_TAG_TRUSTED = 0x4,
-	ARG_TAG_NULLABLE = 0x8,
+	ARG_TAG_CTX	 = BIT_ULL(0),
+	ARG_TAG_NONNULL  = BIT_ULL(1),
+	ARG_TAG_TRUSTED  = BIT_ULL(2),
+	ARG_TAG_NULLABLE = BIT_ULL(3),
+	ARG_TAG_ARENA	 = BIT_ULL(4),
 };
 
 /* Process BTF of a function to produce high-level expectation of function
@@ -7212,6 +7227,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				tags |= ARG_TAG_NONNULL;
 			} else if (strcmp(tag, "nullable") == 0) {
 				tags |= ARG_TAG_NULLABLE;
+			} else if (strcmp(tag, "arena") == 0) {
+				tags |= ARG_TAG_ARENA;
 			} else {
 				bpf_log(log, "arg#%d has unsupported set of tags\n", i);
 				return -EOPNOTSUPP;
@@ -7264,6 +7281,14 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 			if (tags & ARG_TAG_NULLABLE)
 				sub->args[i].arg_type |= PTR_MAYBE_NULL;
 			sub->args[i].btf_id = kern_type_id;
+			continue;
+		}
+		if (tags & ARG_TAG_ARENA) {
+			if (tags & ~ARG_TAG_ARENA) {
+				bpf_log(log, "arg#%d arena cannot be combined with any other tags\n", i);
+				return -EINVAL;
+			}
+			sub->args[i].arg_type = ARG_PTR_TO_ARENA;
 			continue;
 		}
 		if (is_global) { /* generic user data pointer */

@@ -1223,7 +1223,7 @@ out_be:
 
 #endif /* __riscv_xlen == 64 */
 
-void bpf_jit_build_prologue(struct rv_jit_context *ctx);
+void bpf_jit_build_prologue(struct rv_jit_context *ctx, bool is_subprog);
 void bpf_jit_build_epilogue(struct rv_jit_context *ctx);
 
 int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,

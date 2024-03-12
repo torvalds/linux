@@ -1014,7 +1014,7 @@ LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
-LIBBPF_API void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
+LIBBPF_API void *bpf_map__initial_value(const struct bpf_map *map, size_t *psize);
 
 /**
  * @brief **bpf_map__is_internal()** tells the caller whether or not the
