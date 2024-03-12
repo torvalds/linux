@@ -739,7 +739,6 @@ static const struct snd_pcm_ops aaci_capture_ops = {
  */
 static int aaci_do_suspend(struct snd_card *card)
 {
-	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
 	return 0;
 }
