@@ -42,10 +42,6 @@
 
 static DECLARE_COMPLETION(cpu_running);
 
-void __init smp_prepare_boot_cpu(void)
-{
-}
-
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpuid;

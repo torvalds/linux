@@ -5,8 +5,9 @@
 #ifndef _ASM_X86_TSC_H
 #define _ASM_X86_TSC_H
 
-#include <asm/processor.h>
 #include <asm/cpufeature.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 /*
  * Standard way to access the cycle counter.
