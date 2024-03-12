@@ -59,6 +59,25 @@
 #define AP_INIT_CR0_DEFAULT		0x60000010
 #define AP_INIT_MXCSR_DEFAULT		0x1f80
 
+static const char * const sev_status_feat_names[] = {
+	[MSR_AMD64_SEV_ENABLED_BIT]		= "SEV",
+	[MSR_AMD64_SEV_ES_ENABLED_BIT]		= "SEV-ES",
+	[MSR_AMD64_SEV_SNP_ENABLED_BIT]		= "SEV-SNP",
+	[MSR_AMD64_SNP_VTOM_BIT]		= "vTom",
+	[MSR_AMD64_SNP_REFLECT_VC_BIT]		= "ReflectVC",
+	[MSR_AMD64_SNP_RESTRICTED_INJ_BIT]	= "RI",
+	[MSR_AMD64_SNP_ALT_INJ_BIT]		= "AI",
+	[MSR_AMD64_SNP_DEBUG_SWAP_BIT]		= "DebugSwap",
+	[MSR_AMD64_SNP_PREVENT_HOST_IBS_BIT]	= "NoHostIBS",
+	[MSR_AMD64_SNP_BTB_ISOLATION_BIT]	= "BTBIsol",
+	[MSR_AMD64_SNP_VMPL_SSS_BIT]		= "VmplSSS",
+	[MSR_AMD64_SNP_SECURE_TSC_BIT]		= "SecureTSC",
+	[MSR_AMD64_SNP_VMGEXIT_PARAM_BIT]	= "VMGExitParam",
+	[MSR_AMD64_SNP_IBS_VIRT_BIT]		= "IBSVirt",
+	[MSR_AMD64_SNP_VMSA_REG_PROT_BIT]	= "VMSARegProt",
+	[MSR_AMD64_SNP_SMT_PROT_BIT]		= "SMTProt",
+};
+
 /* For early boot hypervisor communication in SEV-ES enabled guests */
 static struct ghcb boot_ghcb_page __bss_decrypted __aligned(PAGE_SIZE);
 
@@ -748,7 +767,7 @@ void __init early_snp_set_memory_private(unsigned long vaddr, unsigned long padd
 	 * This eliminates worries about jump tables or checking boot_cpu_data
 	 * in the cc_platform_has() function.
 	 */
-	if (!(sev_status & MSR_AMD64_SEV_SNP_ENABLED))
+	if (!(RIP_REL_REF(sev_status) & MSR_AMD64_SEV_SNP_ENABLED))
 		return;
 
 	 /*
@@ -767,7 +786,7 @@ void __init early_snp_set_memory_shared(unsigned long vaddr, unsigned long paddr
 	 * This eliminates worries about jump tables or checking boot_cpu_data
 	 * in the cc_platform_has() function.
 	 */
-	if (!(sev_status & MSR_AMD64_SEV_SNP_ENABLED))
+	if (!(RIP_REL_REF(sev_status) & MSR_AMD64_SEV_SNP_ENABLED))
 		return;
 
 	 /* Ask hypervisor to mark the memory pages shared in the RMP table. */
@@ -1752,7 +1771,10 @@ static enum es_result vc_handle_exitcode(struct es_em_ctxt *ctxt,
 					 struct ghcb *ghcb,
 					 unsigned long exit_code)
 {
-	enum es_result result;
+	enum es_result result = vc_check_opcode_bytes(ctxt, exit_code);
+
+	if (result != ES_OK)
+		return result;
 
 	switch (exit_code) {
 	case SVM_EXIT_READ_DR7:
@@ -2262,3 +2284,29 @@ static int __init snp_init_platform_device(void)
 	return 0;
 }
 device_initcall(snp_init_platform_device);
+
+void kdump_sev_callback(void)
+{
+	/*
+	 * Do wbinvd() on remote CPUs when SNP is enabled in order to
+	 * safely do SNP_SHUTDOWN on the local CPU.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_SEV_SNP))
+		wbinvd();
+}
+
+void sev_show_status(void)
+{
+	int i;
+
+	pr_info("Status: ");
+	for (i = 0; i < MSR_AMD64_SNP_RESV_BIT; i++) {
+		if (sev_status & BIT_ULL(i)) {
+			if (!sev_status_feat_names[i])
+				continue;
+
+			pr_cont("%s ", sev_status_feat_names[i]);
+		}
+	}
+	pr_cont("\n");
+}
