@@ -1081,7 +1081,8 @@ static const struct pci_epc_features imx8m_pcie_epc_features = {
 	.linkup_notifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
-	.reserved_bar = 1 << BAR_1 | 1 << BAR_3,
+	.bar[BAR_1] = { .type = BAR_RESERVED, },
+	.bar[BAR_3] = { .type = BAR_RESERVED, },
 	.align = SZ_64K,
 };
 

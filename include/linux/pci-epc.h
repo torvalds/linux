@@ -146,15 +146,44 @@ struct pci_epc {
 };
 
 /**
+ * @BAR_PROGRAMMABLE: The BAR mask can be configured by the EPC.
+ * @BAR_FIXED: The BAR mask is fixed by the hardware.
+ * @BAR_RESERVED: The BAR should not be touched by an EPF driver.
+ */
+enum pci_epc_bar_type {
+	BAR_PROGRAMMABLE = 0,
+	BAR_FIXED,
+	BAR_RESERVED,
+};
+
+/**
+ * struct pci_epc_bar_desc - hardware description for a BAR
+ * @type: the type of the BAR
+ * @fixed_size: the fixed size, only applicable if type is BAR_FIXED_MASK.
+ * @only_64bit: if true, an EPF driver is not allowed to choose if this BAR
+ *		should be configured as 32-bit or 64-bit, the EPF driver must
+ *		configure this BAR as 64-bit. Additionally, the BAR succeeding
+ *		this BAR must be set to type BAR_RESERVED.
+ *
+ *		only_64bit should not be set on a BAR of type BAR_RESERVED.
+ *		(If BARx is a 64-bit BAR that an EPF driver is not allowed to
+ *		touch, then both BARx and BARx+1 must be set to type
+ *		BAR_RESERVED.)
+ */
+struct pci_epc_bar_desc {
+	enum pci_epc_bar_type type;
+	u64 fixed_size;
+	bool only_64bit;
+};
+
+/**
  * struct pci_epc_features - features supported by a EPC device per function
  * @linkup_notifier: indicate if the EPC device can notify EPF driver on link up
  * @core_init_notifier: indicate cores that can notify about their availability
  *			for initialization
  * @msi_capable: indicate if the endpoint function has MSI capability
  * @msix_capable: indicate if the endpoint function has MSI-X capability
- * @reserved_bar: bitmap to indicate reserved BAR unavailable to function driver
- * @bar_fixed_64bit: bitmap to indicate fixed 64bit BARs
- * @bar_fixed_size: Array specifying the size supported by each BAR
+ * @bar: array specifying the hardware description for each BAR
  * @align: alignment size required for BAR buffer allocation
  */
 struct pci_epc_features {
@@ -162,9 +191,7 @@ struct pci_epc_features {
 	unsigned int	core_init_notifier : 1;
 	unsigned int	msi_capable : 1;
 	unsigned int	msix_capable : 1;
-	u8	reserved_bar;
-	u8	bar_fixed_64bit;
-	u64	bar_fixed_size[PCI_STD_NUM_BARS];
+	struct	pci_epc_bar_desc bar[PCI_STD_NUM_BARS];
 	size_t	align;
 };
 
