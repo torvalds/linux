@@ -1417,7 +1417,7 @@ static const struct intel_cdclk_vals mtl_cdclk_table[] = {
 	{}
 };
 
-static const struct intel_cdclk_vals lnl_cdclk_table[] = {
+static const struct intel_cdclk_vals xe2lpd_cdclk_table[] = {
 	{ .refclk = 38400, .cdclk = 153600, .ratio = 16, .waveform = 0xaaaa },
 	{ .refclk = 38400, .cdclk = 172800, .ratio = 16, .waveform = 0xad5a },
 	{ .refclk = 38400, .cdclk = 192000, .ratio = 16, .waveform = 0xb6b6 },
@@ -3703,7 +3703,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (DISPLAY_VER(dev_priv) >= 20) {
 		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
-		dev_priv->display.cdclk.table = lnl_cdclk_table;
+		dev_priv->display.cdclk.table = xe2lpd_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 14) {
 		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
 		dev_priv->display.cdclk.table = mtl_cdclk_table;
