@@ -294,7 +294,7 @@ static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
  * If autogain_switch is set, autogain_status is set to 0 (Running).
  * The other status values are from the raw_autogain_status value + 1.
  */
-static const char *const scarlett2_autogain_status_texts[] = {
+static const char *const scarlett2_autogain_status_gen4[] = {
 	"Running",
 	"Success",
 	"SuccessDRover",
@@ -303,7 +303,8 @@ static const char *const scarlett2_autogain_status_texts[] = {
 	"FailMaxGainLimit",
 	"FailClipped",
 	"Cancelled",
-	"Invalid"
+	"Invalid",
+	NULL
 };
 
 /* Power Status Values */
@@ -460,6 +461,7 @@ struct scarlett2_config_set {
 	const struct scarlett2_notification *notifications;
 	u16 param_buf_addr;
 	const unsigned int *input_gain_tlv;
+	const char *const *autogain_status_texts;
 	const struct scarlett2_config items[SCARLETT2_CONFIG_COUNT];
 };
 
@@ -664,6 +666,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 	.notifications = scarlett4_2i2_notifications,
 	.param_buf_addr = 0xfc,
 	.input_gain_tlv = db_scale_gen4_gain,
+	.autogain_status_texts = scarlett2_autogain_status_gen4,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x49, .size = 8, .activate = 4 },
@@ -710,6 +713,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 	.notifications = scarlett4_4i4_notifications,
 	.param_buf_addr = 0x130,
 	.input_gain_tlv = db_scale_gen4_gain,
+	.autogain_status_texts = scarlett2_autogain_status_gen4,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x5c, .size = 8, .activate = 4 },
@@ -981,6 +985,7 @@ struct scarlett2_data {
 	u8 num_mix_out;
 	u8 num_line_out;
 	u8 num_monitor_mix_ctls;
+	u8 num_autogain_status_texts;
 	u32 firmware_version;
 	u8 flash_segment_nums[SCARLETT2_SEGMENT_ID_COUNT];
 	u8 flash_segment_blocks[SCARLETT2_SEGMENT_ID_COUNT];
@@ -2931,12 +2936,12 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 		if (private->autogain_switch[i])
 			private->autogain_status[i] = 0;
 		else if (raw_autogain_status[i] <
-				ARRAY_SIZE(scarlett2_autogain_status_texts) - 1)
+				private->num_autogain_status_texts - 1)
 			private->autogain_status[i] =
 				raw_autogain_status[i] + 1;
 		else
 			private->autogain_status[i] =
-				ARRAY_SIZE(scarlett2_autogain_status_texts) - 1;
+				private->num_autogain_status_texts - 1;
 
 	return 0;
 }
@@ -3171,10 +3176,13 @@ unlock:
 static int scarlett2_autogain_status_ctl_info(
 	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
 	return snd_ctl_enum_info(
 		uinfo, 1,
-		ARRAY_SIZE(scarlett2_autogain_status_texts),
-		scarlett2_autogain_status_texts);
+		private->num_autogain_status_texts,
+		private->config_set->autogain_status_texts);
 }
 
 static const struct snd_kcontrol_new scarlett2_autogain_switch_ctl = {
@@ -6839,8 +6847,9 @@ static void scarlett2_private_suspend(struct usb_mixer_interface *mixer)
 static void scarlett2_count_io(struct scarlett2_data *private)
 {
 	const struct scarlett2_device_info *info = private->info;
+	const struct scarlett2_config_set *config_set = info->config_set;
 	const int (*port_count)[SCARLETT2_PORT_DIRNS] = info->port_count;
-	int port_type, srcs = 0, dsts = 0;
+	int port_type, srcs = 0, dsts = 0, i;
 
 	/* Count the number of mux sources and destinations */
 	for (port_type = 0;
@@ -6872,6 +6881,15 @@ static void scarlett2_count_io(struct scarlett2_data *private)
 	/* Number of monitor mix controls */
 	private->num_monitor_mix_ctls =
 		info->direct_monitor * 2 * private->num_mix_in;
+
+	/* Number of autogain status texts */
+	if (config_set->autogain_status_texts) {
+		const char * const *texts = config_set->autogain_status_texts;
+
+		for (i = 0; texts[i]; i++)
+			;
+		private->num_autogain_status_texts = i;
+	}
 }
 
 /* Look through the interface descriptors for the Focusrite Control
