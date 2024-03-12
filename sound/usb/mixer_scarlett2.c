@@ -436,11 +436,12 @@ enum {
 };
 
 /* Location, size, and activation command number for the configuration
- * parameters. Size is in bits and may be 0, 1, 8, or 16.
+ * parameters. Size is in bits and may be 1, 8, or 16.
  *
- * A size of 0 indicates that the parameter is a byte-sized
- * configuration which is set through the parameter buffer (but still
- * read through the given offset location).
+ * Vocaster and 4th Gen devices have a parameter buffer to set certain
+ * configuration parameters. When pbuf is set, rather than writing to
+ * the given offset, the channel and value are written to the
+ * parameter buffer and the activate command is sent to the device.
  *
  * Some Gen 4 configuration parameters are written with 0x02 for a
  * desired value of 0x01, and 0x03 for 0x00. These are indicated with
@@ -452,6 +453,7 @@ struct scarlett2_config {
 	u16 offset;
 	u8 size;
 	u8 activate;
+	u8 pbuf;
 	u8 mute;
 };
 
@@ -631,19 +633,21 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_solo = {
 			.offset = 0x47, .size = 8, .activate = 4 },
 
 		[SCARLETT2_CONFIG_DIRECT_MONITOR] = {
-			.offset = 0x108, .activate = 12 },
+			.offset = 0x108, .size = 8, .activate = 12, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
-			.offset = 0x46, .activate = 9, .mute = 1 },
+			.offset = 0x46, .size = 8, .activate = 9, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
-			.offset = 0x3d, .activate = 10, .mute = 1 },
+			.offset = 0x3d, .size = 8, .activate = 10, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_AIR_SWITCH] = {
-			.offset = 0x3e, .activate = 11 },
+			.offset = 0x3e, .size = 8, .activate = 11, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_PCM_INPUT_SWITCH] = {
-			.offset = 0x206, .activate = 25 },
+			.offset = 0x206, .size = 8, .activate = 25, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN] = {
 			.offset = 0x232, .size = 16, .activate = 26 }
@@ -656,37 +660,39 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 	.param_buf_addr = 0xfc,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
-			.offset = 0x49, .size = 8, .activate = 4 }, // 0x41 ??
+			.offset = 0x49, .size = 8, .activate = 4 },
 
 		[SCARLETT2_CONFIG_DIRECT_MONITOR] = {
-			.offset = 0x14a, .activate = 16 },
+			.offset = 0x14a, .size = 8, .activate = 16, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_AUTOGAIN_SWITCH] = {
-			.offset = 0x135, .activate = 10 },
+			.offset = 0x135, .size = 8, .activate = 10, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
-			.offset = 0x137 },
+			.offset = 0x137, .size = 8 },
 
 		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
-			.offset = 0x48, .activate = 11, .mute = 1 },
+			.offset = 0x48, .size = 8, .activate = 11, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_GAIN] = {
-			.offset = 0x4b, .activate = 12 },
+			.offset = 0x4b, .size = 8, .activate = 12, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
-			.offset = 0x3c, .activate = 13, .mute = 1 },
+			.offset = 0x3c, .size = 8, .activate = 13, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_SAFE_SWITCH] = {
-			.offset = 0x147, .activate = 14 },
+			.offset = 0x147, .size = 8, .activate = 14, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_AIR_SWITCH] = {
-			.offset = 0x3e, .activate = 15 },
+			.offset = 0x3e, .size = 8, .activate = 15, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_SELECT_SWITCH] = {
-			.offset = 0x14b, .activate = 17 },
+			.offset = 0x14b, .size = 8, .activate = 17, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_LINK_SWITCH] = {
-			.offset = 0x14e, .activate = 18 },
+			.offset = 0x14e, .size = 8, .activate = 18, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN] = {
 			.offset = 0x2a0, .size = 16, .activate = 36 }
@@ -702,31 +708,33 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 			.offset = 0x5c, .size = 8, .activate = 4 },
 
 		[SCARLETT2_CONFIG_AUTOGAIN_SWITCH] = {
-			.offset = 0x13e, .activate = 10 },
+			.offset = 0x13e, .size = 8, .activate = 10, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
-			.offset = 0x140 },
+			.offset = 0x140, .size = 8 },
 
 		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
-			.offset = 0x5a, .activate = 11, .mute = 1 },
+			.offset = 0x5a, .size = 8, .activate = 11, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_GAIN] = {
-			.offset = 0x5e, .activate = 12 },
+			.offset = 0x5e, .size = 8, .activate = 12, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
-			.offset = 0x4e, .activate = 13, .mute = 1 },
+			.offset = 0x4e, .size = 8, .activate = 13, .pbuf = 1,
+			.mute = 1 },
 
 		[SCARLETT2_CONFIG_SAFE_SWITCH] = {
-			.offset = 0x150, .activate = 14 },
+			.offset = 0x150, .size = 8, .activate = 14, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_AIR_SWITCH] = {
-			.offset = 0x50, .activate = 15 },
+			.offset = 0x50, .size = 8, .activate = 15, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_SELECT_SWITCH] = {
-			.offset = 0x153, .activate = 16 },
+			.offset = 0x153, .size = 8, .activate = 16, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_INPUT_LINK_SWITCH] = {
-			.offset = 0x156, .activate = 17 },
+			.offset = 0x156, .size = 8, .activate = 17, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_MASTER_VOLUME] = {
 			.offset = 0x32, .size = 16 },
@@ -735,10 +743,10 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 			.offset = 0x3a, .size = 16 },
 
 		[SCARLETT2_CONFIG_POWER_EXT] = {
-			.offset = 0x168 },
+			.offset = 0x168, .size = 8 },
 
 		[SCARLETT2_CONFIG_POWER_LOW] = {
-			.offset = 0x16d }
+			.offset = 0x16d, .size = 8 }
 	}
 };
 
@@ -2167,11 +2175,8 @@ static int scarlett2_usb_set_config(
 	if (!config_item->offset)
 		return -EFAULT;
 
-	/* Writes via the parameter buffer are selected with size = 0;
-	 * these are only byte-sized values written through a shared
-	 * location, different to the read address
-	 */
-	if (!config_item->size) {
+	/* Write via the parameter buffer? */
+	if (config_item->pbuf) {
 		if (!config_set->param_buf_addr)
 			return -EFAULT;
 
@@ -2187,7 +2192,7 @@ static int scarlett2_usb_set_config(
 		if (err < 0)
 			return err;
 
-		/* Request the interface do the write */
+		/* Activate the write through the parameter buffer */
 		return scarlett2_usb_activate_config(
 			mixer, config_item->activate);
 	}
@@ -2227,7 +2232,7 @@ static int scarlett2_usb_set_config(
 		value = tmp;
 	}
 
-	/* Send the configuration parameter data */
+	/* Write the new value */
 	err = scarlett2_usb_set_data(mixer, offset, size, value);
 	if (err < 0)
 		return err;
@@ -2237,7 +2242,9 @@ static int scarlett2_usb_set_config(
 	if (err < 0)
 		return err;
 
-	/* Writes via the parameter buffer don't need a separate save step */
+	/* Interfaces with parameter buffer writes don't need a
+	 * separate save step
+	 */
 	if (config_set->param_buf_addr)
 		return 0;
 
