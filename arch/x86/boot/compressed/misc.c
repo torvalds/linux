@@ -531,7 +531,7 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 	return output + entry_offset;
 }
 
-void fortify_panic(const char *name)
+void __fortify_panic(const u8 reason, size_t avail, size_t size)
 {
 	error("detected buffer overflow");
 }
