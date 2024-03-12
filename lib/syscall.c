@@ -30,12 +30,8 @@ static int collect_syscall(struct task_struct *target, struct syscall_info *info
 	if (info->data.nr != -1L)
 		syscall_get_arguments(target, regs, args);
 
-	info->data.args[0] = args[0];
-	info->data.args[1] = args[1];
-	info->data.args[2] = args[2];
-	info->data.args[3] = args[3];
-	info->data.args[4] = args[4];
-	info->data.args[5] = args[5];
+	for (int i = 0; i < 5; i++)
+  		info->data.args[i] = args[i];
 
 	put_task_stack(target);
 	return 0;
