@@ -105,6 +105,7 @@ static void ttm_lru_bulk_move_add(struct ttm_lru_bulk_move *bulk,
 		pos->first = res;
 		pos->last = res;
 	} else {
+		WARN_ON(pos->first->bo->base.resv != res->bo->base.resv);
 		ttm_lru_bulk_move_pos_tail(pos, res);
 	}
 }
