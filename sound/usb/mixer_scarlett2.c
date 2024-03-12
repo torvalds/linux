@@ -363,6 +363,18 @@ static const char *const scarlett2_autogain_status_gen4[] = {
 	NULL
 };
 
+static const char *const scarlett2_autogain_status_vocaster[] = {
+	"Running",
+	"Success",
+	"FailPG",
+	"FailRange",
+	"WarnMaxCap",
+	"WarnMinCap",
+	"Cancelled",
+	"Invalid",
+	NULL
+};
+
 /* Power Status Values */
 enum {
 	SCARLETT2_POWER_STATUS_EXT,
@@ -415,6 +427,17 @@ static const struct scarlett2_notification scarlett3a_notifications[] = {
 	{ 0x00000001, scarlett2_notify_ack },
 	{ 0x00800000, scarlett2_notify_input_other },
 	{ 0x01000000, scarlett2_notify_direct_monitor },
+	{ 0, NULL }
+};
+
+static const struct scarlett2_notification vocaster_notifications[] = {
+	{ 0x00000001, scarlett2_notify_ack },
+	{ 0x00000008, scarlett2_notify_sync },
+	{ 0x00200000, scarlett2_notify_input_mute },
+	{ 0x00400000, scarlett2_notify_autogain },
+	{ 0x04000000, scarlett2_notify_input_dsp },
+	{ 0x08000000, scarlett2_notify_input_gain },
+	{ 0x10000000, scarlett2_notify_input_phantom },
 	{ 0, NULL }
 };
 
@@ -531,6 +554,11 @@ struct scarlett2_config_set {
 };
 
 /* Input gain TLV dB ranges */
+
+static const DECLARE_TLV_DB_MINMAX(
+	db_scale_vocaster_gain, 0, 70 * 100
+);
+
 static const DECLARE_TLV_DB_MINMAX(
 	db_scale_gen4_gain, 0, 69 * 100
 );
@@ -693,6 +721,51 @@ static const struct scarlett2_config_set scarlett2_config_set_gen3c = {
 
 		[SCARLETT2_CONFIG_TALKBACK_MAP] = {
 			.offset = 0xb0, .size = 16, .activate = 10 },
+	}
+};
+
+/* Vocaster */
+static const struct scarlett2_config_set scarlett2_config_set_vocaster = {
+	.notifications = vocaster_notifications,
+	.param_buf_addr = 0x1bc,
+	.input_gain_tlv = db_scale_vocaster_gain,
+	.autogain_status_texts = scarlett2_autogain_status_vocaster,
+	.items = {
+		[SCARLETT2_CONFIG_MSD_SWITCH] = {
+			.offset = 0x9d, .size = 8, .activate = 6 },
+
+		[SCARLETT2_CONFIG_AUTOGAIN_SWITCH] = {
+			.offset = 0x1c0, .size = 8, .activate = 19, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
+			.offset = 0x1c2, .size = 8, },
+
+		[SCARLETT2_CONFIG_INPUT_GAIN] = {
+			.offset = 0x9f, .size = 8, .activate = 21, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
+			.offset = 0x9c, .size = 1, .activate = 20, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_DSP_SWITCH] = {
+			.offset = 0x1c4, .size = 8, .activate = 22, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_COMPRESSOR_PARAMS] = {
+			.offset = 0x1c8, .size = 32, .activate = 23 },
+
+		[SCARLETT2_CONFIG_PRECOMP_FLT_SWITCH] = {
+			.offset = 0x7c, .size = 32, .activate = 27 },
+
+		[SCARLETT2_CONFIG_PRECOMP_FLT_PARAMS] = {
+			.offset = 0x200, .size = 32, .activate = 27 },
+
+		[SCARLETT2_CONFIG_PEQ_FLT_SWITCH] = {
+			.offset = 0x84, .size = 32, .activate = 27 },
+
+		[SCARLETT2_CONFIG_PEQ_FLT_PARAMS] = {
+			.offset = 0x250, .size = 32, .activate = 27 },
+
+		[SCARLETT2_CONFIG_INPUT_MUTE_SWITCH] = {
+			.offset = 0x1be, .size = 8, .activate = 17, .pbuf = 1 },
 	}
 };
 
@@ -1599,6 +1672,90 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	}
 };
 
+static const struct scarlett2_device_info vocaster_one_info = {
+	.config_set = &scarlett2_config_set_vocaster,
+	.min_firmware_version = 1769,
+
+	.phantom_count = 1,
+	.inputs_per_phantom = 1,
+	.dsp_count = 1,
+	.dsp_input_count = 1,
+	.precomp_flt_count = 2,
+	.peq_flt_count = 3,
+	.peq_flt_total_count = 4,
+	.mute_input_count = 1,
+	.gain_input_count = 1,
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = { 1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = { 2,  4 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 9,  9 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 4, 10 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_MIX,      8, 1 },
+		{ SCARLETT2_PORT_TYPE_PCM,      5, 5 },
+		{ SCARLETT2_PORT_TYPE_MIX,      6, 2 },
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 5 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 6 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 4 },
+		{ 0, 0, 0 },
+	} },
+
+	.meter_map = {
+		{ 12, 1 },
+		{ 18, 5 },
+		{ 10, 2 },
+		{ 13, 5 },
+		{  4, 6 },
+		{  0, 4 },
+		{  0, 0 }
+	}
+};
+
+static const struct scarlett2_device_info vocaster_two_info = {
+	.config_set = &scarlett2_config_set_vocaster,
+	.min_firmware_version = 1769,
+
+	.phantom_count = 2,
+	.inputs_per_phantom = 1,
+	.dsp_count = 2,
+	.dsp_input_count = 2,
+	.precomp_flt_count = 2,
+	.peq_flt_count = 3,
+	.peq_flt_total_count = 4,
+	.mute_input_count = 2,
+	.gain_input_count = 2,
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  6,  6 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 12, 14 },
+		[SCARLETT2_PORT_TYPE_PCM]      = {  4, 14 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_MIX,      12,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,       6,  8 },
+		{ SCARLETT2_PORT_TYPE_MIX,      10,  2 },
+		{ SCARLETT2_PORT_TYPE_PCM,       0,  6 },
+		{ SCARLETT2_PORT_TYPE_MIX,       0, 10 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE,  0,  6 },
+		{ 0, 0, 0 },
+	} },
+
+	.meter_map = {
+		{ 18,  2 },
+		{ 26,  8 },
+		{ 16,  2 },
+		{ 20,  6 },
+		{  6, 10 },
+		{  0,  6 },
+		{  0,  0 }
+	}
+};
+
 static const struct scarlett2_device_info solo_gen4_info = {
 	.config_set = &scarlett2_config_set_gen4_solo,
 	.min_firmware_version = 2115,
@@ -1931,6 +2088,10 @@ static const struct scarlett2_device_entry scarlett2_devices[] = {
 	{ USB_ID(0x1235, 0x8213), &s8i6_gen3_info, "Scarlett Gen 3" },
 	{ USB_ID(0x1235, 0x8214), &s18i8_gen3_info, "Scarlett Gen 3" },
 	{ USB_ID(0x1235, 0x8215), &s18i20_gen3_info, "Scarlett Gen 3" },
+
+	/* Supported Vocaster devices */
+	{ USB_ID(0x1235, 0x8216), &vocaster_one_info, "Vocaster" },
+	{ USB_ID(0x1235, 0x8217), &vocaster_two_info, "Vocaster" },
 
 	/* Supported Gen 4 devices */
 	{ USB_ID(0x1235, 0x8218), &solo_gen4_info, "Scarlett Gen 4" },
@@ -7506,8 +7667,7 @@ static void scarlett2_notify_input_air(struct usb_mixer_interface *mixer)
 }
 
 /* Notify on input DSP switch change */
-static __always_unused void scarlett2_notify_input_dsp(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_input_dsp(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
@@ -7522,8 +7682,7 @@ static __always_unused void scarlett2_notify_input_dsp(
 }
 
 /* Notify on input mute switch change */
-static __always_unused void scarlett2_notify_input_mute(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_input_mute(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
