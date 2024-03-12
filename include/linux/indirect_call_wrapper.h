@@ -2,7 +2,7 @@
 #ifndef _LINUX_INDIRECT_CALL_WRAPPER_H
 #define _LINUX_INDIRECT_CALL_WRAPPER_H
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 
 /*
  * INDIRECT_CALL_$NR - wrapper for indirect calls with $NR known builtin

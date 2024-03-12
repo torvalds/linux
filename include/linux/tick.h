@@ -12,6 +12,7 @@
 #include <linux/cpumask.h>
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
+#include <linux/static_key.h>
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 extern void __init tick_init(void);
@@ -68,6 +69,8 @@ enum tick_broadcast_state {
 	TICK_BROADCAST_EXIT,
 	TICK_BROADCAST_ENTER,
 };
+
+extern struct static_key_false arch_needs_tick_broadcast;
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern void tick_broadcast_control(enum tick_broadcast_mode mode);
