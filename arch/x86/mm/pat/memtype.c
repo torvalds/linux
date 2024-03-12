@@ -240,6 +240,8 @@ void pat_cpu_init(void)
 	}
 
 	wrmsrl(MSR_IA32_CR_PAT, pat_msr_val);
+
+	__flush_tlb_all();
 }
 
 /**
@@ -296,13 +298,8 @@ void __init pat_bp_init(void)
 	/*
 	 * Xen PV doesn't allow to set PAT MSR, but all cache modes are
 	 * supported.
-	 * When running as TDX guest setting the PAT MSR won't work either
-	 * due to the requirement to set CR0.CD when doing so. Rely on
-	 * firmware to have set the PAT MSR correctly.
 	 */
-	if (pat_disabled ||
-	    cpu_feature_enabled(X86_FEATURE_XENPV) ||
-	    cpu_feature_enabled(X86_FEATURE_TDX_GUEST)) {
+	if (pat_disabled || cpu_feature_enabled(X86_FEATURE_XENPV)) {
 		init_cache_modes(pat_msr_val);
 		return;
 	}
