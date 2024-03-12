@@ -3057,6 +3057,8 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 	if (HAS_MBUS_JOINING(i915))
 		dbuf_state->joined_mbus = intel_de_read(i915, MBUS_CTL) & MBUS_JOIN;
 
+	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(i915, &i915->display.cdclk.hw);
+
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
@@ -3530,6 +3532,19 @@ int intel_dbuf_init(struct drm_i915_private *i915)
 	return 0;
 }
 
+int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state, u8 ratio)
+{
+	struct intel_dbuf_state *dbuf_state;
+
+	dbuf_state = intel_atomic_get_dbuf_state(state);
+	if (IS_ERR(dbuf_state))
+		return PTR_ERR(dbuf_state);
+
+	dbuf_state->mdclk_cdclk_ratio = ratio;
+
+	return intel_atomic_lock_global_state(&dbuf_state->base);
+}
+
 static void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
 						u8 ratio,
 						bool joined_mbus)
@@ -3574,7 +3589,8 @@ static void update_mbus_pre_enable(struct intel_atomic_state *state)
 		     MBUS_HASHING_MODE_MASK | MBUS_JOIN |
 		     MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
 
-	intel_dbuf_mdclk_cdclk_ratio_update(i915, 2, dbuf_state->joined_mbus);
+	intel_dbuf_mdclk_cdclk_ratio_update(i915, dbuf_state->mdclk_cdclk_ratio,
+					    dbuf_state->joined_mbus);
 }
 
 void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)

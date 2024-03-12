@@ -39,6 +39,7 @@
 #include "intel_pcode.h"
 #include "intel_psr.h"
 #include "intel_vdsc.h"
+#include "skl_watermark.h"
 #include "vlv_sideband.h"
 
 /**
@@ -1889,6 +1890,16 @@ static u32 xe2lpd_mdclk_source_sel(struct drm_i915_private *i915)
 	return MDCLK_SOURCE_SEL_CD2XCLK;
 }
 
+u8 intel_mdclk_cdclk_ratio(struct drm_i915_private *i915,
+			   const struct intel_cdclk_config *cdclk_config)
+{
+	if (mdclk_source_is_cdclk_pll(i915))
+		return DIV_ROUND_UP(cdclk_config->vco, cdclk_config->cdclk);
+
+	/* Otherwise, source for MDCLK is CD2XCLK. */
+	return 2;
+}
+
 static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i915,
 						    const struct intel_cdclk_config *old_cdclk_config,
 						    const struct intel_cdclk_config *new_cdclk_config,
@@ -3276,6 +3287,15 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "Modeset required for cdclk change\n");
+	}
+
+	if (intel_mdclk_cdclk_ratio(dev_priv, &old_cdclk_state->actual) !=
+	    intel_mdclk_cdclk_ratio(dev_priv, &new_cdclk_state->actual)) {
+		u8 ratio = intel_mdclk_cdclk_ratio(dev_priv, &new_cdclk_state->actual);
+
+		ret = intel_dbuf_state_set_mdclk_cdclk_ratio(state, ratio);
+		if (ret)
+			return ret;
 	}
 
 	drm_dbg_kms(&dev_priv->drm,
