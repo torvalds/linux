@@ -2228,7 +2228,7 @@ static void __init init_freelist_randomization(void)
 }
 
 /* Get the next entry on the pre-computed freelist randomized */
-static void *next_freelist_entry(struct kmem_cache *s, struct slab *slab,
+static void *next_freelist_entry(struct kmem_cache *s,
 				unsigned long *pos, void *start,
 				unsigned long page_limit,
 				unsigned long freelist_count)
@@ -2267,13 +2267,12 @@ static bool shuffle_freelist(struct kmem_cache *s, struct slab *slab)
 	start = fixup_red_left(s, slab_address(slab));
 
 	/* First entry is used as the base of the freelist */
-	cur = next_freelist_entry(s, slab, &pos, start, page_limit,
-				freelist_count);
+	cur = next_freelist_entry(s, &pos, start, page_limit, freelist_count);
 	cur = setup_object(s, cur);
 	slab->freelist = cur;
 
 	for (idx = 1; idx < slab->objects; idx++) {
-		next = next_freelist_entry(s, slab, &pos, start, page_limit,
+		next = next_freelist_entry(s, &pos, start, page_limit,
 			freelist_count);
 		next = setup_object(s, next);
 		set_freepointer(s, cur, next);
@@ -3311,7 +3310,6 @@ static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
 		counters = slab->counters;
 
 		new.counters = counters;
-		VM_BUG_ON(!new.frozen);
 
 		new.inuse = slab->objects;
 		new.frozen = freelist != NULL;
@@ -3483,18 +3481,20 @@ new_slab:
 
 		slab = slub_percpu_partial(c);
 		slub_set_percpu_partial(c, slab);
-		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
-		stat(s, CPU_PARTIAL_ALLOC);
 
-		if (unlikely(!node_match(slab, node) ||
-			     !pfmemalloc_match(slab, gfpflags))) {
-			slab->next = NULL;
-			__put_partials(s, slab);
-			continue;
+		if (likely(node_match(slab, node) &&
+			   pfmemalloc_match(slab, gfpflags))) {
+			c->slab = slab;
+			freelist = get_freelist(s, slab);
+			VM_BUG_ON(!freelist);
+			stat(s, CPU_PARTIAL_ALLOC);
+			goto load_freelist;
 		}
 
-		freelist = freeze_slab(s, slab);
-		goto retry_load_slab;
+		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
+
+		slab->next = NULL;
+		__put_partials(s, slab);
 	}
 #endif
 
@@ -4172,7 +4172,6 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 	 * then add it.
 	 */
 	if (!kmem_cache_has_cpu_partial(s) && unlikely(!prior)) {
-		remove_full(s, n, slab);
 		add_partial(n, slab, DEACTIVATE_TO_TAIL);
 		stat(s, FREE_ADD_PARTIAL);
 	}
@@ -4186,9 +4185,6 @@ slab_empty:
 		 */
 		remove_partial(n, slab);
 		stat(s, FREE_REMOVE_PARTIAL);
-	} else {
-		/* Slab must be on the full list */
-		remove_full(s, n, slab);
 	}
 
 	spin_unlock_irqrestore(&n->list_lock, flags);
