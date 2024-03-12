@@ -338,11 +338,14 @@ Supported modes
 
 Currently, the following pairs of encryption modes are supported:
 
-- AES-256-XTS for contents and AES-256-CTS-CBC for filenames
+- AES-256-XTS for contents and AES-256-CBC-CTS for filenames
 - AES-256-XTS for contents and AES-256-HCTR2 for filenames
 - Adiantum for both contents and filenames
-- AES-128-CBC-ESSIV for contents and AES-128-CTS-CBC for filenames
-- SM4-XTS for contents and SM4-CTS-CBC for filenames
+- AES-128-CBC-ESSIV for contents and AES-128-CBC-CTS for filenames
+- SM4-XTS for contents and SM4-CBC-CTS for filenames
+
+Note: in the API, "CBC" means CBC-ESSIV, and "CTS" means CBC-CTS.
+So, for example, FSCRYPT_MODE_AES_256_CTS means AES-256-CBC-CTS.
 
 Authenticated encryption modes are not currently supported because of
 the difficulty of dealing with ciphertext expansion.  Therefore,
@@ -351,11 +354,11 @@ contents encryption uses a block cipher in `XTS mode
 `CBC-ESSIV mode
 <https://en.wikipedia.org/wiki/Disk_encryption_theory#Encrypted_salt-sector_initialization_vector_(ESSIV)>`_,
 or a wide-block cipher.  Filenames encryption uses a
-block cipher in `CTS-CBC mode
+block cipher in `CBC-CTS mode
 <https://en.wikipedia.org/wiki/Ciphertext_stealing>`_ or a wide-block
 cipher.
 
-The (AES-256-XTS, AES-256-CTS-CBC) pair is the recommended default.
+The (AES-256-XTS, AES-256-CBC-CTS) pair is the recommended default.
 It is also the only option that is *guaranteed* to always be supported
 if the kernel supports fscrypt at all; see `Kernel config options`_.
 
@@ -364,7 +367,7 @@ upgrades the filenames encryption to use a wide-block cipher.  (A
 *wide-block cipher*, also called a tweakable super-pseudorandom
 permutation, has the property that changing one bit scrambles the
 entire result.)  As described in `Filenames encryption`_, a wide-block
-cipher is the ideal mode for the problem domain, though CTS-CBC is the
+cipher is the ideal mode for the problem domain, though CBC-CTS is the
 "least bad" choice among the alternatives.  For more information about
 HCTR2, see `the HCTR2 paper <https://eprint.iacr.org/2021/1441.pdf>`_.
 
@@ -375,13 +378,13 @@ the work is done by XChaCha12, which is much faster than AES when AES
 acceleration is unavailable.  For more information about Adiantum, see
 `the Adiantum paper <https://eprint.iacr.org/2018/720.pdf>`_.
 
-The (AES-128-CBC-ESSIV, AES-128-CTS-CBC) pair exists only to support
+The (AES-128-CBC-ESSIV, AES-128-CBC-CTS) pair exists only to support
 systems whose only form of AES acceleration is an off-CPU crypto
 accelerator such as CAAM or CESA that does not support XTS.
 
 The remaining mode pairs are the "national pride ciphers":
 
-- (SM4-XTS, SM4-CTS-CBC)
+- (SM4-XTS, SM4-CBC-CTS)
 
 Generally speaking, these ciphers aren't "bad" per se, but they
 receive limited security review compared to the usual choices such as
@@ -393,7 +396,7 @@ Kernel config options
 
 Enabling fscrypt support (CONFIG_FS_ENCRYPTION) automatically pulls in
 only the basic support from the crypto API needed to use AES-256-XTS
-and AES-256-CTS-CBC encryption.  For optimal performance, it is
+and AES-256-CBC-CTS encryption.  For optimal performance, it is
 strongly recommended to also enable any available platform-specific
 kconfig options that provide acceleration for the algorithm(s) you
 wish to use.  Support for any "non-default" encryption modes typically
@@ -407,7 +410,7 @@ kernel crypto API (see `Inline encryption support`_); in that case,
 the file contents mode doesn't need to supported in the kernel crypto
 API, but the filenames mode still does.
 
-- AES-256-XTS and AES-256-CTS-CBC
+- AES-256-XTS and AES-256-CBC-CTS
     - Recommended:
         - arm64: CONFIG_CRYPTO_AES_ARM64_CE_BLK
         - x86: CONFIG_CRYPTO_AES_NI_INTEL
@@ -433,7 +436,7 @@ API, but the filenames mode still does.
         - x86: CONFIG_CRYPTO_NHPOLY1305_SSE2
         - x86: CONFIG_CRYPTO_NHPOLY1305_AVX2
 
-- AES-128-CBC-ESSIV and AES-128-CTS-CBC:
+- AES-128-CBC-ESSIV and AES-128-CBC-CTS:
     - Mandatory:
         - CONFIG_CRYPTO_ESSIV
         - CONFIG_CRYPTO_SHA256 or another SHA-256 implementation
@@ -521,7 +524,7 @@ alternatively has the file's nonce (for `DIRECT_KEY policies`_) or
 inode number (for `IV_INO_LBLK_64 policies`_) included in the IVs.
 Thus, IV reuse is limited to within a single directory.
 
-With CTS-CBC, the IV reuse means that when the plaintext filenames share a
+With CBC-CTS, the IV reuse means that when the plaintext filenames share a
 common prefix at least as long as the cipher block size (16 bytes for AES), the
 corresponding encrypted filenames will also share a common prefix.  This is
 undesirable.  Adiantum and HCTR2 do not have this weakness, as they are
