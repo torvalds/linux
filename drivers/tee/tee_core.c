@@ -1226,7 +1226,7 @@ static int tee_client_device_uevent(const struct device *dev,
 	return add_uevent_var(env, "MODALIAS=tee:%pUb", dev_id);
 }
 
-struct bus_type tee_bus_type = {
+const struct bus_type tee_bus_type = {
 	.name		= "tee",
 	.match		= tee_client_device_match,
 	.uevent		= tee_client_device_uevent,

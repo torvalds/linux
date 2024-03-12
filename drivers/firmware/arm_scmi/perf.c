@@ -182,6 +182,8 @@ struct scmi_perf_info {
 	enum scmi_power_scale power_scale;
 	u64 stats_addr;
 	u32 stats_size;
+	bool notify_lvl_cmd;
+	bool notify_lim_cmd;
 	struct perf_dom_info *dom_info;
 };
 
@@ -222,6 +224,15 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph, PERF_NOTIFY_LEVEL, NULL))
+			pi->notify_lvl_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph, PERF_NOTIFY_LIMITS, NULL))
+			pi->notify_lim_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -239,6 +250,7 @@ static void scmi_perf_xa_destroy(void *data)
 static int
 scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 				struct perf_dom_info *dom_info,
+				bool notify_lim_cmd, bool notify_lvl_cmd,
 				u32 version)
 {
 	int ret;
@@ -260,8 +272,12 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->info.set_perf = SUPPORTS_SET_PERF_LVL(flags);
-		dom_info->perf_limit_notify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
-		dom_info->perf_level_notify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
+		if (notify_lim_cmd)
+			dom_info->perf_limit_notify =
+				SUPPORTS_PERF_LIMIT_NOTIFY(flags);
+		if (notify_lvl_cmd)
+			dom_info->perf_level_notify =
+				SUPPORTS_PERF_LEVEL_NOTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
 		if (PROTOCOL_REV_MAJOR(version) >= 0x4)
 			dom_info->level_indexing_mode =
@@ -270,15 +286,30 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 					le32_to_cpu(attr->sustained_freq_khz);
 		dom_info->sustained_perf_level =
 					le32_to_cpu(attr->sustained_perf_level);
+		/*
+		 * sustained_freq_khz = mult_factor * sustained_perf_level
+		 * mult_factor must be non zero positive integer(not fraction)
+		 */
 		if (!dom_info->sustained_freq_khz ||
 		    !dom_info->sustained_perf_level ||
-		    dom_info->level_indexing_mode)
+		    dom_info->level_indexing_mode) {
 			/* CPUFreq converts to kHz, hence default 1000 */
 			dom_info->mult_factor =	1000;
-		else
+		} else {
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000UL)
 					/ dom_info->sustained_perf_level;
+			if ((dom_info->sustained_freq_khz * 1000UL) %
+			    dom_info->sustained_perf_level)
+				dev_warn(ph->dev,
+					 "multiplier for domain %d rounded\n",
+					 dom_info->id);
+		}
+		if (!dom_info->mult_factor)
+			dev_warn(ph->dev,
+			         "Wrong sustained perf/frequency(domain %d)\n",
+				 dom_info->id);
+
 		strscpy(dom_info->info.name, attr->name,
 			SCMI_SHORT_NAME_MAX_SIZE);
 	}
@@ -295,9 +326,9 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 					    dom_info->id, NULL, dom_info->info.name,
 					    SCMI_MAX_STR_SIZE);
 
+	xa_init(&dom_info->opps_by_lvl);
 	if (dom_info->level_indexing_mode) {
 		xa_init(&dom_info->opps_by_idx);
-		xa_init(&dom_info->opps_by_lvl);
 		hash_init(dom_info->opps_by_freq);
 	}
 
@@ -340,13 +371,21 @@ static int iter_perf_levels_update_state(struct scmi_iterator_state *st,
 }
 
 static inline void
-process_response_opp(struct scmi_opp *opp, unsigned int loop_idx,
+process_response_opp(struct device *dev, struct perf_dom_info *dom,
+		     struct scmi_opp *opp, unsigned int loop_idx,
 		     const struct scmi_msg_resp_perf_describe_levels *r)
 {
+	int ret;
+
 	opp->perf = le32_to_cpu(r->opp[loop_idx].perf_val);
 	opp->power = le32_to_cpu(r->opp[loop_idx].power);
 	opp->trans_latency_us =
 		le16_to_cpu(r->opp[loop_idx].transition_latency_us);
+
+	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+	if (ret)
+		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
+			 opp->perf, ret);
 }
 
 static inline void
@@ -354,16 +393,21 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 			struct scmi_opp *opp, unsigned int loop_idx,
 			const struct scmi_msg_resp_perf_describe_levels_v4 *r)
 {
+	int ret;
+
 	opp->perf = le32_to_cpu(r->opp[loop_idx].perf_val);
 	opp->power = le32_to_cpu(r->opp[loop_idx].power);
 	opp->trans_latency_us =
 		le16_to_cpu(r->opp[loop_idx].transition_latency_us);
 
+	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+	if (ret)
+		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
+			 opp->perf, ret);
+
 	/* Note that PERF v4 reports always five 32-bit words */
 	opp->indicative_freq = le32_to_cpu(r->opp[loop_idx].indicative_freq);
 	if (dom->level_indexing_mode) {
-		int ret;
-
 		opp->level_index = le32_to_cpu(r->opp[loop_idx].level_index);
 
 		ret = xa_insert(&dom->opps_by_idx, opp->level_index, opp,
@@ -372,12 +416,6 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 			dev_warn(dev,
 				 "Failed to add opps_by_idx at %d - ret:%d\n",
 				 opp->level_index, ret);
-
-		ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
-		if (ret)
-			dev_warn(dev,
-				 "Failed to add opps_by_lvl at %d - ret:%d\n",
-				 opp->perf, ret);
 
 		hash_add(dom->opps_by_freq, &opp->hash, opp->indicative_freq);
 	}
@@ -393,7 +431,8 @@ iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
 
 	opp = &p->perf_dom->opp[st->desc_index + st->loop_idx];
 	if (PROTOCOL_REV_MAJOR(p->version) <= 0x3)
-		process_response_opp(opp, st->loop_idx, response);
+		process_response_opp(ph->dev, p->perf_dom, opp, st->loop_idx,
+				     response);
 	else
 		process_response_opp_v4(ph->dev, p->perf_dom, opp, st->loop_idx,
 					response);
@@ -978,6 +1017,27 @@ static const struct scmi_perf_proto_ops perf_proto_ops = {
 	.power_scale_get = scmi_power_scale_get,
 };
 
+static bool scmi_perf_notify_supported(const struct scmi_protocol_handle *ph,
+				       u8 evt_id, u32 src_id)
+{
+	bool supported;
+	struct perf_dom_info *dom;
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd))
+		return false;
+
+	dom = scmi_perf_domain_lookup(ph, src_id);
+	if (IS_ERR(dom))
+		return false;
+
+	if (evt_id == SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED)
+		supported = dom->perf_limit_notify;
+	else
+		supported = dom->perf_level_notify;
+
+	return supported;
+}
+
 static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					u8 evt_id, u32 src_id, bool enable)
 {
@@ -995,18 +1055,47 @@ static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static int
+scmi_perf_xlate_opp_to_freq(struct perf_dom_info *dom,
+			    unsigned int index, unsigned long *freq)
+{
+	struct scmi_opp *opp;
+
+	if (!dom || !freq)
+		return -EINVAL;
+
+	if (!dom->level_indexing_mode) {
+		opp = xa_load(&dom->opps_by_lvl, index);
+		if (!opp)
+			return -ENODEV;
+
+		*freq = opp->perf * dom->mult_factor;
+	} else {
+		opp = xa_load(&dom->opps_by_idx, index);
+		if (!opp)
+			return -ENODEV;
+
+		*freq = opp->indicative_freq * dom->mult_factor;
+	}
+
+	return 0;
+}
+
 static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, ktime_t timestamp,
 					  const void *payld, size_t payld_sz,
 					  void *report, u32 *src_id)
 {
+	int ret;
 	void *rep = NULL;
+	struct perf_dom_info *dom;
 
 	switch (evt_id) {
 	case SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED:
 	{
 		const struct scmi_perf_limits_notify_payld *p = payld;
 		struct scmi_perf_limits_report *r = report;
+		unsigned long freq_min, freq_max;
 
 		if (sizeof(*p) != payld_sz)
 			break;
@@ -1016,14 +1105,36 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 		r->domain_id = le32_to_cpu(p->domain_id);
 		r->range_max = le32_to_cpu(p->range_max);
 		r->range_min = le32_to_cpu(p->range_min);
+		/* Check if the reported domain exist at all */
+		dom = scmi_perf_domain_lookup(ph, r->domain_id);
+		if (IS_ERR(dom))
+			break;
+		/*
+		 * Event will be reported from this point on...
+		 * ...even if, later, xlated frequencies were not retrieved.
+		 */
 		*src_id = r->domain_id;
 		rep = r;
+
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->range_max, &freq_max);
+		if (ret)
+			break;
+
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->range_min, &freq_min);
+		if (ret)
+			break;
+
+		/* Report translated freqs ONLY if both available */
+		r->range_max_freq = freq_max;
+		r->range_min_freq = freq_min;
+
 		break;
 	}
 	case SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED:
 	{
 		const struct scmi_perf_level_notify_payld *p = payld;
 		struct scmi_perf_level_report *r = report;
+		unsigned long freq;
 
 		if (sizeof(*p) != payld_sz)
 			break;
@@ -1031,9 +1142,27 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 		r->timestamp = timestamp;
 		r->agent_id = le32_to_cpu(p->agent_id);
 		r->domain_id = le32_to_cpu(p->domain_id);
+		/* Report translated freqs ONLY if available */
 		r->performance_level = le32_to_cpu(p->performance_level);
+		/* Check if the reported domain exist at all */
+		dom = scmi_perf_domain_lookup(ph, r->domain_id);
+		if (IS_ERR(dom))
+			break;
+		/*
+		 * Event will be reported from this point on...
+		 * ...even if, later, xlated frequencies were not retrieved.
+		 */
 		*src_id = r->domain_id;
 		rep = r;
+
+		/* Report translated freqs ONLY if available */
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->performance_level,
+						  &freq);
+		if (ret)
+			break;
+
+		r->performance_level_freq = freq;
+
 		break;
 	}
 	default:
@@ -1067,6 +1196,7 @@ static const struct scmi_event perf_events[] = {
 };
 
 static const struct scmi_event_ops perf_event_ops = {
+	.is_notify_supported = scmi_perf_notify_supported,
 	.get_num_sources = scmi_perf_get_num_sources,
 	.set_notify_enabled = scmi_perf_set_notify_enabled,
 	.fill_custom_report = scmi_perf_fill_custom_report,
@@ -1111,7 +1241,8 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 		struct perf_dom_info *dom = pinfo->dom_info + domain;
 
 		dom->id = domain;
-		scmi_perf_domain_attributes_get(ph, dom, version);
+		scmi_perf_domain_attributes_get(ph, dom, pinfo->notify_lim_cmd,
+						pinfo->notify_lvl_cmd, version);
 		scmi_perf_describe_levels_get(ph, dom, version);
 
 		if (dom->perf_fastchannels)
