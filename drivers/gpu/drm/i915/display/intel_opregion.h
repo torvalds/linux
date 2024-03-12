@@ -120,6 +120,11 @@ intel_opregion_get_edid(struct intel_connector *connector)
 	return NULL;
 }
 
+static inline bool intel_opregion_vbt_present(struct drm_i915_private *i915)
+{
+	return false;
+}
+
 static inline const void *
 intel_opregion_get_vbt(struct drm_i915_private *i915, size_t *size)
 {
