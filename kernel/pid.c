@@ -62,17 +62,13 @@ struct pid init_struct_pid = {
 
 int pid_max = PID_MAX_DEFAULT;
 
-#define RESERVED_PIDS		300
-
 int pid_max_min = RESERVED_PIDS + 1;
 int pid_max_max = PID_MAX_LIMIT;
-#ifdef CONFIG_FS_PID
 /*
  * Pseudo filesystems start inode numbering after one. We use Reserved
  * PIDs as a natural offset.
  */
 static u64 pidfs_ino = RESERVED_PIDS;
-#endif
 
 /*
  * PID-map pages start out as NULL, they get allocated upon
@@ -280,10 +276,8 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	spin_lock_irq(&pidmap_lock);
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
-#ifdef CONFIG_FS_PID
 	pid->stashed = NULL;
 	pid->ino = ++pidfs_ino;
-#endif
 	for ( ; upid >= pid->numbers; --upid) {
 		/* Make the PID visible to find_pid_ns. */
 		idr_replace(&upid->ns->idr, pid, upid->nr);
