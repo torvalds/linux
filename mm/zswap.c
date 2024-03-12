@@ -513,18 +513,18 @@ static unsigned long zswap_accept_thr_pages(void)
 unsigned long zswap_total_pages(void)
 {
 	struct zswap_pool *pool;
-	u64 total = 0;
+	unsigned long total = 0;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(pool, &zswap_pools, list) {
 		int i;
 
 		for (i = 0; i < ZSWAP_NR_ZPOOLS; i++)
-			total += zpool_get_total_size(pool->zpools[i]);
+			total += zpool_get_total_pages(pool->zpools[i]);
 	}
 	rcu_read_unlock();
 
-	return total >> PAGE_SHIFT;
+	return total;
 }
 
 /*********************************
