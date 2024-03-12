@@ -88,6 +88,7 @@
  *  - input mute, gain, autogain, safe mode
  *  - direct monitor mixes
  *  - compressor and EQ
+ *  - Bluetooth volume
  *
  * <ditaa>
  *    /--------------\    18chn            20chn     /--------------\
@@ -179,6 +180,9 @@
  * (the corresponding value in dB is per-device)
  */
 #define SCARLETT2_MAX_GAIN_VALUE 70
+
+/* maximum Bluetooth volume value */
+#define SCARLETT2_MAX_BLUETOOTH_VOLUME 30
 
 /* mixer range from -80dB to +6dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
@@ -421,6 +425,7 @@ static void scarlett2_notify_direct_monitor(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_power_status(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_pcm_input_switch(
 					struct usb_mixer_interface *mixer);
+static void scarlett2_notify_bluetooth(struct usb_mixer_interface *mixer);
 
 /* Arrays of notification callback functions */
 
@@ -449,6 +454,7 @@ static const struct scarlett2_notification vocaster_notifications[] = {
 	{ 0x04000000, scarlett2_notify_input_dsp },
 	{ 0x08000000, scarlett2_notify_input_gain },
 	{ 0x10000000, scarlett2_notify_input_phantom },
+	{ 0x20000000, scarlett2_notify_bluetooth },
 	{ 0, NULL }
 };
 
@@ -534,6 +540,7 @@ enum {
 	SCARLETT2_CONFIG_POWER_LOW,
 	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
+	SCARLETT2_CONFIG_BLUETOOTH_VOLUME,
 	SCARLETT2_CONFIG_COUNT
 };
 
@@ -795,6 +802,9 @@ static const struct scarlett2_config_set scarlett2_config_set_vocaster = {
 
 		[SCARLETT2_CONFIG_INPUT_MUTE_SWITCH] = {
 			.offset = 0x1be, .size = 8, .activate = 17, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_BLUETOOTH_VOLUME] = {
+			.offset = 0xbf, .size = 8, .activate = 28 },
 	}
 };
 
@@ -1134,6 +1144,9 @@ struct scarlett2_device_info {
 	/* the number of DSP channels */
 	u8 dsp_count;
 
+	/* has a Bluetooth module with volume control */
+	u8 has_bluetooth;
+
 	/* remap analogue outputs; 18i8 Gen 3 has "line 3/4" connected
 	 * internally to the analogue 7/8 outputs
 	 */
@@ -1206,6 +1219,7 @@ struct scarlett2_data {
 	u8 mix_updated;
 	u8 speaker_switching_switched;
 	u8 power_status_updated;
+	u8 bluetooth_updated;
 	u8 sync;
 	u8 master_vol;
 	u8 headphone_vol;
@@ -1240,6 +1254,7 @@ struct scarlett2_data {
 	u8 msd_switch;
 	u8 standalone_switch;
 	u8 power_status;
+	u8 bluetooth_volume;
 	u8 meter_level_map[SCARLETT2_MAX_METERS];
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -1273,6 +1288,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *speaker_switching_ctl;
 	struct snd_kcontrol *talkback_ctl;
 	struct snd_kcontrol *power_status_ctl;
+	struct snd_kcontrol *bluetooth_volume_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_MIX_MAX];
 	u8 monitor_mix[SCARLETT2_MONITOR_MIX_MAX];
@@ -1770,6 +1786,7 @@ static const struct scarlett2_device_info vocaster_two_info = {
 	.peq_flt_total_count = 4,
 	.mute_input_count = 2,
 	.gain_input_count = 2,
+	.has_bluetooth = 1,
 
 	.port_count = {
 		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
@@ -7753,6 +7770,121 @@ static int scarlett2_add_power_status_ctl(struct usb_mixer_interface *mixer)
 				     &private->power_status_ctl);
 }
 
+/*** Bluetooth Volume ***/
+
+static int scarlett2_update_bluetooth_volume(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	private->bluetooth_updated = 0;
+
+	if (!private->info->has_bluetooth)
+		return 0;
+
+	err = scarlett2_usb_get_config(mixer,
+				       SCARLETT2_CONFIG_BLUETOOTH_VOLUME,
+				       1, &private->bluetooth_volume);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int scarlett2_bluetooth_volume_ctl_get(struct snd_kcontrol *kctl,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	if (private->bluetooth_updated) {
+		err = scarlett2_update_bluetooth_volume(mixer);
+		if (err < 0)
+			goto unlock;
+	}
+	ucontrol->value.integer.value[0] = private->bluetooth_volume;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_bluetooth_volume_ctl_put(struct snd_kcontrol *kctl,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	oval = private->bluetooth_volume;
+	val = clamp(ucontrol->value.integer.value[0],
+		    0L, (long)SCARLETT2_MAX_BLUETOOTH_VOLUME);
+
+	if (oval == val)
+		goto unlock;
+
+	private->bluetooth_volume = val;
+	err = scarlett2_usb_set_config(mixer,
+				       SCARLETT2_CONFIG_BLUETOOTH_VOLUME,
+				       0, val);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_bluetooth_volume_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = SCARLETT2_MAX_BLUETOOTH_VOLUME;
+	uinfo->value.integer.step = 1;
+	return 0;
+}
+
+static const struct snd_kcontrol_new scarlett2_bluetooth_volume_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = scarlett2_bluetooth_volume_ctl_info,
+	.get  = scarlett2_bluetooth_volume_ctl_get,
+	.put  = scarlett2_bluetooth_volume_ctl_put,
+};
+
+static int scarlett2_add_bluetooth_volume_ctl(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (!private->info->has_bluetooth)
+		return 0;
+
+	/* Add Bluetooth volume control */
+	return scarlett2_add_new_ctl(mixer, &scarlett2_bluetooth_volume_ctl,
+				     0, 1, "Bluetooth Capture Volume",
+				     &private->bluetooth_volume_ctl);
+}
+
 /*** Notification Handlers ***/
 
 /* Notify on sync change */
@@ -8107,6 +8239,21 @@ static void scarlett2_notify_pcm_input_switch(struct usb_mixer_interface *mixer)
 		       &private->pcm_input_switch_ctl->id);
 
 	scarlett2_notify_mux(mixer);
+}
+
+/* Notify on Bluetooth change */
+static void scarlett2_notify_bluetooth(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (!private->info->has_bluetooth)
+		return;
+
+	private->bluetooth_updated = 1;
+
+	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->bluetooth_volume_ctl->id);
 }
 
 /* Handle acknowledgement that a command was received; let
@@ -8646,6 +8793,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
+	err = scarlett2_update_bluetooth_volume(mixer);
+	if (err < 0)
+		return err;
+
 	err = scarlett2_update_mix(mixer);
 	if (err < 0)
 		return err;
@@ -8770,6 +8921,11 @@ static int snd_scarlett2_controls_create(
 
 	/* Create the power status control */
 	err = scarlett2_add_power_status_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the Bluetooth volume control */
+	err = scarlett2_add_bluetooth_volume_ctl(mixer);
 	if (err < 0)
 		return err;
 
