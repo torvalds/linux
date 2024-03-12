@@ -2293,6 +2293,40 @@ struct rtw89_btc_fbtc_slots {
 	struct rtw89_btc_fbtc_slot slot[CXST_MAX];
 } __packed;
 
+struct rtw89_btc_fbtc_slot_v7 {
+	__le16 dur; /* slot duration */
+	__le16 cxtype;
+	__le32 cxtbl;
+} __packed;
+
+struct rtw89_btc_fbtc_slot_u16 {
+	__le16 dur; /* slot duration */
+	__le16 cxtype;
+	__le16 cxtbl_l16; /* coex table [15:0] */
+	__le16 cxtbl_h16; /* coex table [31:16] */
+} __packed;
+
+struct rtw89_btc_fbtc_1slot_v7 {
+	u8 fver;
+	u8 sid; /* slot id */
+	__le16 rsvd;
+	struct rtw89_btc_fbtc_slot_v7 slot;
+} __packed;
+
+struct rtw89_btc_fbtc_slots_v7 {
+	u8 fver;
+	u8 slot_cnt;
+	u8 rsvd0;
+	u8 rsvd1;
+	struct rtw89_btc_fbtc_slot_u16 slot[CXST_MAX];
+	__le32 update_map;
+} __packed;
+
+union rtw89_btc_fbtc_slots_info {
+	struct rtw89_btc_fbtc_slots v1;
+	struct rtw89_btc_fbtc_slots_v7 v7;
+} __packed;
+
 struct rtw89_btc_fbtc_step {
 	u8 type;
 	u8 val;
@@ -2611,9 +2645,14 @@ struct rtw89_btc_trx_info {
 	u32 rx_err_ratio;
 };
 
+union rtw89_btc_fbtc_slot_u {
+	struct rtw89_btc_fbtc_slot v1[CXST_MAX];
+	struct rtw89_btc_fbtc_slot_v7 v7[CXST_MAX];
+};
+
 struct rtw89_btc_dm {
-	struct rtw89_btc_fbtc_slot slot[CXST_MAX];
-	struct rtw89_btc_fbtc_slot slot_now[CXST_MAX];
+	union rtw89_btc_fbtc_slot_u slot;
+	union rtw89_btc_fbtc_slot_u slot_now;
 	struct rtw89_btc_fbtc_tdma tdma;
 	struct rtw89_btc_fbtc_tdma tdma_now;
 	struct rtw89_mac_ax_coex_gnt gnt;
@@ -2754,7 +2793,7 @@ struct rtw89_btc_rpt_fbtc_tdma {
 
 struct rtw89_btc_rpt_fbtc_slots {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_slots finfo; /* info from fw */
+	union rtw89_btc_fbtc_slots_info finfo; /* info from fw */
 };
 
 struct rtw89_btc_rpt_fbtc_cysta {
