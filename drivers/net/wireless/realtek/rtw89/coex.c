@@ -219,6 +219,13 @@ struct rtw89_btc_btf_tlv {
 	u8 val[];
 } __packed;
 
+struct rtw89_btc_btf_tlv_v7 {
+	u8 type;
+	u8 ver;
+	u8 len;
+	u8 val[];
+} __packed;
+
 enum btc_btf_set_report_en {
 	RPT_EN_TDMA,
 	RPT_EN_CYCLE,
@@ -1210,7 +1217,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		if (ver->fcxtdma == 1) {
 			pfinfo = &pfwinfo->rpt_fbtc_tdma.finfo.v1;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_tdma.finfo.v1);
-		} else if (ver->fcxtdma == 3) {
+		} else if (ver->fcxtdma == 3 || ver->fcxtdma == 7) {
 			pfinfo = &pfwinfo->rpt_fbtc_tdma.finfo.v3;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_tdma.finfo.v3);
 		} else {
@@ -1486,7 +1493,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				     memcmp(&dm->tdma_now,
 					    &pfwinfo->rpt_fbtc_tdma.finfo.v1,
 					    sizeof(dm->tdma_now)));
-		else if (ver->fcxtdma == 3)
+		else if (ver->fcxtdma == 3 || ver->fcxtdma == 7)
 			_chk_btc_err(rtwdev, BTC_DCNT_TDMA_NONSYNC,
 				     memcmp(&dm->tdma_now,
 					    &pfwinfo->rpt_fbtc_tdma.finfo.v3.tdma,
@@ -1727,6 +1734,7 @@ static void _parse_btc_report(struct rtw89_dev *rtwdev,
 }
 
 #define BTC_TLV_HDR_LEN 2
+#define BTC_TLV_HDR_LEN_V7 3
 
 static void _append_tdma(struct rtw89_dev *rtwdev)
 {
@@ -1734,6 +1742,7 @@ static void _append_tdma(struct rtw89_dev *rtwdev)
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_btf_tlv *tlv;
+	struct rtw89_btc_btf_tlv_v7 *tlv_v7;
 	struct rtw89_btc_fbtc_tdma *v;
 	struct rtw89_btc_fbtc_tdma_v3 *v3;
 	u16 len = btc->policy_len;
@@ -1753,6 +1762,13 @@ static void _append_tdma(struct rtw89_dev *rtwdev)
 		tlv->len = sizeof(*v);
 		*v = dm->tdma;
 		btc->policy_len += BTC_TLV_HDR_LEN + sizeof(*v);
+	} else if (ver->fcxtdma == 7) {
+		tlv_v7 = (struct rtw89_btc_btf_tlv_v7 *)&btc->policy[len];
+		tlv_v7->len = sizeof(dm->tdma);
+		tlv_v7->ver = ver->fcxtdma;
+		tlv_v7->type = CXPOLICY_TDMA;
+		memcpy(tlv_v7->val, &dm->tdma, tlv_v7->len);
+		btc->policy_len += BTC_TLV_HDR_LEN_V7 + tlv_v7->len;
 	} else {
 		tlv->len = sizeof(*v3);
 		v3 = (struct rtw89_btc_fbtc_tdma_v3 *)&tlv->val[0];
