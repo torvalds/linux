@@ -503,7 +503,10 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	kbuf.bufsz =  kernel_len - kern16_size;
 	kbuf.memsz = PAGE_ALIGN(header->init_size);
 	kbuf.buf_align = header->kernel_alignment;
-	kbuf.buf_min = MIN_KERNEL_LOAD_ADDR;
+	if (header->pref_address < MIN_KERNEL_LOAD_ADDR)
+		kbuf.buf_min = MIN_KERNEL_LOAD_ADDR;
+	else
+		kbuf.buf_min = header->pref_address;
 	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 	ret = kexec_add_buffer(&kbuf);
 	if (ret)
