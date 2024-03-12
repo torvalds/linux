@@ -26,6 +26,13 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 			     u8 *sas_addr, int include);
 static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
+static void sas_port_add_ex_phy(struct sas_port *port, struct ex_phy *ex_phy)
+{
+	sas_port_add_phy(port, ex_phy->phy);
+	ex_phy->port = port;
+	ex_phy->phy_state = PHY_DEVICE_DISCOVERED;
+}
+
 /* ---------- SMP task management ---------- */
 
 /* Give it some long enough timeout. In seconds. */
@@ -857,9 +864,7 @@ static bool sas_ex_join_wide_port(struct domain_device *parent, int phy_id)
 
 		if (!memcmp(phy->attached_sas_addr, ephy->attached_sas_addr,
 			    SAS_ADDR_SIZE) && ephy->port) {
-			sas_port_add_phy(ephy->port, phy->phy);
-			phy->port = ephy->port;
-			phy->phy_state = PHY_DEVICE_DISCOVERED;
+			sas_port_add_ex_phy(ephy->port, phy);
 			return true;
 		}
 	}
