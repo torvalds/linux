@@ -12,6 +12,7 @@
 #include <drm/xe_drm.h>
 
 #include "regs/xe_engine_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
@@ -401,6 +402,13 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 				BIT(gt_to_tile(gt)->id) << 1;
 		gt_list->gt_list[id].far_mem_regions = xe->info.mem_region_mask ^
 			gt_list->gt_list[id].near_mem_regions;
+
+		gt_list->gt_list[id].ip_ver_major =
+			REG_FIELD_GET(GMD_ID_ARCH_MASK, gt->info.gmdid);
+		gt_list->gt_list[id].ip_ver_minor =
+			REG_FIELD_GET(GMD_ID_RELEASE_MASK, gt->info.gmdid);
+		gt_list->gt_list[id].ip_ver_rev =
+			REG_FIELD_GET(GMD_ID_REVID, gt->info.gmdid);
 	}
 
 	if (copy_to_user(query_ptr, gt_list, size)) {
