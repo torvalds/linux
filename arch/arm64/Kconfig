@@ -277,27 +277,21 @@ config 64BIT
 config MMU
 	def_bool y
 
-config ARM64_PAGE_SHIFT
-	int
-	default 16 if ARM64_64K_PAGES
-	default 14 if ARM64_16K_PAGES
-	default 12
-
 config ARM64_CONT_PTE_SHIFT
 	int
-	default 5 if ARM64_64K_PAGES
-	default 7 if ARM64_16K_PAGES
+	default 5 if PAGE_SIZE_64KB
+	default 7 if PAGE_SIZE_16KB
 	default 4
 
 config ARM64_CONT_PMD_SHIFT
 	int
-	default 5 if ARM64_64K_PAGES
-	default 5 if ARM64_16K_PAGES
+	default 5 if PAGE_SIZE_64KB
+	default 5 if PAGE_SIZE_16KB
 	default 4
 
 config ARCH_MMAP_RND_BITS_MIN
-	default 14 if ARM64_64K_PAGES
-	default 16 if ARM64_16K_PAGES
+	default 14 if PAGE_SIZE_64KB
+	default 16 if PAGE_SIZE_16KB
 	default 18
 
 # max bits determined by the following formula:
@@ -1259,11 +1253,13 @@ choice
 
 config ARM64_4K_PAGES
 	bool "4KB"
+	select HAVE_PAGE_SIZE_4KB
 	help
 	  This feature enables 4KB pages support.
 
 config ARM64_16K_PAGES
 	bool "16KB"
+	select HAVE_PAGE_SIZE_16KB
 	help
 	  The system will use 16KB pages support. AArch32 emulation
 	  requires applications compiled with 16K (or a multiple of 16K)
@@ -1271,6 +1267,7 @@ config ARM64_16K_PAGES
 
 config ARM64_64K_PAGES
 	bool "64KB"
+	select HAVE_PAGE_SIZE_64KB
 	help
 	  This feature enables 64KB pages support (4KB by default)
 	  allowing only two levels of page tables and faster TLB
@@ -1291,19 +1288,19 @@ choice
 
 config ARM64_VA_BITS_36
 	bool "36-bit" if EXPERT
-	depends on ARM64_16K_PAGES
+	depends on PAGE_SIZE_16KB
 
 config ARM64_VA_BITS_39
 	bool "39-bit"
-	depends on ARM64_4K_PAGES
+	depends on PAGE_SIZE_4KB
 
 config ARM64_VA_BITS_42
 	bool "42-bit"
-	depends on ARM64_64K_PAGES
+	depends on PAGE_SIZE_64KB
 
 config ARM64_VA_BITS_47
 	bool "47-bit"
-	depends on ARM64_16K_PAGES
+	depends on PAGE_SIZE_16KB
 
 config ARM64_VA_BITS_48
 	bool "48-bit"

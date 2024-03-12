@@ -116,6 +116,7 @@ config ARM
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_OPTPROBES if !THUMB2_KERNEL
+	select HAVE_PAGE_SIZE_4KB
 	select HAVE_PCI if MMU
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS

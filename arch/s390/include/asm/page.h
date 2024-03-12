@@ -11,7 +11,7 @@
 #include <linux/const.h>
 #include <asm/types.h>
 
-#define _PAGE_SHIFT	12
+#define _PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
 #define _PAGE_MASK	(~(_PAGE_SIZE - 1))
 

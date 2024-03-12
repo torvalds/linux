@@ -212,7 +212,7 @@ config PPC
 	select HAVE_ARCH_HUGE_VMAP		if PPC_RADIX_MMU || PPC_8xx
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
-	select HAVE_ARCH_KASAN			if PPC32 && PPC_PAGE_SHIFT <= 14
+	select HAVE_ARCH_KASAN			if PPC32 && PAGE_SHIFT <= 14
 	select HAVE_ARCH_KASAN			if PPC_RADIX_MMU
 	select HAVE_ARCH_KASAN			if PPC_BOOK3E_64
 	select HAVE_ARCH_KASAN_VMALLOC		if HAVE_ARCH_KASAN
@@ -809,19 +809,23 @@ choice
 config PPC_4K_PAGES
 	bool "4k page size"
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
+	select HAVE_PAGE_SIZE_4KB
 
 config PPC_16K_PAGES
 	bool "16k page size"
 	depends on 44x || PPC_8xx
+	select HAVE_PAGE_SIZE_16KB
 
 config PPC_64K_PAGES
 	bool "64k page size"
 	depends on 44x || PPC_BOOK3S_64
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
+	select HAVE_PAGE_SIZE_64KB
 
 config PPC_256K_PAGES
 	bool "256k page size (Requires non-standard binutils settings)"
 	depends on 44x && !PPC_47x
+	select HAVE_PAGE_SIZE_256KB
 	help
 	  Make the page size 256k.
 
@@ -831,29 +835,6 @@ config PPC_256K_PAGES
 	  definition from 0x10000 to 0x40000 in older versions.
 
 endchoice
-
-config PAGE_SIZE_4KB
-	def_bool y
-	depends on PPC_4K_PAGES
-
-config PAGE_SIZE_16KB
-	def_bool y
-	depends on PPC_16K_PAGES
-
-config PAGE_SIZE_64KB
-	def_bool y
-	depends on PPC_64K_PAGES
-
-config PAGE_SIZE_256KB
-	def_bool y
-	depends on PPC_256K_PAGES
-
-config PPC_PAGE_SHIFT
-	int
-	default 18 if PPC_256K_PAGES
-	default 16 if PPC_64K_PAGES
-	default 14 if PPC_16K_PAGES
-	default 12
 
 config THREAD_SHIFT
 	int "Thread shift" if EXPERT
@@ -891,7 +872,7 @@ config DATA_SHIFT
 	default 23 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx && PIN_TLB_DATA
 	default 19 if (DEBUG_PAGEALLOC || KFENCE) && PPC_8xx
 	default 24 if STRICT_KERNEL_RWX && PPC_85xx
-	default PPC_PAGE_SHIFT
+	default PAGE_SHIFT
 	help
 	  On Book3S 32 (603+), DBATs are used to map kernel text and rodata RO.
 	  Smaller is the alignment, greater is the number of necessary DBATs.
