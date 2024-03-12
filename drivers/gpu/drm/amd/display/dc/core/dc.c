@@ -3236,7 +3236,10 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	for (i = 0; i < surface_count; i++) {
 		struct dc_plane_state *surface = srf_updates[i].surface;
 
-		if (update_type >= UPDATE_TYPE_MED) {
+		if (update_type != UPDATE_TYPE_MED)
+			continue;
+		if (surface->update_flags.bits.clip_size_change ||
+				surface->update_flags.bits.position_change) {
 			for (j = 0; j < dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
