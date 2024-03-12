@@ -748,7 +748,7 @@ bool amdgpu_amdkfd_is_fed(struct amdgpu_device *adev)
 }
 
 void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
-	enum amdgpu_ras_block block, bool reset)
+	enum amdgpu_ras_block block, uint32_t reset)
 {
 	amdgpu_umc_poison_handler(adev, block, reset);
 }

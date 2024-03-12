@@ -2051,7 +2051,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 		}
 	}
 
-	amdgpu_umc_poison_handler(adev, obj->head.block, false);
+	amdgpu_umc_poison_handler(adev, obj->head.block, 0);
 
 	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
@@ -2704,7 +2704,7 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		atomic_dec(&con->page_retirement_req_cnt);
 
 		amdgpu_umc_bad_page_polling_timeout(adev,
-				false, MAX_UMC_POISON_POLLING_TIME_ASYNC);
+				0, MAX_UMC_POISON_POLLING_TIME_ASYNC);
 	}
 
 	return 0;
