@@ -9777,12 +9777,6 @@ static u16 event_id_to_engine_id(struct hl_device *hdev, u16 event_type)
 	return U16_MAX;
 }
 
-static void hl_eq_heartbeat_event_handle(struct hl_device *hdev)
-{
-	hdev->heartbeat_debug_info.heartbeat_event_counter++;
-	hdev->eq_heartbeat_received = true;
-}
-
 static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;

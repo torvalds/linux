@@ -2850,3 +2850,9 @@ void hl_set_irq_affinity(struct hl_device *hdev, int irq)
 	if (irq_set_affinity_and_hint(irq, &hdev->irq_affinity_mask))
 		dev_err(hdev->dev, "Failed setting irq %d affinity\n", irq);
 }
+
+void hl_eq_heartbeat_event_handle(struct hl_device *hdev)
+{
+	hdev->heartbeat_debug_info.heartbeat_event_counter++;
+	hdev->eq_heartbeat_received = true;
+}
