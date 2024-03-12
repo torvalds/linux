@@ -1709,7 +1709,7 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-struct bus_type pcie_port_bus_type = {
+const struct bus_type pcie_port_bus_type = {
 	.name		= "pci_express",
 	.match		= pcie_port_bus_match,
 };
