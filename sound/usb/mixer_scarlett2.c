@@ -916,6 +916,9 @@ struct scarlett2_device_info {
 	/* the number of inputs with software-controllable gain */
 	u8 gain_input_count;
 
+	/* the number of inputs with safe mode */
+	u8 safe_input_count;
+
 	/* the number of direct monitor options
 	 * (0 = none, 1 = mono only, 2 = mono/stereo)
 	 */
@@ -1550,6 +1553,7 @@ static const struct scarlett2_device_info s2i2_gen4_info = {
 	.phantom_count = 1,
 	.inputs_per_phantom = 2,
 	.gain_input_count = 2,
+	.safe_input_count = 2,
 	.direct_monitor = 2,
 	.dsp_count = 2,
 
@@ -1603,6 +1607,7 @@ static const struct scarlett2_device_info s4i4_gen4_info = {
 	.phantom_count = 2,
 	.inputs_per_phantom = 1,
 	.gain_input_count = 2,
+	.safe_input_count = 2,
 	.dsp_count = 2,
 
 	.port_count = {
@@ -2937,13 +2942,18 @@ static void scarlett2_autogain_update_access(struct usb_mixer_interface *mixer)
 	int val = !scarlett2_autogain_is_running(private);
 	int i;
 
-	scarlett2_set_ctl_access(private->input_select_ctl, val);
-	for (i = 0; i < info->gain_input_count / 2; i++)
-		scarlett2_set_ctl_access(private->input_link_ctls[i], val);
-	for (i = 0; i < info->gain_input_count; i++) {
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_SELECT_SWITCH))
+		scarlett2_set_ctl_access(private->input_select_ctl, val);
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
+		for (i = 0; i < info->gain_input_count / 2; i++)
+			scarlett2_set_ctl_access(private->input_link_ctls[i],
+						 val);
+	for (i = 0; i < info->gain_input_count; i++)
 		scarlett2_set_ctl_access(private->input_gain_ctls[i], val);
+	for (i = 0; i < info->safe_input_count; i++)
 		scarlett2_set_ctl_access(private->safe_ctls[i], val);
-	}
 	for (i = 0; i < info->level_input_count; i++)
 		scarlett2_set_ctl_access(private->level_ctls[i], val);
 	for (i = 0; i < info->air_input_count; i++)
@@ -2962,17 +2972,21 @@ static void scarlett2_autogain_notify_access(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	int i;
 
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
-		       &private->input_select_ctl->id);
-	for (i = 0; i < info->gain_input_count / 2; i++)
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_SELECT_SWITCH))
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
-			       &private->input_link_ctls[i]->id);
-	for (i = 0; i < info->gain_input_count; i++) {
+			       &private->input_select_ctl->id);
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH))
+		for (i = 0; i < info->gain_input_count / 2; i++)
+			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+				       &private->input_link_ctls[i]->id);
+	for (i = 0; i < info->gain_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->input_gain_ctls[i]->id);
+	for (i = 0; i < info->safe_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->safe_ctls[i]->id);
-	}
 	for (i = 0; i < info->level_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->level_ctls[i]->id);
@@ -3183,7 +3197,9 @@ static int scarlett2_update_input_select(struct usb_mixer_interface *mixer)
 
 	private->input_select_updated = 0;
 
-	if (!link_count)
+	if (!scarlett2_has_config_item(private,
+				       SCARLETT2_CONFIG_INPUT_SELECT_SWITCH) ||
+	    !link_count)
 		return 0;
 
 	err = scarlett2_usb_get_config(
@@ -3596,12 +3612,12 @@ static int scarlett2_update_input_safe(struct usb_mixer_interface *mixer)
 
 	private->input_safe_updated = 0;
 
-	if (!info->gain_input_count)
+	if (!info->safe_input_count)
 		return 0;
 
 	return scarlett2_usb_get_config(
 		mixer, SCARLETT2_CONFIG_SAFE_SWITCH,
-		info->gain_input_count, private->safe_switch);
+		info->safe_input_count, private->safe_switch);
 }
 
 static int scarlett2_safe_ctl_get(struct snd_kcontrol *kctl,
@@ -5507,58 +5523,65 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 			return err;
 	}
 
-	/* Add software-controllable input gain controls */
-	if (info->gain_input_count) {
+	/* Add input select/link controls */
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_SELECT_SWITCH)) {
 		err = scarlett2_add_new_ctl(
 			mixer, &scarlett2_input_select_ctl, 0, 1,
 			"Input Select Capture Enum",
 			&private->input_select_ctl);
 		if (err < 0)
 			return err;
+	}
 
-		for (i = 0; i < info->gain_input_count; i++) {
-			if (i % 2) {
-				scnprintf(s, sizeof(s),
-					  "Line In %d-%d Link Capture Switch",
-					  i, i + 1);
-				err = scarlett2_add_new_ctl(
-					mixer, &scarlett2_input_link_ctl,
-					i / 2, 1, s,
-					&private->input_link_ctls[i / 2]);
-				if (err < 0)
-					return err;
-			}
-
-			scnprintf(s, sizeof(s), fmt, i + 1,
-				  "Gain", "Volume");
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_INPUT_LINK_SWITCH)) {
+		for (i = 0; i < info->gain_input_count / 2; i++) {
+			scnprintf(s, sizeof(s),
+				  "Line In %d-%d Link Capture Switch",
+				  (i * 2) + 1, (i * 2) + 2);
 			err = scarlett2_add_new_ctl(
-				mixer, &scarlett2_input_gain_ctl,
-				i, 1, s, &private->input_gain_ctls[i]);
-			if (err < 0)
-				return err;
-
-			scnprintf(s, sizeof(s), fmt, i + 1,
-				  "Autogain", "Switch");
-			err = scarlett2_add_new_ctl(
-				mixer, &scarlett2_autogain_switch_ctl,
-				i, 1, s, &private->autogain_ctls[i]);
-			if (err < 0)
-				return err;
-
-			scnprintf(s, sizeof(s), fmt, i + 1,
-				  "Autogain Status", "Enum");
-			err = scarlett2_add_new_ctl(
-				mixer, &scarlett2_autogain_status_ctl,
-				i, 1, s, &private->autogain_status_ctls[i]);
-
-			scnprintf(s, sizeof(s), fmt, i + 1,
-				  "Safe", "Switch");
-			err = scarlett2_add_new_ctl(
-				mixer, &scarlett2_safe_ctl,
-				i, 1, s, &private->safe_ctls[i]);
+				mixer, &scarlett2_input_link_ctl,
+				i, 1, s, &private->input_link_ctls[i]);
 			if (err < 0)
 				return err;
 		}
+	}
+
+	/* Add software-controllable input gain controls */
+	for (i = 0; i < info->gain_input_count; i++) {
+		scnprintf(s, sizeof(s), fmt, i + 1,
+			  "Gain", "Volume");
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_input_gain_ctl,
+			i, 1, s, &private->input_gain_ctls[i]);
+		if (err < 0)
+			return err;
+
+		scnprintf(s, sizeof(s), fmt, i + 1,
+			  "Autogain", "Switch");
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_autogain_switch_ctl,
+			i, 1, s, &private->autogain_ctls[i]);
+		if (err < 0)
+			return err;
+
+		scnprintf(s, sizeof(s), fmt, i + 1,
+			  "Autogain Status", "Enum");
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_autogain_status_ctl,
+			i, 1, s, &private->autogain_status_ctls[i]);
+	}
+
+	/* Add safe-mode input switch controls */
+	for (i = 0; i < info->safe_input_count; i++) {
+		scnprintf(s, sizeof(s), fmt, i + 1,
+			  "Safe", "Switch");
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_safe_ctl,
+			i, 1, s, &private->safe_ctls[i]);
+		if (err < 0)
+			return err;
 	}
 
 	/* Add PCM Input Switch control */
@@ -6557,7 +6580,8 @@ static void scarlett2_notify_input_select(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	int i;
 
-	if (!info->gain_input_count)
+	if (!scarlett2_has_config_item(private,
+				       SCARLETT2_CONFIG_INPUT_SELECT_SWITCH))
 		return;
 
 	private->input_select_updated = 1;
@@ -6620,12 +6644,12 @@ static void scarlett2_notify_input_safe(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	int i;
 
-	if (!info->gain_input_count)
+	if (!info->safe_input_count)
 		return;
 
 	private->input_safe_updated = 1;
 
-	for (i = 0; i < info->gain_input_count; i++)
+	for (i = 0; i < info->safe_input_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->safe_ctls[i]->id);
 }
