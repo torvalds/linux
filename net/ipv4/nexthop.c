@@ -674,10 +674,11 @@ static void nh_grp_entry_stats_inc(struct nh_grp_entry *nhge)
 {
 	struct nh_grp_entry_stats *cpu_stats;
 
-	cpu_stats = this_cpu_ptr(nhge->stats);
+	cpu_stats = get_cpu_ptr(nhge->stats);
 	u64_stats_update_begin(&cpu_stats->syncp);
 	u64_stats_inc(&cpu_stats->packets);
 	u64_stats_update_end(&cpu_stats->syncp);
+	put_cpu_ptr(cpu_stats);
 }
 
 static void nh_grp_entry_stats_read(struct nh_grp_entry *nhge,
@@ -3230,10 +3231,12 @@ static int nh_valid_get_del_req(const struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	if (tb[NHA_OP_FLAGS])
-		*op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
-	else
-		*op_flags = 0;
+	if (op_flags) {
+		if (tb[NHA_OP_FLAGS])
+			*op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
+		else
+			*op_flags = 0;
+	}
 
 	return 0;
 }
@@ -3242,24 +3245,24 @@ static int nh_valid_get_del_req(const struct nlmsghdr *nlh,
 static int rtm_del_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   struct netlink_ext_ack *extack)
 {
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_del)];
 	struct net *net = sock_net(skb->sk);
-	struct nlattr *tb[NHA_MAX + 1];
 	struct nl_info nlinfo = {
 		.nlh = nlh,
 		.nl_net = net,
 		.portid = NETLINK_CB(skb).portid,
 	};
 	struct nexthop *nh;
-	u32 op_flags;
 	int err;
 	u32 id;
 
-	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb, NHA_MAX,
-			  rtm_nh_policy_del, extack);
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_del) - 1, rtm_nh_policy_del,
+			  extack);
 	if (err < 0)
 		return err;
 
-	err = nh_valid_get_del_req(nlh, tb, &id, &op_flags, extack);
+	err = nh_valid_get_del_req(nlh, tb, &id, NULL, extack);
 	if (err)
 		return err;
 
@@ -3276,16 +3279,17 @@ static int rtm_del_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 static int rtm_get_nexthop(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			   struct netlink_ext_ack *extack)
 {
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_get)];
 	struct net *net = sock_net(in_skb->sk);
-	struct nlattr *tb[NHA_MAX + 1];
 	struct sk_buff *skb = NULL;
 	struct nexthop *nh;
 	u32 op_flags;
 	int err;
 	u32 id;
 
-	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb, NHA_MAX,
-			  rtm_nh_policy_get, extack);
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_get) - 1, rtm_nh_policy_get,
+			  extack);
 	if (err < 0)
 		return err;
 
@@ -3397,11 +3401,6 @@ static int __nh_valid_dump_req(const struct nlmsghdr *nlh, struct nlattr **tb,
 		return -EINVAL;
 	}
 
-	if (tb[NHA_OP_FLAGS])
-		filter->op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
-	else
-		filter->op_flags = 0;
-
 	return 0;
 }
 
@@ -3409,13 +3408,19 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh,
 			     struct nh_dump_filter *filter,
 			     struct netlink_callback *cb)
 {
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb, NHA_MAX,
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
 			  rtm_nh_policy_dump, cb->extack);
 	if (err < 0)
 		return err;
+
+	if (tb[NHA_OP_FLAGS])
+		filter->op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
+	else
+		filter->op_flags = 0;
 
 	return __nh_valid_dump_req(nlh, tb, filter, cb->extack);
 }
@@ -3547,10 +3552,11 @@ static int nh_valid_dump_bucket_req(const struct nlmsghdr *nlh,
 				    struct netlink_callback *cb)
 {
 	struct nlattr *res_tb[ARRAY_SIZE(rtm_nh_res_bucket_policy_dump)];
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump_bucket)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb, NHA_MAX,
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump_bucket) - 1,
 			  rtm_nh_policy_dump_bucket, NULL);
 	if (err < 0)
 		return err;
@@ -3715,16 +3721,16 @@ static int nh_valid_get_bucket_req(const struct nlmsghdr *nlh,
 				   u32 *id, u16 *bucket_index,
 				   struct netlink_ext_ack *extack)
 {
-	struct nlattr *tb[NHA_MAX + 1];
-	u32 op_flags;
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_get_bucket)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb, NHA_MAX,
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_get_bucket) - 1,
 			  rtm_nh_policy_get_bucket, extack);
 	if (err < 0)
 		return err;
 
-	err = nh_valid_get_del_req(nlh, tb, id, &op_flags, extack);
+	err = nh_valid_get_del_req(nlh, tb, id, NULL, extack);
 	if (err)
 		return err;
 
