@@ -332,6 +332,17 @@ enum {
 	SCARLETT2_DIM_MUTE_COUNT
 };
 
+/* Autogain target values */
+
+#define SCARLETT2_AG_TARGET_MIN (-30)
+
+enum {
+	SCARLETT2_AG_HOT_TARGET,
+	SCARLETT2_AG_MEAN_TARGET,
+	SCARLETT2_AG_PEAK_TARGET,
+	SCARLETT2_AG_TARGET_COUNT
+};
+
 /* Flash Write State */
 enum {
 	SCARLETT2_FLASH_WRITE_STATE_IDLE,
@@ -512,6 +523,9 @@ enum {
 	SCARLETT2_CONFIG_TALKBACK_MAP,
 	SCARLETT2_CONFIG_AUTOGAIN_SWITCH,
 	SCARLETT2_CONFIG_AUTOGAIN_STATUS,
+	SCARLETT2_CONFIG_AG_HOT_TARGET,
+	SCARLETT2_CONFIG_AG_MEAN_TARGET,
+	SCARLETT2_CONFIG_AG_PEAK_TARGET,
 	SCARLETT2_CONFIG_INPUT_GAIN,
 	SCARLETT2_CONFIG_SAFE_SWITCH,
 	SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
@@ -521,6 +535,18 @@ enum {
 	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_COUNT
+};
+
+/* Autogain target configuration parameters and names */
+
+static const int scarlett2_ag_target_configs[] = {
+	[SCARLETT2_AG_HOT_TARGET]  = SCARLETT2_CONFIG_AG_HOT_TARGET,
+	[SCARLETT2_AG_MEAN_TARGET] = SCARLETT2_CONFIG_AG_MEAN_TARGET,
+	[SCARLETT2_AG_PEAK_TARGET] = SCARLETT2_CONFIG_AG_PEAK_TARGET
+};
+
+static const char *const scarlett2_ag_target_names[] = {
+	"Hot", "Mean", "Peak"
 };
 
 /* Location, size, and activation command number for the configuration
@@ -740,6 +766,9 @@ static const struct scarlett2_config_set scarlett2_config_set_vocaster = {
 		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
 			.offset = 0x1c2, .size = 8, },
 
+		[SCARLETT2_CONFIG_AG_HOT_TARGET] = {
+			.offset = 0xc1, .size = 8, .activate = 29, .pbuf = 1 },
+
 		[SCARLETT2_CONFIG_INPUT_GAIN] = {
 			.offset = 0x9f, .size = 8, .activate = 21, .pbuf = 1 },
 
@@ -818,6 +847,12 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_2i2 = {
 		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
 			.offset = 0x137, .size = 8 },
 
+		[SCARLETT2_CONFIG_AG_MEAN_TARGET] = {
+			.offset = 0x131, .size = 8, .activate = 29, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_AG_PEAK_TARGET] = {
+			.offset = 0x132, .size = 8, .activate = 30, .pbuf = 1 },
+
 		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
 			.offset = 0x48, .size = 8, .activate = 11, .pbuf = 1,
 			.mute = 1 },
@@ -861,6 +896,12 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 
 		[SCARLETT2_CONFIG_AUTOGAIN_STATUS] = {
 			.offset = 0x140, .size = 8 },
+
+		[SCARLETT2_CONFIG_AG_MEAN_TARGET] = {
+			.offset = 0x13a, .size = 8, .activate = 23, .pbuf = 1 },
+
+		[SCARLETT2_CONFIG_AG_PEAK_TARGET] = {
+			.offset = 0x13b, .size = 8, .activate = 24, .pbuf = 1 },
 
 		[SCARLETT2_CONFIG_PHANTOM_SWITCH] = {
 			.offset = 0x5a, .size = 8, .activate = 11, .pbuf = 1,
@@ -1189,6 +1230,7 @@ struct scarlett2_data {
 	u8 gain[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_status[SCARLETT2_INPUT_GAIN_MAX];
+	s8 ag_targets[SCARLETT2_AG_TARGET_COUNT];
 	u8 safe_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 pcm_input_switch;
 	u8 direct_monitor_switch;
@@ -1217,6 +1259,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *input_gain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_status_ctls[SCARLETT2_INPUT_GAIN_MAX];
+	struct snd_kcontrol *ag_target_ctls[SCARLETT2_AG_TARGET_COUNT];
 	struct snd_kcontrol *safe_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *pcm_input_switch_ctl;
 	struct snd_kcontrol *mux_ctls[SCARLETT2_MUX_MAX];
@@ -3253,6 +3296,7 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	int err, i;
 	u8 raw_autogain_status[SCARLETT2_INPUT_GAIN_MAX];
+	s8 ag_target_values[SCARLETT2_AG_TARGET_COUNT];
 
 	private->autogain_updated = 0;
 
@@ -3291,6 +3335,21 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 			private->autogain_status[i] =
 				private->num_autogain_status_texts - 1;
 
+
+	for (int i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		if (scarlett2_has_config_item(private,
+					      scarlett2_ag_target_configs[i])) {
+			err = scarlett2_usb_get_config(
+				mixer, scarlett2_ag_target_configs[i],
+				1, &ag_target_values[i]);
+			if (err < 0)
+				return err;
+		}
+
+	/* convert from negative dBFS as used by the device */
+	for (int i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		private->ag_targets[i] = -ag_target_values[i];
+
 	return 0;
 }
 
@@ -3324,6 +3383,12 @@ static void scarlett2_autogain_update_access(struct usb_mixer_interface *mixer)
 		scarlett2_set_ctl_access(private->phantom_ctls[i], val);
 	for (i = 0; i < info->dsp_input_count; i++)
 		scarlett2_set_ctl_access(private->dsp_ctls[i], val);
+
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		if (scarlett2_has_config_item(private,
+					      scarlett2_ag_target_configs[i]))
+			scarlett2_set_ctl_access(
+				private->ag_target_ctls[i], val);
 }
 
 /* Notify of access mode change for all controls read-only while
@@ -3366,6 +3431,12 @@ static void scarlett2_autogain_notify_access(struct usb_mixer_interface *mixer)
 	for (i = 0; i < info->phantom_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &private->phantom_ctls[i]->id);
+
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		if (scarlett2_has_config_item(private,
+					      scarlett2_ag_target_configs[i]))
+			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+				       &private->ag_target_ctls[i]->id);
 }
 
 /* Call scarlett2_update_autogain() and
@@ -3557,6 +3628,122 @@ static const struct snd_kcontrol_new scarlett2_autogain_status_ctl = {
 	.name = "",
 	.info = scarlett2_autogain_status_ctl_info,
 	.get  = scarlett2_autogain_status_ctl_get,
+};
+
+/*** Autogain Target Controls ***/
+
+static int scarlett2_ag_target_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	err = scarlett2_check_autogain_updated(mixer);
+	if (err < 0)
+		goto unlock;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = SCARLETT2_AG_TARGET_MIN;
+	uinfo->value.integer.max = 0;
+	uinfo->value.integer.step = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_ag_target_ctl_get(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	if (private->autogain_updated) {
+		err = scarlett2_update_autogain(mixer);
+		if (err < 0)
+			goto unlock;
+	}
+
+	ucontrol->value.integer.value[0] = private->ag_targets[elem->control];
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_ag_target_ctl_put(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int index = elem->control;
+	int oval, val, err;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	err = scarlett2_check_put_during_autogain(mixer);
+	if (err < 0)
+		goto unlock;
+
+	oval = private->ag_targets[index];
+	val = clamp(ucontrol->value.integer.value[0],
+		    (long)SCARLETT2_AG_TARGET_MIN, 0L);
+
+	if (oval == val)
+		goto unlock;
+
+	private->ag_targets[index] = val;
+
+	/* Send new value to the device */
+	err = scarlett2_usb_set_config(
+		mixer, scarlett2_ag_target_configs[index], 1, -val);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const DECLARE_TLV_DB_MINMAX(
+	db_scale_ag_target, SCARLETT2_AG_TARGET_MIN * 100, 0
+);
+
+static const struct snd_kcontrol_new scarlett2_ag_target_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+	.name = "",
+	.info = scarlett2_ag_target_ctl_info,
+	.get  = scarlett2_ag_target_ctl_get,
+	.put  = scarlett2_ag_target_ctl_put,
+	.tlv = { .p = db_scale_ag_target }
 };
 
 /*** Input Select Control ***/
@@ -6693,6 +6880,20 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 			i, 1, s, &private->autogain_status_ctls[i]);
 	}
 
+	/* Add autogain target controls */
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		if (scarlett2_has_config_item(private,
+					      scarlett2_ag_target_configs[i])) {
+
+			scnprintf(s, sizeof(s), "Autogain %s Target",
+				  scarlett2_ag_target_names[i]);
+			err = scarlett2_add_new_ctl(
+				mixer, &scarlett2_ag_target_ctl,
+				i, 1, s, &private->ag_target_ctls[i]);
+			if (err < 0)
+				return err;
+		}
+
 	/* Add safe-mode input switch controls */
 	for (i = 0; i < info->safe_input_count; i++) {
 		scnprintf(s, sizeof(s), fmt, i + 1,
@@ -7782,6 +7983,12 @@ static void scarlett2_notify_autogain(struct usb_mixer_interface *mixer)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->autogain_status_ctls[i]->id);
 	}
+
+	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
+		if (scarlett2_has_config_item(private,
+					      scarlett2_ag_target_configs[i]))
+			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+				       &private->ag_target_ctls[i]->id);
 
 	scarlett2_autogain_notify_access(mixer);
 }
