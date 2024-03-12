@@ -164,12 +164,27 @@ static const char *nvme_trace_dsm(struct trace_seq *p, u8 *cdw10)
 
 static const char *nvme_trace_zone_mgmt_send(struct trace_seq *p, u8 *cdw10)
 {
+	static const char * const zsa_strs[] = {
+		[0x01] = "close zone",
+		[0x02] = "finish zone",
+		[0x03] = "open zone",
+		[0x04] = "reset zone",
+		[0x05] = "offline zone",
+		[0x10] = "set zone descriptor extension"
+	};
 	const char *ret = trace_seq_buffer_ptr(p);
 	u64 slba = get_unaligned_le64(cdw10);
+	const char *zsa_str;
 	u8 zsa = cdw10[12];
 	u8 all = cdw10[13];
 
-	trace_seq_printf(p, "slba=%llu, zsa=%u, all=%u", slba, zsa, all);
+	if (zsa < ARRAY_SIZE(zsa_strs) && zsa_strs[zsa])
+		zsa_str = zsa_strs[zsa];
+	else
+		zsa_str = "reserved";
+
+	trace_seq_printf(p, "slba=%llu, zsa=%u:%s, all=%u",
+		slba, zsa, zsa_str, all);
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -177,15 +192,32 @@ static const char *nvme_trace_zone_mgmt_send(struct trace_seq *p, u8 *cdw10)
 
 static const char *nvme_trace_zone_mgmt_recv(struct trace_seq *p, u8 *cdw10)
 {
+	static const char * const zrasf_strs[] = {
+		[0x00] = "list all zones",
+		[0x01] = "list the zones in the ZSE: Empty state",
+		[0x02] = "list the zones in the ZSIO: Implicitly Opened state",
+		[0x03] = "list the zones in the ZSEO: Explicitly Opened state",
+		[0x04] = "list the zones in the ZSC: Closed state",
+		[0x05] = "list the zones in the ZSF: Full state",
+		[0x06] = "list the zones in the ZSRO: Read Only state",
+		[0x07] = "list the zones in the ZSO: Offline state",
+		[0x09] = "list the zones that have the zone attribute"
+	};
 	const char *ret = trace_seq_buffer_ptr(p);
 	u64 slba = get_unaligned_le64(cdw10);
 	u32 numd = get_unaligned_le32(cdw10 + 8);
 	u8 zra = cdw10[12];
 	u8 zrasf = cdw10[13];
+	const char *zrasf_str;
 	u8 pr = cdw10[14];
 
-	trace_seq_printf(p, "slba=%llu, numd=%u, zra=%u, zrasf=%u, pr=%u",
-			 slba, numd, zra, zrasf, pr);
+	if (zrasf < ARRAY_SIZE(zrasf_strs) && zrasf_strs[zrasf])
+		zrasf_str = zrasf_strs[zrasf];
+	else
+		zrasf_str = "reserved";
+
+	trace_seq_printf(p, "slba=%llu, numd=%u, zra=%u, zrasf=%u:%s, pr=%u",
+		slba, numd, zra, zrasf, zrasf_str, pr);
 	trace_seq_putc(p, 0);
 
 	return ret;
