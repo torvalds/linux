@@ -46,7 +46,7 @@ static int __init hyperv_init(void)
 
 	/* Setup the guest ID */
 	guest_id = hv_generate_guest_id(LINUX_VERSION_CODE);
-	hv_set_vpreg(HV_REGISTER_GUEST_OSID, guest_id);
+	hv_set_vpreg(HV_REGISTER_GUEST_OS_ID, guest_id);
 
 	/* Get the features and hints from Hyper-V */
 	hv_get_vpreg_128(HV_REGISTER_FEATURES, &result);

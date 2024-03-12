@@ -450,7 +450,7 @@ static void __init ms_hyperv_init_platform(void)
 				/* To be supported: more work is required.  */
 				ms_hyperv.features &= ~HV_MSR_REFERENCE_TSC_AVAILABLE;
 
-				/* HV_REGISTER_CRASH_CTL is unsupported. */
+				/* HV_MSR_CRASH_CTL is unsupported. */
 				ms_hyperv.misc_features &= ~HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
 
 				/* Don't trust Hyper-V's TLB-flushing hypercalls. */
