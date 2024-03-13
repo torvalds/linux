@@ -3161,6 +3161,40 @@ void console_unblank(void)
 		pr_flush(1000, true);
 }
 
+/*
+ * Rewind all consoles to the oldest available record.
+ *
+ * IMPORTANT: The function is safe only when called under
+ *            console_lock(). It is not enforced because
+ *            it is used as a best effort in panic().
+ */
+static void __console_rewind_all(void)
+{
+	struct console *c;
+	short flags;
+	int cookie;
+	u64 seq;
+
+	seq = prb_first_valid_seq(prb);
+
+	cookie = console_srcu_read_lock();
+	for_each_console_srcu(c) {
+		flags = console_srcu_read_flags(c);
+
+		if (flags & CON_NBCON) {
+			nbcon_seq_force(c, seq);
+		} else {
+			/*
+			 * This assignment is safe only when called under
+			 * console_lock(). On panic, legacy consoles are
+			 * only best effort.
+			 */
+			c->seq = seq;
+		}
+	}
+	console_srcu_read_unlock(cookie);
+}
+
 /**
  * console_flush_on_panic - flush console content on panic
  * @mode: flush all messages in buffer or just the pending ones
@@ -3189,30 +3223,8 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	 */
 	console_may_schedule = 0;
 
-	if (mode == CONSOLE_REPLAY_ALL) {
-		struct console *c;
-		short flags;
-		int cookie;
-		u64 seq;
-
-		seq = prb_first_valid_seq(prb);
-
-		cookie = console_srcu_read_lock();
-		for_each_console_srcu(c) {
-			flags = console_srcu_read_flags(c);
-
-			if (flags & CON_NBCON) {
-				nbcon_seq_force(c, seq);
-			} else {
-				/*
-				 * This is an unsynchronized assignment. On
-				 * panic legacy consoles are only best effort.
-				 */
-				c->seq = seq;
-			}
-		}
-		console_srcu_read_unlock(cookie);
-	}
+	if (mode == CONSOLE_REPLAY_ALL)
+		__console_rewind_all();
 
 	console_flush_all(false, &next_seq, &handover);
 }
@@ -4301,6 +4313,23 @@ void kmsg_dump_rewind(struct kmsg_dump_iter *iter)
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 
+/**
+ * console_replay_all - replay kernel log on consoles
+ *
+ * Try to obtain lock on console subsystem and replay all
+ * available records in printk buffer on the consoles.
+ * Does nothing if lock is not obtained.
+ *
+ * Context: Any context.
+ */
+void console_replay_all(void)
+{
+	if (console_trylock()) {
+		__console_rewind_all();
+		/* Consoles are flushed as part of console_unlock(). */
+		console_unlock();
+	}
+}
 #endif
 
 #ifdef CONFIG_SMP
