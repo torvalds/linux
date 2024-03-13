@@ -340,9 +340,9 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 		em->mod_len = em->len;
 	}
 
-	free_extent_map(em);
 out:
 	write_unlock(&tree->lock);
+	free_extent_map(em);
 	return ret;
 
 }
