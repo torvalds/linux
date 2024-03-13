@@ -341,7 +341,7 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 	int ret;
 
 	if (list_empty(&sd->asc_list)) {
-		ret = v4l2_device_register_subdev(v4l2_dev, sd);
+		ret = __v4l2_device_register_subdev(v4l2_dev, sd, sd->owner);
 		if (ret < 0)
 			return ret;
 		registered = true;

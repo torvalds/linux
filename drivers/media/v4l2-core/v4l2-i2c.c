@@ -100,7 +100,7 @@ struct v4l2_subdev
 	 * Register with the v4l2_device which increases the module's
 	 * use count as well.
 	 */
-	if (v4l2_device_register_subdev(v4l2_dev, sd))
+	if (__v4l2_device_register_subdev(v4l2_dev, sd, sd->owner))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->dev.driver->owner);
