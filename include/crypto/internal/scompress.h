@@ -27,7 +27,6 @@ struct crypto_scomp {
  * @free_ctx:	Function frees context allocated with alloc_ctx
  * @compress:	Function performs a compress operation
  * @decompress:	Function performs a de-compress operation
- * @stat:	Statistics for compress algorithm
  * @base:	Common crypto API algorithm data structure
  * @calg:	Cmonn algorithm data structure shared with acomp
  */

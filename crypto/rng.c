@@ -30,30 +30,24 @@ static int crypto_default_rng_refcnt;
 
 int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 {
-	struct rng_alg *alg = crypto_rng_alg(tfm);
 	u8 *buf = NULL;
 	int err;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		atomic64_inc(&rng_get_stat(alg)->seed_cnt);
-
 	if (!seed && slen) {
 		buf = kmalloc(slen, GFP_KERNEL);
-		err = -ENOMEM;
 		if (!buf)
-			goto out;
+			return -ENOMEM;
 
 		err = get_random_bytes_wait(buf, slen);
 		if (err)
-			goto free_buf;
+			goto out;
 		seed = buf;
 	}
 
-	err = alg->seed(tfm, seed, slen);
-free_buf:
-	kfree_sensitive(buf);
+	err = crypto_rng_alg(tfm)->seed(tfm, seed, slen);
 out:
-	return crypto_rng_errstat(alg, err);
+	kfree_sensitive(buf);
+	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_rng_reset);
 
@@ -91,27 +85,6 @@ static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "seedsize     : %u\n", seedsize(alg));
 }
 
-static int __maybe_unused crypto_rng_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct rng_alg *rng = __crypto_rng_alg(alg);
-	struct crypto_istat_rng *istat;
-	struct crypto_stat_rng rrng;
-
-	istat = rng_get_stat(rng);
-
-	memset(&rrng, 0, sizeof(rrng));
-
-	strscpy(rrng.type, "rng", sizeof(rrng.type));
-
-	rrng.stat_generate_cnt = atomic64_read(&istat->generate_cnt);
-	rrng.stat_generate_tlen = atomic64_read(&istat->generate_tlen);
-	rrng.stat_seed_cnt = atomic64_read(&istat->seed_cnt);
-	rrng.stat_err_cnt = atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_RNG, sizeof(rrng), &rrng);
-}
-
 static const struct crypto_type crypto_rng_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_rng_init_tfm,
@@ -120,9 +93,6 @@ static const struct crypto_type crypto_rng_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_rng_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_rng_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
@@ -199,7 +169,6 @@ EXPORT_SYMBOL_GPL(crypto_del_default_rng);
 
 int crypto_register_rng(struct rng_alg *alg)
 {
-	struct crypto_istat_rng *istat = rng_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	if (alg->seedsize > PAGE_SIZE / 8)
@@ -208,9 +177,6 @@ int crypto_register_rng(struct rng_alg *alg)
 	base->cra_type = &crypto_rng_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_RNG;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		memset(istat, 0, sizeof(*istat));
 
 	return crypto_register_alg(base);
 }

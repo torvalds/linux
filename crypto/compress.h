@@ -13,13 +13,10 @@
 
 struct acomp_req;
 struct comp_alg_common;
-struct sk_buff;
 
 int crypto_init_scomp_ops_async(struct crypto_tfm *tfm);
 struct acomp_req *crypto_acomp_scomp_alloc_ctx(struct acomp_req *req);
 void crypto_acomp_scomp_free_ctx(struct acomp_req *req);
-
-int crypto_acomp_report_stat(struct sk_buff *skb, struct crypto_alg *alg);
 
 void comp_prepare_alg(struct comp_alg_common *alg);
 
