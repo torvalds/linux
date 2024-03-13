@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2011-2017, 2020-2021, The Linux Foundation. All rights reserved.
 // Copyright (c) 2018, Linaro Limited
-// Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -984,12 +984,14 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		 txn->mc <= SLIM_MSG_MC_RECONFIGURE_NOW))
 		return 0;
 
-	if (txn->dt == SLIM_MSG_DEST_ENUMADDR)
+	if (txn->dt == SLIM_MSG_DEST_ENUMADDR) {
+		SLIM_ERR(ctrl, "%s: proto not supported\n", __func__);
 		return -EPROTONOSUPPORT;
+	}
 
 	if (txn->msg->num_bytes > SLIM_MSGQ_BUF_LEN ||
 			txn->rl > SLIM_MSGQ_BUF_LEN) {
-		SLIM_ERR(ctrl, "msg exceeds HW limit\n");
+		SLIM_ERR(ctrl, "%s: msg exceeds HW limit\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1003,20 +1005,21 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	 * gracefully
 	 */
 	if (!mutex_trylock(&ctrl->tx_lock)) {
-		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again! skipping check hw state\n");
+		SLIM_ERR(ctrl, "%s: ngd going down due SSR/PDR. skipping check hw state\n",
+			 __func__);
 		return -EAGAIN;
 	}
 	ret = check_hw_state(ctrl, txn);
 	if (ret) {
-		SLIM_WARN(ctrl, "ADSP slimbus not up MC:0x%x,mt:0x%x ret:%d\n",
-						txn->mc, txn->mt, ret);
+		SLIM_ERR(ctrl, "%s: ADSP slimbus not up MC:0x%x,mt:0x%x ret:%d\n",
+			 __func__, txn->mc, txn->mt, ret);
 		mutex_unlock(&ctrl->tx_lock);
 		return ret;
 	}
 
 	pbuf = qcom_slim_ngd_tx_msg_get(ctrl, txn->rl, &tx_sent);
 	if (!pbuf) {
-		SLIM_ERR(ctrl, "Message buffer unavailable\n");
+		SLIM_ERR(ctrl, "%s: Message buffer unavailable\n", __func__);
 		mutex_unlock(&ctrl->tx_lock);
 		return -ENOMEM;
 	}
@@ -1052,7 +1055,7 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		txn->comp = &done;
 		ret = slim_alloc_txn_tid(sctrl, txn);
 		if (ret) {
-			SLIM_ERR(ctrl, "Unable to allocate TID\n");
+			SLIM_ERR(ctrl, "%s: Unable to allocate TID\n", __func__);
 			return ret;
 		}
 
@@ -1094,7 +1097,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	}
 
 	if (!mutex_trylock(&ctrl->tx_lock)) {
-		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again! skipping tx msg post\n");
+		SLIM_ERR(ctrl, "%s: ngd going down due SSR/PDR, skipping tx msg post\n",
+			 __func__);
 		txn->comp = NULL;
 		return -EAGAIN;
 	}
@@ -1107,8 +1111,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 
 	timeout = wait_for_completion_timeout(&tx_sent, 2*HZ);
 	if (!timeout) {
-		SLIM_WARN(ctrl, "TX timed out:MC:0x%x,mt:0x%x", txn->mc,
-					txn->mt);
+		SLIM_ERR(ctrl, "%s: TX timed out:MC:0x%x,mt:0x%x", txn->mc,
+			 __func__, txn->mt);
 		mutex_unlock(&ctrl->tx_lock);
 		ctrl->capability_timeout = true;
 		txn->comp = NULL;
@@ -1118,8 +1122,8 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	if (usr_msg) {
 		timeout = wait_for_completion_timeout(&done, HZ);
 		if (!timeout) {
-			SLIM_WARN(ctrl, "TX usr_msg timed out:MC:0x%x,mt:0x%x",
-				txn->mc, txn->mt);
+			SLIM_ERR(ctrl, "%s: TX usr_msg timed out:MC:0x%x,mt:0x%x",
+				 __func__, txn->mc, txn->mt);
 			ctrl->capability_timeout = true;
 			txn->comp = NULL;
 			mutex_unlock(&ctrl->tx_lock);
@@ -1147,21 +1151,21 @@ static int qcom_slim_ngd_xfer_msg_sync(struct slim_controller *ctrl,
 	}
 
 	SLIM_INFO(dev, "SLIM %s: PM get_sync count:%d TID:%d\n",
-		__func__, atomic_read(&ctrl->dev->power.usage_count), txn->tid);
+		 __func__, atomic_read(&ctrl->dev->power.usage_count), txn->tid);
 
 	txn->comp = &done;
 
 	ret = qcom_slim_ngd_xfer_msg(ctrl, txn);
 	if (ret) {
-		SLIM_INFO(dev, "SLIM %s: xfer_msg failed PM put count:%d TID:%d\n",
-			  __func__, atomic_read(&ctrl->dev->power.usage_count), txn->tid);
+		SLIM_ERR(dev, "SLIM %s: xfer_msg failed PM put count:%d TID:%d\n",
+			 __func__, atomic_read(&ctrl->dev->power.usage_count), txn->tid);
 		goto err;
 	}
 
 	timeout = wait_for_completion_timeout(&done, HZ);
 	if (!timeout) {
-		SLIM_WARN(dev, "TX sync timed out:MC:0x%x,mt:0x%x", txn->mc,
-				txn->mt);
+		SLIM_ERR(dev, "%s: TX sync timed out:MC:0x%x,mt:0x%x", txn->mc,
+			 __func__, txn->mt);
 		ret = -ETIMEDOUT;
 		goto err;
 	}
@@ -1277,12 +1281,13 @@ static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
 
 			ret = slim_alloc_txn_tid(ctrl, &txn);
 			if (ret) {
-				SLIM_ERR(dev, "Fail to allocate TID\n");
+				SLIM_ERR(dev, "%s: Fail to allocate TID\n", __func__);
 				return -ENXIO;
 			}
 			wbuf[txn.msg->num_bytes++] = txn.tid;
 		}
 		wbuf[txn.msg->num_bytes++] = port->ch.id;
+		SLIM_INFO(dev, "%s Channel ID %d\n", __func__, port->ch.id);
 	}
 
 	txn.mc = SLIM_USR_MC_DEF_ACT_CHAN;
@@ -1290,8 +1295,8 @@ static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
 	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
 	if (ret) {
 		slim_free_txn_tid(ctrl, &txn);
-		SLIM_WARN(dev, "TX ACT_CHAN timed out:MC:0x%x,mt:0x%x", txn.mc,
-				txn.mt);
+		SLIM_ERR(dev, "%s: TX ACT_CHAN timed out:MC:0x%x,mt:0x%x", __func__, txn.mc,
+			 txn.mt);
 		return ret;
 	}
 
@@ -1302,7 +1307,7 @@ static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
 
 	ret = slim_alloc_txn_tid(ctrl, &txn);
 	if (ret) {
-		SLIM_ERR(dev, "Fail to allocate TID\n");
+		SLIM_ERR(dev, "%s: Fail to allocate TID\n", __func__);
 		return ret;
 	}
 
@@ -1310,8 +1315,8 @@ static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
 	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
 	if (ret) {
 		slim_free_txn_tid(ctrl, &txn);
-		SLIM_INFO(dev, "TX RECONFIG timed out:MC:0x%x,mt:0x%x", txn.mc,
-				txn.mt);
+		SLIM_ERR(dev, "%s: TX RECONFIG timed out:MC:0x%x,mt:0x%x", __func__, txn.mc,
+			 txn.mt);
 	}
 
 	SLIM_INFO(dev, "%s End ret : %d\n", __func__, ret);
@@ -1357,6 +1362,7 @@ static int qcom_slim_ngd_disable_stream(struct slim_stream_runtime *rt)
 			wbuf[txn.msg->num_bytes++] = txn.tid;
 		}
 		wbuf[txn.msg->num_bytes++] = port->ch.id;
+		SLIM_INFO(dev, "%s Channel ID %d\n", __func__, port->ch.id);
 	}
 
 	txn.mc = SLIM_USR_MC_CHAN_CTRL;
@@ -1364,8 +1370,8 @@ static int qcom_slim_ngd_disable_stream(struct slim_stream_runtime *rt)
 	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
 	if (ret) {
 		slim_free_txn_tid(ctrl, &txn);
-		SLIM_WARN(dev, "TX CHAN_CTRL timed out:MC:0x%x,mt:0x%x ret:%d\n",
-				txn.mc,	txn.mt, ret);
+		SLIM_ERR(dev, "%s: TX CHAN_CTRL timed out:MC:0x%x,mt:0x%x ret:%d\n",
+			 __func__, txn.mc, txn.mt, ret);
 		return ret;
 	}
 
@@ -1376,7 +1382,7 @@ static int qcom_slim_ngd_disable_stream(struct slim_stream_runtime *rt)
 
 	ret = slim_alloc_txn_tid(ctrl, &txn);
 	if (ret) {
-		SLIM_ERR(dev, "Fail to allocate TID ret:%d\n", ret);
+		SLIM_ERR(dev, "%s: Fail to allocate TID ret:%d\n", __func__, ret);
 		return ret;
 	}
 
@@ -1384,8 +1390,8 @@ static int qcom_slim_ngd_disable_stream(struct slim_stream_runtime *rt)
 	ret = qcom_slim_ngd_xfer_msg_sync(ctrl, &txn);
 	if (ret) {
 		slim_free_txn_tid(ctrl, &txn);
-		SLIM_WARN(dev, "TX RECONFIG timed out:MC:0x%x,mt:0x%x ret:%d\n",
-				txn.mc,	txn.mt, ret);
+		SLIM_ERR(dev, "%s: TX RECONFIG timed out:MC:0x%x,mt:0x%x ret:%d\n",
+			 __func__, txn.mc, txn.mt, ret);
 	}
 
 	SLIM_INFO(dev, "%s End ret %d\n", __func__, ret);
