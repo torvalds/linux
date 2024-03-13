@@ -543,12 +543,10 @@ struct iwl_mvm_tt_mgmt {
 /**
  * struct iwl_mvm_thermal_device - thermal zone related data
  * @trips: temperature thresholds for report
- * @fw_trips_index: keep indexes to original array - temp_trips
  * @tzone: thermal zone device data
 */
 struct iwl_mvm_thermal_device {
 	struct thermal_trip trips[IWL_MAX_DTS_TRIPS];
-	u8 fw_trips_index[IWL_MAX_DTS_TRIPS];
 	struct thermal_zone_device *tzone;
 };
 
