@@ -1284,8 +1284,6 @@ static int wbsd_scan(struct wbsd_host *host)
 			continue;
 
 		for (j = 0; j < ARRAY_SIZE(unlock_codes); j++) {
-			id = 0xFFFF;
-
 			host->config = config_ports[i];
 			host->unlock_code = unlock_codes[j];
 

@@ -353,9 +353,6 @@ static struct gendisk *mmc_alloc_disk(struct mmc_queue *mq,
 	if (mmc_can_erase(card))
 		mmc_queue_setup_discard(card, &lim);
 
-	if (!mmc_dev(host)->dma_mask || !*mmc_dev(host)->dma_mask)
-		lim.bounce = BLK_BOUNCE_HIGH;
-
 	lim.max_hw_sectors = min(host->max_blk_count, host->max_req_size / 512);
 
 	if (mmc_card_mmc(card) && card->ext_csd.data_sector_size)
