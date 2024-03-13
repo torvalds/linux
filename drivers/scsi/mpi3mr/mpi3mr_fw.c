@@ -1280,7 +1280,7 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 			    mrioc->shost->max_sectors * 512, mrioc->facts.max_data_length);
 
 	if ((mrioc->sas_transport_enabled) && (mrioc->facts.ioc_capabilities &
-	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED))
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED))
 		ioc_err(mrioc,
 		    "critical error: multipath capability is enabled at the\n"
 		    "\tcontroller while sas transport support is enabled at the\n"
@@ -3677,8 +3677,8 @@ static const struct {
 	u32 capability;
 	char *name;
 } mpi3mr_capabilities[] = {
-	{ MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE, "RAID" },
-	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED, "MultiPath" },
+	{ MPI3_IOCFACTS_CAPABILITY_RAID_SUPPORTED, "RAID" },
+	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED, "MultiPath" },
 };
 
 /**
@@ -3960,7 +3960,7 @@ retry_init:
 		    MPI3MR_HOST_IOS_KDUMP);
 
 	if (!(mrioc->facts.ioc_capabilities &
-	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED)) {
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED)) {
 		mrioc->sas_transport_enabled = 1;
 		mrioc->scsi_device_channel = 1;
 		mrioc->shost->max_channel = 1;
