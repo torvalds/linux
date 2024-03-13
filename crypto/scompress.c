@@ -271,6 +271,9 @@ static const struct crypto_type crypto_scomp_type = {
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_scomp_report,
 #endif
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_acomp_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SCOMPRESS,
@@ -279,10 +282,11 @@ static const struct crypto_type crypto_scomp_type = {
 
 int crypto_register_scomp(struct scomp_alg *alg)
 {
-	struct crypto_alg *base = &alg->base;
+	struct crypto_alg *base = &alg->calg.base;
+
+	comp_prepare_alg(&alg->calg);
 
 	base->cra_type = &crypto_scomp_type;
-	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SCOMPRESS;
 
 	return crypto_register_alg(base);

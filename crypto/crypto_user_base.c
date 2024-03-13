@@ -18,6 +18,7 @@
 #include <crypto/internal/rng.h>
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
+#include <crypto/internal/cryptouser.h>
 
 #include "internal.h"
 
@@ -32,7 +33,7 @@ struct crypto_dump_info {
 	u16 nlmsg_flags;
 };
 
-static struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
+struct crypto_alg *crypto_alg_match(struct crypto_user_alg *p, int exact)
 {
 	struct crypto_alg *q, *alg = NULL;
 
@@ -384,13 +385,6 @@ static int crypto_del_rng(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 	return crypto_del_default_rng();
-}
-
-static int crypto_reportstat(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
-			     struct nlattr **attrs)
-{
-	/* No longer supported */
-	return -ENOTSUPP;
 }
 
 #define MSGSIZE(type) sizeof(struct type)

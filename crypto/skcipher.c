@@ -89,6 +89,25 @@ static inline struct skcipher_alg *__crypto_skcipher_alg(
 	return container_of(alg, struct skcipher_alg, base);
 }
 
+static inline struct crypto_istat_cipher *skcipher_get_stat(
+	struct skcipher_alg *alg)
+{
+	return skcipher_get_stat_common(&alg->co);
+}
+
+static inline int crypto_skcipher_errstat(struct skcipher_alg *alg, int err)
+{
+	struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
+		return err;
+
+	if (err && err != -EINPROGRESS && err != -EBUSY)
+		atomic64_inc(&istat->err_cnt);
+
+	return err;
+}
+
 static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
 	u8 *addr;
@@ -635,12 +654,23 @@ int crypto_skcipher_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	int ret;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+		atomic64_inc(&istat->encrypt_cnt);
+		atomic64_add(req->cryptlen, &istat->encrypt_tlen);
+	}
 
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-	if (alg->co.base.cra_type != &crypto_skcipher_type)
-		return crypto_lskcipher_encrypt_sg(req);
-	return alg->encrypt(req);
+		ret = -ENOKEY;
+	else if (alg->co.base.cra_type != &crypto_skcipher_type)
+		ret = crypto_lskcipher_encrypt_sg(req);
+	else
+		ret = alg->encrypt(req);
+
+	return crypto_skcipher_errstat(alg, ret);
 }
 EXPORT_SYMBOL_GPL(crypto_skcipher_encrypt);
 
@@ -648,12 +678,23 @@ int crypto_skcipher_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	int ret;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+		atomic64_inc(&istat->decrypt_cnt);
+		atomic64_add(req->cryptlen, &istat->decrypt_tlen);
+	}
 
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-	if (alg->co.base.cra_type != &crypto_skcipher_type)
-		return crypto_lskcipher_decrypt_sg(req);
-	return alg->decrypt(req);
+		ret = -ENOKEY;
+	else if (alg->co.base.cra_type != &crypto_skcipher_type)
+		ret = crypto_lskcipher_decrypt_sg(req);
+	else
+		ret = alg->decrypt(req);
+
+	return crypto_skcipher_errstat(alg, ret);
 }
 EXPORT_SYMBOL_GPL(crypto_skcipher_decrypt);
 
@@ -805,6 +846,28 @@ static int __maybe_unused crypto_skcipher_report(
 		       sizeof(rblkcipher), &rblkcipher);
 }
 
+static int __maybe_unused crypto_skcipher_report_stat(
+	struct sk_buff *skb, struct crypto_alg *alg)
+{
+	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
+	struct crypto_istat_cipher *istat;
+	struct crypto_stat_cipher rcipher;
+
+	istat = skcipher_get_stat(skcipher);
+
+	memset(&rcipher, 0, sizeof(rcipher));
+
+	strscpy(rcipher.type, "cipher", sizeof(rcipher.type));
+
+	rcipher.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
+	rcipher.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
+	rcipher.stat_decrypt_cnt =  atomic64_read(&istat->decrypt_cnt);
+	rcipher.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
+	rcipher.stat_err_cnt =  atomic64_read(&istat->err_cnt);
+
+	return nla_put(skb, CRYPTOCFGA_STAT_CIPHER, sizeof(rcipher), &rcipher);
+}
+
 static const struct crypto_type crypto_skcipher_type = {
 	.extsize = crypto_skcipher_extsize,
 	.init_tfm = crypto_skcipher_init_tfm,
@@ -814,6 +877,9 @@ static const struct crypto_type crypto_skcipher_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_skcipher_report,
+#endif
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_skcipher_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_SKCIPHER_MASK,
@@ -869,6 +935,7 @@ EXPORT_SYMBOL_GPL(crypto_has_skcipher);
 
 int skcipher_prepare_alg_common(struct skcipher_alg_common *alg)
 {
+	struct crypto_istat_cipher *istat = skcipher_get_stat_common(alg);
 	struct crypto_alg *base = &alg->base;
 
 	if (alg->ivsize > PAGE_SIZE / 8 || alg->chunksize > PAGE_SIZE / 8 ||
@@ -880,6 +947,9 @@ int skcipher_prepare_alg_common(struct skcipher_alg_common *alg)
 		alg->chunksize = base->cra_blocksize;
 
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		memset(istat, 0, sizeof(*istat));
 
 	return 0;
 }

@@ -65,6 +65,28 @@ struct crypto_lskcipher {
 };
 
 /*
+ * struct crypto_istat_cipher - statistics for cipher algorithm
+ * @encrypt_cnt:	number of encrypt requests
+ * @encrypt_tlen:	total data size handled by encrypt requests
+ * @decrypt_cnt:	number of decrypt requests
+ * @decrypt_tlen:	total data size handled by decrypt requests
+ * @err_cnt:		number of error for cipher requests
+ */
+struct crypto_istat_cipher {
+	atomic64_t encrypt_cnt;
+	atomic64_t encrypt_tlen;
+	atomic64_t decrypt_cnt;
+	atomic64_t decrypt_tlen;
+	atomic64_t err_cnt;
+};
+
+#ifdef CONFIG_CRYPTO_STATS
+#define SKCIPHER_ALG_COMMON_STAT struct crypto_istat_cipher stat;
+#else
+#define SKCIPHER_ALG_COMMON_STAT
+#endif
+
+/*
  * struct skcipher_alg_common - common properties of skcipher_alg
  * @min_keysize: Minimum key size supported by the transformation. This is the
  *		 smallest key length supported by this transformation algorithm.
@@ -81,6 +103,7 @@ struct crypto_lskcipher {
  * @chunksize: Equal to the block size except for stream ciphers such as
  *	       CTR where it is set to the underlying block size.
  * @statesize: Size of the internal state for the algorithm.
+ * @stat: Statistics for cipher algorithm
  * @base: Definition of a generic crypto algorithm.
  */
 #define SKCIPHER_ALG_COMMON {		\
@@ -89,6 +112,8 @@ struct crypto_lskcipher {
 	unsigned int ivsize;		\
 	unsigned int chunksize;		\
 	unsigned int statesize;		\
+					\
+	SKCIPHER_ALG_COMMON_STAT	\
 					\
 	struct crypto_alg base;		\
 }
