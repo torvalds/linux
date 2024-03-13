@@ -2,18 +2,18 @@ GPIO Sysfs Interface for Userspace
 ==================================
 
 .. warning::
+   This API is obsoleted by the chardev.rst and the ABI documentation has
+   been moved to Documentation/ABI/obsolete/sysfs-gpio.
 
-  THIS ABI IS DEPRECATED, THE ABI DOCUMENTATION HAS BEEN MOVED TO
-  Documentation/ABI/obsolete/sysfs-gpio AND NEW USERSPACE CONSUMERS
-  ARE SUPPOSED TO USE THE CHARACTER DEVICE ABI. THIS OLD SYSFS ABI WILL
-  NOT BE DEVELOPED (NO NEW FEATURES), IT WILL JUST BE MAINTAINED.
+   New developments should use the chardev.rst, and existing developments are
+   encouraged to migrate as soon as possible, as this API will be removed
+   in the future.
 
-Refer to the examples in tools/gpio/* for an introduction to the new
-character device ABI. Also see the userspace header in
-include/uapi/linux/gpio.h
+   This interface will continue to be maintained for the migration period,
+   but new features will only be added to the new API.
 
-The deprecated sysfs ABI
-------------------------
+The obsolete sysfs ABI
+----------------------
 Platforms which use the "gpiolib" implementors framework may choose to
 configure a sysfs user interface to GPIOs. This is different from the
 debugfs interface, since it provides control over GPIO direction and
@@ -33,9 +33,12 @@ userspace GPIO can be used to determine system configuration data that
 standard kernels won't know about. And for some tasks, simple userspace
 GPIO drivers could be all that the system really needs.
 
-DO NOT ABUSE SYSFS TO CONTROL HARDWARE THAT HAS PROPER KERNEL DRIVERS.
-PLEASE READ THE DOCUMENT AT Documentation/driver-api/gpio/drivers-on-gpio.rst
-TO AVOID REINVENTING KERNEL WHEELS IN USERSPACE. I MEAN IT. REALLY.
+.. note::
+   Do NOT abuse sysfs to control hardware that has proper kernel drivers.
+   Please read Documentation/driver-api/gpio/drivers-on-gpio.rst
+   to avoid reinventing kernel wheels in userspace.
+
+   I MEAN IT. REALLY.
 
 Paths in Sysfs
 --------------
@@ -84,9 +87,9 @@ and have the following read/write attributes:
 		allow userspace to reconfigure this GPIO's direction.
 
 	"value" ...
-		reads as either 0 (low) or 1 (high). If the GPIO
+		reads as either 0 (inactive) or 1 (active). If the GPIO
 		is configured as an output, this value may be written;
-		any nonzero value is treated as high.
+		any nonzero value is treated as active.
 
 		If the pin can be configured as interrupt-generating interrupt
 		and if it has been configured to generate interrupts (see the
