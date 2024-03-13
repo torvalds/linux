@@ -3716,5 +3716,5 @@ static void __exit gcc_sm6225_exit(void)
 }
 module_exit(gcc_sm6225_exit);
 
-MODULE_DESCRIPTION("QTI GCC KHAJE Driver");
+MODULE_DESCRIPTION("QTI GCC SM6225 Driver");
 MODULE_LICENSE("GPL v2");
