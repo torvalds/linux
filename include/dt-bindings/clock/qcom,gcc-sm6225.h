@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Statzar <azurestatzar@gmail.com>
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_GCC_KHAJE_H
