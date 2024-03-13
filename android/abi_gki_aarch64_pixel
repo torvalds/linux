@@ -1753,6 +1753,7 @@
   radix_tree_lookup
   radix_tree_next_chunk
   radix_tree_preload
+  raise_softirq
   ___ratelimit
   raw_notifier_call_chain
   raw_notifier_chain_register
