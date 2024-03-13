@@ -61,9 +61,11 @@ examples:
 
       fan-0 {
         tach-ch = /bits/ 8 <0x0>;
+        pwms = <&pwm_tach 0 40000 0>;
       };
 
       fan-1 {
         tach-ch = /bits/ 8 <0x1 0x2>;
+        pwms = <&pwm_tach 1 40000 0>;
       };
     };

@@ -43,6 +43,7 @@ properties:
     description:
       Select the driving mode of the fan.(DC, PWM and so on)
     $ref: /schemas/types.yaml#/definitions/string
+    enum: [ dc, pwm ]
 
   pwms:
     description:
