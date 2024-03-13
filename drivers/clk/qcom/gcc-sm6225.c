@@ -10,7 +10,7 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 
-#include <dt-bindings/clock/qcom,gcc-khaje.h>
+#include <dt-bindings/clock/qcom,gcc-sm6225.h>
 
 #include "clk-alpha-pll.h"
 #include "clk-branch.h"
@@ -3427,7 +3427,7 @@ static struct clk_branch gcc_video_xo_clk = {
 	},
 };
 
-static struct clk_regmap *gcc_khaje_clocks[] = {
+static struct clk_regmap *gcc_sm6225_clocks[] = {
 	[GCC_AHB2PHY_CSI_CLK] = &gcc_ahb2phy_csi_clk.clkr,
 	[GCC_AHB2PHY_USB_CLK] = &gcc_ahb2phy_usb_clk.clkr,
 	[GCC_BIMC_GPU_AXI_CLK] = &gcc_bimc_gpu_axi_clk.clkr,
@@ -3591,7 +3591,7 @@ static struct clk_regmap *gcc_khaje_clocks[] = {
 	[GPLL9_OUT_MAIN] = &gpll9_out_main.clkr,
 };
 
-static const struct qcom_reset_map gcc_khaje_resets[] = {
+static const struct qcom_reset_map gcc_sm6225_resets[] = {
 	[GCC_QUSB2PHY_PRIM_BCR] = { 0x1c000 },
 	[GCC_QUSB2PHY_SEC_BCR] = { 0x1c004 },
 	[GCC_SDCC1_BCR] = { 0x38000 },
@@ -3617,7 +3617,7 @@ static const struct clk_rcg_dfs_data gcc_dfs_clocks[] = {
 	DEFINE_RCG_DFS(gcc_qupv3_wrap0_s5_clk_src),
 };
 
-static const struct regmap_config gcc_khaje_regmap_config = {
+static const struct regmap_config gcc_sm6225_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -3625,26 +3625,26 @@ static const struct regmap_config gcc_khaje_regmap_config = {
 	.fast_io = true,
 };
 
-static const struct qcom_cc_desc gcc_khaje_desc = {
-	.config = &gcc_khaje_regmap_config,
-	.clks = gcc_khaje_clocks,
-	.num_clks = ARRAY_SIZE(gcc_khaje_clocks),
-	.resets = gcc_khaje_resets,
-	.num_resets = ARRAY_SIZE(gcc_khaje_resets),
+static const struct qcom_cc_desc gcc_sm6225_desc = {
+	.config = &gcc_sm6225_regmap_config,
+	.clks = gcc_sm6225_clocks,
+	.num_clks = ARRAY_SIZE(gcc_sm6225_clocks),
+	.resets = gcc_sm6225_resets,
+	.num_resets = ARRAY_SIZE(gcc_sm6225_resets),
 };
 
-static const struct of_device_id gcc_khaje_match_table[] = {
-	{ .compatible = "qcom,khaje-gcc" },
+static const struct of_device_id gcc_sm6225_match_table[] = {
+	{ .compatible = "qcom,sm6225-gcc" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, gcc_khaje_match_table);
+MODULE_DEVICE_TABLE(of, gcc_sm6225_match_table);
 
-static int gcc_khaje_probe(struct platform_device *pdev)
+static int gcc_sm6225_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
 	int ret;
 
-	regmap = qcom_cc_map(pdev, &gcc_khaje_desc);
+	regmap = qcom_cc_map(pdev, &gcc_sm6225_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -3685,7 +3685,7 @@ static int gcc_khaje_probe(struct platform_device *pdev)
 	clk_zonda_pll_configure(&gpll9, regmap, &gpll9_config);
 
 
-	ret = qcom_cc_really_probe(pdev, &gcc_khaje_desc, regmap);
+	ret = qcom_cc_really_probe(pdev, &gcc_sm6225_desc, regmap);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register GCC clocks\n");
 		return ret;
@@ -3696,25 +3696,25 @@ static int gcc_khaje_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static struct platform_driver gcc_khaje_driver = {
-	.probe = gcc_khaje_probe,
+static struct platform_driver gcc_sm6225_driver = {
+	.probe = gcc_sm6225_probe,
 	.driver = {
-		.name = "gcc-khaje",
-		.of_match_table = gcc_khaje_match_table,
+		.name = "gcc-sm6225",
+		.of_match_table = gcc_sm6225_match_table,
 	},
 };
 
-static int __init gcc_khaje_init(void)
+static int __init gcc_sm6225_init(void)
 {
-	return platform_driver_register(&gcc_khaje_driver);
+	return platform_driver_register(&gcc_sm6225_driver);
 }
-subsys_initcall(gcc_khaje_init);
+subsys_initcall(gcc_sm6225_init);
 
-static void __exit gcc_khaje_exit(void)
+static void __exit gcc_sm6225_exit(void)
 {
-	platform_driver_unregister(&gcc_khaje_driver);
+	platform_driver_unregister(&gcc_sm6225_driver);
 }
-module_exit(gcc_khaje_exit);
+module_exit(gcc_sm6225_exit);
 
 MODULE_DESCRIPTION("QTI GCC KHAJE Driver");
 MODULE_LICENSE("GPL v2");
