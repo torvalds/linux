@@ -273,3 +273,7 @@ void xe_guc_id_mgr_print(struct xe_guc_id_mgr *idm, struct drm_printer *p, int i
 	idm_print_locked(idm, p, indent);
 	mutex_unlock(idm_mutex(idm));
 }
+
+#if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)
+#include "tests/xe_guc_id_mgr_test.c"
+#endif
