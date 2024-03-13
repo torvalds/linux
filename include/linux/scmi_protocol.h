@@ -140,6 +140,8 @@ struct scmi_perf_domain_info {
  * @level_set: sets the performance level of a domain
  * @level_get: gets the performance level of a domain
  * @transition_latency_get: gets the DVFS transition latency for a given device
+ * @rate_limit_get: gets the minimum time (us) required between successive
+ *	requests
  * @device_opps_add: adds all the OPPs for a given device
  * @freq_set: sets the frequency for a given device using sustained frequency
  *	to sustained performance level mapping
@@ -149,6 +151,8 @@ struct scmi_perf_domain_info {
  *	at a given frequency
  * @fast_switch_possible: indicates if fast DVFS switching is possible or not
  *	for a given device
+ * @fast_switch_rate_limit: gets the minimum time (us) required between
+ *	successive fast_switching requests
  * @power_scale_mw_get: indicates if the power values provided are in milliWatts
  *	or in some other (abstract) scale
  */
@@ -166,6 +170,8 @@ struct scmi_perf_proto_ops {
 			 u32 *level, bool poll);
 	int (*transition_latency_get)(const struct scmi_protocol_handle *ph,
 				      u32 domain);
+	int (*rate_limit_get)(const struct scmi_protocol_handle *ph,
+			      u32 domain, u32 *rate_limit);
 	int (*device_opps_add)(const struct scmi_protocol_handle *ph,
 			       struct device *dev, u32 domain);
 	int (*freq_set)(const struct scmi_protocol_handle *ph, u32 domain,
@@ -176,6 +182,8 @@ struct scmi_perf_proto_ops {
 			     unsigned long *rate, unsigned long *power);
 	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
 				     u32 domain);
+	int (*fast_switch_rate_limit)(const struct scmi_protocol_handle *ph,
+				      u32 domain, u32 *rate_limit);
 	enum scmi_power_scale (*power_scale_get)(const struct scmi_protocol_handle *ph);
 };
 

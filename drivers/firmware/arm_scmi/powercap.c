@@ -719,20 +719,24 @@ static void scmi_powercap_domain_init_fc(const struct scmi_protocol_handle *ph,
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_CAP_SET, 4, domain,
 				   &fc[POWERCAP_FC_CAP].set_addr,
-				   &fc[POWERCAP_FC_CAP].set_db);
+				   &fc[POWERCAP_FC_CAP].set_db,
+				   &fc[POWERCAP_FC_CAP].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_CAP_GET, 4, domain,
-				   &fc[POWERCAP_FC_CAP].get_addr, NULL);
+				   &fc[POWERCAP_FC_CAP].get_addr, NULL,
+				   &fc[POWERCAP_FC_CAP].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_PAI_SET, 4, domain,
 				   &fc[POWERCAP_FC_PAI].set_addr,
-				   &fc[POWERCAP_FC_PAI].set_db);
+				   &fc[POWERCAP_FC_PAI].set_db,
+				   &fc[POWERCAP_FC_PAI].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_PAI_GET, 4, domain,
-				   &fc[POWERCAP_FC_PAI].get_addr, NULL);
+				   &fc[POWERCAP_FC_PAI].get_addr, NULL,
+				   &fc[POWERCAP_PAI_GET].rate_limit);
 
 	*p_fc = fc;
 }

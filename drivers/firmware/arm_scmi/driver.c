@@ -1624,7 +1624,7 @@ static void
 scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 			     u8 describe_id, u32 message_id, u32 valid_size,
 			     u32 domain, void __iomem **p_addr,
-			     struct scmi_fc_db_info **p_db)
+			     struct scmi_fc_db_info **p_db, u32 *rate_limit)
 {
 	int ret;
 	u32 flags;
@@ -1667,6 +1667,9 @@ scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 		ret = -EINVAL;
 		goto err_xfer;
 	}
+
+	if (rate_limit)
+		*rate_limit = le32_to_cpu(resp->rate_limit) & GENMASK(19, 0);
 
 	phys_addr = le32_to_cpu(resp->chan_addr_low);
 	phys_addr |= (u64)le32_to_cpu(resp->chan_addr_high) << 32;

@@ -235,6 +235,7 @@ struct scmi_fc_info {
 	void __iomem *set_addr;
 	void __iomem *get_addr;
 	struct scmi_fc_db_info *set_db;
+	u32 rate_limit;
 };
 
 /**
@@ -273,7 +274,8 @@ struct scmi_proto_helpers_ops {
 				 u8 describe_id, u32 message_id,
 				 u32 valid_size, u32 domain,
 				 void __iomem **p_addr,
-				 struct scmi_fc_db_info **p_db);
+				 struct scmi_fc_db_info **p_db,
+				 u32 *rate_limit);
 	void (*fastchannel_db_ring)(struct scmi_fc_db_info *db);
 };
 
