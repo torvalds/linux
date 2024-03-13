@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011, 2014-2016, 2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cpuidle.h>
@@ -51,7 +51,7 @@ static void gic_suspend_ds(void *data, struct gic_chip_data_v3 *gic_data)
 
 	gic_data_glb = gic_data;
 
-	if (unlikely(!hibernation))
+	if (unlikely(!hibernation) && (pm_suspend_target_state != PM_SUSPEND_MEM))
 		return;
 	gic_data_ds.enabled_sgis = readl_relaxed(rdist_base + GICD_ISENABLER);
 	gic_data_ds.pending_sgis = readl_relaxed(rdist_base + GICD_ISPENDR);
@@ -99,7 +99,7 @@ static void msm_show_resume_irqs(void)
 	u32 gic_line_nr;
 	u32 typer;
 
-	if (unlikely(hibernation))
+	if (unlikely(hibernation) || (pm_suspend_target_state == PM_SUSPEND_MEM))
 		gic_resume_ds(gic_data_glb);
 
 	if (!msm_show_resume_irq_mask)
