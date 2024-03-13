@@ -1217,7 +1217,8 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 
 	if (flags & (XE_BO_CREATE_VRAM_MASK | XE_BO_CREATE_STOLEN_BIT) &&
 	    !(flags & XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT) &&
-	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) {
+	    ((xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K) ||
+	     (flags & XE_BO_NEEDS_64K))) {
 		aligned_size = ALIGN(size, SZ_64K);
 		if (type != ttm_bo_type_device)
 			size = ALIGN(size, SZ_64K);
