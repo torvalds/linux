@@ -2650,33 +2650,57 @@ static void io_pages_free(struct page ***pages, int npages)
 	*pages = NULL;
 }
 
+struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
+{
+	unsigned long start, end, nr_pages;
+	struct page **pages;
+	int ret;
+
+	end = (uaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	start = uaddr >> PAGE_SHIFT;
+	nr_pages = end - start;
+	if (WARN_ON_ONCE(!nr_pages))
+		return ERR_PTR(-EINVAL);
+
+	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return ERR_PTR(-ENOMEM);
+
+	ret = pin_user_pages_fast(uaddr, nr_pages, FOLL_WRITE | FOLL_LONGTERM,
+					pages);
+	/* success, mapped all pages */
+	if (ret == nr_pages) {
+		*npages = nr_pages;
+		return pages;
+	}
+
+	/* partial map, or didn't map anything */
+	if (ret >= 0) {
+		/* if we did partial map, release any pages we did get */
+		if (ret)
+			unpin_user_pages(pages, ret);
+		ret = -EFAULT;
+	}
+	kvfree(pages);
+	return ERR_PTR(ret);
+}
+
 static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 			    unsigned long uaddr, size_t size)
 {
 	struct page **page_array;
 	unsigned int nr_pages;
 	void *page_addr;
-	int ret, pinned;
 
 	*npages = 0;
 
 	if (uaddr & (PAGE_SIZE - 1) || !size)
 		return ERR_PTR(-EINVAL);
 
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (nr_pages > USHRT_MAX)
-		return ERR_PTR(-EINVAL);
-	page_array = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
-	if (!page_array)
-		return ERR_PTR(-ENOMEM);
-
-
-	pinned = pin_user_pages_fast(uaddr, nr_pages, FOLL_WRITE | FOLL_LONGTERM,
-				     page_array);
-	if (pinned != nr_pages) {
-		ret = (pinned < 0) ? pinned : -EFAULT;
-		goto free_pages;
-	}
+	nr_pages = 0;
+	page_array = io_pin_pages(uaddr, size, &nr_pages);
+	if (IS_ERR(page_array))
+		return page_array;
 
 	page_addr = vmap(page_array, nr_pages, VM_MAP, PAGE_KERNEL);
 	if (page_addr) {
@@ -2684,10 +2708,9 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 		*npages = nr_pages;
 		return page_addr;
 	}
-	ret = -ENOMEM;
-free_pages:
-	io_pages_free(&page_array, pinned > 0 ? pinned : 0);
-	return ERR_PTR(ret);
+
+	io_pages_free(&page_array, nr_pages);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void *io_rings_map(struct io_ring_ctx *ctx, unsigned long uaddr,
