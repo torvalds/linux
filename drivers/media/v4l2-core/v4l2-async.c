@@ -783,7 +783,7 @@ v4l2_async_connection_unique(struct v4l2_subdev *sd)
 }
 EXPORT_SYMBOL_GPL(v4l2_async_connection_unique);
 
-int v4l2_async_register_subdev(struct v4l2_subdev *sd)
+int __v4l2_async_register_subdev(struct v4l2_subdev *sd, struct module *module)
 {
 	struct v4l2_async_notifier *subdev_notifier;
 	struct v4l2_async_notifier *notifier;
@@ -806,6 +806,8 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 		dev_warn(sd->dev, "sub-device fwnode is an endpoint!\n");
 		return -EINVAL;
 	}
+
+	sd->owner = module;
 
 	mutex_lock(&list_lock);
 
@@ -849,9 +851,11 @@ err_unbind:
 
 	mutex_unlock(&list_lock);
 
+	sd->owner = NULL;
+
 	return ret;
 }
-EXPORT_SYMBOL(v4l2_async_register_subdev);
+EXPORT_SYMBOL(__v4l2_async_register_subdev);
 
 void v4l2_async_unregister_subdev(struct v4l2_subdev *sd)
 {
