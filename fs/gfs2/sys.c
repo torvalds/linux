@@ -88,7 +88,7 @@ static ssize_t status_show(struct gfs2_sbd *sdp, char *buf)
 		     "Withdraw In Prog:         %d\n"
 		     "Remote Withdraw:          %d\n"
 		     "Withdraw Recovery:        %d\n"
-		     "Deactivating:             %d\n"
+		     "Killing:                  %d\n"
 		     "sd_log_error:             %d\n"
 		     "sd_log_flush_lock:        %d\n"
 		     "sd_log_num_revoke:        %u\n"
