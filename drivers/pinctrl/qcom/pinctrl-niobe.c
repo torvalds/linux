@@ -827,7 +827,7 @@ enum niobe_functions {
 	msm_mux_qup3_se3_l2,
 	msm_mux_qup3_se3_l3,
 	msm_mux_sd_write_protect,
-	msm_mux_sdc2None,
+	msm_mux_sdc2_data,
 	msm_mux_sdc2_clk,
 	msm_mux_sdc2_cmd,
 	msm_mux_sdc2_fb_clk,
@@ -1766,7 +1766,7 @@ static const char *const qup3_se3_l3_groups[] = {
 static const char *const sd_write_protect_groups[] = {
 	"gpio130",
 };
-static const char *const sdc2None_groups[] = {
+static const char *const sdc2_data_groups[] = {
 	"gpio141", "gpio142", "gpio143", "gpio144",
 };
 static const char *const sdc2_clk_groups[] = {
@@ -2119,7 +2119,7 @@ static const struct msm_function niobe_functions[] = {
 	FUNCTION(qup3_se3_l2),
 	FUNCTION(qup3_se3_l3),
 	FUNCTION(sd_write_protect),
-	FUNCTION(sdc2None),
+	FUNCTION(sdc2_data),
 	FUNCTION(sdc2_clk),
 	FUNCTION(sdc2_cmd),
 	FUNCTION(sdc2_fb_clk),
@@ -2430,13 +2430,13 @@ static const struct msm_pingroup niobe_groups[] = {
 			 NA, NA, NA, NA, 0, -1),
 	[140] = PINGROUP(140, NA, phase_flag30, NA, NA, NA, NA, NA, NA, NA, NA,
 			 NA, 0, -1),
-	[141] = PINGROUP(141, sdc2None, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
+	[141] = PINGROUP(141, sdc2_data, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0, -1),
-	[142] = PINGROUP(142, sdc2None, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
+	[142] = PINGROUP(142, sdc2_data, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0, -1),
-	[143] = PINGROUP(143, sdc2None, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
+	[143] = PINGROUP(143, sdc2_data, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0, -1),
-	[144] = PINGROUP(144, sdc2None, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
+	[144] = PINGROUP(144, sdc2_data, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0, -1),
 	[145] = PINGROUP(145, sdc2_cmd, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 0, -1),
