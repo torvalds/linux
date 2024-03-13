@@ -259,4 +259,28 @@ l0_%=:	r2 += r1;					\
 "	::: __clobber_all);
 }
 
+SEC("xdp")
+__success
+__naked void not_an_inifinite_loop(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0xff;					\
+	*(u64 *)(r10 - 8) = r0;				\
+	r0 = 0;						\
+loop_%=:						\
+	r0 = *(u64 *)(r10 - 8);				\
+	if r0 > 10 goto exit_%=;			\
+	r0 += 1;					\
+	*(u64 *)(r10 - 8) = r0;				\
+	r0 = 0;						\
+	goto loop_%=;					\
+exit_%=:						\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

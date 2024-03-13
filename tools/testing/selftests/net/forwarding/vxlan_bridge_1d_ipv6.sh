@@ -616,7 +616,7 @@ vxlan_ping_test()
 	local delta=$((t1 - t0))
 
 	# Tolerate a couple stray extra packets.
-	((expect <= delta && delta <= expect + 2))
+	((expect <= delta && delta <= expect + 5))
 	check_err $? "$capture_dev: Expected to capture $expect packets, got $delta."
 }
 
@@ -653,7 +653,7 @@ __test_ecn_encap()
 	RET=0
 
 	tc filter add dev v1 egress pref 77 protocol ipv6 \
-		flower ip_tos $tos action pass
+		flower ip_tos $tos ip_proto udp dst_port $VXPORT action pass
 	sleep 1
 	vxlan_ping_test $h1 2001:db8:1::3 "-Q $q" v1 egress 77 10
 	tc filter del dev v1 egress pref 77 protocol ipv6

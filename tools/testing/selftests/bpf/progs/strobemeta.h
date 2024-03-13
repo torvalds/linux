@@ -10,6 +10,8 @@
 #include <linux/types.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_compiler.h"
+
 typedef uint32_t pid_t;
 struct task_struct {};
 
@@ -419,9 +421,9 @@ static __always_inline uint64_t read_map_var(struct strobemeta_cfg *cfg,
 	}
 
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < STROBE_MAX_MAP_ENTRIES; ++i) {
 		if (i >= map.cnt)
@@ -560,25 +562,25 @@ static void *read_strobe_meta(struct task_struct *task,
 		payload_off = sizeof(data->payload);
 #else
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
+	__pragma_loop_unroll
 #endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_INTS; ++i) {
 		read_int_var(cfg, i, tls_base, &value, data);
 	}
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
+	__pragma_loop_unroll
 #endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_STRS; ++i) {
 		payload_off = read_str_var(cfg, i, tls_base, &value, data, payload_off);
 	}
 #ifdef NO_UNROLL
-#pragma clang loop unroll(disable)
+	__pragma_loop_no_unroll
 #else
-#pragma unroll
+	__pragma_loop_unroll
 #endif /* NO_UNROLL */
 	for (int i = 0; i < STROBE_MAX_MAPS; ++i) {
 		payload_off = read_map_var(cfg, i, tls_base, &value, data, payload_off);

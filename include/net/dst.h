@@ -390,7 +390,6 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      struct net_device *dev, int initial_obsolete,
 	      unsigned short flags);
-struct dst_entry *dst_destroy(struct dst_entry *dst);
 void dst_dev_put(struct dst_entry *dst);
 
 static inline void dst_confirm(struct dst_entry *dst)

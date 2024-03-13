@@ -490,7 +490,7 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
 	}
 
 	vaddr = (unsigned long)(PCI_IOBASE + range->io_start);
-	ioremap_page_range(vaddr, vaddr + size, hw_start, pgprot_device(PAGE_KERNEL));
+	vmap_page_range(vaddr, vaddr + size, hw_start, pgprot_device(PAGE_KERNEL));
 
 	return 0;
 }

@@ -193,6 +193,8 @@ run_tests: all
 	@for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET run_tests \
+				SRC_PATH=$(shell readlink -e $$(pwd)) \
+				OBJ_PATH=$(BUILD)                   \
 				O=$(abs_objtree);		    \
 	done;
 
@@ -244,7 +246,10 @@ ifdef INSTALL_PATH
 	@ret=1;	\
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
-		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET INSTALL_PATH=$(INSTALL_PATH)/$$TARGET install \
+		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$TARGET install \
+				INSTALL_PATH=$(INSTALL_PATH)/$$TARGET \
+				SRC_PATH=$(shell readlink -e $$(pwd)) \
+				OBJ_PATH=$(INSTALL_PATH) \
 				O=$(abs_objtree)		\
 				$(if $(FORCE_TARGETS),|| exit);	\
 		ret=$$((ret * $$?));		\

@@ -70,11 +70,29 @@ define RUN_TESTS
 	run_many $(1)
 endef
 
+define INSTALL_INCLUDES
+	$(if $(TEST_INCLUDES), \
+		relative_files=""; \
+		for entry in $(TEST_INCLUDES); do \
+			entry_dir=$$(readlink -e "$$(dirname "$$entry")"); \
+			entry_name=$$(basename "$$entry"); \
+			relative_dir=$${entry_dir#"$$SRC_PATH"/}; \
+			if [ "$$relative_dir" = "$$entry_dir" ]; then \
+				echo "Error: TEST_INCLUDES entry \"$$entry\" not located inside selftests directory ($$SRC_PATH)" >&2; \
+				exit 1; \
+			fi; \
+			relative_files="$$relative_files $$relative_dir/$$entry_name"; \
+		done; \
+		cd $(SRC_PATH) && rsync -aR $$relative_files $(OBJ_PATH)/ \
+	)
+endef
+
 run_tests: all
 ifdef building_out_of_srctree
 	@if [ "X$(TEST_PROGS)$(TEST_PROGS_EXTENDED)$(TEST_FILES)$(TEST_GEN_MODS_DIR)" != "X" ]; then \
 		rsync -aq --copy-unsafe-links $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES) $(TEST_GEN_MODS_DIR) $(OUTPUT); \
 	fi
+	@$(INSTALL_INCLUDES)
 	@if [ "X$(TEST_PROGS)" != "X" ]; then \
 		$(call RUN_TESTS, $(TEST_GEN_PROGS) $(TEST_CUSTOM_PROGS) \
 				  $(addprefix $(OUTPUT)/,$(TEST_PROGS))) ; \
@@ -116,6 +134,7 @@ endef
 install: all
 ifdef INSTALL_PATH
 	$(INSTALL_RULE)
+	$(INSTALL_INCLUDES)
 else
 	$(error Error: set INSTALL_PATH to use install)
 endif

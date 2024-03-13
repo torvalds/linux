@@ -12,6 +12,9 @@ struct iwl_mvm_pasn_sta {
 	struct list_head list;
 	struct iwl_mvm_int_sta int_sta;
 	u8 addr[ETH_ALEN];
+
+	/* must be last as it followed by buffer holding the key */
+	struct ieee80211_key_conf keyconf;
 };
 
 struct iwl_mvm_pasn_hltk_data {
@@ -303,6 +306,10 @@ static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
 {
 	list_del(&sta->list);
 
+	if (sta->keyconf.keylen)
+		iwl_mvm_sec_key_del_pasn(mvm, vif, BIT(sta->int_sta.sta_id),
+					 &sta->keyconf);
+
 	if (iwl_mvm_has_mld_api(mvm->fw))
 		iwl_mvm_mld_rm_sta_id(mvm, sta->int_sta.sta_id);
 	else
@@ -342,6 +349,12 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 	}
 
 	if (hltk && hltk_len) {
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT)) {
+			IWL_ERR(mvm, "No support for secure LTF measurement\n");
+			return -EINVAL;
+		}
+
 		hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
 		if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
 			IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
@@ -352,12 +365,12 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 	}
 
 	if (tk && tk_len) {
-		sta = kzalloc(sizeof(*sta), GFP_KERNEL);
+		sta = kzalloc(sizeof(*sta) + tk_len, GFP_KERNEL);
 		if (!sta)
 			return -ENOBUFS;
 
 		ret = iwl_mvm_add_pasn_sta(mvm, vif, &sta->int_sta, addr,
-					   cipher, tk, tk_len);
+					   cipher, tk, tk_len, &sta->keyconf);
 		if (ret) {
 			kfree(sta);
 			return ret;
@@ -425,7 +438,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	rcu_read_unlock();
 
 	phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx.def,
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx.def, &ctx.ap,
 				       ctx.rx_chains_static,
 				       ctx.rx_chains_dynamic);
 	if (ret)

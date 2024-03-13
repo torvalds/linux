@@ -60,6 +60,7 @@
 #include "lib/clock.h"
 #include "en/rx_res.h"
 #include "en/selq.h"
+#include "lib/sd.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -791,6 +792,8 @@ struct mlx5e_channel {
 	struct hwtstamp_config    *tstamp;
 	DECLARE_BITMAP(state, MLX5E_CHANNEL_NUM_STATES);
 	int                        ix;
+	int                        vec_ix;
+	int                        sd_ix;
 	int                        cpu;
 	/* Sync between icosq recovery and XSK enable/disable. */
 	struct mutex               icosq_recovery_lock;
@@ -914,7 +917,7 @@ struct mlx5e_priv {
 	bool                       tx_ptp_opened;
 	bool                       rx_ptp_opened;
 	struct hwtstamp_config     tstamp;
-	u16                        q_counter;
+	u16                        q_counter[MLX5_SD_MAX_GROUP_SZ];
 	u16                        drop_rq_q_counter;
 	struct notifier_block      events_nb;
 	struct notifier_block      blocking_events_nb;
@@ -1029,12 +1032,12 @@ struct mlx5e_xsk_param;
 
 struct mlx5e_rq_param;
 int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
-		  struct mlx5e_xsk_param *xsk, int node,
+		  struct mlx5e_xsk_param *xsk, int node, u16 q_counter,
 		  struct mlx5e_rq *rq);
 #define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
 int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time);
 void mlx5e_close_rq(struct mlx5e_rq *rq);
-int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param);
+int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param, u16 q_counter);
 void mlx5e_destroy_rq(struct mlx5e_rq *rq);
 
 struct mlx5e_sq_param;

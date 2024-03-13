@@ -1576,7 +1576,7 @@ void start_tracer(struct __test_metadata *_metadata, int fd, pid_t tracee,
 		ASSERT_EQ(0, ret);
 	}
 	/* Directly report the status of our test harness results. */
-	syscall(__NR_exit, _metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+	syscall(__NR_exit, _metadata->exit_code);
 }
 
 /* Common tracer setup/teardown functions. */
@@ -1623,7 +1623,7 @@ void teardown_trace_fixture(struct __test_metadata *_metadata,
 		ASSERT_EQ(0, kill(tracer, SIGUSR1));
 		ASSERT_EQ(tracer, waitpid(tracer, &status, 0));
 		if (WEXITSTATUS(status))
-			_metadata->passed = 0;
+			_metadata->exit_code = KSFT_FAIL;
 	}
 }
 
@@ -3088,8 +3088,7 @@ TEST(syscall_restart)
 		}
 
 		/* Directly report the status of our test harness results. */
-		syscall(__NR_exit, _metadata->passed ? EXIT_SUCCESS
-						     : EXIT_FAILURE);
+		syscall(__NR_exit, _metadata->exit_code);
 	}
 	EXPECT_EQ(0, close(pipefd[0]));
 
@@ -3174,7 +3173,7 @@ TEST(syscall_restart)
 
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
 	if (WIFSIGNALED(status) || WEXITSTATUS(status))
-		_metadata->passed = 0;
+		_metadata->exit_code = KSFT_FAIL;
 }
 
 TEST_SIGNAL(filter_flag_log, SIGSYS)

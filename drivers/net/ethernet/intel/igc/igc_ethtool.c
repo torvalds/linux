@@ -981,7 +981,7 @@ static int igc_ethtool_get_nfc_rule(struct igc_adapter *adapter,
 
 	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_ETYPE) {
 		fsp->flow_type |= FLOW_EXT;
-		fsp->h_ext.vlan_etype = rule->filter.vlan_etype;
+		fsp->h_ext.vlan_etype = htons(rule->filter.vlan_etype);
 		fsp->m_ext.vlan_etype = ETHER_TYPE_FULL_MASK;
 	}
 
@@ -1249,7 +1249,7 @@ static void igc_ethtool_init_nfc_rule(struct igc_nfc_rule *rule,
 
 	/* VLAN etype matching */
 	if ((fsp->flow_type & FLOW_EXT) && fsp->h_ext.vlan_etype) {
-		rule->filter.vlan_etype = fsp->h_ext.vlan_etype;
+		rule->filter.vlan_etype = ntohs(fsp->h_ext.vlan_etype);
 		rule->filter.match_flags |= IGC_FILTER_FLAG_VLAN_ETYPE;
 	}
 
@@ -1623,18 +1623,17 @@ static int igc_ethtool_set_priv_flags(struct net_device *netdev, u32 priv_flags)
 }
 
 static int igc_ethtool_get_eee(struct net_device *netdev,
-			       struct ethtool_eee *edata)
+			       struct ethtool_keee *edata)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	struct igc_hw *hw = &adapter->hw;
 	u32 eeer;
 
 	if (hw->dev_spec._base.eee_enable)
-		edata->advertised =
-			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
+		mii_eee_cap1_mod_linkmode_t(edata->advertised,
+					    adapter->eee_advert);
 
 	*edata = adapter->eee;
-	edata->supported = SUPPORTED_Autoneg;
 
 	eeer = rd32(IGC_EEER);
 
@@ -1647,9 +1646,6 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 
 	edata->eee_enabled = hw->dev_spec._base.eee_enable;
 
-	edata->advertised = SUPPORTED_Autoneg;
-	edata->lp_advertised = SUPPORTED_Autoneg;
-
 	/* Report correct negotiated EEE status for devices that
 	 * wrongly report EEE at half-duplex
 	 */
@@ -1657,21 +1653,21 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 		edata->eee_enabled = false;
 		edata->eee_active = false;
 		edata->tx_lpi_enabled = false;
-		edata->advertised &= ~edata->advertised;
+		linkmode_zero(edata->advertised);
 	}
 
 	return 0;
 }
 
 static int igc_ethtool_set_eee(struct net_device *netdev,
-			       struct ethtool_eee *edata)
+			       struct ethtool_keee *edata)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	struct igc_hw *hw = &adapter->hw;
-	struct ethtool_eee eee_curr;
+	struct ethtool_keee eee_curr;
 	s32 ret_val;
 
-	memset(&eee_curr, 0, sizeof(struct ethtool_eee));
+	memset(&eee_curr, 0, sizeof(struct ethtool_keee));
 
 	ret_val = igc_ethtool_get_eee(netdev, &eee_curr);
 	if (ret_val) {
@@ -1699,7 +1695,8 @@ static int igc_ethtool_set_eee(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised);
+	adapter->eee_advert = linkmode_to_mii_eee_cap1_t(edata->advertised);
+
 	if (hw->dev_spec._base.eee_enable != edata->eee_enabled) {
 		hw->dev_spec._base.eee_enable = edata->eee_enabled;
 		adapter->flags |= IGC_FLAG_EEE;

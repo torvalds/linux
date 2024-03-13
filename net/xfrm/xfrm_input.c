@@ -21,6 +21,7 @@
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
 #include <net/dst_metadata.h>
+#include <net/hotdata.h>
 
 #include "xfrm_inout.h"
 
@@ -764,7 +765,7 @@ int xfrm_trans_queue_net(struct net *net, struct sk_buff *skb,
 
 	trans = this_cpu_ptr(&xfrm_trans_tasklet);
 
-	if (skb_queue_len(&trans->queue) >= READ_ONCE(netdev_max_backlog))
+	if (skb_queue_len(&trans->queue) >= READ_ONCE(net_hotdata.max_backlog))
 		return -ENOBUFS;
 
 	BUILD_BUG_ON(sizeof(struct xfrm_trans_cb) > sizeof(skb->cb));

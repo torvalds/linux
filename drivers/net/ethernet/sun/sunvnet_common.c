@@ -1144,9 +1144,9 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 		nskb->protocol = skb->protocol;
 		offset = skb_mac_header(skb) - skb->data;
 		skb_set_mac_header(nskb, offset);
-		offset = skb_network_header(skb) - skb->data;
+		offset = skb_network_offset(skb);
 		skb_set_network_header(nskb, offset);
-		offset = skb_transport_header(skb) - skb->data;
+		offset = skb_transport_offset(skb);
 		skb_set_transport_header(nskb, offset);
 
 		offset = 0;

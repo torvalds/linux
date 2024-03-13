@@ -64,9 +64,6 @@ static const char * const ice_fwlog_level_string[] = {
 	"verbose",
 };
 
-/* the order in this array is important. it matches the ordering of the
- * values in the FW so the index is the same value as in ice_fwlog_level
- */
 static const char * const ice_fwlog_log_size[] = {
 	"128K",
 	"256K",
@@ -645,6 +642,16 @@ void ice_debugfs_fwlog_init(struct ice_pf *pf)
 err_create_module_files:
 	debugfs_remove_recursive(pf->ice_debugfs_pf_fwlog);
 	kfree(fw_modules);
+}
+
+/**
+ * ice_debugfs_pf_deinit - cleanup PF's debugfs
+ * @pf: pointer to the PF struct
+ */
+void ice_debugfs_pf_deinit(struct ice_pf *pf)
+{
+	debugfs_remove_recursive(pf->ice_debugfs_pf);
+	pf->ice_debugfs_pf = NULL;
 }
 
 /**

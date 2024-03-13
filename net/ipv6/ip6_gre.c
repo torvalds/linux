@@ -1511,6 +1511,7 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 	ip6gre_tnl_init_features(dev);
 
 	netdev_hold(dev, &tunnel->dev_tracker, GFP_KERNEL);
+	netdev_lockdep_set_classes(dev);
 	return 0;
 
 cleanup_dst_cache_init:
@@ -1632,21 +1633,19 @@ err_alloc_dev:
 	return err;
 }
 
-static void __net_exit ip6gre_exit_batch_net(struct list_head *net_list)
+static void __net_exit ip6gre_exit_batch_rtnl(struct list_head *net_list,
+					      struct list_head *dev_to_kill)
 {
 	struct net *net;
-	LIST_HEAD(list);
 
-	rtnl_lock();
+	ASSERT_RTNL();
 	list_for_each_entry(net, net_list, exit_list)
-		ip6gre_destroy_tunnels(net, &list);
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
+		ip6gre_destroy_tunnels(net, dev_to_kill);
 }
 
 static struct pernet_operations ip6gre_net_ops = {
 	.init = ip6gre_init_net,
-	.exit_batch = ip6gre_exit_batch_net,
+	.exit_batch_rtnl = ip6gre_exit_batch_rtnl,
 	.id   = &ip6gre_net_id,
 	.size = sizeof(struct ip6gre_net),
 };
@@ -1903,6 +1902,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 	ip6erspan_tnl_link_config(tunnel, 1);
 
 	netdev_hold(dev, &tunnel->dev_tracker, GFP_KERNEL);
+	netdev_lockdep_set_classes(dev);
 	return 0;
 
 cleanup_dst_cache_init:

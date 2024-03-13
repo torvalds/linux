@@ -2764,9 +2764,9 @@ EXPORT_SYMBOL_GPL(phylink_init_eee);
 /**
  * phylink_ethtool_get_eee() - read the energy efficient ethernet parameters
  * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @eee: a pointer to a &struct ethtool_eee for the read parameters
+ * @eee: a pointer to a &struct ethtool_keee for the read parameters
  */
-int phylink_ethtool_get_eee(struct phylink *pl, struct ethtool_eee *eee)
+int phylink_ethtool_get_eee(struct phylink *pl, struct ethtool_keee *eee)
 {
 	int ret = -EOPNOTSUPP;
 
@@ -2782,9 +2782,9 @@ EXPORT_SYMBOL_GPL(phylink_ethtool_get_eee);
 /**
  * phylink_ethtool_set_eee() - set the energy efficient ethernet parameters
  * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @eee: a pointer to a &struct ethtool_eee for the desired parameters
+ * @eee: a pointer to a &struct ethtool_keee for the desired parameters
  */
-int phylink_ethtool_set_eee(struct phylink *pl, struct ethtool_eee *eee)
+int phylink_ethtool_set_eee(struct phylink *pl, struct ethtool_keee *eee)
 {
 	int ret = -EOPNOTSUPP;
 

@@ -10253,7 +10253,9 @@ struct mlx5_ifc_mcam_access_reg_bits {
 	u8         mcqi[0x1];
 	u8         mcqs[0x1];
 
-	u8         regs_95_to_87[0x9];
+	u8         regs_95_to_90[0x6];
+	u8         mpir[0x1];
+	u8         regs_88_to_87[0x2];
 	u8         mpegc[0x1];
 	u8         mtutc[0x1];
 	u8         regs_84_to_68[0x11];
@@ -10663,6 +10665,7 @@ enum {
 	MLX5_INITIAL_SEG_NIC_INTERFACE_FULL_DRIVER  = 0x0,
 	MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED     = 0x1,
 	MLX5_INITIAL_SEG_NIC_INTERFACE_NO_DRAM_NIC  = 0x2,
+	MLX5_INITIAL_SEG_NIC_INTERFACE_SW_RESET     = 0x7,
 };
 
 enum {
@@ -12705,6 +12708,14 @@ enum mlx5_msees_oper_status {
 	MLX5_MSEES_OPER_STATUS_HOLDOVER			= 0x3,
 	MLX5_MSEES_OPER_STATUS_FAIL_HOLDOVER		= 0x4,
 	MLX5_MSEES_OPER_STATUS_FAIL_FREE_RUNNING	= 0x5,
+};
+
+enum mlx5_msees_failure_reason {
+	MLX5_MSEES_FAILURE_REASON_UNDEFINED_ERROR		= 0x0,
+	MLX5_MSEES_FAILURE_REASON_PORT_DOWN			= 0x1,
+	MLX5_MSEES_FAILURE_REASON_TOO_HIGH_FREQUENCY_DIFF	= 0x2,
+	MLX5_MSEES_FAILURE_REASON_NET_SYNCHRONIZER_DEVICE_ERROR	= 0x3,
+	MLX5_MSEES_FAILURE_REASON_LACK_OF_RESOURCES		= 0x4,
 };
 
 struct mlx5_ifc_msees_reg_bits {

@@ -2057,7 +2057,7 @@ retry:
 	skb->priority = READ_ONCE(sk->sk_priority);
 	skb->mark = READ_ONCE(sk->sk_mark);
 	skb->tstamp = sockc.transmit_time;
-
+	skb->mono_delivery_time = !!skb->tstamp;
 	skb_setup_tx_timestamp(skb, sockc.tsflags);
 
 	if (unlikely(extra_len == 4))
@@ -2318,7 +2318,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 	if (po->tp_version <= TPACKET_V2) {
 		if (macoff + snaplen > po->rx_ring.frame_size) {
-			if (po->copy_thresh &&
+			if (READ_ONCE(po->copy_thresh) &&
 			    atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf) {
 				if (skb_shared(skb)) {
 					copy_skb = skb_clone(skb, GFP_ATOMIC);
@@ -2586,6 +2586,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->priority = READ_ONCE(po->sk.sk_priority);
 	skb->mark = READ_ONCE(po->sk.sk_mark);
 	skb->tstamp = sockc->transmit_time;
+	skb->mono_delivery_time = !!skb->tstamp;
 	skb_setup_tx_timestamp(skb, sockc->tsflags);
 	skb_zcopy_set_nouarg(skb, ph.raw);
 
@@ -3064,6 +3065,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 	skb->priority = READ_ONCE(sk->sk_priority);
 	skb->mark = sockc.mark;
 	skb->tstamp = sockc.transmit_time;
+	skb->mono_delivery_time = !!skb->tstamp;
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
@@ -3834,7 +3836,7 @@ packet_setsockopt(struct socket *sock, int level, int optname, sockptr_t optval,
 		if (copy_from_sockptr(&val, optval, sizeof(val)))
 			return -EFAULT;
 
-		pkt_sk(sk)->copy_thresh = val;
+		WRITE_ONCE(pkt_sk(sk)->copy_thresh, val);
 		return 0;
 	}
 	case PACKET_VERSION:
@@ -4087,6 +4089,9 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		break;
 	case PACKET_VNET_HDR_SZ:
 		val = READ_ONCE(po->vnet_hdr_sz);
+		break;
+	case PACKET_COPY_THRESH:
+		val = READ_ONCE(pkt_sk(sk)->copy_thresh);
 		break;
 	case PACKET_VERSION:
 		val = po->tp_version;

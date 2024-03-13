@@ -1727,10 +1727,12 @@ iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 /**
  * mask_apply_and_normalize - applies mask on val and normalize the result
  *
- * The normalization is based on the first set bit in the mask
- *
  * @val: value
  * @mask: mask to apply and to normalize with
+ *
+ * The normalization is based on the first set bit in the mask
+ *
+ * Returns: the extracted value
  */
 static u32 mask_apply_and_normalize(u32 val, u32 mask)
 {
@@ -2199,15 +2201,16 @@ struct iwl_dump_ini_mem_ops {
 };
 
 /**
- * iwl_dump_ini_mem
- *
- * Creates a dump tlv and copy a memory region into it.
- * Returns the size of the current dump tlv or 0 if failed
+ * iwl_dump_ini_mem - dump memory region
  *
  * @fwrt: fw runtime struct
  * @list: list to add the dump tlv to
  * @reg_data: memory region
  * @ops: memory dump operations
+ *
+ * Creates a dump tlv and copy a memory region into it.
+ *
+ * Returns: the size of the current dump tlv or 0 if failed
  */
 static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 			    struct iwl_dump_ini_region_data *reg_data,
@@ -2426,9 +2429,12 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_ini_debug_info_tlv *debug_info =
 			(void *)node->tlv.data;
 
+		BUILD_BUG_ON(sizeof(cfg_name->cfg_name) !=
+			     sizeof(debug_info->debug_cfg_name));
+
 		cfg_name->image_type = debug_info->image_type;
 		cfg_name->cfg_name_len =
-			cpu_to_le32(IWL_FW_INI_MAX_CFG_NAME);
+			cpu_to_le32(sizeof(cfg_name->cfg_name));
 		memcpy(cfg_name->cfg_name, debug_info->debug_cfg_name,
 		       sizeof(cfg_name->cfg_name));
 		cfg_name++;
@@ -2872,7 +2878,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
 		 le32_to_cpu(desc->trig_desc.type));
 
-	schedule_delayed_work(&wk_data->wk, usecs_to_jiffies(delay));
+	queue_delayed_work(system_unbound_wq, &wk_data->wk,
+			   usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -3174,7 +3181,9 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	if (sync)
 		iwl_fw_dbg_collect_sync(fwrt, idx);
 	else
-		schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
+		queue_delayed_work(system_unbound_wq,
+				   &fwrt->dump.wks[idx].wk,
+				   usecs_to_jiffies(delay));
 
 	return 0;
 }

@@ -4353,8 +4353,8 @@ int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
 	if (res->end > IO_SPACE_LIMIT)
 		return -EINVAL;
 
-	return ioremap_page_range(vaddr, vaddr + resource_size(res), phys_addr,
-				  pgprot_device(PAGE_KERNEL));
+	return vmap_page_range(vaddr, vaddr + resource_size(res), phys_addr,
+			       pgprot_device(PAGE_KERNEL));
 #else
 	/*
 	 * This architecture does not have memory mapped I/O space,

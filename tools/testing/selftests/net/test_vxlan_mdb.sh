@@ -1014,10 +1014,10 @@ flush()
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 port vx0"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
-	log_test $? 254 "Flush by port"
+	log_test $? 254 "Flush by port - matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 port veth0"
-	log_test $? 255 "Flush by wrong port"
+	log_test $? 255 "Flush by port - non-matching"
 
 	# Check that when flushing by source VNI only entries programmed with
 	# the specified source VNI are flushed and the rest are not.
@@ -1030,9 +1030,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 src_vni 10010"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
-	log_test $? 254 "Flush by specified source VNI"
+	log_test $? 254 "Flush by source VNI - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10011"
-	log_test $? 0 "Flush by unspecified source VNI"
+	log_test $? 0 "Flush by source VNI - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1058,9 +1058,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 proto bgp"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"proto bgp\""
-	log_test $? 1 "Flush by specified routing protocol"
+	log_test $? 1 "Flush by routing protocol - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"proto zebra\""
-	log_test $? 0 "Flush by unspecified routing protocol"
+	log_test $? 0 "Flush by routing protocol - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1075,9 +1075,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst 198.51.100.2"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
-	log_test $? 1 "Flush by specified destination IP - IPv4"
+	log_test $? 1 "Flush by IPv4 destination IP - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
-	log_test $? 0 "Flush by unspecified destination IP - IPv4"
+	log_test $? 0 "Flush by IPv4 destination IP - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1089,9 +1089,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst 2001:db8:1000::2"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 2001:db8:1000::2"
-	log_test $? 1 "Flush by specified destination IP - IPv6"
+	log_test $? 1 "Flush by IPv6 destination IP - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 2001:db8:1000::1"
-	log_test $? 0 "Flush by unspecified destination IP - IPv6"
+	log_test $? 0 "Flush by IPv6 destination IP - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1104,9 +1104,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst_port 11111"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"dst_port 11111\""
-	log_test $? 1 "Flush by specified UDP destination port"
+	log_test $? 1 "Flush by UDP destination port - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"dst_port 22222\""
-	log_test $? 0 "Flush by unspecified UDP destination port"
+	log_test $? 0 "Flush by UDP destination port - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1121,9 +1121,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst_port 4789"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
-	log_test $? 1 "Flush by device's UDP destination port"
+	log_test $? 1 "Flush by device's UDP destination port - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
-	log_test $? 0 "Flush by unspecified UDP destination port"
+	log_test $? 0 "Flush by device's UDP destination port - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1136,9 +1136,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 vni 20010"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \" vni 20010\""
-	log_test $? 1 "Flush by specified destination VNI"
+	log_test $? 1 "Flush by destination VNI - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \" vni 20011\""
-	log_test $? 0 "Flush by unspecified destination VNI"
+	log_test $? 0 "Flush by destination VNI - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 
@@ -1153,9 +1153,9 @@ flush()
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 vni 10010"
 
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
-	log_test $? 1 "Flush by destination VNI equal to source VNI"
+	log_test $? 1 "Flush by destination VNI equal to source VNI - matching"
 	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
-	log_test $? 0 "Flush by unspecified destination VNI"
+	log_test $? 0 "Flush by destination VNI equal to source VNI - non-matching"
 
 	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
 

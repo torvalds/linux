@@ -286,6 +286,7 @@ static union iucv_param *iucv_param_irq[NR_CPUS];
  */
 static inline int __iucv_call_b2f0(int command, union iucv_param *parm)
 {
+	unsigned long reg1 = virt_to_phys(parm);
 	int cc;
 
 	asm volatile(
@@ -296,7 +297,7 @@ static inline int __iucv_call_b2f0(int command, union iucv_param *parm)
 		"	srl	%[cc],28\n"
 		: [cc] "=&d" (cc), "+m" (*parm)
 		: [reg0] "d" ((unsigned long)command),
-		  [reg1] "d" ((unsigned long)parm)
+		  [reg1] "d" (reg1)
 		: "cc", "0", "1");
 	return cc;
 }
@@ -1123,7 +1124,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 
 	parm = iucv_param[smp_processor_id()];
 	memset(parm, 0, sizeof(union iucv_param));
-	parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+	parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
 	parm->db.ipbfln1f = (u32) size;
 	parm->db.ipmsgid = msg->id;
 	parm->db.ippathid = path->pathid;
@@ -1241,7 +1242,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		memcpy(parm->dpl.iprmmsg, reply, min_t(size_t, size, 8));
 	} else {
-		parm->db.ipbfadr1 = (u32)(addr_t) reply;
+		parm->db.ipbfadr1 = (u32)virt_to_phys(reply);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags;
@@ -1293,7 +1294,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.ipmsgtag = msg->tag;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
-		parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+		parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags | IUCV_IPNORPY;
@@ -1378,7 +1379,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		parm->dpl.ipsrccls = srccls;
 		parm->dpl.ipmsgtag = msg->tag;
-		parm->dpl.ipbfadr2 = (u32)(addr_t) answer;
+		parm->dpl.ipbfadr2 = (u32)virt_to_phys(answer);
 		parm->dpl.ipbfln2f = (u32) asize;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
@@ -1387,9 +1388,9 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->db.iptrgcls = msg->class;
 		parm->db.ipsrccls = srccls;
 		parm->db.ipmsgtag = msg->tag;
-		parm->db.ipbfadr1 = (u32)(addr_t) buffer;
+		parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
 		parm->db.ipbfln1f = (u32) size;
-		parm->db.ipbfadr2 = (u32)(addr_t) answer;
+		parm->db.ipbfadr2 = (u32)virt_to_phys(answer);
 		parm->db.ipbfln2f = (u32) asize;
 	}
 	rc = iucv_call_b2f0(IUCV_SEND, parm);

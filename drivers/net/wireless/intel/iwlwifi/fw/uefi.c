@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2021-2023 Intel Corporation
+ * Copyright(c) 2021-2024 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -74,6 +74,42 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	*len = package_size;
 
 	return data;
+}
+
+static
+void *iwl_uefi_get_verified_variable(struct iwl_trans *trans,
+				     efi_char16_t *uefi_var_name,
+				     char *var_name,
+				     unsigned int expected_size,
+				     unsigned long *size)
+{
+	void *var;
+	unsigned long var_size;
+
+	var = iwl_uefi_get_variable(uefi_var_name, &IWL_EFI_VAR_GUID,
+				    &var_size);
+
+	if (IS_ERR(var)) {
+		IWL_DEBUG_RADIO(trans,
+				"%s UEFI variable not found 0x%lx\n", var_name,
+				PTR_ERR(var));
+		return var;
+	}
+
+	if (var_size < expected_size) {
+		IWL_DEBUG_RADIO(trans,
+				"Invalid %s UEFI variable len (%lu)\n",
+				var_name, var_size);
+		kfree(var);
+		return ERR_PTR(-EINVAL);
+	}
+
+	IWL_DEBUG_RADIO(trans, "%s from UEFI with size %lu\n", var_name,
+			var_size);
+
+	if (size)
+		*size = var_size;
+	return var;
 }
 
 int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
@@ -230,26 +266,13 @@ u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 	unsigned long package_size;
 	u8 *data;
 
-	package = iwl_uefi_get_variable(IWL_UEFI_REDUCED_POWER_NAME,
-					&IWL_EFI_VAR_GUID, &package_size);
-
-	if (IS_ERR(package)) {
-		IWL_DEBUG_FW(trans,
-			     "Reduced Power UEFI variable not found 0x%lx (len %lu)\n",
-			     PTR_ERR(package), package_size);
+	package = iwl_uefi_get_verified_variable(trans,
+						 IWL_UEFI_REDUCED_POWER_NAME,
+						 "Reduced Power",
+						 sizeof(*package),
+						 &package_size);
+	if (IS_ERR(package))
 		return ERR_CAST(package);
-	}
-
-	if (package_size < sizeof(*package)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid Reduced Power UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(package);
-		return ERR_PTR(-EINVAL);
-	}
-
-	IWL_DEBUG_FW(trans, "Read reduced power from UEFI with size %lu\n",
-		     package_size);
 
 	IWL_DEBUG_FW(trans, "rev %d, total_size %d, n_skus %d\n",
 		     package->rev, package->total_size, package->n_skus);
@@ -283,32 +306,15 @@ static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_dat
 void iwl_uefi_get_step_table(struct iwl_trans *trans)
 {
 	struct uefi_cnv_common_step_data *data;
-	unsigned long package_size;
 	int ret;
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_STEP_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "STEP UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_STEP_NAME,
+					      "STEP", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid STEP table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return;
-	}
-
-	IWL_DEBUG_FW(trans, "Read STEP from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_step_parse(data, trans);
 	if (ret < 0)
@@ -318,7 +324,6 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_step_table);
 
-#ifdef CONFIG_ACPI
 static int iwl_uefi_sgom_parse(struct uefi_cnv_wlan_sgom_data *sgom_data,
 			       struct iwl_fw_runtime *fwrt)
 {
@@ -355,31 +360,15 @@ void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
 			     struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_sgom_data *data;
-	unsigned long package_size;
 	int ret;
 
 	if (!fwrt->geo_enabled)
 		return;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_SGOM_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "SGOM UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_SGOM_NAME,
+					      "SGOM", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid SGOM table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return;
-	}
-
-	IWL_DEBUG_FW(trans, "Read SGOM from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_sgom_parse(data, fwrt);
 	if (ret < 0)
@@ -404,28 +393,12 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_uats_data *data;
-	unsigned long package_size;
 	int ret;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_UATS_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "UATS UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UATS_NAME,
+					      "UATS", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return -EINVAL;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid UATS table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return -EINVAL;
-	}
-
-	IWL_DEBUG_FW(trans, "Read UATS from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
 	if (ret < 0) {
@@ -438,4 +411,298 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
-#endif /* CONFIG_ACPI */
+
+static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
+				     struct uefi_sar_profile *uefi_sar_prof,
+				     u8 prof_index, bool enabled)
+{
+	memcpy(&fwrt->sar_profiles[prof_index].chains, uefi_sar_prof,
+	       sizeof(struct uefi_sar_profile));
+
+	fwrt->sar_profiles[prof_index].enabled = enabled & IWL_SAR_ENABLE_MSK;
+}
+
+int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_wrds *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDS_NAME,
+					      "WRDS", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WRDS_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDS revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	/* The profile from WRDS is officially profile 1, but goes
+	 * into sar_profiles[0] (because we don't have a profile 0).
+	 */
+	iwl_uefi_set_sar_profile(fwrt, &data->sar_profile, 0, data->mode);
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_ewrd *data;
+	int i, ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_EWRD_NAME,
+					      "EWRD", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_EWRD_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI EWRD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < data->num_profiles; i++)
+		/* The EWRD profiles officially go from 2 to 4, but we
+		 * save them in sar_profiles[1-3] (because we don't
+		 * have profile 0).  So in the array we start from 1.
+		 */
+		iwl_uefi_set_sar_profile(fwrt, &data->sar_profiles[i], i + 1,
+					 data->mode);
+
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_wgds *data;
+	int i, ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WGDS_NAME,
+					      "WGDS", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WGDS_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WGDS revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->num_profiles < BIOS_GEO_MIN_PROFILE_NUM ||
+	    data->num_profiles > BIOS_GEO_MAX_PROFILE_NUM) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Invalid number of profiles in WGDS: %d\n",
+				data->num_profiles);
+		goto out;
+	}
+
+	fwrt->geo_rev = data->revision;
+	for (i = 0; i < data->num_profiles; i++)
+		memcpy(&fwrt->geo_profiles[i], &data->geo_profiles[i],
+		       sizeof(struct iwl_geo_profile));
+
+	fwrt->geo_num_profiles = data->num_profiles;
+	fwrt->geo_enabled = true;
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_ppag *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_PPAG_NAME,
+					      "PPAG", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision < IWL_UEFI_MIN_PPAG_REV ||
+	    data->revision > IWL_UEFI_MAX_PPAG_REV) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PPAG revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	fwrt->ppag_ver = data->revision;
+	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
+						   fwrt->ppag_ver);
+
+	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
+	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
+	       sizeof(data->ppag_chains));
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
+			   struct iwl_tas_data *tas_data)
+{
+	struct uefi_cnv_var_wtas *uefi_tas;
+	int ret = 0, enabled, i;
+
+	uefi_tas = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WTAS_NAME,
+						  "WTAS", sizeof(*uefi_tas), NULL);
+	if (IS_ERR(uefi_tas))
+		return -EINVAL;
+
+	if (uefi_tas->revision != IWL_UEFI_WTAS_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WTAS revision:%d\n",
+				uefi_tas->revision);
+		goto out;
+	}
+
+	enabled = iwl_parse_tas_selection(fwrt, tas_data,
+					  uefi_tas->tas_selection);
+	if (!enabled) {
+		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
+		ret = 0;
+		goto out;
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n",
+			uefi_tas->revision);
+	if (uefi_tas->black_list_size > IWL_WTAS_BLACK_LIST_MAX) {
+		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %d\n",
+				uefi_tas->black_list_size);
+		ret = -EINVAL;
+		goto out;
+	}
+	tas_data->block_list_size = cpu_to_le32(uefi_tas->black_list_size);
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", uefi_tas->black_list_size);
+
+	for (i = 0; i < uefi_tas->black_list_size; i++) {
+		tas_data->block_list_array[i] =
+			cpu_to_le32(uefi_tas->black_list[i]);
+		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n",
+				uefi_tas->black_list[i]);
+	}
+out:
+	kfree(uefi_tas);
+	return ret;
+}
+
+int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+			   u64 *dflt_pwr_limit)
+{
+	struct uefi_cnv_var_splc *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_SPLC_NAME,
+					      "SPLC", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_SPLC_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI SPLC revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*dflt_pwr_limit = data->default_pwr_limit;
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
+{
+	struct uefi_cnv_var_wrdd *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDD_NAME,
+					      "WRDD", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WRDD_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->mcc != UEFI_MCC_CHINA) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "UEFI WRDD is supported only for CN\n");
+		goto out;
+	}
+
+	mcc[0] = (data->mcc >> 8) & 0xff;
+	mcc[1] = data->mcc & 0xff;
+	mcc[2] = '\0';
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
+{
+	struct uefi_cnv_var_eckv *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_ECKV_NAME,
+					      "ECKV", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_ECKV_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*extl_clk = data->ext_clock_valid;
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
+		     u32 *value)
+{
+	struct uefi_cnv_var_general_cfg *data;
+	int ret = -EINVAL;
+
+	/* Not supported function index */
+	if (func >= DSM_FUNC_NUM_FUNCS || func == 5)
+		return -EOPNOTSUPP;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_DSM_NAME,
+					      "DSM", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_DSM_REVISION) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI DSM revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (ARRAY_SIZE(data->functions) != UEFI_MAX_DSM_FUNCS) {
+		IWL_DEBUG_RADIO(fwrt, "Invalid size of DSM functions array\n");
+		goto out;
+	}
+
+	*value = data->functions[func];
+	ret = 0;
+out:
+	kfree(data);
+	return ret;
+}

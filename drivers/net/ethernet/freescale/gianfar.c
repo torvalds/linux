@@ -1649,7 +1649,7 @@ static int init_phy(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	phy_interface_t interface = priv->interface;
 	struct phy_device *phydev;
-	struct ethtool_eee edata;
+	struct ethtool_keee edata;
 
 	linkmode_set_bit_array(phy_10_100_features_array,
 			       ARRAY_SIZE(phy_10_100_features_array),
@@ -1681,7 +1681,7 @@ static int init_phy(struct net_device *dev)
 	phy_support_asym_pause(phydev);
 
 	/* disable EEE autoneg, EEE not supported by eTSEC */
-	memset(&edata, 0, sizeof(struct ethtool_eee));
+	memset(&edata, 0, sizeof(struct ethtool_keee));
 	phy_ethtool_set_eee(phydev, &edata);
 
 	return 0;

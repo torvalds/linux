@@ -817,6 +817,8 @@ static int rvu_fwdata_init(struct rvu *rvu)
 	err = cgx_get_fwdata_base(&fwdbase);
 	if (err)
 		goto fail;
+
+	BUILD_BUG_ON(offsetof(struct rvu_fwdata, cgx_fw_data) > FWDATA_CGX_LMAC_OFFSET);
 	rvu->fwdata = ioremap_wc(fwdbase, sizeof(struct rvu_fwdata));
 	if (!rvu->fwdata)
 		goto fail;
@@ -1484,7 +1486,7 @@ int rvu_get_nix_blkaddr(struct rvu *rvu, u16 pcifunc)
 	/* All CGX mapped PFs are set with assigned NIX block during init */
 	if (is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
 		blkaddr = pf->nix_blkaddr;
-	} else if (is_afvf(pcifunc)) {
+	} else if (is_lbk_vf(rvu, pcifunc)) {
 		vf = pcifunc - 1;
 		/* Assign NIX based on VF number. All even numbered VFs get
 		 * NIX0 and odd numbered gets NIX1
@@ -2034,7 +2036,7 @@ int rvu_mbox_handler_set_vf_perm(struct rvu *rvu, struct set_vf_perm *req,
 	u16 target;
 
 	/* Only PF can add VF permissions */
-	if ((pcifunc & RVU_PFVF_FUNC_MASK) || is_afvf(pcifunc))
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) || is_lbk_vf(rvu, pcifunc))
 		return -EOPNOTSUPP;
 
 	target = (pcifunc & ~RVU_PFVF_FUNC_MASK) | (req->vf + 1);
@@ -2618,6 +2620,9 @@ static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
 	 * 3. Cleanup pools (NPA)
 	 */
 
+	/* Free allocated BPIDs */
+	rvu_nix_flr_free_bpids(rvu, pcifunc);
+
 	/* Free multicast/mirror node associated with the 'pcifunc' */
 	rvu_nix_mcast_flr_free_entries(rvu, pcifunc);
 
@@ -3151,12 +3156,19 @@ static int rvu_enable_sriov(struct rvu *rvu)
 {
 	struct pci_dev *pdev = rvu->pdev;
 	int err, chans, vfs;
+	int pos = 0;
 
 	if (!rvu_afvf_msix_vectors_num_ok(rvu)) {
 		dev_warn(&pdev->dev,
 			 "Skipping SRIOV enablement since not enough IRQs are available\n");
 		return 0;
 	}
+
+	/* Get RVU VFs device id */
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return 0;
+	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &rvu->vf_devid);
 
 	chans = rvu_get_num_lbk_chans();
 	if (chans < 0)
