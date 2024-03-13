@@ -53,6 +53,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/reset.h>
@@ -267,7 +268,6 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops aspeed_pwm_ops = {
 	.apply = aspeed_pwm_apply,
 	.get_state = aspeed_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static void aspeed_tach_ch_enable(struct aspeed_pwm_tach_data *priv, u8 tach_ch,
@@ -424,8 +424,9 @@ static void aspeed_present_fan_tach(struct aspeed_pwm_tach_data *priv, u8 *tach_
 	}
 }
 
-static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
-				  struct aspeed_pwm_tach_data *priv)
+static int aspeed_create_fan_monitor(struct device *dev,
+				     struct device_node *child,
+				     struct aspeed_pwm_tach_data *priv)
 {
 	int ret, count;
 	u8 *tach_ch;
@@ -443,6 +444,13 @@ static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
 	aspeed_present_fan_tach(priv, tach_ch, count);
 
 	return 0;
+}
+
+static void aspeed_pwm_tach_reset_assert(void *data)
+{
+	struct reset_control *rst = data;
+
+	reset_control_assert(rst);
 }
 
 static int aspeed_pwm_tach_probe(struct platform_device *pdev)
@@ -474,20 +482,22 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Couldn't deassert reset control\n");
+	ret = devm_add_action_or_reset(dev, aspeed_pwm_tach_reset_assert,
+				       priv->reset);
+	if (ret)
+		return ret;
 
 	priv->chip.dev = dev;
 	priv->chip.ops = &aspeed_pwm_ops;
 	priv->chip.npwm = PWM_ASPEED_NR_PWMS;
 
 	ret = devm_pwmchip_add(dev, &priv->chip);
-	if (ret < 0) {
-		reset_control_assert(priv->reset);
+	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add PWM chip\n");
-	}
 
 	for_each_child_of_node(dev->of_node, child) {
-		ret = aspeed_tach_create_fan(dev, child, priv);
-		if (ret < 0) {
+		ret = aspeed_create_fan_monitor(dev, child, priv);
+		if (ret) {
 			of_node_put(child);
 			dev_warn(dev, "Failed to create fan %d", ret);
 			return 0;
@@ -497,11 +507,11 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	hwmon = devm_hwmon_device_register_with_info(dev, "aspeed_tach", priv,
 						     &aspeed_tach_chip_info, NULL);
 	ret = PTR_ERR_OR_ZERO(hwmon);
-	if (ret) {
-		reset_control_assert(priv->reset);
+	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to register hwmon device\n");
-	}
+
+	of_platform_populate(dev->of_node, NULL, NULL, dev);
 
 	return 0;
 }
