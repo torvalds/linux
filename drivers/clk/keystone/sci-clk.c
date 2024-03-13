@@ -272,7 +272,7 @@ static const struct clk_ops sci_clk_ops = {
 };
 
 /**
- * _sci_clk_get - Gets a handle for an SCI clock
+ * _sci_clk_build - Gets a handle for an SCI clock
  * @provider: Handle to SCI clock provider
  * @sci_clk: Handle to the SCI clock to populate
  *
