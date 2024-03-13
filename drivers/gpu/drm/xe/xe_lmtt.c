@@ -35,7 +35,7 @@
 
 static bool xe_has_multi_level_lmtt(struct xe_device *xe)
 {
-	return xe->info.platform == XE_PVC;
+	return GRAPHICS_VERx100(xe) >= 1260;
 }
 
 static struct xe_tile *lmtt_to_tile(struct xe_lmtt *lmtt)
