@@ -1037,8 +1037,7 @@ int __init nfs_init_directcache(void)
 {
 	nfs_direct_cachep = kmem_cache_create("nfs_direct_cache",
 						sizeof(struct nfs_direct_req),
-						0, (SLAB_RECLAIM_ACCOUNT|
-							SLAB_MEM_SPREAD),
+						0, SLAB_RECLAIM_ACCOUNT,
 						NULL);
 	if (nfs_direct_cachep == NULL)
 		return -ENOMEM;

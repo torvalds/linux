@@ -202,9 +202,6 @@ enum _slab_flag_bits {
 #endif
 #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
 
-/* Obsolete unused flag, to be removed */
-#define SLAB_MEM_SPREAD		__SLAB_FLAG_UNUSED
-
 /*
  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
  *

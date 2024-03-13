@@ -2984,7 +2984,7 @@ static int __init dquot_init(void)
 	dquot_cachep = kmem_cache_create("dquot",
 			sizeof(struct dquot), sizeof(unsigned long) * 4,
 			(SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
-				SLAB_MEM_SPREAD|SLAB_PANIC),
+				SLAB_PANIC),
 			NULL);
 
 	order = 0;

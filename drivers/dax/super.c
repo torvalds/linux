@@ -532,8 +532,7 @@ static int dax_fs_init(void)
 	int rc;
 
 	dax_cache = kmem_cache_create("dax_cache", sizeof(struct dax_device), 0,
-			(SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
-			 SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+			SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 			init_once);
 	if (!dax_cache)
 		return -ENOMEM;

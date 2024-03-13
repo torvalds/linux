@@ -2043,8 +2043,7 @@ xfs_init_caches(void)
 
 	xfs_buf_cache = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
 					 SLAB_HWCACHE_ALIGN |
-					 SLAB_RECLAIM_ACCOUNT |
-					 SLAB_MEM_SPREAD,
+					 SLAB_RECLAIM_ACCOUNT,
 					 NULL);
 	if (!xfs_buf_cache)
 		goto out;
@@ -2109,14 +2108,14 @@ xfs_init_caches(void)
 					   sizeof(struct xfs_inode), 0,
 					   (SLAB_HWCACHE_ALIGN |
 					    SLAB_RECLAIM_ACCOUNT |
-					    SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+					    SLAB_ACCOUNT),
 					   xfs_fs_inode_init_once);
 	if (!xfs_inode_cache)
 		goto out_destroy_efi_cache;
 
 	xfs_ili_cache = kmem_cache_create("xfs_ili",
 					 sizeof(struct xfs_inode_log_item), 0,
-					 SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					 SLAB_RECLAIM_ACCOUNT,
 					 NULL);
 	if (!xfs_ili_cache)
 		goto out_destroy_inode_cache;
