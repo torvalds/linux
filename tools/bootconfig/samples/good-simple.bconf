@@ -1,0 +1,11 @@
+# A good simple bootconfig
+
+key.word1 = 1
+key.word2=2
+key.word3 = 3;
+
+key {
+word4 = 4 }
+
+key { word5 = 5; word6 = 6 }
+

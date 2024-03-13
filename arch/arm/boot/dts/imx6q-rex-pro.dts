@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright 2014 FEDEVEL, Inc.
+ *
+ * Author: Robert Nelson <robertcnelson@gmail.com>
+ */
+/dts-v1/;
+#include "imx6q.dtsi"
+#include "imx6qdl-rex.dtsi"
+
+/ {
+	model = "Rex Pro i.MX6 Quad Board";
+	compatible = "rex,imx6q-rex-pro", "fsl,imx6q";
+
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0x80000000>;
+	};
+};
+
+&ecspi3 {
+	flash: flash@0 {
+		compatible = "sst,sst25vf032b", "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&sata {
+	status = "okay";
+};

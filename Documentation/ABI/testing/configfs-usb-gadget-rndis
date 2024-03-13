@@ -1,0 +1,19 @@
+What:		/config/usb-gadget/gadget/functions/rndis.name
+Date:		Jun 2013
+KernelVersion:	3.11
+Description:
+		The attributes:
+
+		=========	=============================================
+		ifname		network device interface name associated with
+				this function instance
+		qmult		queue length multiplier for high and
+				super speed
+		host_addr	MAC address of host's end of this
+				Ethernet over USB link
+		dev_addr	MAC address of device's end of this
+				Ethernet over USB link
+		class		USB interface class, default is 02 (hex)
+		subclass	USB interface subclass, default is 06 (hex)
+		protocol	USB interface protocol, default is 00 (hex)
+		=========	=============================================

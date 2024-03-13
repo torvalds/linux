@@ -1,0 +1,28 @@
+* Marvell XOR v2 engines
+
+Required properties:
+- compatible: one of the following values:
+    "marvell,armada-7k-xor"
+    "marvell,xor-v2"
+- reg: Should contain registers location and length (two sets)
+    the first set is the DMA registers
+    the second set is the global registers
+- msi-parent: Phandle to the MSI-capable interrupt controller used for
+  interrupts.
+
+Optional properties:
+- clocks: Optional reference to the clocks used by the XOR engine.
+- clock-names: mandatory if there is a second clock, in this case the
+   name must be "core" for the first clock and "reg" for the second
+   one
+
+
+Example:
+
+	xor0@400000 {
+		compatible = "marvell,xor-v2";
+		reg = <0x400000 0x1000>,
+		      <0x410000 0x1000>;
+		msi-parent = <&gic_v2m0>;
+		dma-coherent;
+	};

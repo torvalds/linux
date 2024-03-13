@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/xilinx/xlnx,zynqmp-firmware.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx firmware driver
+
+maintainers:
+  - Nava kishore Manne <nava.manne@xilinx.com>
+
+description: The zynqmp-firmware node describes the interface to platform
+  firmware. ZynqMP has an interface to communicate with secure firmware.
+  Firmware driver provides an interface to firmware APIs. Interface APIs
+  can be used by any driver to communicate to PMUFW(Platform Management Unit).
+  These requests include clock management, pin control, device control,
+  power management service, FPGA service and other platform management
+  services.
+
+properties:
+  compatible:
+    oneOf:
+      - description: For implementations complying for Zynq Ultrascale+ MPSoC.
+        const: xlnx,zynqmp-firmware
+
+      - description: For implementations complying for Versal.
+        const: xlnx,versal-firmware
+
+  method:
+    description: |
+                 The method of calling the PM-API firmware layer.
+                 Permitted values are.
+                 - "smc" : SMC #0, following the SMCCC
+                 - "hvc" : HVC #0, following the SMCCC
+
+    $ref: /schemas/types.yaml#/definitions/string-array
+    enum:
+      - smc
+      - hvc
+
+  versal_fpga:
+    $ref: /schemas/fpga/xlnx,versal-fpga.yaml#
+    description: Compatible of the FPGA device.
+    type: object
+
+  zynqmp-aes:
+    $ref: /schemas/crypto/xlnx,zynqmp-aes.yaml#
+    description: The ZynqMP AES-GCM hardened cryptographic accelerator is
+      used to encrypt or decrypt the data with provided key and initialization
+      vector.
+    type: object
+
+  clock-controller:
+    $ref: /schemas/clock/xlnx,versal-clk.yaml#
+    description: The clock controller is a hardware block of Xilinx versal
+      clock tree. It reads required input clock frequencies from the devicetree
+      and acts as clock provider for all clock consumers of PS clocks.list of
+      clock specifiers which are external input clocks to the given clock
+      controller.
+    type: object
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    versal-firmware {
+      compatible = "xlnx,versal-firmware";
+      method = "smc";
+
+      versal_fpga: versal_fpga {
+        compatible = "xlnx,versal-fpga";
+      };
+
+      xlnx_aes: zynqmp-aes {
+        compatible = "xlnx,zynqmp-aes";
+      };
+
+      versal_clk: clock-controller {
+        #clock-cells = <1>;
+        compatible = "xlnx,versal-clk";
+        clocks = <&ref>, <&alt_ref>, <&pl_alt_ref>;
+        clock-names = "ref", "alt_ref", "pl_alt_ref";
+      };
+    };
+
+...

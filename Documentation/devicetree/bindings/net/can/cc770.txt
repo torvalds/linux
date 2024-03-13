@@ -1,0 +1,53 @@
+Memory mapped Bosch CC770 and Intel AN82527 CAN controller
+
+Note: The CC770 is a CAN controller from Bosch, which is 100%
+compatible with the old AN82527 from Intel, but with "bugs" being fixed.
+
+Required properties:
+
+- compatible : should be "bosch,cc770" for the CC770 and "intc,82527"
+	for the AN82527.
+
+- reg : should specify the chip select, address offset and size required
+	to map the registers of the controller. The size is usually 0x80.
+
+- interrupts : property with a value describing the interrupt source
+	(number and sensitivity) required for the controller.
+
+Optional properties:
+
+- bosch,external-clock-frequency : frequency of the external oscillator
+	clock in Hz. Note that the internal clock frequency used by the
+	controller is half of that value. If not specified, a default
+	value of 16000000 (16 MHz) is used.
+
+- bosch,clock-out-frequency : slock frequency in Hz on the CLKOUT pin.
+	If not specified or if the specified value is 0, the CLKOUT pin
+	will be disabled.
+
+- bosch,slew-rate : slew rate of the CLKOUT signal. If not specified,
+	a resonable value will be calculated.
+
+- bosch,disconnect-rx0-input : see data sheet.
+
+- bosch,disconnect-rx1-input : see data sheet.
+
+- bosch,disconnect-tx1-output : see data sheet.
+
+- bosch,polarity-dominant : see data sheet.
+
+- bosch,divide-memory-clock : see data sheet.
+
+- bosch,iso-low-speed-mux : see data sheet.
+
+For further information, please have a look to the CC770 or AN82527.
+
+Examples:
+
+can@3,100 {
+	compatible = "bosch,cc770";
+	reg = <3 0x100 0x80>;
+	interrupts = <2 0>;
+	interrupt-parent = <&mpic>;
+	bosch,external-clock-frequency = <16000000>;
+};

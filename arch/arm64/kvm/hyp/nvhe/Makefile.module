@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+
+$(obj)/hyp.lds: arch/arm64/kvm/hyp/nvhe/module.lds.S FORCE
+	$(call if_changed_dep,cpp_lds_S)
+
+include $(srctree)/arch/arm64/kvm/hyp/nvhe/Makefile.nvhe

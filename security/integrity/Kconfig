@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config INTEGRITY
+	bool "Integrity subsystem"
+	depends on SECURITY
+	default y
+	help
+	  This option enables the integrity subsystem, which is comprised
+	  of a number of different components including the Integrity
+	  Measurement Architecture (IMA), Extended Verification Module
+	  (EVM), IMA-appraisal extension, digital signature verification
+	  extension and audit measurement log support.
+
+	  Each of these components can be enabled/disabled separately.
+	  Refer to the individual components for additional details.
+
+if INTEGRITY
+
+config INTEGRITY_SIGNATURE
+	bool "Digital signature verification using multiple keyrings"
+	default n
+	select KEYS
+	select SIGNATURE
+	help
+	  This option enables digital signature verification support
+	  using multiple keyrings. It defines separate keyrings for each
+	  of the different use cases - evm, ima, and modules.
+	  Different keyrings improves search performance, but also allow
+	  to "lock" certain keyring to prevent adding new keys.
+	  This is useful for evm and module keyrings, when keys are
+	  usually only added from initramfs.
+
+config INTEGRITY_ASYMMETRIC_KEYS
+	bool "Enable asymmetric keys support"
+	depends on INTEGRITY_SIGNATURE
+	default n
+        select ASYMMETRIC_KEY_TYPE
+        select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+        select CRYPTO_RSA
+        select X509_CERTIFICATE_PARSER
+	help
+	  This option enables digital signature verification using
+	  asymmetric keys.
+
+config INTEGRITY_TRUSTED_KEYRING
+	bool "Require all keys on the integrity keyrings be signed"
+	depends on SYSTEM_TRUSTED_KEYRING
+	depends on INTEGRITY_ASYMMETRIC_KEYS
+	default y
+	help
+	   This option requires that all keys added to the .ima and
+	   .evm keyrings be signed by a key on the system trusted
+	   keyring.
+
+config INTEGRITY_PLATFORM_KEYRING
+        bool "Provide keyring for platform/firmware trusted keys"
+        depends on INTEGRITY_ASYMMETRIC_KEYS
+        depends on SYSTEM_BLACKLIST_KEYRING
+        help
+         Provide a separate, distinct keyring for platform trusted keys, which
+         the kernel automatically populates during initialization from values
+         provided by the platform for verifying the kexec'ed kerned image
+         and, possibly, the initramfs signature.
+
+config INTEGRITY_MACHINE_KEYRING
+	bool "Provide a keyring to which Machine Owner Keys may be added"
+	depends on SECONDARY_TRUSTED_KEYRING
+	depends on INTEGRITY_ASYMMETRIC_KEYS
+	depends on SYSTEM_BLACKLIST_KEYRING
+	depends on LOAD_UEFI_KEYS
+	depends on !IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+	help
+	 If set, provide a keyring to which Machine Owner Keys (MOK) may
+	 be added. This keyring shall contain just MOK keys.  Unlike keys
+	 in the platform keyring, keys contained in the .machine keyring will
+	 be trusted within the kernel.
+
+config LOAD_UEFI_KEYS
+       depends on INTEGRITY_PLATFORM_KEYRING
+       depends on EFI
+       def_bool y
+
+config LOAD_IPL_KEYS
+       depends on INTEGRITY_PLATFORM_KEYRING
+       depends on S390
+       def_bool y
+
+config LOAD_PPC_KEYS
+	bool "Enable loading of platform and blacklisted keys for POWER"
+	depends on INTEGRITY_PLATFORM_KEYRING
+	depends on PPC_SECURE_BOOT
+	default y
+	help
+	  Enable loading of keys to the .platform keyring and blacklisted
+	  hashes to the .blacklist keyring for powerpc based platforms.
+
+config INTEGRITY_AUDIT
+	bool "Enables integrity auditing support "
+	depends on AUDIT
+	default y
+	help
+	  In addition to enabling integrity auditing support, this
+	  option adds a kernel parameter 'integrity_audit', which
+	  controls the level of integrity auditing messages.
+	  0 - basic integrity auditing messages (default)
+	  1 - additional integrity auditing messages
+
+	  Additional informational integrity auditing messages would
+	  be enabled by specifying 'integrity_audit=1' on the kernel
+	  command line.
+
+source "security/integrity/ima/Kconfig"
+source "security/integrity/evm/Kconfig"
+
+endif   # if INTEGRITY

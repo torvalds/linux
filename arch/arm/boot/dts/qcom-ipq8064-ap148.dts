@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "qcom-ipq8064-v1.0.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ8064/AP-148";
+	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
+
+	soc {
+		pinmux@800000 {
+			buttons_pins: buttons_pins {
+				mux {
+					pins = "gpio54", "gpio65";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+		};
+
+		gsbi@16300000 {
+			i2c@16380000 {
+				status = "okay";
+				clock-frequency = <200000>;
+				pinctrl-0 = <&i2c4_pins>;
+				pinctrl-names = "default";
+			};
+		};
+	};
+};

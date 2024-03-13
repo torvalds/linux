@@ -1,0 +1,273 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PSTORE
+	tristate "Persistent store support"
+	select CRYPTO if PSTORE_COMPRESS
+	default n
+	help
+	   This option enables generic access to platform level
+	   persistent storage via "pstore" filesystem that can
+	   be mounted as /dev/pstore.  Only useful if you have
+	   a platform level driver that registers with pstore to
+	   provide the data, so you probably should just go say "Y"
+	   (or "M") to a platform specific persistent store driver
+	   (e.g. ACPI_APEI on X86) which will select this for you.
+	   If you don't have a platform persistent store driver,
+	   say N.
+
+config PSTORE_DEFAULT_KMSG_BYTES
+	int "Default kernel log storage space" if EXPERT
+	depends on PSTORE
+	default "10240"
+	help
+	  Defines default size of pstore kernel log storage.
+	  Can be enlarged if needed, not recommended to shrink it.
+
+config PSTORE_DEFLATE_COMPRESS
+	tristate "DEFLATE (ZLIB) compression"
+	default y
+	depends on PSTORE
+	select CRYPTO_DEFLATE
+	help
+	  This option enables DEFLATE (also known as ZLIB) compression
+	  algorithm support.
+
+config PSTORE_LZO_COMPRESS
+	tristate "LZO compression"
+	depends on PSTORE
+	select CRYPTO_LZO
+	help
+	  This option enables LZO compression algorithm support.
+
+config PSTORE_LZ4_COMPRESS
+	tristate "LZ4 compression"
+	depends on PSTORE
+	select CRYPTO_LZ4
+	help
+	  This option enables LZ4 compression algorithm support.
+
+config PSTORE_LZ4HC_COMPRESS
+	tristate "LZ4HC compression"
+	depends on PSTORE
+	select CRYPTO_LZ4HC
+	help
+	  This option enables LZ4HC (high compression) mode algorithm.
+
+config PSTORE_842_COMPRESS
+	bool "842 compression"
+	depends on PSTORE
+	select CRYPTO_842
+	help
+	  This option enables 842 compression algorithm support.
+
+config PSTORE_ZSTD_COMPRESS
+	bool "zstd compression"
+	depends on PSTORE
+	select CRYPTO_ZSTD
+	help
+	  This option enables zstd compression algorithm support.
+
+config PSTORE_COMPRESS
+	def_bool y
+	depends on PSTORE
+	depends on PSTORE_DEFLATE_COMPRESS || PSTORE_LZO_COMPRESS ||	\
+		   PSTORE_LZ4_COMPRESS || PSTORE_LZ4HC_COMPRESS ||	\
+		   PSTORE_842_COMPRESS || PSTORE_ZSTD_COMPRESS
+
+choice
+	prompt "Default pstore compression algorithm"
+	depends on PSTORE_COMPRESS
+	help
+	  This option chooses the default active compression algorithm.
+	  This change be changed at boot with "pstore.compress=..." on
+	  the kernel command line.
+
+	  Currently, pstore has support for 6 compression algorithms:
+	  deflate, lzo, lz4, lz4hc, 842 and zstd.
+
+	  The default compression algorithm is deflate.
+
+	config PSTORE_DEFLATE_COMPRESS_DEFAULT
+		bool "deflate" if PSTORE_DEFLATE_COMPRESS
+
+	config PSTORE_LZO_COMPRESS_DEFAULT
+		bool "lzo" if PSTORE_LZO_COMPRESS
+
+	config PSTORE_LZ4_COMPRESS_DEFAULT
+		bool "lz4" if PSTORE_LZ4_COMPRESS
+
+	config PSTORE_LZ4HC_COMPRESS_DEFAULT
+		bool "lz4hc" if PSTORE_LZ4HC_COMPRESS
+
+	config PSTORE_842_COMPRESS_DEFAULT
+		bool "842" if PSTORE_842_COMPRESS
+
+	config PSTORE_ZSTD_COMPRESS_DEFAULT
+		bool "zstd" if PSTORE_ZSTD_COMPRESS
+
+endchoice
+
+config PSTORE_COMPRESS_DEFAULT
+	string
+	depends on PSTORE_COMPRESS
+	default "deflate" if PSTORE_DEFLATE_COMPRESS_DEFAULT
+	default "lzo" if PSTORE_LZO_COMPRESS_DEFAULT
+	default "lz4" if PSTORE_LZ4_COMPRESS_DEFAULT
+	default "lz4hc" if PSTORE_LZ4HC_COMPRESS_DEFAULT
+	default "842" if PSTORE_842_COMPRESS_DEFAULT
+	default "zstd" if PSTORE_ZSTD_COMPRESS_DEFAULT
+
+config PSTORE_CONSOLE
+	bool "Log kernel console messages"
+	depends on PSTORE
+	help
+	  When the option is enabled, pstore will log all kernel
+	  messages, even if no oops or panic happened.
+
+config PSTORE_PMSG
+	bool "Log user space messages"
+	depends on PSTORE
+	select RT_MUTEXES
+	help
+	  When the option is enabled, pstore will export a character
+	  interface /dev/pmsg0 to log user space messages. On reboot
+	  data can be retrieved from /sys/fs/pstore/pmsg-ramoops-[ID].
+
+	  If unsure, say N.
+
+config PSTORE_FTRACE
+	bool "Persistent function tracer"
+	depends on PSTORE
+	depends on FUNCTION_TRACER
+	depends on DEBUG_FS
+	help
+	  With this option kernel traces function calls into a persistent
+	  ram buffer that can be decoded and dumped after reboot through
+	  pstore filesystem. It can be used to determine what function
+	  was last called before a reset or panic.
+
+	  If unsure, say N.
+
+config PSTORE_RAM
+	tristate "Log panic/oops to a RAM buffer"
+	depends on PSTORE
+	depends on HAS_IOMEM
+	select REED_SOLOMON
+	select REED_SOLOMON_ENC8
+	select REED_SOLOMON_DEC8
+	help
+	  This enables panic and oops messages to be logged to a circular
+	  buffer in RAM where it can be read back at some later point.
+
+	  Note that for historical reasons, the module will be named
+	  "ramoops.ko".
+
+	  For more information, see Documentation/admin-guide/ramoops.rst.
+
+config PSTORE_ZONE
+	tristate
+	depends on PSTORE
+	help
+	  The common layer for pstore/blk (and pstore/ram in the future)
+	  to manage storage in zones.
+
+config PSTORE_BLK
+	tristate "Log panic/oops to a block device"
+	depends on PSTORE
+	depends on BLOCK
+	select PSTORE_ZONE
+	default n
+	help
+	  This enables panic and oops message to be logged to a block dev
+	  where it can be read back at some later point.
+
+	  For more information, see Documentation/admin-guide/pstore-blk.rst
+
+	  If unsure, say N.
+
+config PSTORE_BLK_BLKDEV
+	string "block device identifier"
+	depends on PSTORE_BLK
+	default ""
+	help
+	  Which block device should be used for pstore/blk.
+
+	  It accepts the following variants:
+	  1) <hex_major><hex_minor> device number in hexadecimal representation,
+	     with no leading 0x, for example b302.
+	  2) /dev/<disk_name> represents the device name of disk
+	  3) /dev/<disk_name><decimal> represents the device name and number
+	     of partition - device number of disk plus the partition number
+	  4) /dev/<disk_name>p<decimal> - same as the above, this form is
+	     used when disk name of partitioned disk ends with a digit.
+	  5) PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF representing the
+	     unique id of a partition if the partition table provides it.
+	     The UUID may be either an EFI/GPT UUID, or refer to an MSDOS
+	     partition using the format SSSSSSSS-PP, where SSSSSSSS is a zero-
+	     filled hex representation of the 32-bit "NT disk signature", and PP
+	     is a zero-filled hex representation of the 1-based partition number.
+	  6) PARTUUID=<UUID>/PARTNROFF=<int> to select a partition in relation
+	     to a partition with a known unique id.
+	  7) <major>:<minor> major and minor number of the device separated by
+	     a colon.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_KMSG_SIZE
+	int "Size in Kbytes of kmsg dump log to store"
+	depends on PSTORE_BLK
+	default 64
+	help
+	  This just sets size of kmsg dump (oops, panic, etc) log for
+	  pstore/blk. The size is in KB and must be a multiple of 4.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_MAX_REASON
+	int "Maximum kmsg dump reason to store"
+	depends on PSTORE_BLK
+	default 2
+	help
+	  The maximum reason for kmsg dumps to store. The default is
+	  2 (KMSG_DUMP_OOPS), see include/linux/kmsg_dump.h's
+	  enum kmsg_dump_reason for more details.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_PMSG_SIZE
+	int "Size in Kbytes of pmsg to store"
+	depends on PSTORE_BLK
+	depends on PSTORE_PMSG
+	default 64
+	help
+	  This just sets size of pmsg (pmsg_size) for pstore/blk. The size is
+	  in KB and must be a multiple of 4.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_CONSOLE_SIZE
+	int "Size in Kbytes of console log to store"
+	depends on PSTORE_BLK
+	depends on PSTORE_CONSOLE
+	default 64
+	help
+	  This just sets size of console log (console_size) to store via
+	  pstore/blk. The size is in KB and must be a multiple of 4.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.
+
+config PSTORE_BLK_FTRACE_SIZE
+	int "Size in Kbytes of ftrace log to store"
+	depends on PSTORE_BLK
+	depends on PSTORE_FTRACE
+	default 64
+	help
+	  This just sets size of ftrace log (ftrace_size) for pstore/blk. The
+	  size is in KB and must be a multiple of 4.
+
+	  NOTE that, both Kconfig and module parameters can configure
+	  pstore/blk, but module parameters have priority over Kconfig.

@@ -1,0 +1,29 @@
+Mediatek vdecsys controller
+============================
+
+The Mediatek vdecsys controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt2701-vdecsys", "syscon"
+	- "mediatek,mt2712-vdecsys", "syscon"
+	- "mediatek,mt6779-vdecsys", "syscon"
+	- "mediatek,mt6797-vdecsys", "syscon"
+	- "mediatek,mt7623-vdecsys", "mediatek,mt2701-vdecsys", "syscon"
+	- "mediatek,mt8167-vdecsys", "syscon"
+	- "mediatek,mt8173-vdecsys", "syscon"
+	- "mediatek,mt8183-vdecsys", "syscon"
+- #clock-cells: Must be 1
+
+The vdecsys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+vdecsys: clock-controller@16000000 {
+	compatible = "mediatek,mt8173-vdecsys", "syscon";
+	reg = <0 0x16000000 0 0x1000>;
+	#clock-cells = <1>;
+};

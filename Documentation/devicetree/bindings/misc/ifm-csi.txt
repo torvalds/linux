@@ -1,0 +1,41 @@
+IFM camera sensor interface on mpc5200 LocalPlus bus
+
+Required properties:
+- compatible: "ifm,o2d-csi"
+- reg: specifies sensor chip select number and associated address range
+- interrupts: external interrupt line number and interrupt sense mode
+  of the interrupt line signaling frame valid events
+- gpios: three gpio-specifiers for "capture", "reset" and "master enable"
+  GPIOs (strictly in this order).
+- ifm,csi-clk-handle: the phandle to a node in the DT describing the sensor
+  clock generator. This node is usually a general purpose timer controller.
+- ifm,csi-addr-bus-width: address bus width (valid values are 16, 24, 25)
+- ifm,csi-data-bus-width: data bus width (valid values are 8 and 16)
+- ifm,csi-wait-cycles: sensor bus wait cycles
+
+Optional properties:
+- ifm,csi-byte-swap: if this property is present, the byte swapping on
+  the bus will be enabled.
+
+Example:
+
+	csi@3,0 {
+		compatible = "ifm,o2d-csi";
+		reg = <3 0 0x00100000>;		/* CS 3, 1 MiB range */
+		interrupts = <1 1 2>;		/* IRQ1, edge falling */
+
+		ifm,csi-clk-handle = <&timer7>;
+		gpios = <&gpio_simple 23 0	/* image_capture */
+			 &gpio_simple 26 0	/* image_reset */
+			 &gpio_simple 29 0>;	/* image_master_en */
+
+		ifm,csi-addr-bus-width = <24>;
+		ifm,csi-data-bus-width = <8>;
+		ifm,csi-wait-cycles = <0>;
+	};
+
+The base address of the used chip select is specified in the
+ranges property of the parent localbus node, for example:
+
+	ranges = <0 0 0xff000000 0x01000000
+		  3 0 0xe3000000 0x00100000>;

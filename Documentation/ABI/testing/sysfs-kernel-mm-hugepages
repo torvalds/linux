@@ -1,0 +1,17 @@
+What:		/sys/kernel/mm/hugepages/
+Date:		June 2008
+Contact:	Nishanth Aravamudan <nacc@us.ibm.com>, hugetlb maintainers
+Description:
+		/sys/kernel/mm/hugepages/ contains a number of subdirectories
+		of the form hugepages-<size>kB, where <size> is the page size
+		of the hugepages supported by the kernel/CPU combination.
+
+		Under these directories are a number of files:
+
+			- nr_hugepages
+			- nr_overcommit_hugepages
+			- free_hugepages
+			- surplus_hugepages
+			- resv_hugepages
+
+		See Documentation/admin-guide/mm/hugetlbpage.rst for details.

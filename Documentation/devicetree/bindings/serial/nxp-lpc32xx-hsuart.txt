@@ -1,0 +1,14 @@
+* NXP LPC32xx SoC High Speed UART
+
+Required properties:
+- compatible: Should be "nxp,lpc3220-hsuart"
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt
+
+Example:
+
+	uart1: serial@40014000 {
+		compatible = "nxp,lpc3220-hsuart";
+		reg = <0x40014000 0x1000>;
+		interrupts = <26 0>;
+	};

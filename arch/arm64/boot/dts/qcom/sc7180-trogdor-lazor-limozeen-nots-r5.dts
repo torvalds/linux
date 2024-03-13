@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Lazor Limozeen board device tree source
+ *
+ * Copyright 2021 Google LLC.
+ */
+
+/dts-v1/;
+
+#include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
+#include "sc7180-trogdor-lazor.dtsi"
+#include "sc7180-trogdor-lte-sku.dtsi"
+
+/ {
+	model = "Google Lazor Limozeen without Touchscreen (rev5 - rev8)";
+	/* No sku5 post-rev5 */
+	compatible = "google,lazor-rev5-sku5", "google,lazor-rev5-sku6",
+		"google,lazor-rev6-sku6", "google,lazor-rev7-sku6",
+		"google,lazor-rev8-sku6", "qcom,sc7180";
+};
+
+/delete-node/&ap_ts;
+
+&panel {
+	compatible = "innolux,n116bca-ea1", "innolux,n116bge";
+};
+
+&sdhc_2 {
+	status = "okay";
+};

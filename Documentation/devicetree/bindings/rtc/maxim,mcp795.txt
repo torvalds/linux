@@ -1,0 +1,11 @@
+* Maxim MCP795		SPI Serial Real-Time Clock
+
+Required properties:
+- compatible: Should contain "maxim,mcp795".
+- reg: SPI address for chip
+
+Example:
+	mcp795: rtc@0 {
+		compatible = "maxim,mcp795";
+		reg = <0>;
+	};

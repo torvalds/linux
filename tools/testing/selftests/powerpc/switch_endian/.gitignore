@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0-only
+switch_endian_test
+check-reversed.S

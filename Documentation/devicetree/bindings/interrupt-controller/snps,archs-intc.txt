@@ -1,0 +1,22 @@
+* ARC-HS incore Interrupt Controller (Provided by cores implementing ARCv2 ISA)
+
+Properties:
+
+- compatible: "snps,archs-intc"
+- interrupt-controller: This is an interrupt controller.
+- #interrupt-cells: Must be <1>.
+
+  Single Cell "interrupts" property of a device specifies the IRQ number
+  between 16 to 256
+
+  intc accessed via the special ARC AUX register interface, hence "reg" property
+  is not specified.
+
+Example:
+
+	intc: interrupt-controller {
+		compatible = "snps,archs-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		interrupts = <16 17 18 19 20 21 22 23 24 25>;
+	};

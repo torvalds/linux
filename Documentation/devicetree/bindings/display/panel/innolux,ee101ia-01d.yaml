@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/innolux,ee101ia-01d.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Innolux Corporation 10.1" EE101IA-01D WXGA (1280x800) LVDS panel
+
+maintainers:
+  - Heiko Stuebner <heiko.stuebner@bq.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: panel-common.yaml#
+  - $ref: /schemas/display/lvds.yaml/#
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: innolux,ee101ia-01d
+
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - const: innolux,ee101ia-01d
+      - const: panel-lvds
+
+  backlight: true
+  data-mapping: true
+  enable-gpios: true
+  power-supply: true
+  width-mm: true
+  height-mm: true
+  panel-timing: true
+  port: true
+
+required:
+  - compatible
+  - data-mapping
+  - width-mm
+  - height-mm
+  - panel-timing
+  - port
+
+additionalProperties: false
+...

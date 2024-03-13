@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/pwm-samsung.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung SoC PWM timers
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |+
+  Samsung SoCs contain PWM timer blocks which can be used for system clock source
+  and clock event timers, as well as to drive SoC outputs with PWM signal. Each
+  PWM timer block provides 5 PWM channels (not all of them can drive physical
+  outputs - see SoC and board manual).
+
+  Be aware that the clocksource driver supports only uniprocessor systems.
+
+properties:
+  compatible:
+    enum:
+      - samsung,s3c2410-pwm             # 16-bit, S3C24xx
+      - samsung,s3c6400-pwm             # 32-bit, S3C64xx
+      - samsung,s5p6440-pwm             # 32-bit, S5P64x0
+      - samsung,s5pc100-pwm             # 32-bit, S5PC100, S5PV210, Exynos4210 rev0 SoCs
+      - samsung,exynos4210-pwm          # 32-bit, Exynos
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    description: |
+      Should contain all following required clock names:
+      - "timers" - PWM base clock used to generate PWM signals,
+      and any subset of following optional clock names:
+      - "pwm-tclk0" - first external PWM clock source,
+      - "pwm-tclk1" - second external PWM clock source.
+      Note that not all IP variants allow using all external clock sources.
+      Refer to SoC documentation to learn which clock source configurations
+      are available.
+    oneOf:
+      - items:
+          - const: timers
+      - items:
+          - const: timers
+          - const: pwm-tclk0
+      - items:
+          - const: timers
+          - const: pwm-tclk1
+      - items:
+          - const: timers
+          - const: pwm-tclk0
+          - const: pwm-tclk1
+
+  interrupts:
+    description:
+      One interrupt per timer, starting at timer 0. Necessary only for SoCs which
+      use PWM clocksource.
+    minItems: 1
+    maxItems: 5
+
+  "#pwm-cells":
+    description:
+      The only third cell flag supported by this binding
+      is PWM_POLARITY_INVERTED.
+    const: 3
+
+  samsung,pwm-outputs:
+    description:
+      A list of PWM channels used as PWM outputs on particular platform.
+      It is an array of up to 5 elements being indices of PWM channels
+      (from 0 to 4), the order does not matter.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    uniqueItems: true
+    items:
+      minimum: 0
+      maximum: 4
+
+required:
+  - clocks
+  - clock-names
+  - compatible
+  - reg
+
+additionalProperties: false
+
+allOf:
+  - $ref: pwm.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s3c2410-pwm
+              - samsung,s3c6400-pwm
+              - samsung,s5p6440-pwm
+              - samsung,s5pc100-pwm
+    then:
+      required:
+        - interrupts
+
+examples:
+  - |
+    pwm@7f006000 {
+        compatible = "samsung,s3c6400-pwm";
+        reg = <0x7f006000 0x1000>;
+        interrupt-parent = <&vic0>;
+        interrupts = <23>, <24>, <25>, <27>, <28>;
+        clocks = <&clock 67>;
+        clock-names = "timers";
+        samsung,pwm-outputs = <0>, <1>;
+        #pwm-cells = <3>;
+    };

@@ -1,0 +1,97 @@
+/*
+ * B4420 Silicon/SoC Device Tree Source (post include)
+ *
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * This software is provided by Freescale Semiconductor "as is" and any
+ * express or implied warranties, including, but not limited to, the implied
+ * warranties of merchantability and fitness for a particular purpose are
+ * disclaimed. In no event shall Freescale Semiconductor be liable for any
+ * direct, indirect, incidental, special, exemplary, or consequential damages
+ * (including, but not limited to, procurement of substitute goods or services;
+ * loss of use, data, or profits; or business interruption) however caused and
+ * on any theory of liability, whether in contract, strict liability, or tort
+ * (including negligence or otherwise) arising in any way out of the use of
+ * this software, even if advised of the possibility of such damage.
+ */
+
+/include/ "b4si-post.dtsi"
+
+/* controller at 0x200000 */
+&pci0 {
+	compatible = "fsl,b4420-pcie", "fsl,qoriq-pcie-v2.4";
+};
+
+&dcsr {
+	dcsr-epu@0 {
+		compatible = "fsl,b4420-dcsr-epu", "fsl,dcsr-epu";
+	};
+	dcsr-npc {
+		compatible = "fsl,b4420-dcsr-cnpc", "fsl,dcsr-cnpc";
+	};
+	dcsr-dpaa@9000 {
+		compatible = "fsl,b4420-dcsr-dpaa", "fsl,dcsr-dpaa";
+	};
+	dcsr-ocn@11000 {
+		compatible = "fsl,b4420-dcsr-ocn", "fsl,dcsr-ocn";
+	};
+	dcsr-nal@18000 {
+		compatible = "fsl,b4420-dcsr-nal", "fsl,dcsr-nal";
+	};
+	dcsr-rcpm@22000 {
+		compatible = "fsl,b4420-dcsr-rcpm", "fsl,dcsr-rcpm";
+	};
+	dcsr-snpc@30000 {
+		compatible = "fsl,b4420-dcsr-snpc", "fsl,dcsr-snpc";
+	};
+	dcsr-snpc@31000 {
+		compatible = "fsl,b4420-dcsr-snpc", "fsl,dcsr-snpc";
+	};
+	dcsr-cpu-sb-proxy@108000 {
+		compatible = "fsl,dcsr-e6500-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+		cpu-handle = <&cpu1>;
+		reg = <0x108000 0x1000 0x109000 0x1000>;
+	};
+};
+
+&soc {
+	cpc: l3-cache-controller@10000 {
+		compatible = "fsl,b4420-l3-cache-controller", "cache";
+	};
+
+	guts: global-utilities@e0000 {
+		compatible = "fsl,b4420-device-config", "fsl,qoriq-device-config-2.0";
+	};
+
+	global-utilities@e1000 {
+		compatible = "fsl,b4420-clockgen", "fsl,b4-clockgen",
+			      "fsl,qoriq-clockgen-2.0";
+	};
+
+	rcpm: global-utilities@e2000 {
+		compatible = "fsl,b4420-rcpm", "fsl,qoriq-rcpm-2.0";
+	};
+
+	L2_1: l2-cache-controller@c20000 {
+		compatible = "fsl,b4420-l2-cache-controller";
+		reg = <0xc20000 0x40000>;
+		next-level-cache = <&cpc>;
+	};
+};

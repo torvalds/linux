@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+#
+# Analog Devices device configuration
+#
+
+config NET_VENDOR_ADI
+	bool "Analog Devices devices"
+	default y
+	depends on SPI
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about ADI devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_ADI
+
+config ADIN1110
+	tristate "Analog Devices ADIN1110 MAC-PHY"
+	depends on SPI && NET_SWITCHDEV
+	select CRC8
+	help
+	  Say yes here to build support for Analog Devices ADIN1110
+	  Low Power 10BASE-T1L Ethernet MAC-PHY.
+
+endif # NET_VENDOR_ADI

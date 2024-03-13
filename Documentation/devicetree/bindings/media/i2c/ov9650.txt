@@ -1,0 +1,36 @@
+* Omnivision OV9650/OV9652 CMOS sensor
+
+Required Properties:
+- compatible: shall be one of
+	"ovti,ov9650"
+	"ovti,ov9652"
+- clocks: reference to the xvclk input clock.
+
+Optional Properties:
+- reset-gpios: reference to the GPIO connected to the resetb pin, if any.
+  Active is high.
+- powerdown-gpios: reference to the GPIO connected to the pwdn pin, if any.
+  Active is high.
+
+The device node shall contain one 'port' child node with one child 'endpoint'
+subnode for its digital output video port, in accordance with the video
+interface bindings defined in Documentation/devicetree/bindings/media/
+video-interfaces.txt.
+
+Example:
+
+&i2c0 {
+	ov9650: camera@30 {
+		compatible = "ovti,ov9650";
+		reg = <0x30>;
+		reset-gpios = <&axi_gpio_0 0 GPIO_ACTIVE_HIGH>;
+		powerdown-gpios = <&axi_gpio_0 1 GPIO_ACTIVE_HIGH>;
+		clocks = <&xclk>;
+
+		port {
+			ov9650_0: endpoint {
+				remote-endpoint = <&vcap1_in0>;
+			};
+		};
+	};
+};

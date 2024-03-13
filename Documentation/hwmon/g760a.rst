@@ -1,0 +1,40 @@
+Kernel driver g760a
+===================
+
+Supported chips:
+
+  * Global Mixed-mode Technology Inc. G760A
+
+    Prefix: 'g760a'
+
+    Datasheet: Publicly available at the GMT website
+
+      http://www.gmt.com.tw/product/datasheet/EDS-760A.pdf
+
+Author: Herbert Valerio Riedel <hvr@gnu.org>
+
+Description
+-----------
+
+The GMT G760A Fan Speed PWM Controller is connected directly to a fan
+and performs closed-loop control of the fan speed.
+
+The fan speed is programmed by setting the period via 'pwm1' of two
+consecutive speed pulses. The period is defined in terms of clock
+cycle counts of an assumed 32kHz clock source.
+
+Setting a period of 0 stops the fan; setting the period to 255 sets
+fan to maximum speed.
+
+The measured fan rotation speed returned via 'fan1_input' is derived
+from the measured speed pulse period by assuming again a 32kHz clock
+source and a 2 pulse-per-revolution fan.
+
+The 'alarms' file provides access to the two alarm bits provided by
+the G760A chip's status register: Bit 0 is set when the actual fan
+speed differs more than 20% with respect to the programmed fan speed;
+bit 1 is set when fan speed is below 1920 RPM.
+
+The g760a driver will not update its values more frequently than every
+other second; reading them more often will do no harm, but will return
+'old' values.

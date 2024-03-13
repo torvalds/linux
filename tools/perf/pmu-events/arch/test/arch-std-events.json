@@ -1,0 +1,8 @@
+[
+    {
+        "PublicDescription": "Attributable Level 3 cache access, read",
+        "EventCode": "0x40",
+        "EventName": "L3_CACHE_RD",
+        "BriefDescription": "L3 cache access, read"
+    }
+]

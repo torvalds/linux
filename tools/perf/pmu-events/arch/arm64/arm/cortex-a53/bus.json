@@ -1,0 +1,8 @@
+[
+  {
+        "ArchStdEvent": "BUS_ACCESS_RD"
+  },
+  {
+        "ArchStdEvent": "BUS_ACCESS_WR"
+  }
+]

@@ -1,0 +1,1882 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/**
+ * dts file for Hisilicon D05 Development Board
+ *
+ * Copyright (C) 2016 HiSilicon Ltd.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	compatible = "hisilicon,hip07-d05";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+				core2 {
+					cpu = <&cpu6>;
+				};
+				core3 {
+					cpu = <&cpu7>;
+				};
+			};
+
+			cluster2 {
+				core0 {
+					cpu = <&cpu8>;
+				};
+				core1 {
+					cpu = <&cpu9>;
+				};
+				core2 {
+					cpu = <&cpu10>;
+				};
+				core3 {
+					cpu = <&cpu11>;
+				};
+			};
+
+			cluster3 {
+				core0 {
+					cpu = <&cpu12>;
+				};
+				core1 {
+					cpu = <&cpu13>;
+				};
+				core2 {
+					cpu = <&cpu14>;
+				};
+				core3 {
+					cpu = <&cpu15>;
+				};
+			};
+
+			cluster4 {
+				core0 {
+					cpu = <&cpu16>;
+				};
+				core1 {
+					cpu = <&cpu17>;
+				};
+				core2 {
+					cpu = <&cpu18>;
+				};
+				core3 {
+					cpu = <&cpu19>;
+				};
+			};
+
+			cluster5 {
+				core0 {
+					cpu = <&cpu20>;
+				};
+				core1 {
+					cpu = <&cpu21>;
+				};
+				core2 {
+					cpu = <&cpu22>;
+				};
+				core3 {
+					cpu = <&cpu23>;
+				};
+			};
+
+			cluster6 {
+				core0 {
+					cpu = <&cpu24>;
+				};
+				core1 {
+					cpu = <&cpu25>;
+				};
+				core2 {
+					cpu = <&cpu26>;
+				};
+				core3 {
+					cpu = <&cpu27>;
+				};
+			};
+
+			cluster7 {
+				core0 {
+					cpu = <&cpu28>;
+				};
+				core1 {
+					cpu = <&cpu29>;
+				};
+				core2 {
+					cpu = <&cpu30>;
+				};
+				core3 {
+					cpu = <&cpu31>;
+				};
+			};
+
+			cluster8 {
+				core0 {
+					cpu = <&cpu32>;
+				};
+				core1 {
+					cpu = <&cpu33>;
+				};
+				core2 {
+					cpu = <&cpu34>;
+				};
+				core3 {
+					cpu = <&cpu35>;
+				};
+			};
+
+			cluster9 {
+				core0 {
+					cpu = <&cpu36>;
+				};
+				core1 {
+					cpu = <&cpu37>;
+				};
+				core2 {
+					cpu = <&cpu38>;
+				};
+				core3 {
+					cpu = <&cpu39>;
+				};
+			};
+
+			cluster10 {
+				core0 {
+					cpu = <&cpu40>;
+				};
+				core1 {
+					cpu = <&cpu41>;
+				};
+				core2 {
+					cpu = <&cpu42>;
+				};
+				core3 {
+					cpu = <&cpu43>;
+				};
+			};
+
+			cluster11 {
+				core0 {
+					cpu = <&cpu44>;
+				};
+				core1 {
+					cpu = <&cpu45>;
+				};
+				core2 {
+					cpu = <&cpu46>;
+				};
+				core3 {
+					cpu = <&cpu47>;
+				};
+			};
+
+			cluster12 {
+				core0 {
+					cpu = <&cpu48>;
+				};
+				core1 {
+					cpu = <&cpu49>;
+				};
+				core2 {
+					cpu = <&cpu50>;
+				};
+				core3 {
+					cpu = <&cpu51>;
+				};
+			};
+
+			cluster13 {
+				core0 {
+					cpu = <&cpu52>;
+				};
+				core1 {
+					cpu = <&cpu53>;
+				};
+				core2 {
+					cpu = <&cpu54>;
+				};
+				core3 {
+					cpu = <&cpu55>;
+				};
+			};
+
+			cluster14 {
+				core0 {
+					cpu = <&cpu56>;
+				};
+				core1 {
+					cpu = <&cpu57>;
+				};
+				core2 {
+					cpu = <&cpu58>;
+				};
+				core3 {
+					cpu = <&cpu59>;
+				};
+			};
+
+			cluster15 {
+				core0 {
+					cpu = <&cpu60>;
+				};
+				core1 {
+					cpu = <&cpu61>;
+				};
+				core2 {
+					cpu = <&cpu62>;
+				};
+				core3 {
+					cpu = <&cpu63>;
+				};
+			};
+		};
+
+		cpu0: cpu@10000 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10000>;
+			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu1: cpu@10001 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10001>;
+			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu2: cpu@10002 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10002>;
+			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu3: cpu@10003 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10003>;
+			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu4: cpu@10100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10100>;
+			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu5: cpu@10101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10101>;
+			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu6: cpu@10102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10102>;
+			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu7: cpu@10103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10103>;
+			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu8: cpu@10200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10200>;
+			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu9: cpu@10201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10201>;
+			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu10: cpu@10202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10202>;
+			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu11: cpu@10203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10203>;
+			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu12: cpu@10300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10300>;
+			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu13: cpu@10301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10301>;
+			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu14: cpu@10302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10302>;
+			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu15: cpu@10303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x10303>;
+			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
+			numa-node-id = <0>;
+		};
+
+		cpu16: cpu@30000 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30000>;
+			enable-method = "psci";
+			next-level-cache = <&cluster4_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu17: cpu@30001 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30001>;
+			enable-method = "psci";
+			next-level-cache = <&cluster4_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu18: cpu@30002 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30002>;
+			enable-method = "psci";
+			next-level-cache = <&cluster4_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu19: cpu@30003 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30003>;
+			enable-method = "psci";
+			next-level-cache = <&cluster4_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu20: cpu@30100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30100>;
+			enable-method = "psci";
+			next-level-cache = <&cluster5_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu21: cpu@30101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30101>;
+			enable-method = "psci";
+			next-level-cache = <&cluster5_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu22: cpu@30102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30102>;
+			enable-method = "psci";
+			next-level-cache = <&cluster5_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu23: cpu@30103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30103>;
+			enable-method = "psci";
+			next-level-cache = <&cluster5_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu24: cpu@30200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30200>;
+			enable-method = "psci";
+			next-level-cache = <&cluster6_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu25: cpu@30201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30201>;
+			enable-method = "psci";
+			next-level-cache = <&cluster6_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu26: cpu@30202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30202>;
+			enable-method = "psci";
+			next-level-cache = <&cluster6_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu27: cpu@30203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30203>;
+			enable-method = "psci";
+			next-level-cache = <&cluster6_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu28: cpu@30300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30300>;
+			enable-method = "psci";
+			next-level-cache = <&cluster7_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu29: cpu@30301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30301>;
+			enable-method = "psci";
+			next-level-cache = <&cluster7_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu30: cpu@30302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30302>;
+			enable-method = "psci";
+			next-level-cache = <&cluster7_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu31: cpu@30303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x30303>;
+			enable-method = "psci";
+			next-level-cache = <&cluster7_l2>;
+			numa-node-id = <1>;
+		};
+
+		cpu32: cpu@50000 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50000>;
+			enable-method = "psci";
+			next-level-cache = <&cluster8_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu33: cpu@50001 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50001>;
+			enable-method = "psci";
+			next-level-cache = <&cluster8_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu34: cpu@50002 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50002>;
+			enable-method = "psci";
+			next-level-cache = <&cluster8_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu35: cpu@50003 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50003>;
+			enable-method = "psci";
+			next-level-cache = <&cluster8_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu36: cpu@50100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50100>;
+			enable-method = "psci";
+			next-level-cache = <&cluster9_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu37: cpu@50101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50101>;
+			enable-method = "psci";
+			next-level-cache = <&cluster9_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu38: cpu@50102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50102>;
+			enable-method = "psci";
+			next-level-cache = <&cluster9_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu39: cpu@50103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50103>;
+			enable-method = "psci";
+			next-level-cache = <&cluster9_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu40: cpu@50200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50200>;
+			enable-method = "psci";
+			next-level-cache = <&cluster10_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu41: cpu@50201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50201>;
+			enable-method = "psci";
+			next-level-cache = <&cluster10_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu42: cpu@50202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50202>;
+			enable-method = "psci";
+			next-level-cache = <&cluster10_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu43: cpu@50203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50203>;
+			enable-method = "psci";
+			next-level-cache = <&cluster10_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu44: cpu@50300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50300>;
+			enable-method = "psci";
+			next-level-cache = <&cluster11_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu45: cpu@50301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50301>;
+			enable-method = "psci";
+			next-level-cache = <&cluster11_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu46: cpu@50302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50302>;
+			enable-method = "psci";
+			next-level-cache = <&cluster11_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu47: cpu@50303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x50303>;
+			enable-method = "psci";
+			next-level-cache = <&cluster11_l2>;
+			numa-node-id = <2>;
+		};
+
+		cpu48: cpu@70000 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70000>;
+			enable-method = "psci";
+			next-level-cache = <&cluster12_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu49: cpu@70001 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70001>;
+			enable-method = "psci";
+			next-level-cache = <&cluster12_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu50: cpu@70002 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70002>;
+			enable-method = "psci";
+			next-level-cache = <&cluster12_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu51: cpu@70003 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70003>;
+			enable-method = "psci";
+			next-level-cache = <&cluster12_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu52: cpu@70100 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70100>;
+			enable-method = "psci";
+			next-level-cache = <&cluster13_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu53: cpu@70101 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70101>;
+			enable-method = "psci";
+			next-level-cache = <&cluster13_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu54: cpu@70102 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70102>;
+			enable-method = "psci";
+			next-level-cache = <&cluster13_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu55: cpu@70103 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70103>;
+			enable-method = "psci";
+			next-level-cache = <&cluster13_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu56: cpu@70200 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70200>;
+			enable-method = "psci";
+			next-level-cache = <&cluster14_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu57: cpu@70201 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70201>;
+			enable-method = "psci";
+			next-level-cache = <&cluster14_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu58: cpu@70202 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70202>;
+			enable-method = "psci";
+			next-level-cache = <&cluster14_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu59: cpu@70203 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70203>;
+			enable-method = "psci";
+			next-level-cache = <&cluster14_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu60: cpu@70300 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70300>;
+			enable-method = "psci";
+			next-level-cache = <&cluster15_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu61: cpu@70301 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70301>;
+			enable-method = "psci";
+			next-level-cache = <&cluster15_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu62: cpu@70302 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70302>;
+			enable-method = "psci";
+			next-level-cache = <&cluster15_l2>;
+			numa-node-id = <3>;
+		};
+
+		cpu63: cpu@70303 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a72";
+			reg = <0x70303>;
+			enable-method = "psci";
+			next-level-cache = <&cluster15_l2>;
+			numa-node-id = <3>;
+		};
+
+		cluster0_l2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		cluster1_l2: l2-cache1 {
+			compatible = "cache";
+		};
+
+		cluster2_l2: l2-cache2 {
+			compatible = "cache";
+		};
+
+		cluster3_l2: l2-cache3 {
+			compatible = "cache";
+		};
+
+		cluster4_l2: l2-cache4 {
+			compatible = "cache";
+		};
+
+		cluster5_l2: l2-cache5 {
+			compatible = "cache";
+		};
+
+		cluster6_l2: l2-cache6 {
+			compatible = "cache";
+		};
+
+		cluster7_l2: l2-cache7 {
+			compatible = "cache";
+		};
+
+		cluster8_l2: l2-cache8 {
+			compatible = "cache";
+		};
+
+		cluster9_l2: l2-cache9 {
+			compatible = "cache";
+		};
+
+		cluster10_l2: l2-cache10 {
+			compatible = "cache";
+		};
+
+		cluster11_l2: l2-cache11 {
+			compatible = "cache";
+		};
+
+		cluster12_l2: l2-cache12 {
+			compatible = "cache";
+		};
+
+		cluster13_l2: l2-cache13 {
+			compatible = "cache";
+		};
+
+		cluster14_l2: l2-cache14 {
+			compatible = "cache";
+		};
+
+		cluster15_l2: l2-cache15 {
+			compatible = "cache";
+		};
+	};
+
+	gic: interrupt-controller@4d000000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+		#redistributor-regions = <4>;
+		redistributor-stride = <0x0 0x40000>;
+		reg = <0x0 0x4d000000 0x0 0x10000>,	/* GICD */
+		      <0x0 0x4d100000 0x0 0x400000>,	/* p0 GICR node 0 */
+		      <0x0 0x6d100000 0x0 0x400000>,	/* p0 GICR node 1 */
+		      <0x400 0x4d100000 0x0 0x400000>,	/* p1 GICR node 2 */
+		      <0x400 0x6d100000 0x0 0x400000>,	/* p1 GICR node 3 */
+		      <0x0 0xfe000000 0x0 0x10000>,	/* GICC */
+		      <0x0 0xfe010000 0x0 0x10000>,	/* GICH */
+		      <0x0 0xfe020000 0x0 0x10000>;	/* GICV */
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+
+		p0_its_peri_a: msi-controller@4c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0x4c000000 0x0 0x40000>;
+		};
+
+		p0_its_peri_b: msi-controller@6c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0x6c000000 0x0 0x40000>;
+		};
+
+		p0_its_dsa_a: msi-controller@c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0xc6000000 0x0 0x40000>;
+		};
+
+		p0_its_dsa_b: msi-controller@8c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x8 0xc6000000 0x0 0x40000>;
+		};
+
+		p1_its_peri_a: msi-controller@4004c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x400 0x4c000000 0x0 0x40000>;
+		};
+
+		p1_its_peri_b: msi-controller@4006c000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x400 0x6c000000 0x0 0x40000>;
+		};
+
+		p1_its_dsa_a: msi-controller@400c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x400 0xc6000000 0x0 0x40000>;
+		};
+
+		p1_its_dsa_b: msi-controller@408c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x408 0xc6000000 0x0 0x40000>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a72-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	p0_mbigen_peri_b: interrupt-controller@60080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0x60080000 0x0 0x10000>;
+
+		mbigen_uart: uart_intc {
+			msi-parent = <&p0_its_peri_b 0x120c7>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <1>;
+		};
+	};
+
+	p0_mbigen_pcie_a: interrupt-controller@a0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0xa0080000 0x0 0x10000>;
+
+		mbigen_pcie2_a: intc_pcie2_a {
+			msi-parent = <&p0_its_dsa_a 0x40087>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
+
+		mbigen_sas1: intc_sas1 {
+			msi-parent = <&p0_its_dsa_a 0x40000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_sas2: intc_sas2 {
+			msi-parent = <&p0_its_dsa_a 0x40040>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_smmu_pcie: intc_smmu_pcie {
+			msi-parent = <&p0_its_dsa_a 0x40b0c>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+
+		mbigen_usb: intc_usb {
+			msi-parent = <&p0_its_dsa_a 0x40080>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <2>;
+		};
+	};
+	p0_mbigen_alg_a:interrupt-controller@d0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0xd0080000 0x0 0x10000>;
+
+		p0_mbigen_sec_a: intc_sec {
+			msi-parent = <&p0_its_dsa_a 0x40400>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <33>;
+		};
+		p0_mbigen_smmu_alg_a: intc_smmu_alg {
+			msi-parent = <&p0_its_dsa_a 0x40b1b>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+	p0_mbigen_alg_b:interrupt-controller@8,d0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x8 0xd0080000 0x0 0x10000>;
+
+		p0_mbigen_sec_b: intc_sec {
+			msi-parent = <&p0_its_dsa_b 0x42400>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <33>;
+		};
+		p0_mbigen_smmu_alg_b: intc_smmu_alg {
+			msi-parent = <&p0_its_dsa_b 0x42b1b>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+	p1_mbigen_alg_a:interrupt-controller@400,d0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x400 0xd0080000 0x0 0x10000>;
+
+		p1_mbigen_sec_a: intc_sec {
+			msi-parent = <&p1_its_dsa_a 0x44400>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <33>;
+		};
+		p1_mbigen_smmu_alg_a: intc_smmu_alg {
+			msi-parent = <&p1_its_dsa_a 0x44b1b>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+	p1_mbigen_alg_b:interrupt-controller@408,d0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x408 0xd0080000 0x0 0x10000>;
+
+		p1_mbigen_sec_b: intc_sec {
+			msi-parent = <&p1_its_dsa_b 0x46400>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <33>;
+		};
+		p1_mbigen_smmu_alg_b: intc_smmu_alg {
+			msi-parent = <&p1_its_dsa_b 0x46b1b>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+	p0_mbigen_dsa_a: interrupt-controller@c0080000 {
+		compatible = "hisilicon,mbigen-v2";
+		reg = <0x0 0xc0080000 0x0 0x10000>;
+
+		mbigen_dsaf0: intc_dsaf0 {
+			msi-parent = <&p0_its_dsa_a 0x40800>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <409>;
+		};
+
+		mbigen_dsa_roce: intc-roce {
+			msi-parent = <&p0_its_dsa_a 0x40B1E>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <34>;
+		};
+
+		mbigen_sas0: intc-sas0 {
+			msi-parent = <&p0_its_dsa_a 0x40900>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <128>;
+		};
+
+		mbigen_smmu_dsa: intc_smmu_dsa {
+			msi-parent = <&p0_its_dsa_a 0x40b20>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <3>;
+		};
+	};
+
+	/**
+	 *  HiSilicon erratum 161010801: This describes the limitation
+	 *  of HiSilicon platforms hip06/hip07 to support the SMMUv3
+	 *  mappings for PCIe MSI transactions.
+	 *  PCIe controller on these platforms has to differentiate the
+	 *  MSI payload against other DMA payload and has to modify the
+	 *  MSI payload. This makes it difficult for these platforms to
+	 *  have a SMMU translation for MSI. In order to workaround this,
+	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
+	 *  separately. Such a quirk is currently missing for DT based
+	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  hip07 is disabled as this will break the PCIe functionality
+	 *  when iommu-map entry is used along with the PCIe node.
+	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
+	 */
+	smmu0: iommu@a0040000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xa0040000 0x0 0x20000>;
+		#iommu-cells = <1>;
+		dma-coherent;
+		hisilicon,broken-prefetch-cmd;
+		status = "disabled";
+	};
+	p0_smmu_alg_a: iommu@d0040000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xd0040000 0x0 0x20000>;
+		interrupt-parent = <&p0_mbigen_smmu_alg_a>;
+		interrupts = <733 1>,
+		<734 1>,
+		<735 1>;
+		interrupt-names = "eventq", "gerror", "priq";
+		#iommu-cells = <1>;
+		dma-coherent;
+		hisilicon,broken-prefetch-cmd;
+	};
+	p0_smmu_alg_b: iommu@8d0040000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x8 0xd0040000 0x0 0x20000>;
+		interrupt-parent = <&p0_mbigen_smmu_alg_b>;
+		interrupts = <733 1>,
+		<734 1>,
+		<735 1>;
+		interrupt-names = "eventq", "gerror", "priq";
+		#iommu-cells = <1>;
+		dma-coherent;
+		hisilicon,broken-prefetch-cmd;
+	};
+	p1_smmu_alg_a: iommu@400d0040000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x400 0xd0040000 0x0 0x20000>;
+		interrupt-parent = <&p1_mbigen_smmu_alg_a>;
+		interrupts = <733 1>,
+		<734 1>,
+		<735 1>;
+		interrupt-names = "eventq", "gerror", "priq";
+		#iommu-cells = <1>;
+		dma-coherent;
+		hisilicon,broken-prefetch-cmd;
+	};
+	p1_smmu_alg_b: iommu@408d0040000 {
+		compatible = "arm,smmu-v3";
+		reg = <0x408 0xd0040000 0x0 0x20000>;
+		interrupt-parent = <&p1_mbigen_smmu_alg_b>;
+		interrupts = <733 1>,
+		<734 1>,
+		<735 1>;
+		interrupt-names = "eventq", "gerror", "priq";
+		#iommu-cells = <1>;
+		dma-coherent;
+		hisilicon,broken-prefetch-cmd;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		isa@a01b0000 {
+			compatible = "hisilicon,hip07-lpc";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			reg = <0x0 0xa01b0000 0x0 0x1000>;
+
+			ipmi0: bt@e4 {
+				compatible = "ipmi-bt";
+				device_type = "ipmi";
+				reg = <0x01 0xe4 0x04>;
+				status = "disabled";
+			};
+		};
+
+		uart0: uart@602b0000 {
+			compatible = "arm,sbsa-uart";
+			reg = <0x0 0x602b0000 0x0 0x1000>;
+			interrupt-parent = <&mbigen_uart>;
+			interrupts = <807 4>;
+			current-speed = <115200>;
+			reg-io-width = <4>;
+			status = "disabled";
+		};
+
+		usb_ohci: usb@a7030000 {
+			compatible = "generic-ohci";
+			reg = <0x0 0xa7030000 0x0 0x10000>;
+			interrupt-parent = <&mbigen_usb>;
+			interrupts = <640 4>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		usb_ehci: usb@a7020000 {
+			compatible = "generic-ehci";
+			reg = <0x0 0xa7020000 0x0 0x10000>;
+			interrupt-parent = <&mbigen_usb>;
+			interrupts = <641 4>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		peri_c_subctrl: sub_ctrl_c@60000000 {
+			compatible = "hisilicon,peri-subctrl","syscon";
+			reg = <0 0x60000000 0x0 0x10000>;
+		};
+
+		dsa_subctrl: dsa_subctrl@c0000000 {
+			compatible = "hisilicon,dsa-subctrl", "syscon";
+			reg = <0x0 0xc0000000 0x0 0x10000>;
+		};
+
+		dsa_cpld: dsa_cpld@78000010 {
+			compatible = "syscon";
+			reg = <0x0 0x78000010 0x0 0x100>;
+			reg-io-width = <2>;
+		};
+
+		pcie_subctl: pcie_subctl@a0000000 {
+			compatible = "hisilicon,pcie-sas-subctrl", "syscon";
+			reg = <0x0 0xa0000000 0x0 0x10000>;
+		};
+
+		serdes_ctrl: sds_ctrl@c2200000 {
+			compatible = "syscon";
+			reg = <0 0xc2200000 0x0 0x80000>;
+		};
+
+		mdio@603c0000 {
+			compatible = "hisilicon,hns-mdio";
+			reg = <0x0 0x603c0000 0x0 0x1000>;
+			subctrl-vbase = <&peri_c_subctrl 0x338 0xa38
+					 0x531c 0x5a1c>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy0: ethernet-phy@0 {
+				compatible = "ethernet-phy-ieee802.3-c22";
+				reg = <0>;
+			};
+
+			phy1: ethernet-phy@1 {
+				compatible = "ethernet-phy-ieee802.3-c22";
+				reg = <1>;
+			};
+		};
+
+		dsaf0: dsa@c7000000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "hisilicon,hns-dsaf-v2";
+			mode = "6port-16rss";
+			reg = <0x0 0xc5000000 0x0 0x890000>,
+			      <0x0 0xc7000000 0x0 0x600000>;
+			reg-names = "ppe-base", "dsaf-base";
+			interrupt-parent = <&mbigen_dsaf0>;
+			subctrl-syscon = <&dsa_subctrl>;
+			reset-field-offset = <0>;
+			interrupts =
+			<576 1>, <577 1>, <578 1>, <579 1>, <580 1>,
+			<581 1>, <582 1>, <583 1>, <584 1>, <585 1>,
+			<586 1>, <587 1>, <588 1>, <589 1>, <590 1>,
+			<591 1>, <592 1>, <593 1>, <594 1>, <595 1>,
+			<596 1>, <597 1>, <598 1>, <599 1>, <600 1>,
+			<960 1>, <961 1>, <962 1>, <963 1>, <964 1>,
+			<965 1>, <966 1>, <967 1>, <968 1>, <969 1>,
+			<970 1>, <971 1>, <972 1>, <973 1>, <974 1>,
+			<975 1>, <976 1>, <977 1>, <978 1>, <979 1>,
+			<980 1>, <981 1>, <982 1>, <983 1>, <984 1>,
+			<985 1>, <986 1>, <987 1>, <988 1>, <989 1>,
+			<990 1>, <991 1>, <992 1>, <993 1>, <994 1>,
+			<995 1>, <996 1>, <997 1>, <998 1>, <999 1>,
+			<1000 1>, <1001 1>, <1002 1>, <1003 1>, <1004 1>,
+			<1005 1>, <1006 1>, <1007 1>, <1008 1>, <1009 1>,
+			<1010 1>, <1011 1>, <1012 1>, <1013 1>, <1014 1>,
+			<1015 1>, <1016 1>, <1017 1>, <1018 1>, <1019 1>,
+			<1020 1>, <1021 1>, <1022 1>, <1023 1>, <1024 1>,
+			<1025 1>, <1026 1>, <1027 1>, <1028 1>, <1029 1>,
+			<1030 1>, <1031 1>, <1032 1>, <1033 1>, <1034 1>,
+			<1035 1>, <1036 1>, <1037 1>, <1038 1>, <1039 1>,
+			<1040 1>, <1041 1>, <1042 1>, <1043 1>, <1044 1>,
+			<1045 1>, <1046 1>, <1047 1>, <1048 1>, <1049 1>,
+			<1050 1>, <1051 1>, <1052 1>, <1053 1>, <1054 1>,
+			<1055 1>, <1056 1>, <1057 1>, <1058 1>, <1059 1>,
+			<1060 1>, <1061 1>, <1062 1>, <1063 1>, <1064 1>,
+			<1065 1>, <1066 1>, <1067 1>, <1068 1>, <1069 1>,
+			<1070 1>, <1071 1>, <1072 1>, <1073 1>, <1074 1>,
+			<1075 1>, <1076 1>, <1077 1>, <1078 1>, <1079 1>,
+			<1080 1>, <1081 1>, <1082 1>, <1083 1>, <1084 1>,
+			<1085 1>, <1086 1>, <1087 1>, <1088 1>, <1089 1>,
+			<1090 1>, <1091 1>, <1092 1>, <1093 1>, <1094 1>,
+			<1095 1>, <1096 1>, <1097 1>, <1098 1>, <1099 1>,
+			<1100 1>, <1101 1>, <1102 1>, <1103 1>, <1104 1>,
+			<1105 1>, <1106 1>, <1107 1>, <1108 1>, <1109 1>,
+			<1110 1>, <1111 1>, <1112 1>, <1113 1>, <1114 1>,
+			<1115 1>, <1116 1>, <1117 1>, <1118 1>, <1119 1>,
+			<1120 1>, <1121 1>, <1122 1>, <1123 1>, <1124 1>,
+			<1125 1>, <1126 1>, <1127 1>, <1128 1>, <1129 1>,
+			<1130 1>, <1131 1>, <1132 1>, <1133 1>, <1134 1>,
+			<1135 1>, <1136 1>, <1137 1>, <1138 1>, <1139 1>,
+			<1140 1>, <1141 1>, <1142 1>, <1143 1>, <1144 1>,
+			<1145 1>, <1146 1>, <1147 1>, <1148 1>, <1149 1>,
+			<1150 1>, <1151 1>, <1152 1>, <1153 1>, <1154 1>,
+			<1155 1>, <1156 1>, <1157 1>, <1158 1>, <1159 1>,
+			<1160 1>, <1161 1>, <1162 1>, <1163 1>, <1164 1>,
+			<1165 1>, <1166 1>, <1167 1>, <1168 1>, <1169 1>,
+			<1170 1>, <1171 1>, <1172 1>, <1173 1>, <1174 1>,
+			<1175 1>, <1176 1>, <1177 1>, <1178 1>, <1179 1>,
+			<1180 1>, <1181 1>, <1182 1>, <1183 1>, <1184 1>,
+			<1185 1>, <1186 1>, <1187 1>, <1188 1>, <1189 1>,
+			<1190 1>, <1191 1>, <1192 1>, <1193 1>, <1194 1>,
+			<1195 1>, <1196 1>, <1197 1>, <1198 1>, <1199 1>,
+			<1200 1>, <1201 1>, <1202 1>, <1203 1>, <1204 1>,
+			<1205 1>, <1206 1>, <1207 1>, <1208 1>, <1209 1>,
+			<1210 1>, <1211 1>, <1212 1>, <1213 1>, <1214 1>,
+			<1215 1>, <1216 1>, <1217 1>, <1218 1>, <1219 1>,
+			<1220 1>, <1221 1>, <1222 1>, <1223 1>, <1224 1>,
+			<1225 1>, <1226 1>, <1227 1>, <1228 1>, <1229 1>,
+			<1230 1>, <1231 1>, <1232 1>, <1233 1>, <1234 1>,
+			<1235 1>, <1236 1>, <1237 1>, <1238 1>, <1239 1>,
+			<1240 1>, <1241 1>, <1242 1>, <1243 1>, <1244 1>,
+			<1245 1>, <1246 1>, <1247 1>, <1248 1>, <1249 1>,
+			<1250 1>, <1251 1>, <1252 1>, <1253 1>, <1254 1>,
+			<1255 1>, <1256 1>, <1257 1>, <1258 1>, <1259 1>,
+			<1260 1>, <1261 1>, <1262 1>, <1263 1>, <1264 1>,
+			<1265 1>, <1266 1>, <1267 1>, <1268 1>, <1269 1>,
+			<1270 1>, <1271 1>, <1272 1>, <1273 1>, <1274 1>,
+			<1275 1>, <1276 1>, <1277 1>, <1278 1>, <1279 1>,
+			<1280 1>, <1281 1>, <1282 1>, <1283 1>, <1284 1>,
+			<1285 1>, <1286 1>, <1287 1>, <1288 1>, <1289 1>,
+			<1290 1>, <1291 1>, <1292 1>, <1293 1>, <1294 1>,
+			<1295 1>, <1296 1>, <1297 1>, <1298 1>, <1299 1>,
+			<1300 1>, <1301 1>, <1302 1>, <1303 1>, <1304 1>,
+			<1305 1>, <1306 1>, <1307 1>, <1308 1>, <1309 1>,
+			<1310 1>, <1311 1>, <1312 1>, <1313 1>, <1314 1>,
+			<1315 1>, <1316 1>, <1317 1>, <1318 1>, <1319 1>,
+			<1320 1>, <1321 1>, <1322 1>, <1323 1>, <1324 1>,
+			<1325 1>, <1326 1>, <1327 1>, <1328 1>, <1329 1>,
+			<1330 1>, <1331 1>, <1332 1>, <1333 1>, <1334 1>,
+			<1335 1>, <1336 1>, <1337 1>, <1338 1>, <1339 1>,
+			<1340 1>, <1341 1>, <1342 1>, <1343 1>;
+
+			desc-num = <0x400>;
+			buf-size = <0x1000>;
+			dma-coherent;
+
+			port@0 {
+				reg = <0>;
+				serdes-syscon = <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x0>;
+				port-rst-offset = <0>;
+				port-mode-offset = <0>;
+				mc-mac-mask = [ff f0 00 00 00 00];
+				media-type = "fiber";
+			};
+
+			port@1 {
+				reg = <1>;
+				serdes-syscon = <&serdes_ctrl>;
+				cpld-syscon = <&dsa_cpld 0x4>;
+				port-rst-offset = <1>;
+				port-mode-offset = <1>;
+				mc-mac-mask = [ff f0 00 00 00 00];
+				media-type = "fiber";
+			};
+
+			port@4 {
+				reg = <4>;
+				phy-handle = <&phy0>;
+				serdes-syscon = <&serdes_ctrl>;
+				port-rst-offset = <4>;
+				port-mode-offset = <2>;
+				mc-mac-mask = [ff f0 00 00 00 00];
+				media-type = "copper";
+			};
+
+			port@5 {
+				reg = <5>;
+				phy-handle = <&phy1>;
+				serdes-syscon = <&serdes_ctrl>;
+				port-rst-offset = <5>;
+				port-mode-offset = <3>;
+				mc-mac-mask = [ff f0 00 00 00 00];
+				media-type = "copper";
+			};
+		};
+
+		eth0: ethernet@4{
+			compatible = "hisilicon,hns-nic-v2";
+			ae-handle = <&dsaf0>;
+			port-idx-in-ae = <4>;
+			local-mac-address = [00 00 00 00 00 00];
+			status = "disabled";
+			dma-coherent;
+		};
+
+		eth1: ethernet@5{
+			compatible = "hisilicon,hns-nic-v2";
+			ae-handle = <&dsaf0>;
+			port-idx-in-ae = <5>;
+			local-mac-address = [00 00 00 00 00 00];
+			status = "disabled";
+			dma-coherent;
+		};
+
+		eth2: ethernet@0{
+			compatible = "hisilicon,hns-nic-v2";
+			ae-handle = <&dsaf0>;
+			port-idx-in-ae = <0>;
+			local-mac-address = [00 00 00 00 00 00];
+			status = "disabled";
+			dma-coherent;
+		};
+
+		eth3: ethernet@1{
+			compatible = "hisilicon,hns-nic-v2";
+			ae-handle = <&dsaf0>;
+			port-idx-in-ae = <1>;
+			local-mac-address = [00 00 00 00 00 00];
+			status = "disabled";
+			dma-coherent;
+		};
+
+		infiniband@c4000000 {
+			compatible = "hisilicon,hns-roce-v1";
+			reg = <0x0 0xc4000000 0x0 0x100000>;
+			dma-coherent;
+			eth-handle = <&eth2 &eth3 0 0 &eth0 &eth1>;
+			dsaf-handle = <&dsaf0>;
+			node-guid = [00 9A CD 00 00 01 02 03];
+			#address-cells = <2>;
+			#size-cells = <2>;
+			interrupt-parent = <&mbigen_dsa_roce>;
+			interrupts = <722 1>,
+				     <723 1>,
+				     <724 1>,
+				     <725 1>,
+				     <726 1>,
+				     <727 1>,
+				     <728 1>,
+				     <729 1>,
+				     <730 1>,
+				     <731 1>,
+				     <732 1>,
+				     <733 1>,
+				     <734 1>,
+				     <735 1>,
+				     <736 1>,
+				     <737 1>,
+				     <738 1>,
+				     <739 1>,
+				     <740 1>,
+				     <741 1>,
+				     <742 1>,
+				     <743 1>,
+				     <744 1>,
+				     <745 1>,
+				     <746 1>,
+				     <747 1>,
+				     <748 1>,
+				     <749 1>,
+				     <750 1>,
+				     <751 1>,
+				     <752 1>,
+				     <753 1>,
+				     <785 1>,
+				     <754 4>;
+
+			interrupt-names = "hns-roce-comp-0",
+					  "hns-roce-comp-1",
+					  "hns-roce-comp-2",
+					  "hns-roce-comp-3",
+					  "hns-roce-comp-4",
+					  "hns-roce-comp-5",
+					  "hns-roce-comp-6",
+					  "hns-roce-comp-7",
+					  "hns-roce-comp-8",
+					  "hns-roce-comp-9",
+					  "hns-roce-comp-10",
+					  "hns-roce-comp-11",
+					  "hns-roce-comp-12",
+					  "hns-roce-comp-13",
+					  "hns-roce-comp-14",
+					  "hns-roce-comp-15",
+					  "hns-roce-comp-16",
+					  "hns-roce-comp-17",
+					  "hns-roce-comp-18",
+					  "hns-roce-comp-19",
+					  "hns-roce-comp-20",
+					  "hns-roce-comp-21",
+					  "hns-roce-comp-22",
+					  "hns-roce-comp-23",
+					  "hns-roce-comp-24",
+					  "hns-roce-comp-25",
+					  "hns-roce-comp-26",
+					  "hns-roce-comp-27",
+					  "hns-roce-comp-28",
+					  "hns-roce-comp-29",
+					  "hns-roce-comp-30",
+					  "hns-roce-comp-31",
+					  "hns-roce-async",
+					  "hns-roce-common";
+		};
+
+		sas0: sas@c3000000 {
+			compatible = "hisilicon,hip07-sas-v2";
+			reg = <0 0xc3000000 0 0x10000>;
+			sas-addr = [50 01 88 20 16 00 00 00];
+			hisilicon,sas-syscon = <&dsa_subctrl>;
+			ctrl-reset-reg = <0xa60>;
+			ctrl-reset-sts-reg = <0x5a30>;
+			ctrl-clock-ena-reg = <0x338>;
+			queue-count = <16>;
+			phy-count = <8>;
+			dma-coherent;
+			interrupt-parent = <&mbigen_sas0>;
+			interrupts = <64 4>,<65 4>,<66 4>,<67 4>,<68 4>,
+				     <69 4>,<70 4>,<71 4>,<72 4>,<73 4>,
+				     <74 4>,<75 4>,<76 4>,<77 4>,<78 4>,
+				     <79 4>,<80 4>,<81 4>,<82 4>,<83 4>,
+				     <84 4>,<85 4>,<86 4>,<87 4>,<88 4>,
+				     <89 4>,<90 4>,<91 4>,<92 4>,<93 4>,
+				     <94 4>,<95 4>,<96 4>,<97 4>,<98 4>,
+				     <99 4>,<100 4>,<101 4>,<102 4>,<103 4>,
+				     <104 4>,<105 4>,<106 4>,<107 4>,<108 4>,
+				     <109 4>,<110 4>,<111 4>,<112 4>,<113 4>,
+				     <114 4>,<115 4>,<116 4>,<117 4>,<118 4>,
+				     <119 4>,<120 4>,<121 4>,<122 4>,<123 4>,
+				     <124 4>,<125 4>,<126 4>,<127 4>,<128 4>,
+				     <129 4>,<130 4>,<131 4>,<132 4>,<133 4>,
+				     <134 4>,<135 4>,<136 4>,<137 4>,<138 4>,
+				     <139 4>,<140 4>,<141 4>,<142 4>,<143 4>,
+				     <144 4>,<145 4>,<146 4>,<147 4>,<148 4>,
+				     <149 4>,<150 4>,<151 4>,<152 4>,<153 4>,
+				     <154 4>,<155 4>,<156 4>,<157 4>,<158 4>,
+				     <159 4>,<601 1>,<602 1>,<603 1>,<604 1>,
+				     <605 1>,<606 1>,<607 1>,<608 1>,<609 1>,
+				     <610 1>,<611 1>,<612 1>,<613 1>,<614 1>,
+				     <615 1>,<616 1>,<617 1>,<618 1>,<619 1>,
+				     <620 1>,<621 1>,<622 1>,<623 1>,<624 1>,
+				     <625 1>,<626 1>,<627 1>,<628 1>,<629 1>,
+				     <630 1>,<631 1>,<632 1>;
+			status = "disabled";
+		};
+
+		sas1: sas@a2000000 {
+			compatible = "hisilicon,hip07-sas-v2";
+			reg = <0 0xa2000000 0 0x10000>;
+			sas-addr = [50 01 88 20 16 00 00 00];
+			hisilicon,sas-syscon = <&pcie_subctl>;
+			hip06-sas-v2-quirk-amt;
+			ctrl-reset-reg = <0xa18>;
+			ctrl-reset-sts-reg = <0x5a0c>;
+			ctrl-clock-ena-reg = <0x318>;
+			queue-count = <16>;
+			phy-count = <8>;
+			dma-coherent;
+			interrupt-parent = <&mbigen_sas1>;
+			interrupts = <64 4>,<65 4>,<66 4>,<67 4>,<68 4>,
+				     <69 4>,<70 4>,<71 4>,<72 4>,<73 4>,
+				     <74 4>,<75 4>,<76 4>,<77 4>,<78 4>,
+				     <79 4>,<80 4>,<81 4>,<82 4>,<83 4>,
+				     <84 4>,<85 4>,<86 4>,<87 4>,<88 4>,
+				     <89 4>,<90 4>,<91 4>,<92 4>,<93 4>,
+				     <94 4>,<95 4>,<96 4>,<97 4>,<98 4>,
+				     <99 4>,<100 4>,<101 4>,<102 4>,<103 4>,
+				     <104 4>,<105 4>,<106 4>,<107 4>,<108 4>,
+				     <109 4>,<110 4>,<111 4>,<112 4>,<113 4>,
+				     <114 4>,<115 4>,<116 4>,<117 4>,<118 4>,
+				     <119 4>,<120 4>,<121 4>,<122 4>,<123 4>,
+				     <124 4>,<125 4>,<126 4>,<127 4>,<128 4>,
+				     <129 4>,<130 4>,<131 4>,<132 4>,<133 4>,
+				     <134 4>,<135 4>,<136 4>,<137 4>,<138 4>,
+				     <139 4>,<140 4>,<141 4>,<142 4>,<143 4>,
+				     <144 4>,<145 4>,<146 4>,<147 4>,<148 4>,
+				     <149 4>,<150 4>,<151 4>,<152 4>,<153 4>,
+				     <154 4>,<155 4>,<156 4>,<157 4>,<158 4>,
+				     <159 4>,<576 1>,<577 1>,<578 1>,<579 1>,
+				     <580 1>,<581 1>,<582 1>,<583 1>,<584 1>,
+				     <585 1>,<586 1>,<587 1>,<588 1>,<589 1>,
+				     <590 1>,<591 1>,<592 1>,<593 1>,<594 1>,
+				     <595 1>,<596 1>,<597 1>,<598 1>,<599 1>,
+				     <600 1>,<601 1>,<602 1>,<603 1>,<604 1>,
+				     <605 1>,<606 1>,<607 1>;
+			status = "disabled";
+		};
+
+		sas2: sas@a3000000 {
+			compatible = "hisilicon,hip07-sas-v2";
+			reg = <0 0xa3000000 0 0x10000>;
+			sas-addr = [50 01 88 20 16 00 00 00];
+			hisilicon,sas-syscon = <&pcie_subctl>;
+			ctrl-reset-reg = <0xae0>;
+			ctrl-reset-sts-reg = <0x5a70>;
+			ctrl-clock-ena-reg = <0x3a8>;
+			queue-count = <16>;
+			phy-count = <9>;
+			dma-coherent;
+			interrupt-parent = <&mbigen_sas2>;
+			interrupts = <192 4>,<193 4>,<194 4>,<195 4>,<196 4>,
+				     <197 4>,<198 4>,<199 4>,<200 4>,<201 4>,
+				     <202 4>,<203 4>,<204 4>,<205 4>,<206 4>,
+				     <207 4>,<208 4>,<209 4>,<210 4>,<211 4>,
+				     <212 4>,<213 4>,<214 4>,<215 4>,<216 4>,
+				     <217 4>,<218 4>,<219 4>,<220 4>,<221 4>,
+				     <222 4>,<223 4>,<224 4>,<225 4>,<226 4>,
+				     <227 4>,<228 4>,<229 4>,<230 4>,<231 4>,
+				     <232 4>,<233 4>,<234 4>,<235 4>,<236 4>,
+				     <237 4>,<238 4>,<239 4>,<240 4>,<241 4>,
+				     <242 4>,<243 4>,<244 4>,<245 4>,<246 4>,
+				     <247 4>,<248 4>,<249 4>,<250 4>,<251 4>,
+				     <252 4>,<253 4>,<254 4>,<255 4>,<256 4>,
+				     <257 4>,<258 4>,<259 4>,<260 4>,<261 4>,
+				     <262 4>,<263 4>,<264 4>,<265 4>,<266 4>,
+				     <267 4>,<268 4>,<269 4>,<270 4>,<271 4>,
+				     <272 4>,<273 4>,<274 4>,<275 4>,<276 4>,
+				     <277 4>,<278 4>,<279 4>,<280 4>,<281 4>,
+				     <282 4>,<283 4>,<284 4>,<285 4>,<286 4>,
+				     <287 4>,<608 1>,<609 1>,<610 1>,<611 1>,
+				     <612 1>,<613 1>,<614 1>,<615 1>,<616 1>,
+				     <617 1>,<618 1>,<619 1>,<620 1>,<621 1>,
+				     <622 1>,<623 1>,<624 1>,<625 1>,<626 1>,
+				     <627 1>,<628 1>,<629 1>,<630 1>,<631 1>,
+				     <632 1>,<633 1>,<634 1>,<635 1>,<636 1>,
+				     <637 1>,<638 1>,<639 1>;
+			status = "disabled";
+		};
+
+		p0_pcie2_a: pcie@a00a0000 {
+			compatible = "hisilicon,hip07-pcie-ecam";
+			reg = <0 0xaf800000 0 0x800000>,
+			      <0 0xa00a0000 0 0x10000>;
+			bus-range = <0xf8 0xff>;
+			msi-map = <0xf800 &p0_its_dsa_a 0xf800 0x800>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000>,
+				 <0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie2_a 671 4
+					 0x0 0 0 2 &mbigen_pcie2_a 671 4
+					 0x0 0 0 3 &mbigen_pcie2_a 671 4
+					 0x0 0 0 4 &mbigen_pcie2_a 671 4>;
+			status = "disabled";
+		};
+		p0_sec_a: crypto@d2000000 {
+			compatible = "hisilicon,hip07-sec";
+			reg = <0x0 0xd0000000 0x0 0x10000>,
+			      <0x0 0xd2000000 0x0 0x10000>,
+			      <0x0 0xd2010000 0x0 0x10000>,
+			      <0x0 0xd2020000 0x0 0x10000>,
+			      <0x0 0xd2030000 0x0 0x10000>,
+			      <0x0 0xd2040000 0x0 0x10000>,
+			      <0x0 0xd2050000 0x0 0x10000>,
+			      <0x0 0xd2060000 0x0 0x10000>,
+			      <0x0 0xd2070000 0x0 0x10000>,
+			      <0x0 0xd2080000 0x0 0x10000>,
+			      <0x0 0xd2090000 0x0 0x10000>,
+			      <0x0 0xd20a0000 0x0 0x10000>,
+			      <0x0 0xd20b0000 0x0 0x10000>,
+			      <0x0 0xd20c0000 0x0 0x10000>,
+			      <0x0 0xd20d0000 0x0 0x10000>,
+			      <0x0 0xd20e0000 0x0 0x10000>,
+			      <0x0 0xd20f0000 0x0 0x10000>,
+			      <0x0 0xd2100000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_sec_a>;
+			iommus = <&p0_smmu_alg_a 0x600>;
+			dma-coherent;
+			interrupts = <576 4>,
+				     <577 1>, <578 4>,
+				     <579 1>, <580 4>,
+				     <581 1>, <582 4>,
+				     <583 1>, <584 4>,
+				     <585 1>, <586 4>,
+				     <587 1>, <588 4>,
+				     <589 1>, <590 4>,
+				     <591 1>, <592 4>,
+				     <593 1>, <594 4>,
+				     <595 1>, <596 4>,
+				     <597 1>, <598 4>,
+				     <599 1>, <600 4>,
+				     <601 1>, <602 4>,
+				     <603 1>, <604 4>,
+				     <605 1>, <606 4>,
+				     <607 1>, <608 4>;
+		};
+		p0_sec_b: crypto@8,d2000000 {
+			compatible = "hisilicon,hip07-sec";
+			reg = <0x8 0xd0000000 0x0 0x10000>,
+			      <0x8 0xd2000000 0x0 0x10000>,
+			      <0x8 0xd2010000 0x0 0x10000>,
+			      <0x8 0xd2020000 0x0 0x10000>,
+			      <0x8 0xd2030000 0x0 0x10000>,
+			      <0x8 0xd2040000 0x0 0x10000>,
+			      <0x8 0xd2050000 0x0 0x10000>,
+			      <0x8 0xd2060000 0x0 0x10000>,
+			      <0x8 0xd2070000 0x0 0x10000>,
+			      <0x8 0xd2080000 0x0 0x10000>,
+			      <0x8 0xd2090000 0x0 0x10000>,
+			      <0x8 0xd20a0000 0x0 0x10000>,
+			      <0x8 0xd20b0000 0x0 0x10000>,
+			      <0x8 0xd20c0000 0x0 0x10000>,
+			      <0x8 0xd20d0000 0x0 0x10000>,
+			      <0x8 0xd20e0000 0x0 0x10000>,
+			      <0x8 0xd20f0000 0x0 0x10000>,
+			      <0x8 0xd2100000 0x0 0x10000>;
+			interrupt-parent = <&p0_mbigen_sec_b>;
+			iommus = <&p0_smmu_alg_b 0x600>;
+			dma-coherent;
+			interrupts = <576 4>,
+				     <577 1>, <578 4>,
+				     <579 1>, <580 4>,
+				     <581 1>, <582 4>,
+				     <583 1>, <584 4>,
+				     <585 1>, <586 4>,
+				     <587 1>, <588 4>,
+				     <589 1>, <590 4>,
+				     <591 1>, <592 4>,
+				     <593 1>, <594 4>,
+				     <595 1>, <596 4>,
+				     <597 1>, <598 4>,
+				     <599 1>, <600 4>,
+				     <601 1>, <602 4>,
+				     <603 1>, <604 4>,
+				     <605 1>, <606 4>,
+				     <607 1>, <608 4>;
+		};
+		p1_sec_a: crypto@400,d2000000 {
+			compatible = "hisilicon,hip07-sec";
+			reg = <0x400 0xd0000000 0x0 0x10000>,
+			      <0x400 0xd2000000 0x0 0x10000>,
+			      <0x400 0xd2010000 0x0 0x10000>,
+			      <0x400 0xd2020000 0x0 0x10000>,
+			      <0x400 0xd2030000 0x0 0x10000>,
+			      <0x400 0xd2040000 0x0 0x10000>,
+			      <0x400 0xd2050000 0x0 0x10000>,
+			      <0x400 0xd2060000 0x0 0x10000>,
+			      <0x400 0xd2070000 0x0 0x10000>,
+			      <0x400 0xd2080000 0x0 0x10000>,
+			      <0x400 0xd2090000 0x0 0x10000>,
+			      <0x400 0xd20a0000 0x0 0x10000>,
+			      <0x400 0xd20b0000 0x0 0x10000>,
+			      <0x400 0xd20c0000 0x0 0x10000>,
+			      <0x400 0xd20d0000 0x0 0x10000>,
+			      <0x400 0xd20e0000 0x0 0x10000>,
+			      <0x400 0xd20f0000 0x0 0x10000>,
+			      <0x400 0xd2100000 0x0 0x10000>;
+			interrupt-parent = <&p1_mbigen_sec_a>;
+			iommus = <&p1_smmu_alg_a 0x600>;
+			dma-coherent;
+			interrupts = <576 4>,
+				     <577 1>, <578 4>,
+				     <579 1>, <580 4>,
+				     <581 1>, <582 4>,
+				     <583 1>, <584 4>,
+				     <585 1>, <586 4>,
+				     <587 1>, <588 4>,
+				     <589 1>, <590 4>,
+				     <591 1>, <592 4>,
+				     <593 1>, <594 4>,
+				     <595 1>, <596 4>,
+				     <597 1>, <598 4>,
+				     <599 1>, <600 4>,
+				     <601 1>, <602 4>,
+				     <603 1>, <604 4>,
+				     <605 1>, <606 4>,
+				     <607 1>, <608 4>;
+		};
+		p1_sec_b: crypto@408,d2000000 {
+			compatible = "hisilicon,hip07-sec";
+			reg = <0x408 0xd0000000 0x0 0x10000>,
+			      <0x408 0xd2000000 0x0 0x10000>,
+			      <0x408 0xd2010000 0x0 0x10000>,
+			      <0x408 0xd2020000 0x0 0x10000>,
+			      <0x408 0xd2030000 0x0 0x10000>,
+			      <0x408 0xd2040000 0x0 0x10000>,
+			      <0x408 0xd2050000 0x0 0x10000>,
+			      <0x408 0xd2060000 0x0 0x10000>,
+			      <0x408 0xd2070000 0x0 0x10000>,
+			      <0x408 0xd2080000 0x0 0x10000>,
+			      <0x408 0xd2090000 0x0 0x10000>,
+			      <0x408 0xd20a0000 0x0 0x10000>,
+			      <0x408 0xd20b0000 0x0 0x10000>,
+			      <0x408 0xd20c0000 0x0 0x10000>,
+			      <0x408 0xd20d0000 0x0 0x10000>,
+			      <0x408 0xd20e0000 0x0 0x10000>,
+			      <0x408 0xd20f0000 0x0 0x10000>,
+			      <0x408 0xd2100000 0x0 0x10000>;
+			interrupt-parent = <&p1_mbigen_sec_b>;
+			iommus = <&p1_smmu_alg_b 0x600>;
+			dma-coherent;
+			interrupts = <576 4>,
+				     <577 1>, <578 4>,
+				     <579 1>, <580 4>,
+				     <581 1>, <582 4>,
+				     <583 1>, <584 4>,
+				     <585 1>, <586 4>,
+				     <587 1>, <588 4>,
+				     <589 1>, <590 4>,
+				     <591 1>, <592 4>,
+				     <593 1>, <594 4>,
+				     <595 1>, <596 4>,
+				     <597 1>, <598 4>,
+				     <599 1>, <600 4>,
+				     <601 1>, <602 4>,
+				     <603 1>, <604 4>,
+				     <605 1>, <606 4>,
+				     <607 1>, <608 4>;
+		};
+
+	};
+};

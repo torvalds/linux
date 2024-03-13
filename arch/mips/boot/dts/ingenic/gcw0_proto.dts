@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "gcw0.dts"
+
+/ {
+	model = "GCW Zero Prototype";
+};
+
+&memory {
+	/* Prototype has only 256 MiB of RAM */
+	reg = <0x0 0x10000000>;
+};

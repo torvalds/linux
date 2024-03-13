@@ -1,0 +1,318 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.rst.
+#
+
+menu "Firmware Drivers"
+
+source "drivers/firmware/arm_scmi/Kconfig"
+
+config ARM_SCPI_PROTOCOL
+	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on MAILBOX
+	help
+	  System Control and Power Interface (SCPI) Message Protocol is
+	  defined for the purpose of communication between the Application
+	  Cores(AP) and the System Control Processor(SCP). The MHU peripheral
+	  provides a mechanism for inter-processor communication between SCP
+	  and AP.
+
+	  SCP controls most of the power management on the Application
+	  Processors. It offers control and management of: the core/cluster
+	  power states, various power domain DVFS including the core/cluster,
+	  certain system clocks configuration, thermal sensors and many
+	  others.
+
+	  This protocol library provides interface for all the client drivers
+	  making use of the features offered by the SCP.
+
+config ARM_SCPI_POWER_DOMAIN
+	tristate "SCPI power domain driver"
+	depends on ARM_SCPI_PROTOCOL || (COMPILE_TEST && OF)
+	default y
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  This enables support for the SCPI power domains which can be
+	  enabled or disabled via the SCP firmware
+
+config ARM_SDE_INTERFACE
+	bool "ARM Software Delegated Exception Interface (SDEI)"
+	depends on ARM64
+	depends on ACPI_APEI_GHES
+	help
+	  The Software Delegated Exception Interface (SDEI) is an ARM
+	  standard for registering callbacks from the platform firmware
+	  into the OS. This is typically used to implement RAS notifications.
+
+config EDD
+	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
+	depends on X86
+	help
+	  Say Y or M here if you want to enable BIOS Enhanced Disk Drive
+	  Services real mode BIOS calls to determine which disk
+	  BIOS tries boot from.  This information is then exported via sysfs.
+
+	  This option is experimental and is known to fail to boot on some
+          obscure configurations. Most disk controller BIOS vendors do
+          not yet implement this feature.
+
+config EDD_OFF
+	bool "Sets default behavior for EDD detection to off"
+	depends on EDD
+	default n
+	help
+	  Say Y if you want EDD disabled by default, even though it is compiled into the
+	  kernel. Say N if you want EDD enabled by default. EDD can be dynamically set
+	  using the kernel parameter 'edd={on|skipmbr|off}'.
+
+config FIRMWARE_MEMMAP
+    bool "Add firmware-provided memory map to sysfs" if EXPERT
+    default X86
+    help
+      Add the firmware-provided (unmodified) memory map to /sys/firmware/memmap.
+      That memory map is used for example by kexec to set up parameter area
+      for the next kernel, but can also be used for debugging purposes.
+
+      See also Documentation/ABI/testing/sysfs-firmware-memmap.
+
+config EFI_PCDP
+	bool "Console device selection via EFI PCDP or HCDP table"
+	depends on ACPI && EFI && IA64
+	default y if IA64
+	help
+	  If your firmware supplies the PCDP table, and you want to
+	  automatically use the primary console device it describes
+	  as the Linux console, say Y here.
+
+	  If your firmware supplies the HCDP table, and you want to
+	  use the first serial port it describes as the Linux console,
+	  say Y here.  If your EFI ConOut path contains only a UART
+	  device, it will become the console automatically.  Otherwise,
+	  you must specify the "console=hcdp" kernel boot argument.
+
+	  Neither the PCDP nor the HCDP affects naming of serial devices,
+	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
+	  on how the driver discovers devices.
+
+	  You must also enable the appropriate drivers (serial, VGA, etc.)
+
+	  See DIG64_HCDPv20_042804.pdf available from
+	  <http://www.dig64.org/specifications/> 
+
+config DMIID
+    bool "Export DMI identification via sysfs to userspace"
+    depends on DMI
+    default y
+	help
+	  Say Y here if you want to query SMBIOS/DMI system identification
+	  information from userspace through /sys/class/dmi/id/ or if you want
+	  DMI-based module auto-loading.
+
+config DMI_SYSFS
+	tristate "DMI table support in sysfs"
+	depends on SYSFS && DMI
+	default n
+	help
+	  Say Y or M here to enable the exporting of the raw DMI table
+	  data via sysfs.  This is useful for consuming the data without
+	  requiring any access to /dev/mem at all.  Tables are found
+	  under /sys/firmware/dmi when this option is enabled and
+	  loaded.
+
+config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	bool
+
+config ISCSI_IBFT_FIND
+	bool "iSCSI Boot Firmware Table Attributes"
+	depends on X86 && ISCSI_IBFT
+	default n
+	help
+	  This option enables the kernel to find the region of memory
+	  in which the ISCSI Boot Firmware Table (iBFT) resides. This
+	  is necessary for iSCSI Boot Firmware Table Attributes module to work
+	  properly.
+
+config ISCSI_IBFT
+	tristate "iSCSI Boot Firmware Table Attributes module"
+	select ISCSI_BOOT_SYSFS
+	select ISCSI_IBFT_FIND if X86
+	depends on ACPI && SCSI && SCSI_LOWLEVEL
+	default	n
+	help
+	  This option enables support for detection and exposing of iSCSI
+	  Boot Firmware Table (iBFT) via sysfs to userspace. If you wish to
+	  detect iSCSI boot parameters dynamically during system boot, say Y.
+	  Otherwise, say N.
+
+config RASPBERRYPI_FIRMWARE
+	tristate "Raspberry Pi Firmware Driver"
+	depends on BCM2835_MBOX
+	help
+	  This option enables support for communicating with the firmware on the
+	  Raspberry Pi.
+
+config FW_CFG_SYSFS
+	tristate "QEMU fw_cfg device support in sysfs"
+	depends on SYSFS && (ARM || ARM64 || PARISC || PPC_PMAC || SPARC || X86)
+	depends on HAS_IOPORT_MAP
+	default n
+	help
+	  Say Y or M here to enable the exporting of the QEMU firmware
+	  configuration (fw_cfg) file entries via sysfs. Entries are
+	  found under /sys/firmware/fw_cfg when this option is enabled
+	  and loaded.
+
+config FW_CFG_SYSFS_CMDLINE
+	bool "QEMU fw_cfg device parameter parsing"
+	depends on FW_CFG_SYSFS
+	help
+	  Allow the qemu_fw_cfg device to be initialized via the kernel
+	  command line or using a module parameter.
+	  WARNING: Using incorrect parameters (base address in particular)
+	  may crash your system.
+
+config INTEL_STRATIX10_SERVICE
+	tristate "Intel Stratix10 Service Layer"
+	depends on ARCH_INTEL_SOCFPGA && ARM64 && HAVE_ARM_SMCCC
+	default n
+	help
+	  Intel Stratix10 service layer runs at privileged exception level,
+	  interfaces with the service providers (FPGA manager is one of them)
+	  and manages secure monitor call to communicate with secure monitor
+	  software at secure monitor exception level.
+
+	  Say Y here if you want Stratix10 service layer support.
+
+config INTEL_STRATIX10_RSU
+	tristate "Intel Stratix10 Remote System Update"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  The Intel Remote System Update (RSU) driver exposes interfaces
+	  access through the Intel Service Layer to user space via sysfs
+	  device attribute nodes. The RSU interfaces report/control some of
+	  the optional RSU features of the Stratix 10 SoC FPGA.
+
+	  The RSU provides a way for customers to update the boot
+	  configuration of a Stratix 10 SoC device with significantly reduced
+	  risk of corrupting the bitstream storage and bricking the system.
+
+	  Enable RSU support if you are using an Intel SoC FPGA with the RSU
+	  feature enabled and you want Linux user space control.
+
+	  Say Y here if you want Intel RSU support.
+
+config MTK_ADSP_IPC
+	tristate "MTK ADSP IPC Protocol driver"
+	depends on MTK_ADSP_MBOX
+	help
+	  Say yes here to add support for the MediaTek ADSP IPC
+	  between host AP (Linux) and the firmware running on ADSP.
+	  ADSP exists on some mtk processors.
+	  Client might use shared memory to exchange information with ADSP.
+
+config QCOM_SCM
+	tristate
+
+config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
+	bool "Qualcomm download mode enabled by default"
+	depends on QCOM_SCM
+	help
+	  A device with "download mode" enabled will upon an unexpected
+	  warm-restart enter a special debug mode that allows the user to
+	  "download" memory content over USB for offline postmortem analysis.
+	  The feature can be enabled/disabled on the kernel command line.
+
+	  Say Y here to enable "download mode" by default.
+
+config SYSFB
+	bool
+	select BOOT_VESA_SUPPORT
+
+config SYSFB_SIMPLEFB
+	bool "Mark VGA/VBE/EFI FB as generic system framebuffer"
+	depends on X86 || EFI
+	select SYSFB
+	help
+	  Firmwares often provide initial graphics framebuffers so the BIOS,
+	  bootloader or kernel can show basic video-output during boot for
+	  user-guidance and debugging. Historically, x86 used the VESA BIOS
+	  Extensions and EFI-framebuffers for this, which are mostly limited
+	  to x86 BIOS or EFI systems.
+	  This option, if enabled, marks VGA/VBE/EFI framebuffers as generic
+	  framebuffers so the new generic system-framebuffer drivers can be
+	  used instead. If the framebuffer is not compatible with the generic
+	  modes, it is advertised as fallback platform framebuffer so legacy
+	  drivers like efifb, vesafb and uvesafb can pick it up.
+	  If this option is not selected, all system framebuffers are always
+	  marked as fallback platform framebuffers as usual.
+
+	  Note: Legacy fbdev drivers, including vesafb, efifb, uvesafb, will
+	  not be able to pick up generic system framebuffers if this option
+	  is selected. You are highly encouraged to enable simplefb as
+	  replacement if you select this option. simplefb can correctly deal
+	  with generic system framebuffers. But you should still keep vesafb
+	  and others enabled as fallback if a system framebuffer is
+	  incompatible with simplefb.
+
+	  If unsure, say Y.
+
+config TI_SCI_PROTOCOL
+	tristate "TI System Control Interface (TISCI) Message Protocol"
+	depends on TI_MESSAGE_MANAGER
+	help
+	  TI System Control Interface (TISCI) Message Protocol is used to manage
+	  compute systems such as ARM, DSP etc with the system controller in
+	  complex System on Chip(SoC) such as those found on certain keystone
+	  generation SoC from TI.
+
+	  System controller provides various facilities including power
+	  management function support.
+
+	  This protocol library is used by client drivers to use the features
+	  provided by the system controller.
+
+config TRUSTED_FOUNDATIONS
+	bool "Trusted Foundations secure monitor support"
+	depends on ARM && CPU_V7
+	help
+	  Some devices (including most early Tegra-based consumer devices on
+	  the market) are booted with the Trusted Foundations secure monitor
+	  active, requiring some core operations to be performed by the secure
+	  monitor instead of the kernel.
+
+	  This option allows the kernel to invoke the secure monitor whenever
+	  required on devices using Trusted Foundations. See the functions and
+	  comments in linux/firmware/trusted_foundations.h or the device tree
+	  bindings for "tlm,trusted-foundations" for details on how to use it.
+
+	  Choose N if you don't know what this is about.
+
+config TURRIS_MOX_RWTM
+	tristate "Turris Mox rWTM secure firmware driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_DMA && OF
+	depends on MAILBOX
+	select HW_RANDOM
+	select ARMADA_37XX_RWTM_MBOX
+	help
+	  This driver communicates with the firmware on the Cortex-M3 secure
+	  processor of the Turris Mox router. Enable if you are building for
+	  Turris Mox, and you will be able to read the device serial number and
+	  other manufacturing data and also utilize the Entropy Bit Generator
+	  for hardware random number generation.
+
+source "drivers/firmware/arm_ffa/Kconfig"
+source "drivers/firmware/broadcom/Kconfig"
+source "drivers/firmware/cirrus/Kconfig"
+source "drivers/firmware/google/Kconfig"
+source "drivers/firmware/efi/Kconfig"
+source "drivers/firmware/imx/Kconfig"
+source "drivers/firmware/meson/Kconfig"
+source "drivers/firmware/psci/Kconfig"
+source "drivers/firmware/smccc/Kconfig"
+source "drivers/firmware/tegra/Kconfig"
+source "drivers/firmware/xilinx/Kconfig"
+
+endmenu

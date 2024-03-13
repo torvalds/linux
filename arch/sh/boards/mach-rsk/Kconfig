@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0
+if SH_RSK
+
+choice
+	prompt "RSK+ options"
+	default SH_RSK7203
+
+config SH_RSK7201
+	bool "RSK7201"
+	depends on CPU_SUBTYPE_SH7201
+
+config SH_RSK7203
+	bool "RSK7203"
+	select GPIOLIB
+	depends on CPU_SUBTYPE_SH7203
+
+config SH_RSK7264
+	bool "RSK2+SH7264"
+	select GPIOLIB
+	depends on CPU_SUBTYPE_SH7264
+
+config SH_RSK7269
+	bool "RSK2+SH7269"
+	select GPIOLIB
+	depends on CPU_SUBTYPE_SH7269
+
+endchoice
+
+endif

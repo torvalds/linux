@@ -1,0 +1,21 @@
+NXP LPC1788 real-time clock
+
+The LPC1788 RTC provides calendar and clock functionality
+together with periodic tick and alarm interrupt support.
+
+Required properties:
+- compatible	: must contain "nxp,lpc1788-rtc"
+- reg		: Specifies base physical address and size of the registers.
+- interrupts	: A single interrupt specifier.
+- clocks	: Must contain clock specifiers for rtc and register clock
+- clock-names	: Must contain "rtc" and "reg"
+  See ../clocks/clock-bindings.txt for details.
+
+Example:
+rtc: rtc@40046000 {
+	compatible = "nxp,lpc1788-rtc";
+	reg = <0x40046000 0x1000>;
+	interrupts = <47>;
+	clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+	clock-names = "rtc", "reg";
+};

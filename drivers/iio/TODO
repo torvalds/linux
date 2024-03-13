@@ -1,0 +1,19 @@
+2020-02-29
+
+Documentation
+  - Binding docs for devices that are obviously used via device
+tree
+  - Yaml conversions for abandoned drivers
+  - ABI Documentation
+  - Audit driviers/iio/staging/Documentation
+
+- Replace iio_dev->mlock by either a local lock or use
+iio_claim_direct.(Requires analysis of the purpose of the lock.)
+
+- Converting drivers from device tree centric to more generic
+property handlers.
+
+- Refactor old platform_data constructs from drivers and convert it
+to state struct and using property handlers and readers.
+
+Mailing list: linux-iio@vger.kernel.org

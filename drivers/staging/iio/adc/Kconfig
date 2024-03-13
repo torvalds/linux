@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ADC drivers
+#
+menu "Analog to digital converters"
+
+config AD7816
+	tristate "Analog Devices AD7816/7/8 temperature sensor and ADC driver"
+	depends on SPI
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Say yes here to build support for Analog Devices AD7816/7/8
+	  temperature sensors and ADC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7816.
+
+endmenu

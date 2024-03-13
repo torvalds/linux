@@ -1,0 +1,48 @@
+What:		/sys/devices/platform/samsung/performance_level
+Date:		January 1, 2010
+KernelVersion:	2.6.33
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Description:	Some Samsung laptops have different "performance levels"
+		that can be modified by a function key, and by this
+		sysfs file.  These values don't always make a whole lot
+		of sense, but some users like to modify them to keep
+		their fans quiet at all costs.  Reading from this file
+		will show the current performance level.  Writing to the
+		file can change this value.
+
+			Valid options:
+				- "silent"
+				- "normal"
+				- "overclock"
+
+		Note that not all laptops support all of these options.
+		Specifically, not all support the "overclock" option,
+		and it's still unknown if this value even changes
+		anything, other than making the user feel a bit better.
+
+What:		/sys/devices/platform/samsung/battery_life_extender
+Date:		December 1, 2011
+KernelVersion:	3.3
+Contact:	Corentin Chary <corentin.chary@gmail.com>
+Description:	Max battery charge level can be modified, battery cycle
+		life can be extended by reducing the max battery charge
+		level.
+
+		- 0 means normal battery mode (100% charge)
+		- 1 means battery life extender mode (80% charge)
+
+What:		/sys/devices/platform/samsung/usb_charge
+Date:		December 1, 2011
+KernelVersion:	3.3
+Contact:	Corentin Chary <corentin.chary@gmail.com>
+Description:	Use your USB ports to charge devices, even
+		when your laptop is powered off.
+		1 means enabled, 0 means disabled.
+
+What:		/sys/devices/platform/samsung/lid_handling
+Date:		December 11, 2014
+KernelVersion:	3.19
+Contact:	Julijonas Kikutis <julijonas.kikutis@gmail.com>
+Description:	Some Samsung laptops handle lid closing quicker and
+		only handle lid opening with this mode enabled.
+		1 means enabled, 0 means disabled.

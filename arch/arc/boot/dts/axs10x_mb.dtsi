@@ -1,0 +1,330 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Support for peripherals on the AXS10x mainboard
+ *
+ * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
+ */
+
+/ {
+	aliases {
+		ethernet = &gmac;
+	};
+
+	axs10x_mb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x0 0xe0000000 0x10000000>;
+		interrupt-parent = <&mb_intc>;
+
+		creg_rst: reset-controller@11220 {
+			compatible = "snps,axs10x-reset";
+			#reset-cells = <1>;
+			reg = <0x11220 0x4>;
+		};
+
+		i2sclk: i2sclk@100a0 {
+			compatible = "snps,axs10x-i2s-pll-clock";
+			reg = <0x100a0 0x10>;
+			clocks = <&i2spll_clk>;
+			#clock-cells = <0>;
+		};
+
+		clocks {
+			i2spll_clk: i2spll_clk {
+				compatible = "fixed-clock";
+				clock-frequency = <27000000>;
+				#clock-cells = <0>;
+			};
+
+			i2cclk: i2cclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			apbclk: apbclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
+			mmcclk: mmcclk {
+				compatible = "fixed-clock";
+				/*
+				 * DW sdio controller has external ciu clock divider
+				 * controlled via register in SDIO IP. It divides
+				 * sdio_ref_clk (which comes from CGU) by 16 for
+				 * default. So default mmcclk clock (which comes
+				 * to sdk_in) is 25000000 Hz.
+				 */
+				clock-frequency = <25000000>;
+				#clock-cells = <0>;
+			};
+		};
+
+		pguclk: pguclk@10080 {
+			compatible = "snps,axs10x-pgu-pll-clock";
+			reg = <0x10080 0x10>, <0x110 0x10>;
+			#clock-cells = <0>;
+			clocks = <&input_clk>;
+		};
+
+		gmac: ethernet@18000 {
+			#interrupt-cells = <1>;
+			compatible = "snps,dwmac";
+			reg = < 0x18000 0x2000 >;
+			interrupts = < 4 >;
+			interrupt-names = "macirq";
+			phy-mode = "rgmii";
+			snps,pbl = < 32 >;
+			snps,multicast-filter-bins = <256>;
+			clocks = <&apbclk>;
+			clock-names = "stmmaceth";
+			max-speed = <100>;
+			resets = <&creg_rst 5>;
+			reset-names = "stmmaceth";
+			mac-address = [00 00 00 00 00 00]; /* Filled in by U-Boot */
+		};
+
+		usb@40000 {
+			compatible = "generic-ehci";
+			reg = < 0x40000 0x100 >;
+			interrupts = < 8 >;
+		};
+
+		usb@60000 {
+			compatible = "generic-ohci";
+			reg = < 0x60000 0x100 >;
+			interrupts = < 8 >;
+		};
+
+		/*
+		 * According to DW Mobile Storage databook it is required
+		 * to use  "Hold Register" if card is enumerated in SDR12 or
+		 * SDR25 modes.
+		 *
+		 * Utilization of "Hold Register" is already implemented via
+		 * dw_mci_pltfm_prepare_command() which in its turn gets
+		 * used through dw_mci_drv_data->prepare_command call-back.
+		 * This call-back is used in Altera Socfpga platform and so
+		 * we may reuse it saying that we're compatible with their
+		 * "altr,socfpga-dw-mshc".
+		 *
+		 * Most probably "Hold Register" utilization is platform-
+		 * independent requirement which means that single unified
+		 * "snps,dw-mshc" should be enough for all users of DW MMC once
+		 * dw_mci_pltfm_prepare_command() is used in generic platform
+		 * code.
+		 */
+		mmc@15000 {
+			compatible = "altr,socfpga-dw-mshc";
+			reg = < 0x15000 0x400 >;
+			fifo-depth = < 16 >;
+			card-detect-delay = < 200 >;
+			clocks = <&apbclk>, <&mmcclk>;
+			clock-names = "biu", "ciu";
+			interrupts = < 7 >;
+			bus-width = < 4 >;
+		};
+
+		uart@20000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x20000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <17>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		uart@21000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x21000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <18>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		/* UART muxed with USB data port (ttyS3) */
+		uart@22000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x22000 0x100>;
+			clock-frequency = <33333333>;
+			interrupts = <19>;
+			baud = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+		};
+
+		i2c@1d000 {
+			compatible = "snps,designware-i2c";
+			reg = <0x1d000 0x100>;
+			clock-frequency = <400000>;
+			clocks = <&i2cclk>;
+			interrupts = <14>;
+		};
+
+		i2s: i2s@1e000 {
+			compatible = "snps,designware-i2s";
+			reg = <0x1e000 0x100>;
+			clocks = <&i2sclk 0>;
+			clock-names = "i2sclk";
+			interrupts = <15>;
+			#sound-dai-cells = <0>;
+		};
+
+		i2c@1f000 {
+			compatible = "snps,designware-i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1f000 0x100>;
+			clock-frequency = <400000>;
+			clocks = <&i2cclk>;
+			interrupts = <16>;
+
+			adv7511:adv7511@39{
+				compatible="adi,adv7511";
+				reg = <0x39>;
+				interrupts = <23>;
+				adi,input-depth = <8>;
+				adi,input-colorspace = "rgb";
+				adi,input-clock = "1x";
+				adi,clock-delay = <0x03>;
+				#sound-dai-cells = <0>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					/* RGB/YUV input */
+					port@0 {
+						reg = <0>;
+						adv7511_input:endpoint {
+						remote-endpoint = <&pgu_output>;
+						};
+					};
+
+					/* HDMI output */
+					port@1 {
+						reg = <1>;
+						adv7511_output: endpoint {
+							remote-endpoint = <&hdmi_connector_in>;
+						};
+					};
+				};
+			};
+
+			eeprom@54{
+				compatible = "atmel,24c01";
+				reg = <0x54>;
+				pagesize = <0x8>;
+			};
+
+			eeprom@57{
+				compatible = "atmel,24c04";
+				reg = <0x57>;
+				pagesize = <0x8>;
+			};
+		};
+
+		hdmi0: connector {
+			compatible = "hdmi-connector";
+			type = "a";
+			port {
+				hdmi_connector_in: endpoint {
+					remote-endpoint = <&adv7511_output>;
+				};
+			};
+		};
+
+		gpio0:gpio@13000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x13000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio0_banka: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+			};
+
+			gpio0_bankb: gpio-controller@1 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <1>;
+			};
+
+			gpio0_bankc: gpio-controller@2 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <2>;
+			};
+		};
+
+		gpio1:gpio@14000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x14000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio1_banka: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <30>;
+				reg = <0>;
+			};
+
+			gpio1_bankb: gpio-controller@1 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <10>;
+				reg = <1>;
+			};
+
+			gpio1_bankc: gpio-controller@2 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <2>;
+			};
+		};
+
+		pgu@17000 {
+			compatible = "snps,arcpgu";
+			reg = <0x17000 0x400>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
+			memory-region = <&frame_buffer>;
+			port {
+				pgu_output: endpoint {
+					remote-endpoint = <&adv7511_input>;
+				};
+			};
+		};
+
+		sound_playback {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "AXS10x HDMI Audio";
+			simple-audio-card,format = "i2s";
+			simple-audio-card,cpu {
+				sound-dai = <&i2s>;
+			};
+			simple-audio-card,codec {
+				sound-dai = <&adv7511>;
+			};
+		};
+	};
+};

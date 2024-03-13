@@ -1,0 +1,57 @@
+Altera SOCFPGA SoC DWMAC controller
+
+This is a variant of the dwmac/stmmac driver an inherits all descriptions
+present in Documentation/devicetree/bindings/net/stmmac.txt.
+
+The device node has additional properties:
+
+Required properties:
+ - compatible	: For Cyclone5/Arria5 SoCs it should contain
+		  "altr,socfpga-stmmac". For Arria10/Agilex/Stratix10 SoCs
+		  "altr,socfpga-stmmac-a10-s10".
+		  Along with "snps,dwmac" and any applicable more detailed
+		  designware version numbers documented in stmmac.txt
+ - altr,sysmgr-syscon : Should be the phandle to the system manager node that
+   encompasses the glue register, the register offset, and the register shift.
+   On Cyclone5/Arria5, the register shift represents the PHY mode bits, while
+   on the Arria10/Stratix10/Agilex platforms, the register shift represents
+   bit for each emac to enable/disable signals from the FPGA fabric to the
+   EMAC modules.
+ - altr,f2h_ptp_ref_clk use f2h_ptp_ref_clk instead of default eosc1 clock
+   for ptp ref clk. This affects all emacs as the clock is common.
+
+Optional properties:
+altr,emac-splitter: Should be the phandle to the emac splitter soft IP node if
+		DWMAC controller is connected emac splitter.
+phy-mode: The phy mode the ethernet operates in
+altr,sgmii-to-sgmii-converter: phandle to the TSE SGMII converter
+
+This device node has additional phandle dependency, the sgmii converter:
+
+Required properties:
+ - compatible	: Should be altr,gmii-to-sgmii-2.0
+ - reg-names	: Should be "eth_tse_control_port"
+
+Example:
+
+gmii_to_sgmii_converter: phy@100000240 {
+	compatible = "altr,gmii-to-sgmii-2.0";
+	reg = <0x00000001 0x00000240 0x00000008>,
+		<0x00000001 0x00000200 0x00000040>;
+	reg-names = "eth_tse_control_port";
+	clocks = <&sgmii_1_clk_0 &emac1 1 &sgmii_clk_125 &sgmii_clk_125>;
+	clock-names = "tse_pcs_ref_clk_clock_connection", "tse_rx_cdr_refclk";
+};
+
+gmac0: ethernet@ff700000 {
+	compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
+	altr,sysmgr-syscon = <&sysmgr 0x60 0>;
+	reg = <0xff700000 0x2000>;
+	interrupts = <0 115 4>;
+	interrupt-names = "macirq";
+	mac-address = [00 00 00 00 00 00];/* Filled in by U-Boot */
+	clocks = <&emac_0_clk>;
+	clock-names = "stmmaceth";
+	phy-mode = "sgmii";
+	altr,gmii-to-sgmii-converter = <&gmii_to_sgmii_converter>;
+};

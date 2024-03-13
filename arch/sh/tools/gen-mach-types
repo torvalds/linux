@@ -1,0 +1,48 @@
+#!/bin/awk
+# SPDX-License-Identifier: GPL-2.0
+#
+# Awk script to generate include/generated/machtypes.h
+# Heavily based on arch/arm/tools/gen-mach-types
+#
+BEGIN	{ nr = 0 }
+/^#/	{ next }
+/^[ 	]*$/ { next }
+
+NF == 2 {
+	  mach[nr] = $1;
+	  config[nr] = "CONFIG_"$2;
+	  nr++;
+	}
+
+END	{
+	  printf("/*\n");
+	  printf(" * Automagically generated, don't touch.\n");
+	  printf(" */\n");
+	  printf("#ifndef __ASM_SH_MACHTYPES_H\n");
+	  printf("#define __ASM_SH_MACHTYPES_H\n");
+	  printf("\n");
+	  printf("/*\n");
+	  printf(" * We'll use the following MACH_xxx defs for placeholders for the time\n");
+	  printf(" * being .. these will all go away once sh_machtype is assigned per-board.\n");
+	  printf(" *\n");
+	  printf(" * For now we leave things the way they are for backwards compatibility.\n");
+	  printf(" */\n");
+	  printf("\n");
+	  printf("/* Mach types */\n");
+
+	  for (i = 0; i < nr; i++) {
+	      printf("#ifdef %s\n", config[i]);
+	      printf("  #define MACH_%s\t\t1\n", mach[i]);
+	      printf("#else\n");
+	      printf("  #define MACH_%s\t\t0\n", mach[i]);
+	      printf("#endif\n");
+	    }
+
+	  printf("\n");
+	  printf("/* Machtype checks */\n");
+	  for (i = 0; i < nr; i++)
+	      printf("#define mach_is_%s()\t\t\t(MACH_%s)\n",
+	     	 tolower(mach[i]), mach[i]);
+	  printf("\n");
+	  printf("#endif /* __ASM_SH_MACHTYPES_H */\n");
+	}

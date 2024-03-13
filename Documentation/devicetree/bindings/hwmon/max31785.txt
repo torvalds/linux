@@ -1,0 +1,22 @@
+Bindings for the Maxim MAX31785 Intelligent Fan Controller
+==========================================================
+
+Reference:
+
+https://datasheets.maximintegrated.com/en/ds/MAX31785.pdf
+
+The Maxim MAX31785 is a PMBus device providing closed-loop, multi-channel fan
+management with temperature and remote voltage sensing. Various fan control
+features are provided, including PWM frequency control, temperature hysteresis,
+dual tachometer measurements, and fan health monitoring.
+
+Required properties:
+- compatible     : One of "maxim,max31785" or "maxim,max31785a"
+- reg            : I2C address, one of 0x52, 0x53, 0x54, 0x55.
+
+Example:
+
+        fans@52 {
+                compatible = "maxim,max31785";
+                reg = <0x52>;
+        };

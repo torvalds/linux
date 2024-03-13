@@ -1,0 +1,24 @@
+ToDos sorted by priority:
+
+- Use bitmask functions to parse CPU topology more robust
+  (current implementation has issues on AMD)
+- Try to read out boost states and frequencies on Intel
+- Somewhere saw the ability to read power consumption of
+  RAM from HW on Intel SandyBridge -> another monitor?
+- Add another c1e debug idle monitor
+  -> Is by design racy with BIOS, but could be added
+     with a --force option and some "be careful" messages
+- Add cpu_start()/cpu_stop() callbacks for monitor
+  -> This is to move the per_cpu logic from inside the
+     monitor to outside it. This can be given higher
+     priority in fork_it.
+- Fork as many processes as there are CPUs in case the
+  per_cpu_schedule flag is set.
+  -> Bind forked process to each cpu.
+  -> Execute start measures via the forked processes on
+     each cpu.
+  -> Run test executable in a forked process.
+  -> Execute stop measures via the forked processes on
+     each cpu.
+  This would be ideal as it will not introduce noise in the
+  tested executable.

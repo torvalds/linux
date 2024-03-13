@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/samsung,exynos-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC Thermal Management Unit (TMU)
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  For multi-instance tmu each instance should have an alias correctly numbered
+  in "aliases" node.
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos3250-tmu
+      - samsung,exynos4412-tmu
+      - samsung,exynos4210-tmu
+      - samsung,exynos5250-tmu
+      - samsung,exynos5260-tmu
+        # For TMU channel 0, 1 on Exynos5420:
+      - samsung,exynos5420-tmu
+        # For TMU channels 2, 3 and 4 of Exynos5420:
+      - samsung,exynos5420-tmu-ext-triminfo
+      - samsung,exynos5433-tmu
+      - samsung,exynos7-tmu
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    minItems: 1
+    maxItems: 3
+
+  interrupts:
+    description: |
+      The Exynos TMU supports generating interrupts when reaching given
+      temperature thresholds. Number of supported thermal trip points depends
+      on the SoC (only first trip points defined in DT will be configured)::
+       - most of SoC: 4
+       - samsung,exynos5433-tmu: 8
+       - samsung,exynos7-tmu: 8
+    maxItems: 1
+
+  reg:
+    items:
+      - description: TMU instance registers.
+      - description: |
+          Shared TMU registers.
+
+          Note:: On Exynos5420, the TRIMINFO register is misplaced for TMU
+          channels 2, 3 and 4 Use "samsung,exynos5420-tmu-ext-triminfo" in
+          cases, there is a misplaced register, also provide clock to access
+          that base.
+          TRIMINFO at 0x1006c000 contains data for TMU channel 3
+          TRIMINFO at 0x100a0000 contains data for TMU channel 4
+          TRIMINFO at 0x10068000 contains data for TMU channel 2
+    minItems: 1
+
+  '#thermal-sensor-cells': true
+
+  vtmu-supply:
+    description: The regulator node supplying voltage to TMU.
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - interrupts
+  - reg
+
+allOf:
+  - $ref: /schemas/thermal/thermal-sensor.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5420-tmu-ext-triminfo
+    then:
+      properties:
+        clocks:
+          items:
+            - description:
+                Operational clock for TMU channel.
+            - description:
+                Optional clock to access the shared registers (e.g. TRIMINFO) of TMU
+                channel.
+        clock-names:
+          items:
+            - const: tmu_apbif
+            - const: tmu_triminfo_apbif
+        reg:
+          minItems: 2
+          maxItems: 2
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos5433-tmu
+              - samsung,exynos7-tmu
+    then:
+      properties:
+        clocks:
+          items:
+            - description:
+                Operational clock for TMU channel.
+            - description:
+                Optional special clock for functional operation of TMU channel.
+        clock-names:
+          items:
+            - const: tmu_apbif
+            - const: tmu_sclk
+        reg:
+          minItems: 1
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos3250-tmu
+              - samsung,exynos4412-tmu
+              - samsung,exynos4210-tmu
+              - samsung,exynos5250-tmu
+              - samsung,exynos5260-tmu
+              - samsung,exynos5420-tmu
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+        reg:
+          minItems: 1
+          maxItems: 1
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+
+    tmu@100c0000 {
+        compatible = "samsung,exynos4412-tmu";
+        reg = <0x100C0000 0x100>;
+        interrupt-parent = <&combiner>;
+        interrupts = <2 4>;
+        #thermal-sensor-cells = <0>;
+        clocks = <&clock CLK_TMU_APBIF>;
+        clock-names = "tmu_apbif";
+        vtmu-supply = <&ldo10_reg>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tmu@10068000 {
+        compatible = "samsung,exynos5420-tmu-ext-triminfo";
+        reg = <0x10068000 0x100>, <0x1006c000 0x4>;
+        interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+        #thermal-sensor-cells = <0>;
+        clocks = <&clock 318>, <&clock 318>; /* CLK_TMU */
+        clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+        vtmu-supply = <&ldo7_reg>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    tmu@10060000 {
+        compatible = "samsung,exynos5433-tmu";
+        reg = <0x10060000 0x200>;
+        interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+        #thermal-sensor-cells = <0>;
+        clocks = <&cmu_peris 3>, /* CLK_PCLK_TMU0_APBIF */
+                 <&cmu_peris 35>; /* CLK_SCLK_TMU0 */
+        clock-names = "tmu_apbif", "tmu_sclk";
+        vtmu-supply = <&ldo3_reg>;
+    };

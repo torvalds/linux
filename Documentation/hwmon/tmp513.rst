@@ -1,0 +1,103 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver tmp513
+====================
+
+Supported chips:
+
+  * Texas Instruments TMP512
+
+    Prefix: 'tmp512'
+
+    Datasheet: https://www.ti.com/lit/ds/symlink/tmp512.pdf
+
+  * Texas Instruments TMP513
+
+    Prefix: 'tmp513'
+
+    Datasheet: https://www.ti.com/lit/ds/symlink/tmp513.pdf
+
+Authors:
+
+	Eric Tremblay <etremblay@distech-controls.com>
+
+Description
+-----------
+
+This driver implements support for Texas Instruments TMP512, and TMP513.
+The TMP512 (dual-channel) and TMP513 (triple-channel) are system monitors
+that include remote sensors, a local temperature sensor, and a high-side current
+shunt monitor. These system monitors have the capability of measuring remote
+temperatures, on-chip temperatures, and system voltage/power/current
+consumption.
+
+The temperatures are measured in degrees Celsius with a range of
+-40 to + 125 degrees with a resolution of 0.0625 degree C.
+
+For hysteresis value, only the first channel is writable. Writing to it
+will affect all other values since each channels are sharing the same
+hysteresis value. The hysteresis is in degrees Celsius with a range of
+0 to 127.5 degrees with a resolution of 0.5 degree.
+
+The driver exports the temperature values via the following sysfs files:
+
+**temp[1-4]_input**
+
+**temp[1-4]_crit**
+
+**temp[1-4]_crit_alarm**
+
+**temp[1-4]_crit_hyst**
+
+The driver read the shunt voltage from the chip and convert it to current.
+The readable range depends on the "ti,pga-gain" property (default to 8) and the
+shunt resistor value. The value resolution will be equal to 10uV/Rshunt.
+
+The driver exports the shunt currents values via the following sysFs files:
+
+**curr1_input**
+
+**curr1_lcrit**
+
+**curr1_lcrit_alarm**
+
+**curr1_crit**
+
+**curr1_crit_alarm**
+
+The bus voltage range is read from the chip with a resolution of 4mV. The chip
+can be configurable in two different range (32V or 16V) using the
+ti,bus-range-microvolt property in the devicetree.
+
+The driver exports the bus voltage values via the following sysFs files:
+
+**in0_input**
+
+**in0_lcrit**
+
+**in0_lcrit_alarm**
+
+**in0_crit**
+
+**in0_crit_alarm**
+
+The bus power and bus currents range and resolution depends on the calibration
+register value. Those values are calculate by the hardware using those
+formulas:
+
+Current = (ShuntVoltage * CalibrationRegister) / 4096
+Power   = (Current * BusVoltage) / 5000
+
+The driver exports the bus current and bus power values via the following
+sysFs files:
+
+**curr2_input**
+
+**power1_input**
+
+**power1_crit**
+
+**power1_crit_alarm**
+
+The calibration process follow the procedure of the datasheet (without overflow)
+and depend on the shunt resistor value and the pga_gain value.

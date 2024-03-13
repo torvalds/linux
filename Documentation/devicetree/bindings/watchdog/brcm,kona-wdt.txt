@@ -1,0 +1,15 @@
+Broadcom Kona Family Watchdog Timer
+-----------------------------------
+
+This watchdog timer is used in the following Broadcom SoCs:
+  BCM11130, BCM11140, BCM11351, BCM28145, BCM28155
+
+Required properties:
+  - compatible = "brcm,bcm11351-wdt", "brcm,kona-wdt";
+  - reg: memory address & range
+
+Example:
+	watchdog@35002f40 {
+		compatible = "brcm,bcm11351-wdt", "brcm,kona-wdt";
+		reg = <0x35002f40 0x6c>;
+	};

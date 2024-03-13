@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright 2016-2020 HabanaLabs, Ltd.
+ * All Rights Reserved.
+ *
+ */
+
+/************************************
+ ** This is an auto-generated file **
+ **       DO NOT EDIT BELOW        **
+ ************************************/
+
+#ifndef ASIC_REG_PDMA1_CORE_CTX_AXUSER_REGS_H_
+#define ASIC_REG_PDMA1_CORE_CTX_AXUSER_REGS_H_
+
+/*
+ *****************************************
+ *   PDMA1_CORE_CTX_AXUSER
+ *   (Prototype: AXUSER)
+ *****************************************
+ */
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_ASID 0x4C9B800
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_MMU_BP 0x4C9B804
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_STRONG_ORDER 0x4C9B808
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_NO_SNOOP 0x4C9B80C
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_WR_REDUCTION 0x4C9B810
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_RD_ATOMIC 0x4C9B814
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_QOS 0x4C9B818
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_RSVD 0x4C9B81C
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_EMEM_CPAGE 0x4C9B820
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_CORE 0x4C9B824
+
+#define mmPDMA1_CORE_CTX_AXUSER_E2E_COORD 0x4C9B828
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_WR_OVRD_LO 0x4C9B830
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_WR_OVRD_HI 0x4C9B834
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_RD_OVRD_LO 0x4C9B838
+
+#define mmPDMA1_CORE_CTX_AXUSER_HB_RD_OVRD_HI 0x4C9B83C
+
+#define mmPDMA1_CORE_CTX_AXUSER_LB_COORD 0x4C9B840
+
+#define mmPDMA1_CORE_CTX_AXUSER_LB_LOCK 0x4C9B844
+
+#define mmPDMA1_CORE_CTX_AXUSER_LB_RSVD 0x4C9B848
+
+#define mmPDMA1_CORE_CTX_AXUSER_LB_OVRD 0x4C9B84C
+
+#endif /* ASIC_REG_PDMA1_CORE_CTX_AXUSER_REGS_H_ */

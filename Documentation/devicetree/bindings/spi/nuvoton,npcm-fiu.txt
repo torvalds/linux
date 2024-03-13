@@ -1,0 +1,58 @@
+* Nuvoton FLASH Interface Unit (FIU) SPI Controller
+
+NPCM FIU supports single, dual and quad communication interface.
+
+The NPCM7XX supports three FIU modules,
+FIU0 and FIUx supports two chip selects,
+FIU3 support four chip select.
+
+The NPCM8XX supports four FIU modules,
+FIU0 and FIUx supports two chip selects,
+FIU1 and FIU3 supports four chip selects.
+
+Required properties:
+  - compatible : "nuvoton,npcm750-fiu" for Poleg NPCM7XX BMC
+			     "nuvoton,npcm845-fiu" for Arbel NPCM8XX BMC
+  - #address-cells : should be 1.
+  - #size-cells : should be 0.
+  - reg : the first contains the register location and length,
+          the second contains the memory mapping address and length
+  - reg-names: Should contain the reg names "control" and "memory"
+  - clocks : phandle of FIU reference clock.
+
+Required properties in case the pins can be muxed:
+  - pinctrl-names : a pinctrl state named "default" must be defined.
+  - pinctrl-0 : phandle referencing pin configuration of the device.
+
+Optional property:
+  - nuvoton,spix-mode: enable spix-mode for an expansion bus to an ASIC or CPLD.
+
+Aliases:
+- All the FIU controller nodes should be represented in the aliases node using
+  the following format 'fiu{n}' where n is a unique number for the alias.
+  In the NPCM7XX BMC:
+  		fiu0 represent fiu 0 controller
+  		fiu1 represent fiu 3 controller
+  		fiu2 represent fiu x controller
+
+  In the NPCM8XX BMC:
+  		fiu0 represent fiu 0 controller
+  		fiu1 represent fiu 1 controller
+  		fiu2 represent fiu 3 controller
+  		fiu3 represent fiu x controller
+
+Example:
+fiu3: spi@c00000000 {
+	compatible = "nuvoton,npcm750-fiu";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0xfb000000 0x1000>, <0x80000000 0x10000000>;
+	reg-names = "control", "memory";
+	clocks = <&clk NPCM7XX_CLK_AHB>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi3_pins>;
+	spi-nor@0 {
+			...
+	};
+};
+

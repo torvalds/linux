@@ -1,0 +1,33 @@
+Binding for Texas Instruments FAPLL clock.
+
+Binding status: Unstable - ABI compatibility may be broken in the future
+
+This binding uses the common clock binding[1]. It assumes a
+register-mapped FAPLL with usually two selectable input clocks
+(reference clock and bypass clock), and one or more child
+syntesizers.
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible : shall be "ti,dm816-fapll-clock"
+- #clock-cells : from common clock binding; shall be set to 0.
+- clocks : link phandles of parent clocks (clk-ref and clk-bypass)
+- reg : address and length of the register set for controlling the FAPLL.
+
+Examples:
+	main_fapll: main_fapll {
+		#clock-cells = <1>;
+		compatible = "ti,dm816-fapll-clock";
+		reg = <0x400 0x40>;
+		clocks = <&sys_clkin_ck &sys_clkin_ck>;
+		clock-indices = <1>, <2>, <3>, <4>, <5>,
+				<6>, <7>;
+		clock-output-names = "main_pll_clk1",
+				     "main_pll_clk2",
+				     "main_pll_clk3",
+				     "main_pll_clk4",
+				     "main_pll_clk5",
+				     "main_pll_clk6",
+				     "main_pll_clk7";
+	};

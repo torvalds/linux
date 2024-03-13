@@ -1,0 +1,4 @@
+# single key style
+key = 1
+key2 = 2
+key3 = "alpha", "beta"

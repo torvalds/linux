@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Lazor Limozeen board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+#include "sc7180-trogdor-lazor-limozeen-nots-r5.dts"
+
+/ {
+	model = "Google Lazor Limozeen without Touchscreen (rev4)";
+	compatible = "google,lazor-rev4-sku5", "qcom,sc7180";
+};
+
+/*
+ * rev4-sku5 was built with a different trackpad.
+ */
+/delete-node/&trackpad;
+&ap_tp_i2c {
+	 trackpad: trackpad@2c {
+		compatible = "hid-over-i2c";
+		reg = <0x2c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+
+		vdd-supply = <&pp3300_fp_tp>;
+		hid-descr-addr = <0x20>;
+
+		wakeup-source;
+	};
+};

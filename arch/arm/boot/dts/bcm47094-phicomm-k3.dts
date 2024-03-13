@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (C) 2017 Hamster Tian <haotia@gmail.com>
+ * Copyright (C) 2019 Hao Dong <halbertdong@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "bcm47094.dtsi"
+#include "bcm5301x-nand-cs0-bch4.dtsi"
+
+/ {
+	compatible = "phicomm,k3", "brcm,bcm47094", "brcm,bcm4708";
+	model = "Phicomm K3";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x18000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};
+
+&nandcs {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x0000000 0x0080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "nvram";
+			reg = <0x0080000 0x0100000>;
+		};
+
+		partition@180000{
+			label = "phicomm";
+			reg = <0x0180000 0x0280000>;
+			read-only;
+		};
+
+		partition@400000 {
+			label = "firmware";
+			reg = <0x0400000 0x7C00000>;
+			compatible = "brcm,trx";
+		};
+	};
+};

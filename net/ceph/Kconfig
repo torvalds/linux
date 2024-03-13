@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CEPH_LIB
+	tristate "Ceph core library"
+	depends on INET
+	select LIBCRC32C
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_GCM
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
+	select CRYPTO
+	select KEYS
+	default n
+	help
+	  Choose Y or M here to include cephlib, which provides the
+	  common functionality to both the Ceph filesystem and
+	  to the rados block device (rbd).
+
+	  More information at https://ceph.io/.
+
+	  If unsure, say N.
+
+config CEPH_LIB_PRETTYDEBUG
+	bool "Include file:line in ceph debug output"
+	depends on CEPH_LIB
+	default n
+	help
+	  If you say Y here, debug output will include a filename and
+	  line to aid debugging.  This increases kernel size and slows
+	  execution slightly when debug call sites are enabled (e.g.,
+	  via CONFIG_DYNAMIC_DEBUG).
+
+	  If unsure, say N.
+
+config CEPH_LIB_USE_DNS_RESOLVER
+	bool "Use in-kernel support for DNS lookup"
+	depends on CEPH_LIB
+	select DNS_RESOLVER
+	default n
+	help
+	  If you say Y here, hostnames (e.g. monitor addresses) will
+	  be resolved using the CONFIG_DNS_RESOLVER facility.
+
+	  For information on how to use CONFIG_DNS_RESOLVER consult
+	  Documentation/networking/dns_resolver.rst
+
+	  If unsure, say N.

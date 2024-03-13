@@ -1,0 +1,20 @@
+* SPEAr keyboard controller
+
+Required properties:
+- compatible: "st,spear300-kbd"
+
+Optional properties, in addition to those specified by the shared
+matrix-keyboard bindings:
+- autorepeat: bool: enables key autorepeat
+- st,mode: keyboard mode: 0 - 9x9, 1 - 6x6, 2 - 2x2
+
+Example:
+
+kbd@fc400000 {
+	compatible = "st,spear300-kbd";
+	reg = <0xfc400000 0x100>;
+	linux,keymap = < 0x00030012
+			 0x0102003a >;
+	autorepeat;
+	st,mode = <0>;
+};

@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/auxdisplay/img,ascii-lcd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ASCII LCD displays on Imagination Technologies boards
+
+maintainers:
+  - Paul Burton <paulburton@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - img,boston-lcd
+      - mti,malta-lcd
+      - mti,sead3-lcd
+
+  reg:
+    maxItems: 1
+
+  offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Offset in bytes to the LCD registers within the system controller
+
+required:
+  - compatible
+
+oneOf:
+  - required:
+      - reg
+  - required:
+      - offset
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: img,boston-lcd
+then:
+  required:
+    - reg
+else:
+  required:
+    - offset
+
+additionalProperties: false
+
+examples:
+  - |
+    lcd: lcd@17fff000 {
+            compatible = "img,boston-lcd";
+            reg = <0x17fff000 0x8>;
+    };

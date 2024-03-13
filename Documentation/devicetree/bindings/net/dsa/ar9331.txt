@@ -1,0 +1,147 @@
+Atheros AR9331 built-in switch
+=============================
+
+It is a switch built-in to Atheros AR9331 WiSoC and addressable over internal
+MDIO bus. All PHYs are built-in as well.
+
+Required properties:
+
+ - compatible: should be: "qca,ar9331-switch"
+ - reg: Address on the MII bus for the switch.
+ - resets : Must contain an entry for each entry in reset-names.
+ - reset-names : Must include the following entries: "switch"
+ - interrupt-parent: Phandle to the parent interrupt controller
+ - interrupts: IRQ line for the switch
+ - interrupt-controller: Indicates the switch is itself an interrupt
+   controller. This is used for the PHY interrupts.
+ - #interrupt-cells: must be 1
+ - mdio: Container of PHY and devices on the switches MDIO bus.
+
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
+required and optional properties.
+Examples:
+
+eth0: ethernet@19000000 {
+	compatible = "qca,ar9330-eth";
+	reg = <0x19000000 0x200>;
+	interrupts = <4>;
+
+	resets = <&rst 9>, <&rst 22>;
+	reset-names = "mac", "mdio";
+	clocks = <&pll ATH79_CLK_AHB>, <&pll ATH79_CLK_AHB>;
+	clock-names = "eth", "mdio";
+
+	phy-mode = "mii";
+	phy-handle = <&phy_port4>;
+};
+
+eth1: ethernet@1a000000 {
+	compatible = "qca,ar9330-eth";
+	reg = <0x1a000000 0x200>;
+	interrupts = <5>;
+	resets = <&rst 13>, <&rst 23>;
+	reset-names = "mac", "mdio";
+	clocks = <&pll ATH79_CLK_AHB>, <&pll ATH79_CLK_AHB>;
+	clock-names = "eth", "mdio";
+
+	phy-mode = "gmii";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch10: switch@10 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			compatible = "qca,ar9331-switch";
+			reg = <0x10>;
+			resets = <&rst 8>;
+			reset-names = "switch";
+
+			interrupt-parent = <&miscintc>;
+			interrupts = <12>;
+
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				switch_port0: port@0 {
+					reg = <0x0>;
+					ethernet = <&eth1>;
+
+					phy-mode = "gmii";
+
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+
+				switch_port1: port@1 {
+					reg = <0x1>;
+					phy-handle = <&phy_port0>;
+					phy-mode = "internal";
+				};
+
+				switch_port2: port@2 {
+					reg = <0x2>;
+					phy-handle = <&phy_port1>;
+					phy-mode = "internal";
+				};
+
+				switch_port3: port@3 {
+					reg = <0x3>;
+					phy-handle = <&phy_port2>;
+					phy-mode = "internal";
+				};
+
+				switch_port4: port@4 {
+					reg = <0x4>;
+					phy-handle = <&phy_port3>;
+					phy-mode = "internal";
+				};
+			};
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				interrupt-parent = <&switch10>;
+
+				phy_port0: phy@0 {
+					reg = <0x0>;
+					interrupts = <0>;
+				};
+
+				phy_port1: phy@1 {
+					reg = <0x1>;
+					interrupts = <0>;
+				};
+
+				phy_port2: phy@2 {
+					reg = <0x2>;
+					interrupts = <0>;
+				};
+
+				phy_port3: phy@3 {
+					reg = <0x3>;
+					interrupts = <0>;
+				};
+
+				phy_port4: phy@4 {
+					reg = <0x4>;
+					interrupts = <0>;
+				};
+			};
+		};
+	};
+};

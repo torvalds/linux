@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_OMAP3
+	tristate "OMAP 3 Camera support"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on VIDEO_DEV && I2C
+	depends on (ARCH_OMAP3 && OMAP_IOMMU) || COMPILE_TEST
+	depends on COMMON_CLK && OF
+	select ARM_DMA_USE_IOMMU if OMAP_IOMMU
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select MFD_SYSCON
+	select V4L2_FWNODE
+	help
+	  Driver for an OMAP 3 camera controller.
+
+config VIDEO_OMAP3_DEBUG
+	bool "OMAP 3 Camera debug messages"
+	depends on VIDEO_OMAP3
+	help
+	  Enable debug messages on OMAP 3 camera controller driver.

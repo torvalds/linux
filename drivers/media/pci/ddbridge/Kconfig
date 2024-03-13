@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DVB_DDBRIDGE
+	tristate "Digital Devices bridge support"
+	depends on DVB_CORE && PCI && I2C
+	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV090x if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_DRXK if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA18271C2DD if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0367 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CXD2841ER if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0910 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV6111 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LNBH25 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18212 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MXL5XX if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CXD2099 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for cards with the Digital Devices PCI express bridge:
+	  - Octopus PCIe Bridge
+	  - Octopus mini PCIe Bridge
+	  - Octopus LE
+	  - DuoFlex S2 Octopus
+	  - DuoFlex CT Octopus
+	  - cineS2(v6)
+	  - CineCTv6 and DuoFlex CT (STV0367-based)
+	  - CineCTv7 and DuoFlex CT2/C2T2/C2T2I (Sony CXD28xx-based)
+	  - MaxA8 series
+	  - CineS2 V7/V7A and DuoFlex S2 V4 (ST STV0910-based)
+	  - Max S4/8
+
+	  Say Y if you own such a card and want to use it.
+
+config DVB_DDBRIDGE_MSIENABLE
+	bool "Enable Message Signaled Interrupts (MSI) per default (EXPERIMENTAL)"
+	depends on DVB_DDBRIDGE
+	depends on PCI_MSI
+	help
+	  Use PCI MSI (Message Signaled Interrupts) per default. Enabling this
+	  might lead to I2C errors originating from the bridge in conjunction
+	  with certain SATA controllers, requiring a reload of the ddbridge
+	  module. MSI can still be disabled by passing msi=0 as option, as
+	  this will just change the msi option default value.
+
+	  If you're unsure, concerned about stability and don't want to pass
+	  module options in case of troubles, say N.

@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: GPL-2.0
+comment "S/390 character device drivers"
+	depends on S390
+
+config TN3270
+	def_tristate y
+	prompt "Support for locally attached 3270 terminals"
+	depends on CCW
+	help
+	  Include support for IBM 3270 terminals.
+
+config TN3270_TTY
+	def_tristate y
+	prompt "Support for tty input/output on 3270 terminals"
+	depends on TN3270 && TTY
+	help
+	  Include support for using an IBM 3270 terminal as a Linux tty.
+
+config TN3270_FS
+	def_tristate m
+	prompt "Support for fullscreen applications on 3270 terminals"
+	depends on TN3270
+	help
+	  Include support for fullscreen applications on an IBM 3270 terminal.
+
+config TN3270_CONSOLE
+	def_bool y
+	prompt "Support for console on 3270 terminal"
+	depends on TN3270=y && TN3270_TTY=y
+	help
+	  Include support for using an IBM 3270 terminal as a Linux system
+	  console.  Available only if 3270 support is compiled in statically.
+
+config TN3215
+	def_bool y
+	prompt "Support for 3215 line mode terminal"
+	depends on CCW && TTY
+	help
+	  Include support for IBM 3215 line-mode terminals.
+
+config TN3215_CONSOLE
+	def_bool y
+	prompt "Support for console on 3215 line mode terminal"
+	depends on TN3215
+	help
+	  Include support for using an IBM 3215 line-mode terminal as a
+	  Linux system console.
+
+config CCW_CONSOLE
+	def_bool y if TN3215_CONSOLE || TN3270_CONSOLE
+
+config SCLP_TTY
+	def_bool y
+	prompt "Support for SCLP line mode terminal"
+	depends on S390 && TTY
+	help
+	  Include support for IBM SCLP line-mode terminals.
+
+config SCLP_CONSOLE
+	def_bool y
+	prompt "Support for console on SCLP line mode terminal"
+	depends on SCLP_TTY
+	help
+	  Include support for using an IBM HWC line-mode terminal as the Linux
+	  system console.
+
+config SCLP_VT220_TTY
+	def_bool y
+	prompt "Support for SCLP VT220-compatible terminal"
+	depends on S390 && TTY
+	help
+	  Include support for an IBM SCLP VT220-compatible terminal.
+
+config SCLP_VT220_CONSOLE
+	def_bool y
+	prompt "Support for console on SCLP VT220-compatible terminal"
+	depends on SCLP_VT220_TTY
+	help
+	  Include support for using an IBM SCLP VT220-compatible terminal as a
+	  Linux system console.
+
+config HMC_DRV
+	def_tristate m
+	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
+	depends on S390
+	select CRC16
+	help
+	  This option enables support for file transfers from a Hardware
+	  Management Console (HMC) drive CD/DVD-ROM. It is available as a
+	  module, called 'hmcdrv', and also as kernel built-in. There is one
+	  optional parameter for this module: cachesize=N, which modifies the
+	  transfer cache size from its default value 0.5MB to N bytes. If N
+	  is zero, then no caching is performed.
+
+config SCLP_OFB
+	def_bool n
+	prompt "Support for Open-for-Business SCLP Event"
+	depends on S390
+	help
+	  This option enables the Open-for-Business interface to the s390
+	  Service Element.
+
+config S390_UV_UAPI
+	def_tristate m
+	prompt "Ultravisor userspace API"
+	depends on S390
+	help
+	  Selecting exposes parts of the UV interface to userspace
+	  by providing a misc character device at /dev/uv.
+	  Using IOCTLs one can interact with the UV.
+	  The device is only available if the Ultravisor
+	  Facility (158) is present.
+
+config S390_TAPE
+	def_tristate m
+	prompt "S/390 tape device support"
+	depends on CCW
+	help
+	  Select this option if you want to access channel-attached tape
+	  devices on IBM S/390 or zSeries.
+	  If you select this option you will also want to select at
+	  least one of the tape interface options and one of the tape
+	  hardware options in order to access a tape device.
+	  This option is also available as a module. The module will be
+	  called tape390 and include all selected interfaces and
+	  hardware drivers.
+
+comment "S/390 tape hardware support"
+	depends on S390_TAPE
+
+config S390_TAPE_34XX
+	def_tristate m
+	prompt "Support for 3480/3490 tape hardware"
+	depends on S390_TAPE
+	help
+	  Select this option if you want to access IBM 3480/3490 magnetic
+	  tape subsystems and 100% compatibles.
+	  It is safe to say "Y" here.
+
+config S390_TAPE_3590
+	def_tristate m
+	prompt "Support for 3590 tape hardware"
+	depends on S390_TAPE
+	help
+	  Select this option if you want to access IBM 3590 magnetic
+	  tape subsystems and 100% compatibles.
+	  It is safe to say "Y" here.
+
+config VMLOGRDR
+	def_tristate m
+	prompt "Support for the z/VM recording system services (VM only)"
+	depends on IUCV
+	help
+	  Select this option if you want to be able to receive records collected
+	  by the z/VM recording system services, eg. from *LOGREC, *ACCOUNT or
+	  *SYMPTOM.
+	  This driver depends on the IUCV support driver.
+
+config VMCP
+	def_bool y
+	prompt "Support for the z/VM CP interface"
+	depends on S390
+	select CMA
+	help
+	  Select this option if you want to be able to interact with the control
+	  program on z/VM
+
+config VMCP_CMA_SIZE
+	int "Memory in MiB reserved for z/VM CP interface"
+	default "4"
+	depends on VMCP
+	help
+	  Specify the default amount of memory in MiB reserved for the z/VM CP
+	  interface. If needed this memory is used for large contiguous memory
+	  allocations. The default can be changed with the kernel command line
+	  parameter "vmcp_cma".
+
+config MONREADER
+	def_tristate m
+	prompt "API for reading z/VM monitor service records"
+	depends on IUCV
+	help
+	  Character device driver for reading z/VM monitor service records
+
+config MONWRITER
+	def_tristate m
+	prompt "API for writing z/VM monitor service records"
+	depends on S390
+	help
+	  Character device driver for writing z/VM monitor service records
+
+config S390_VMUR
+	def_tristate m
+	prompt "z/VM unit record device driver"
+	depends on S390
+	help
+	  Character device driver for z/VM reader, puncher and printer.

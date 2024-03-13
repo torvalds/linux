@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-mxs.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale MXS GPIO controller
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Anson Huang <Anson.Huang@nxp.com>
+
+description: |
+  The Freescale MXS GPIO controller is part of MXS PIN controller.
+  The GPIOs are organized in port/bank, each port consists of 32 GPIOs.
+  As the GPIO controller is embedded in the PIN controller and all the
+  GPIO ports share the same IO space with PIN controller, the GPIO node
+  will be represented as sub-nodes of MXS pinctrl node.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx23-pinctrl
+      - fsl,imx28-pinctrl
+
+  '#address-cells':
+    const: 1
+  '#size-cells':
+    const: 0
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "gpio@[0-9]+$":
+    type: object
+    properties:
+      compatible:
+        enum:
+          - fsl,imx23-gpio
+          - fsl,imx28-gpio
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        description: Should be the port interrupt shared by all 32 pins.
+        maxItems: 1
+
+      interrupt-controller: true
+
+      "#interrupt-cells":
+        const: 2
+
+      "#gpio-cells":
+        const: 2
+
+      gpio-controller: true
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - interrupt-controller
+      - "#interrupt-cells"
+      - "#gpio-cells"
+      - gpio-controller
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    pinctrl@80018000 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "fsl,imx28-pinctrl";
+        reg = <0x80018000 0x2000>;
+
+        gpio@0 {
+                compatible = "fsl,imx28-gpio";
+                reg = <0>;
+                interrupts = <127>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+        };
+
+        gpio@1 {
+                compatible = "fsl,imx28-gpio";
+                reg = <1>;
+                interrupts = <126>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+        };
+
+        gpio@2 {
+                compatible = "fsl,imx28-gpio";
+                reg = <2>;
+                interrupts = <125>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+        };
+
+        gpio@3 {
+                compatible = "fsl,imx28-gpio";
+                reg = <3>;
+                interrupts = <124>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+        };
+
+        gpio@4 {
+                compatible = "fsl,imx28-gpio";
+                reg = <4>;
+                interrupts = <123>;
+                gpio-controller;
+                #gpio-cells = <2>;
+                interrupt-controller;
+                #interrupt-cells = <2>;
+        };
+    };

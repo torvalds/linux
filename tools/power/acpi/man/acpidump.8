@@ -1,0 +1,127 @@
+.TH ACPIDUMP 8
+.SH NAME
+acpidump \- dump a system's ACPI tables to an ASCII file
+
+.SH SYNOPSIS
+.B acpidump
+.RI [ options ]
+.br
+
+.SH DESCRIPTION
+.B acpidump
+dumps the systems ACPI tables to an ASCII file appropriate for
+attaching to a bug report.
+
+Subsequently, they can be processed by utilities in the ACPICA package.
+
+.SH OPTIONS
+acpidump options are as follow:
+.TP
+.B Options
+.TP
+.B \-b
+Dump tables to binary files
+.TP
+.B \-h \-?
+This help message
+.TP
+.B \-o <File>
+Redirect output to file
+.TP
+.B \-r <Address>
+Dump tables from specified RSDP
+.TP
+.B \-s
+Print table summaries only
+.TP
+.B \-v
+Display version information
+.TP
+.B \-z
+Verbose mode
+.TP
+.B Table Options
+.TP
+.B \-a <Address>
+Get table via a physical address
+.TP
+.B \-c <on|off>
+Turning on/off customized table dumping
+.TP
+.B \-f <BinaryFile>
+Get table via a binary file
+.TP
+.B \-n <Signature>
+Get table via a name/signature
+.TP
+.B \-x
+Do not use but dump XSDT
+.TP
+.B \-x \-x
+Do not use or dump XSDT
+.TP
+.fi
+Invocation without parameters dumps all available tables.
+.TP
+Multiple mixed instances of -a, -f, and -n are supported.
+
+.SH EXAMPLES
+
+.nf
+# acpidump > acpidump.out
+
+$ acpixtract -a acpidump.out
+        Acpi table [DSDT] -  15974 bytes written to DSDT.dat
+        Acpi table [FACS] -     64 bytes written to FACS.dat
+        Acpi table [FACP] -    116 bytes written to FACP.dat
+        Acpi table [APIC] -    120 bytes written to APIC.dat
+        Acpi table [MCFG] -     60 bytes written to MCFG.dat
+        Acpi table [SSDT] -    444 bytes written to SSDT1.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT2.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT3.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT4.dat
+        Acpi table [SSDT] -    439 bytes written to SSDT5.dat
+        Acpi table [RSDT] -     76 bytes written to RSDT.dat
+        Acpi table [RSDP] -     20 bytes written to RSDP.dat
+
+$ iasl -d *.dat
+...
+.fi
+creates *.dsl, a human readable form which can be edited
+and compiled using iasl.
+
+
+.SH NOTES
+
+.B "acpidump "
+must be run as root.
+
+.SH REFERENCES
+ACPICA: https://acpica.org/
+
+.SH FILES
+.ta
+.nf
+/dev/mem
+/sys/firmware/acpi/tables/*
+/sys/firmware/acpi/tables/dynamic/*
+/sys/firmware/efi/systab
+.fi
+
+.SH AUTHOR
+.TP
+Original by:
+ Len Brown <len.brown@intel.com>
+.TP
+Written by:
+ Chao Guan <chao.guan@intel.com>
+.TP
+Updated by:
+ Bob Moore <robert.moore@intel.com>
+ Lv Zheng <lv.zheng@intel.com>
+
+.SH SEE ALSO
+\&\fIacpixtract\fR\|(8), \fIiasl\fR\|(8).
+
+.SH COPYRIGHT
+COPYRIGHT (c) 2013, Intel Corporation.

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5696.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5696 and similar multi-channel DACs
+
+maintainers:
+  - Michael Auchter <michael.auchter@ni.com>
+
+description: |
+  Binding for Analog Devices AD5696 and similar multi-channel DACs
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5311r
+      - adi,ad5338r
+      - adi,ad5671r
+      - adi,ad5675r
+      - adi,ad5691r
+      - adi,ad5692r
+      - adi,ad5693
+      - adi,ad5693r
+      - adi,ad5694
+      - adi,ad5694r
+      - adi,ad5695r
+      - adi,ad5696
+      - adi,ad5696r
+
+  reg:
+    maxItems: 1
+
+  vcc-supply:
+    description: |
+      The regulator supply for DAC reference voltage.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      ad5696: dac@0 {
+        compatible = "adi,ad5696";
+        reg = <0>;
+        vcc-supply = <&dac_vref>;
+      };
+    };
+...

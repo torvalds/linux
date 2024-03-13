@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Christian Hemp, Phytec Messtechnik GmbH
+ */
+
+/dts-v1/;
+#include "imx6dl-phytec-pfla02.dtsi"
+#include "imx6qdl-phytec-pbab01.dtsi"
+
+/ {
+	model = "Phytec phyFLEX-i.MX6 DualLite/Solo Carrier-Board";
+	compatible = "phytec,imx6dl-pbab01", "phytec,imx6dl-pfla02", "fsl,imx6dl";
+};

@@ -1,0 +1,20 @@
+Bindings for the fan / temperature monitor microcontroller used on
+the Zyxel NSA 320 and several subsequent models.
+
+Required properties:
+- compatible	: "zyxel,nsa320-mcu"
+- data-gpios	: The GPIO pin connected to the data line on the MCU
+- clk-gpios	: The GPIO pin connected to the clock line on the MCU
+- act-gpios	: The GPIO pin connected to the active line on the MCU
+
+Example:
+
+	hwmon {
+		compatible = "zyxel,nsa320-mcu";
+		pinctrl-0 = <&pmx_mcu_data &pmx_mcu_clk &pmx_mcu_act>;
+		pinctrl-names = "default";
+
+		data-gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		clk-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		act-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+	};

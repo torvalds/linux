@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SECURITY_SELINUX
+	bool "NSA SELinux Support"
+	depends on SECURITY_NETWORK && AUDIT && NET && INET
+	select NETWORK_SECMARK
+	default n
+	help
+	  This selects NSA Security-Enhanced Linux (SELinux).
+	  You will also need a policy configuration and a labeled filesystem.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_BOOTPARAM
+	bool "NSA SELinux boot parameter"
+	depends on SECURITY_SELINUX
+	default n
+	help
+	  This option adds a kernel parameter 'selinux', which allows SELinux
+	  to be disabled at boot.  If this option is selected, SELinux
+	  functionality can be disabled with selinux=0 on the kernel
+	  command line.  The purpose of this option is to allow a single
+	  kernel image to be distributed with SELinux built in, but not
+	  necessarily enabled.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_DISABLE
+	bool "NSA SELinux runtime disable"
+	depends on SECURITY_SELINUX
+	select SECURITY_WRITABLE_HOOKS
+	default n
+	help
+	  This option enables writing to a selinuxfs node 'disable', which
+	  allows SELinux to be disabled at runtime prior to the policy load.
+	  SELinux will then remain disabled until the next boot.
+	  This option is similar to the selinux=0 boot parameter, but is to
+	  support runtime disabling of SELinux, e.g. from /sbin/init, for
+	  portability across platforms where boot parameters are difficult
+	  to employ.
+
+	  NOTE: selecting this option will disable the '__ro_after_init'
+	  kernel hardening feature for security hooks.   Please consider
+	  using the selinux=0 boot parameter instead of enabling this
+	  option.
+
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_SELINUX_DEVELOP
+	bool "NSA SELinux Development Support"
+	depends on SECURITY_SELINUX
+	default y
+	help
+	  This enables the development support option of NSA SELinux,
+	  which is useful for experimenting with SELinux and developing
+	  policies.  If unsure, say Y.  With this option enabled, the
+	  kernel will start in permissive mode (log everything, deny nothing)
+	  unless you specify enforcing=1 on the kernel command line.  You
+	  can interactively toggle the kernel between enforcing mode and
+	  permissive mode (if permitted by the policy) via
+	  /sys/fs/selinux/enforce.
+
+config SECURITY_SELINUX_AVC_STATS
+	bool "NSA SELinux AVC Statistics"
+	depends on SECURITY_SELINUX
+	default y
+	help
+	  This option collects access vector cache statistics to
+	  /sys/fs/selinux/avc/cache_stats, which may be monitored via
+	  tools such as avcstat.
+
+config SECURITY_SELINUX_CHECKREQPROT_VALUE
+	int "NSA SELinux checkreqprot default value"
+	depends on SECURITY_SELINUX
+	range 0 1
+	default 0
+	help
+	  This option sets the default value for the 'checkreqprot' flag
+	  that determines whether SELinux checks the protection requested
+	  by the application or the protection that will be applied by the
+	  kernel (including any implied execute for read-implies-exec) for
+	  mmap and mprotect calls.  If this option is set to 0 (zero),
+	  SELinux will default to checking the protection that will be applied
+	  by the kernel.  If this option is set to 1 (one), SELinux will
+	  default to checking the protection requested by the application.
+	  The checkreqprot flag may be changed from the default via the
+	  'checkreqprot=' boot parameter.  It may also be changed at runtime
+	  via /sys/fs/selinux/checkreqprot if authorized by policy.
+
+	  WARNING: this option is deprecated and will be removed in a future
+	  kernel release.
+
+	  If you are unsure how to answer this question, answer 0.
+
+config SECURITY_SELINUX_SIDTAB_HASH_BITS
+	int "NSA SELinux sidtab hashtable size"
+	depends on SECURITY_SELINUX
+	range 8 13
+	default 9
+	help
+	  This option sets the number of buckets used in the sidtab hashtable
+	  to 2^SECURITY_SELINUX_SIDTAB_HASH_BITS buckets. The number of hash
+	  collisions may be viewed at /sys/fs/selinux/ss/sidtab_hash_stats. If
+	  chain lengths are high (e.g. > 20) then selecting a higher value here
+	  will ensure that lookups times are short and stable.
+
+config SECURITY_SELINUX_SID2STR_CACHE_SIZE
+	int "NSA SELinux SID to context string translation cache size"
+	depends on SECURITY_SELINUX
+	default 256
+	help
+	  This option defines the size of the internal SID -> context string
+	  cache, which improves the performance of context to string
+	  conversion.  Setting this option to 0 disables the cache completely.
+
+	  If unsure, keep the default value.

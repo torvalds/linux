@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) Protonic Holland
+ * Author: David Jander <david@protonic.nl>
+ */
+/dts-v1/;
+
+#include "stm32mp151a-prtt1l.dtsi"
+
+/ {
+	model = "Protonic PRTT1S";
+	compatible = "prt,prtt1s", "st,stm32mp151";
+};
+
+&ethernet0 {
+	phy-handle = <&phy0>;
+};
+
+&i2c1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c1_pins_a>;
+	pinctrl-1 = <&i2c1_sleep_pins_a>;
+	clock-frequency = <100000>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
+
+	humidity-sensor@40 {
+		compatible = "ti,hdc1080";
+		reg = <0x40>;
+	};
+
+	co2-sensor@62 {
+		compatible = "sensirion,scd41";
+		reg = <0x62>;
+	};
+};
+
+&i2c1_pins_a {
+	pins {
+		pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
+			 <STM32_PINMUX('D', 13, AF5)>; /* I2C1_SDA */
+	};
+};
+
+&i2c1_sleep_pins_a {
+	pins {
+		pinmux = <STM32_PINMUX('D', 12, ANALOG)>, /* I2C1_SCL */
+			 <STM32_PINMUX('D', 13, ANALOG)>; /* I2C1_SDA */
+	};
+};
+
+&mdio0 {
+	/* TI DP83TD510E */
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id2000.0181";
+		reg = <0>;
+		interrupts-extended = <&gpioa 4 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpioa 3 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <10>;
+		reset-deassert-us = <35>;
+	};
+};

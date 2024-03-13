@@ -1,0 +1,620 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Native language support configuration
+#
+
+menuconfig NLS
+	tristate "Native language support"
+	help
+	  The base Native Language Support. A number of filesystems
+	  depend on it (e.g. FAT, JOLIET, NT, BEOS filesystems), as well
+	  as the ability of some filesystems to use native languages
+	  (NCP, SMB).
+
+	  If unsure, say Y.
+
+	  To compile this code as a module, choose M here: the module
+	  will be called nls_base.
+
+if NLS
+
+config NLS_DEFAULT
+	string "Default NLS Option"
+	default "iso8859-1"
+	help
+	  The default NLS used when mounting file system. Note, that this is
+	  the NLS used by your console, not the NLS used by a specific file
+	  system (if different) to store data (filenames) on a disk.
+	  Currently, the valid values are:
+	  big5, cp437, cp737, cp775, cp850, cp852, cp855, cp857, cp860, cp861,
+	  cp862, cp863, cp864, cp865, cp866, cp869, cp874, cp932, cp936,
+	  cp949, cp950, cp1251, cp1255, euc-jp, euc-kr, gb2312, iso8859-1,
+	  iso8859-2, iso8859-3, iso8859-4, iso8859-5, iso8859-6, iso8859-7,
+	  iso8859-8, iso8859-9, iso8859-13, iso8859-14, iso8859-15,
+	  koi8-r, koi8-ru, koi8-u, sjis, tis-620, macroman, utf8.
+	  If you specify a wrong value, it will use the built-in NLS;
+	  compatible with iso8859-1.
+
+	  If unsure, specify it as "iso8859-1".
+
+config NLS_CODEPAGE_437
+	tristate "Codepage 437 (United States, Canada)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored
+	  in so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage that is used in
+	  the United States and parts of Canada. This is recommended.
+
+config NLS_CODEPAGE_737
+	tristate "Codepage 737 (Greek)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored
+	  in so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage that is used for
+	  Greek. If unsure, say N.
+
+config NLS_CODEPAGE_775
+	tristate "Codepage 775 (Baltic Rim)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored
+	  in so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage that is used
+	  for the Baltic Rim Languages (Latvian and Lithuanian). If unsure,
+	  say N.
+
+config NLS_CODEPAGE_850
+	tristate "Codepage 850 (Europe)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage that is used for
+	  much of Europe -- United Kingdom, Germany, Spain, Italy, and [add
+	  more countries here]. It has some characters useful to many European
+	  languages that are not part of the US codepage 437.
+
+	  If unsure, say Y.
+
+config NLS_CODEPAGE_852
+	tristate "Codepage 852 (Central/Eastern Europe)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Latin 2 codepage used by DOS
+	  for much of Central and Eastern Europe. It has all the required
+	  characters for these languages: Albanian, Croatian, Czech, English,
+	  Finnish, Hungarian, Irish, German, Polish, Romanian, Serbian (Latin
+	  transcription), Slovak, Slovenian, and Sorbian.
+
+config NLS_CODEPAGE_855
+	tristate "Codepage 855 (Cyrillic)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Cyrillic.
+
+config NLS_CODEPAGE_857
+	tristate "Codepage 857 (Turkish)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Turkish.
+
+config NLS_CODEPAGE_860
+	tristate "Codepage 860 (Portuguese)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Portuguese.
+
+config NLS_CODEPAGE_861
+	tristate "Codepage 861 (Icelandic)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Icelandic.
+
+config NLS_CODEPAGE_862
+	tristate "Codepage 862 (Hebrew)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Hebrew.
+
+config NLS_CODEPAGE_863
+	tristate "Codepage 863 (Canadian French)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Canadian
+	  French.
+
+config NLS_CODEPAGE_864
+	tristate "Codepage 864 (Arabic)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Arabic.
+
+config NLS_CODEPAGE_865
+	tristate "Codepage 865 (Norwegian, Danish)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for the Nordic
+	  European countries.
+
+config NLS_CODEPAGE_866
+	tristate "Codepage 866 (Cyrillic/Russian)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for
+	  Cyrillic/Russian.
+
+config NLS_CODEPAGE_869
+	tristate "Codepage 869 (Greek)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Greek.
+
+config NLS_CODEPAGE_936
+	tristate "Simplified Chinese charset (CP936, GB2312)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Simplified
+	  Chinese(GBK).
+
+config NLS_CODEPAGE_950
+	tristate "Traditional Chinese charset (Big5)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Traditional
+	  Chinese(Big5).
+
+config NLS_CODEPAGE_932
+	tristate "Japanese charsets (Shift-JIS, EUC-JP)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Shift-JIS
+	  or EUC-JP. To use EUC-JP, you can use 'euc-jp' as mount option or
+	  NLS Default value during kernel configuration, instead of 'cp932'.
+
+config NLS_CODEPAGE_949
+	tristate "Korean charset (CP949, EUC-KR)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for UHC.
+
+config NLS_CODEPAGE_874
+	tristate "Thai charset (CP874, TIS-620)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Thai.
+
+config NLS_ISO8859_8
+	tristate "Hebrew charsets (ISO-8859-8, CP1255)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for ISO8859-8, the Hebrew
+	  character set.
+
+config NLS_CODEPAGE_1250
+	tristate "Windows CP1250 (Slavic/Central European Languages)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CDROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Windows CP-1250
+	  character set, which works for most Latin-written Slavic and Central
+	  European languages: Czech, German, Hungarian, Polish, Rumanian, Croatian,
+	  Slovak, Slovene.
+
+config NLS_CODEPAGE_1251
+	tristate "Windows CP1251 (Bulgarian, Belarusian)"
+	help
+	  The Microsoft FAT file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called DOS codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  DOS/Windows partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the DOS codepage for Russian and
+	  Bulgarian and Belarusian.
+
+config NLS_ASCII
+	tristate "ASCII (United States)"
+	help
+	  An ASCII NLS module is needed if you want to override the
+	  DEFAULT NLS with this very basic charset and don't want any
+	  non-ASCII characters to be translated.
+
+config NLS_ISO8859_1
+	tristate "NLS ISO 8859-1  (Latin 1; Western European Languages)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 1 character
+	  set, which covers most West European languages such as Albanian,
+	  Catalan, Danish, Dutch, English, Faeroese, Finnish, French, German,
+	  Galician, Irish, Icelandic, Italian, Norwegian, Portuguese, Spanish,
+	  and Swedish. It is also the default for the US. If unsure, say Y.
+
+config NLS_ISO8859_2
+	tristate "NLS ISO 8859-2  (Latin 2; Slavic/Central European Languages)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 2 character
+	  set, which works for most Latin-written Slavic and Central European
+	  languages: Czech, German, Hungarian, Polish, Rumanian, Croatian,
+	  Slovak, Slovene.
+
+config NLS_ISO8859_3
+	tristate "NLS ISO 8859-3  (Latin 3; Esperanto, Galician, Maltese, Turkish)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 3 character
+	  set, which is popular with authors of Esperanto, Galician, Maltese,
+	  and Turkish.
+
+config NLS_ISO8859_4
+	tristate "NLS ISO 8859-4  (Latin 4; old Baltic charset)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 4 character
+	  set which introduces letters for Estonian, Latvian, and
+	  Lithuanian. It is an incomplete predecessor of Latin 7.
+
+config NLS_ISO8859_5
+	tristate "NLS ISO 8859-5  (Cyrillic)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for ISO8859-5, a Cyrillic
+	  character set with which you can type Bulgarian, Belarusian,
+	  Macedonian, Russian, Serbian, and Ukrainian. Note that the charset
+	  KOI8-R is preferred in Russia.
+
+config NLS_ISO8859_6
+	tristate "NLS ISO 8859-6  (Arabic)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for ISO8859-6, the Arabic
+	  character set.
+
+config NLS_ISO8859_7
+	tristate "NLS ISO 8859-7  (Modern Greek)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for ISO8859-7, the Modern
+	  Greek character set.
+
+config NLS_ISO8859_9
+	tristate "NLS ISO 8859-9  (Latin 5; Turkish)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 5 character
+	  set, and it replaces the rarely needed Icelandic letters in Latin 1
+	  with the Turkish ones. Useful in Turkey.
+
+config NLS_ISO8859_13
+	tristate "NLS ISO 8859-13 (Latin 7; Baltic)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 7 character
+	  set, which supports modern Baltic languages including Latvian
+	  and Lithuanian.
+
+config NLS_ISO8859_14
+	tristate "NLS ISO 8859-14 (Latin 8; Celtic)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 8 character
+	  set, which adds the last accented vowels for Welsh (aka Cymraeg)
+	  (and Manx Gaelic) that were missing in Latin 1.
+	  <http://linux.speech.cymru.org/> has further information.
+
+config NLS_ISO8859_15
+	tristate "NLS ISO 8859-15 (Latin 9; Western European Languages with Euro)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the Latin 9 character
+	  set, which covers most West European languages such as Albanian,
+	  Catalan, Danish, Dutch, English, Estonian, Faeroese, Finnish,
+	  French, German, Galician, Irish, Icelandic, Italian, Norwegian,
+	  Portuguese, Spanish, and Swedish. Latin 9 is an update to
+	  Latin 1 (ISO 8859-1) that removes a handful of rarely used
+	  characters and instead adds support for Estonian, corrects the
+	  support for French and Finnish, and adds the new Euro character.
+	  If unsure, say Y.
+
+config NLS_KOI8_R
+	tristate "NLS KOI8-R (Russian)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the preferred Russian
+	  character set.
+
+config NLS_KOI8_U
+	tristate "NLS KOI8-U/RU (Ukrainian, Belarusian)"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the preferred Ukrainian
+	  (koi8-u) and Belarusian (koi8-ru) character sets.
+
+config NLS_MAC_ROMAN
+	tristate "Codepage macroman"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  much of Europe -- United Kingdom, Germany, Spain, Italy, and [add
+	  more countries here].
+
+	  If unsure, say Y.
+
+config NLS_MAC_CELTIC
+	tristate "Codepage macceltic"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Celtic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CENTEURO
+	tristate "Codepage maccenteuro"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Central Europe.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CROATIAN
+	tristate "Codepage maccroatian"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Croatian.
+
+	  If unsure, say Y.
+
+config NLS_MAC_CYRILLIC
+	tristate "Codepage maccyrillic"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Cyrillic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_GAELIC
+	tristate "Codepage macgaelic"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Gaelic.
+
+	  If unsure, say Y.
+
+config NLS_MAC_GREEK
+	tristate "Codepage macgreek"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Greek.
+
+	  If unsure, say Y.
+
+config NLS_MAC_ICELAND
+	tristate "Codepage maciceland"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Iceland.
+
+	  If unsure, say Y.
+
+config NLS_MAC_INUIT
+	tristate "Codepage macinuit"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Inuit.
+
+	  If unsure, say Y.
+
+config NLS_MAC_ROMANIAN
+	tristate "Codepage macromanian"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Romanian.
+
+	  If unsure, say Y.
+
+config NLS_MAC_TURKISH
+	tristate "Codepage macturkish"
+	help
+	  The Apple HFS file system family can deal with filenames in
+	  native language character sets. These character sets are stored in
+	  so-called MAC codepages. You need to include the appropriate
+	  codepage if you want to be able to read/write these filenames on
+	  Mac partitions correctly. This does apply to the filenames
+	  only, not to the file contents. You can include several codepages;
+	  say Y here if you want to include the Mac codepage that is used for
+	  Turkish.
+
+	  If unsure, say Y.
+
+config NLS_UTF8
+	tristate "NLS UTF-8"
+	help
+	  If you want to display filenames with native language characters
+	  from the Microsoft FAT file system family or from JOLIET CD-ROMs
+	  correctly on the screen, you need to include the appropriate
+	  input/output character sets. Say Y here for the UTF-8 encoding of
+	  the Unicode/ISO9646 universal character set.
+
+endif # NLS

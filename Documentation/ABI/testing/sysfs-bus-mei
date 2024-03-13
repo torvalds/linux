@@ -1,0 +1,56 @@
+What:		/sys/bus/mei/devices/.../modalias
+Date:		March 2013
+KernelVersion:	3.10
+Contact:	Samuel Ortiz <sameo@linux.intel.com>
+		linux-mei@linux.intel.com
+Description:	Stores the same MODALIAS value emitted by uevent
+		Format: mei:<mei device name>:<device uuid>:<protocol version>
+
+What:		/sys/bus/mei/devices/.../name
+Date:		May 2015
+KernelVersion:	4.2
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client device name
+		Format: string
+
+What:		/sys/bus/mei/devices/.../uuid
+Date:		May 2015
+KernelVersion:	4.2
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client device uuid
+		Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+What:		/sys/bus/mei/devices/.../version
+Date:		Aug 2015
+KernelVersion:	4.3
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client protocol version
+		Format: %d
+
+What:		/sys/bus/mei/devices/.../max_conn
+Date:		Nov 2019
+KernelVersion:	5.5
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client maximum number of connections
+		Format: %d
+
+What:		/sys/bus/mei/devices/.../fixed
+Date:		Nov 2019
+KernelVersion:	5.5
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client fixed address, if any
+		Format: %d
+
+What:		/sys/bus/mei/devices/.../vtag
+Date:		Nov 2020
+KernelVersion:	5.9
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client vtag support status
+		Format: %d
+
+What:		/sys/bus/mei/devices/.../max_len
+Date:		Nov 2019
+KernelVersion:	5.5
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client maximum message length
+		Format: %d

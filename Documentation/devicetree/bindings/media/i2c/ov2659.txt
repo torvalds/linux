@@ -1,0 +1,47 @@
+* OV2659 1/5-Inch 2Mp SOC Camera
+
+The Omnivision OV2659 is a 1/5-inch SOC camera, with an active array size of
+1632H x 1212V. It is programmable through a SCCB. The OV2659 sensor supports
+multiple resolutions output, such as UXGA, SVGA, 720p. It also can support
+YUV422, RGB565/555 or raw RGB output formats.
+
+Required Properties:
+- compatible: Must be "ovti,ov2659"
+- reg: I2C slave address
+- clocks: reference to the xvclk input clock.
+- clock-names: should be "xvclk".
+- link-frequencies: target pixel clock frequency.
+
+Optional Properties:
+- powerdown-gpios: reference to the GPIO connected to the pwdn pin, if any.
+  Active high with internal pull down resistor.
+- reset-gpios: reference to the GPIO connected to the resetb pin, if any.
+  Active low with internal pull up resistor.
+
+For further reading on port node refer to
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		 ov2659@30 {
+			compatible = "ovti,ov2659";
+			reg = <0x30>;
+
+			clocks = <&clk_ov2659 0>;
+			clock-names = "xvclk";
+
+			powerdown-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+			reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
+
+			port {
+				ov2659_0: endpoint {
+					remote-endpoint = <&vpfe_ep>;
+					link-frequencies = /bits/ 64 <70000000>;
+				};
+			};
+		};
+		...
+	};

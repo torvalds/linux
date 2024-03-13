@@ -1,0 +1,20 @@
+Nuvoton NPCM7XX SoC USB controllers:
+-----------------------------
+
+EHCI:
+-----
+
+Required properties:
+- compatible: should be one of
+    "nuvoton,npcm750-ehci"
+    "nuvoton,npcm845-ehci"
+- interrupts: Should contain the EHCI interrupt
+- reg:        Physical address and length of the register set for the device
+
+Example:
+
+	ehci1: usb@f0806000 {
+		compatible = "nuvoton,npcm750-ehci";
+		reg = <0xf0806000 0x1000>;
+		interrupts = <0 61 4>;
+	};

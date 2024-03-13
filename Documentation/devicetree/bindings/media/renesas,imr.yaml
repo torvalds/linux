@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/renesas,imr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Image Renderer (Distortion Correction Engine)
+
+maintainers:
+  - Sergei Shtylyov <sergei.shtylyov@gmail.com>
+
+description: |
+  The image renderer, or the distortion correction engine, is a drawing
+  processor with a simple instruction system capable of referencing video
+  capture data or data in an external memory as 2D texture data and performing
+  texture mapping and drawing with respect to any shape that is split into
+  triangular objects.
+
+  The image renderer light extended 4 (IMR-LX4) is found in R-Car Gen3 SoCs.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a7795-imr-lx4 # R-Car H3
+          - renesas,r8a7796-imr-lx4 # R-Car M3-W
+      - const: renesas,imr-lx4      # R-Car Gen3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7795-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
+
+    imr-lx4@fe860000 {
+            compatible = "renesas,r8a7795-imr-lx4", "renesas,imr-lx4";
+            reg = <0xfe860000 0x2000>;
+            interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 823>;
+            power-domains = <&sysc R8A7795_PD_A3VC>;
+            resets = <&cpg 823>;
+    };

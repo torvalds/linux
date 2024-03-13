@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2019 Zodiac Inflight Innovations
+ */
+
+/dts-v1/;
+
+#include "imx8mq-zii-ultra.dtsi"
+
+/ {
+	model = "ZII Ultra Zest Board";
+	compatible = "zii,imx8mq-ultra-zest", "zii,imx8mq-ultra", "fsl,imx8mq";
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "front";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_codec>;
+		simple-audio-card,frame-master = <&sound_codec>;
+		simple-audio-card,widgets =
+			"Headphone", "Headphone Jack Front",
+			"Headphone", "Headphone Jack Back";
+		simple-audio-card,routing =
+			"Headphone Jack Front", "HPA1 HPLEFT",
+			"Headphone Jack Front", "HPA1 HPRIGHT",
+			"Headphone Jack Back", "HPA2 HPLEFT",
+			"Headphone Jack Back", "HPA2 HPRIGHT",
+			"HPA1 LEFTIN", "HPL",
+			"HPA1 RIGHTIN", "HPR",
+			"HPA2 LEFTIN", "HPL",
+			"HPA2 RIGHTIN", "HPR";
+		simple-audio-card,aux-devs = <&hpa1>, <&hpa2>;
+
+		sound_cpu: simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+		};
+
+		sound_codec: simple-audio-card,codec {
+			sound-dai = <&codec1>;
+			clocks = <&cs2000>;
+		};
+	};
+};
+
+&i2c4 {
+	touchscreen@4a {
+		compatible = "atmel,maxtouch";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		reg = <0x4a>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+	};
+};

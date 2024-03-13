@@ -1,0 +1,1294 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# HID driver configuration
+#
+menu "HID support"
+     depends on INPUT
+
+config HID
+	tristate "HID bus support"
+	depends on INPUT
+	default y
+	help
+	  A human interface device (HID) is a type of computer device that
+	  interacts directly with and takes input from humans. The term "HID"
+	  most commonly used to refer to the USB-HID specification, but other
+	  devices (such as, but not strictly limited to, Bluetooth) are
+	  designed using HID specification (this involves certain keyboards,
+	  mice, tablets, etc). This option adds the HID bus to the kernel,
+	  together with generic HID layer code. The HID devices are added and
+	  removed from the HID bus by the transport-layer drivers, such as
+	  usbhid (USB_HID) and hidp (BT_HIDP).
+
+	  For docs and specs, see https://www.usb.org/developers/hidpage/
+
+	  If unsure, say Y.
+
+if HID
+
+config HID_BATTERY_STRENGTH
+	bool "Battery level reporting for HID devices"
+	select POWER_SUPPLY
+	default n
+	help
+	This option adds support of reporting battery strength (for HID devices
+	that support this feature) through power_supply class so that userspace
+	tools, such as upower, can display it.
+
+config HIDRAW
+	bool "/dev/hidraw raw HID device support"
+	help
+	Say Y here if you want to support HID devices (from the USB
+	specification standpoint) that aren't strictly user interface
+	devices, like monitor controls and Uninterruptible Power Supplies.
+
+	This module supports these devices separately using a separate
+	event interface on /dev/hidraw.
+
+	There is also a /dev/hiddev configuration option in the USB HID
+	configuration menu. In comparison to hiddev, this device does not process
+	the hid events at all (no parsing, no lookups). This lets applications
+	to work on raw hid events when they want to, and avoid using transport-specific
+	userspace libhid/libusb libraries.
+
+	If unsure, say Y.
+
+config UHID
+	tristate "User-space I/O driver support for HID subsystem"
+	default n
+	help
+	Say Y here if you want to provide HID I/O Drivers from user-space.
+	This allows to write I/O drivers in user-space and feed the data from
+	the device into the kernel. The kernel parses the HID reports, loads the
+	corresponding HID Device Driver or provides input devices on top of your
+	user-space device.
+
+	This driver cannot be used to parse HID-reports in user-space and write
+	special HID-drivers. You should use hidraw for that.
+	Instead, this driver allows to write the transport-layer driver in
+	user-space like USB-HID and Bluetooth-HID do in kernel-space.
+
+	If unsure, say N.
+
+	To compile this driver as a module, choose M here: the
+	module will be called uhid.
+
+config HID_GENERIC
+	tristate "Generic HID driver"
+	default HID
+	help
+	Support for generic devices on the HID bus. This includes most
+	keyboards and mice, joysticks, tablets and digitizers.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-generic.
+
+	If unsure, say Y.
+
+menu "Special HID drivers"
+
+config HID_A4TECH
+	tristate "A4TECH mice"
+	default !EXPERT
+	help
+	Support for some A4TECH mice with two scroll wheels.
+
+config HID_ACCUTOUCH
+	tristate "Accutouch touch device"
+	depends on USB_HID
+	help
+	  This selects a driver for the Accutouch 2216 touch controller.
+
+	  The driver works around a problem in the reported device capabilities
+	  which causes userspace to detect the device as a mouse rather than
+          a touchscreen.
+
+	  Say Y here if you have a Accutouch 2216 touch controller.
+
+config HID_ACRUX
+	tristate "ACRUX game controller support"
+	help
+	Say Y here if you want to enable support for ACRUX game controllers.
+
+config HID_ACRUX_FF
+	bool "ACRUX force feedback support"
+	depends on HID_ACRUX
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for ACRUX
+	game controllers.
+
+config HID_APPLE
+	tristate "Apple {i,Power,Mac}Books"
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	default !EXPERT
+	help
+	Support for some Apple devices which less or more break
+	HID specification.
+
+	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
+	MacBooks, MacBook Pros and Apple Aluminum.
+
+config HID_APPLEIR
+	tristate "Apple infrared receiver"
+	depends on (USB_HID)
+	help
+	Support for Apple infrared remote control. All the Apple computers from
+	  2005 onwards include such a port, except the unibody Macbook (2009),
+	  and Mac Pros. This receiver is also used in the Apple TV set-top box
+	  prior to the 2010 model.
+
+	Say Y here if you want support for Apple infrared remote control.
+
+config HID_ASUS
+	tristate "Asus"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on ASUS_WMI || ASUS_WMI=n
+	select POWER_SUPPLY
+	help
+	Support for Asus notebook built-in keyboard and touchpad via i2c, and
+	the Asus Republic of Gamers laptop keyboard special keys.
+
+	Supported devices:
+	- EeeBook X205TA
+	- VivoBook E200HA
+	- GL553V series
+	- GL753V series
+
+config HID_AUREAL
+	tristate "Aureal"
+	help
+	Support for Aureal Cy se W-01RN Remote Controller and other Aureal derived remotes.
+
+config HID_BELKIN
+	tristate "Belkin Flip KVM and Wireless keyboard"
+	default !EXPERT
+	help
+	Support for Belkin Flip KVM and Wireless keyboard.
+
+config HID_BETOP_FF
+	tristate "Betop Production Inc. force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for devices by
+	BETOP Production Ltd.
+	Currently the following devices are known to be supported:
+	 - BETOP 2185 PC & BFM MODE
+
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
+
+config HID_CHERRY
+	tristate "Cherry Cymotion keyboard"
+	default !EXPERT
+	help
+	Support for Cherry Cymotion keyboard.
+
+config HID_CHICONY
+	tristate "Chicony devices"
+	depends on USB_HID
+	default !EXPERT
+	help
+	Support for Chicony Tactical pad and special keys on Chicony keyboards.
+
+config HID_CORSAIR
+	tristate "Corsair devices"
+	depends on USB_HID && LEDS_CLASS
+	help
+	Support for Corsair devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Vengeance K90
+	- Scimitar PRO RGB
+
+config HID_COUGAR
+	tristate "Cougar devices"
+	help
+	Support for Cougar devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Cougar 500k Gaming Keyboard
+
+config HID_MACALLY
+	tristate "Macally devices"
+	help
+	Support for Macally devices that are not fully compliant with the
+	HID standard.
+
+	supported devices:
+	- Macally ikey keyboard
+
+config HID_PRODIKEYS
+	tristate "Prodikeys PC-MIDI Keyboard support"
+	depends on USB_HID && SND
+	select SND_RAWMIDI
+	help
+	Support for Prodikeys PC-MIDI Keyboard device support.
+	Say Y here to enable support for this device.
+	- Prodikeys PC-MIDI keyboard.
+	  The Prodikeys PC-MIDI acts as a USB Audio device, with one MIDI
+	  input and one MIDI output. These MIDI jacks appear as
+	  a sound "card" in the ALSA sound system.
+	  Note: if you say N here, this device will still function as a basic
+	  multimedia keyboard, but will lack support for the musical keyboard
+	  and some additional multimedia keys.
+
+config HID_CMEDIA
+	tristate "CMedia audio chips"
+	help
+	Support for CMedia CM6533 HID audio jack controls
+        and HS100B mute buttons.
+
+config HID_CP2112
+	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
+	depends on USB_HID && HIDRAW && I2C && GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
+	This is a HID device driver which registers as an i2c adapter
+	and gpiochip to expose these functions of the CP2112. The
+	customizable USB descriptor fields are exposed as sysfs attributes.
+
+config HID_CREATIVE_SB0540
+	tristate "Creative SB0540 infrared receiver"
+	depends on USB_HID
+	help
+	Support for Creative infrared SB0540-compatible remote controls, such
+	as the RM-1500 and RM-1800 remotes.
+
+	Say Y here if you want support for Creative SB0540 infrared receiver.
+
+config HID_CYPRESS
+	tristate "Cypress mouse and barcode readers"
+	default !EXPERT
+	help
+	Support for cypress mouse and barcode readers.
+
+config HID_DRAGONRISE
+	tristate "DragonRise Inc. game controller"
+	help
+	Say Y here if you have DragonRise Inc. game controllers.
+	These might be branded as:
+	- Tesun USB-703
+	- Media-tech MT1504 "Rogue"
+	- DVTech JS19 "Gear"
+	- Defender Game Master
+
+config DRAGONRISE_FF
+	bool "DragonRise Inc. force feedback"
+	depends on HID_DRAGONRISE
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for DragonRise Inc.
+	game controllers.
+
+config HID_EMS_FF
+	tristate "EMS Production Inc. force feedback support"
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for devices by
+	EMS Production Ltd.
+	Currently the following devices are known to be supported:
+	 - Trio Linker Plus II
+
+config HID_ELAN
+	tristate "ELAN USB Touchpad Support"
+	depends on LEDS_CLASS && USB_HID
+	help
+	Say Y to enable support for the USB ELAN touchpad
+	Currently the following devices are known to be supported:
+	 - HP Pavilion X2 10-p0XX.
+
+config HID_ELECOM
+	tristate "ELECOM HID devices"
+	help
+	Support for ELECOM devices:
+	  - BM084 Bluetooth Mouse
+	  - EX-G Trackballs (M-XT3DRBK, M-XT3URBK)
+	  - DEFT Trackballs (M-DT1DRBK, M-DT1URBK, M-DT2DRBK, M-DT2URBK)
+	  - HUGE Trackballs (M-HT1DRBK, M-HT1URBK)
+
+config HID_ELO
+	tristate "ELO USB 4000/4500 touchscreen"
+	depends on USB_HID
+	help
+	Support for the ELO USB 4000/4500 touchscreens. Note that this is for
+	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
+
+config HID_EZKEY
+	tristate "Ezkey BTC 8193 keyboard"
+	default !EXPERT
+	help
+	Support for Ezkey BTC 8193 keyboard.
+
+config HID_FT260
+	tristate "FTDI FT260 USB HID to I2C host support"
+	depends on USB_HID && HIDRAW && I2C
+	help
+	  Provides I2C host adapter functionality over USB-HID through FT260
+	  device. The customizable USB descriptor fields are exposed as sysfs
+	  attributes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-ft260.
+
+config HID_GEMBIRD
+	tristate "Gembird Joypad"
+	help
+	Support for Gembird JPD-DualForce 2.
+
+config HID_GFRM
+	tristate "Google Fiber TV Box remote control support"
+	help
+	Support for Google Fiber TV Box remote controls
+
+config HID_GLORIOUS
+	tristate "Glorious PC Gaming Race mice"
+	help
+	  Support for Glorious PC Gaming Race mice such as
+	  the Glorious Model O, O- and D.
+
+config HID_HOLTEK
+	tristate "Holtek HID devices"
+	depends on USB_HID
+	help
+	Support for Holtek based devices:
+	  - Holtek On Line Grip based game controller
+	  - Trust GXT 18 Gaming Keyboard
+	  - Sharkoon Drakonia / Perixx MX-2000 gaming mice
+	  - Tracer Sniper TRM-503 / NOVA Gaming Slider X200 /
+	    Zalman ZM-GM1
+	  - SHARKOON DarkGlider Gaming mouse
+	  - LEETGION Hellion Gaming Mouse
+
+config HOLTEK_FF
+	bool "Holtek On Line Grip force feedback support"
+	depends on HID_HOLTEK
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a Holtek On Line Grip based game controller
+	  and want to have force feedback support for it.
+
+config HID_VIVALDI_COMMON
+	tristate
+	help
+	  ChromeOS Vivaldi HID parsing support library. This is a hidden
+	  option so that drivers can use common code to parse the HID
+	  descriptors for vivaldi function row keymap.
+
+config HID_GOOGLE_HAMMER
+	tristate "Google Hammer Keyboard"
+	select HID_VIVALDI_COMMON
+	select INPUT_VIVALDIFMAP
+	depends on USB_HID && LEDS_CLASS && CROS_EC
+	help
+	Say Y here if you have a Google Hammer device.
+
+config HID_VIVALDI
+	tristate "Vivaldi Keyboard"
+	select HID_VIVALDI_COMMON
+	select INPUT_VIVALDIFMAP
+	help
+	  Say Y here if you want to enable support for Vivaldi keyboards.
+
+	  Vivaldi keyboards use a vendor-specific (Google) HID usage to report
+	  how the keys in the top row are physically ordered.
+
+config HID_GT683R
+	tristate "MSI GT68xR LED support"
+	depends on LEDS_CLASS && USB_HID
+	help
+	Say Y here if you want to enable support for the three MSI GT68xR LEDs
+
+	This driver support following modes:
+	  - Normal: LEDs are fully on when enabled
+	  - Audio:  LEDs brightness depends on sound level
+	  - Breathing: LEDs brightness varies at human breathing rate
+
+	Currently the following devices are know to be supported:
+	  - MSI GT683R
+
+config HID_KEYTOUCH
+	tristate "Keytouch HID devices"
+	help
+	Support for Keytouch HID devices not fully compliant with
+	the specification. Currently supported:
+		- Keytouch IEC 60945
+
+config HID_KYE
+	tristate "KYE/Genius devices"
+	help
+	Support for KYE/Genius devices not fully compliant with HID standard:
+	- Ergo Mouse
+	- EasyPen i405X tablet
+	- MousePen i608X tablet
+	- EasyPen M610X tablet
+
+config HID_UCLOGIC
+	tristate "UC-Logic"
+	depends on USB_HID
+	help
+	Support for UC-Logic and Huion tablets.
+
+config HID_WALTOP
+	tristate "Waltop"
+	help
+	Support for Waltop tablets.
+
+config HID_VIEWSONIC
+	tristate "ViewSonic/Signotec"
+	help
+	  Support for ViewSonic/Signotec PD1011 signature pad.
+
+config HID_VRC2
+	tristate "VRC-2 Car Controller"
+	depends on HID
+	help
+        Support for VRC-2 which is a 2-axis controller often used in
+        car simulators.
+
+        To compile this driver as a module, choose M here: the
+        module will be called hid-vrc2.
+
+config HID_XIAOMI
+	tristate "Xiaomi"
+	help
+	  Adds support for side buttons of Xiaomi Mi Dual Mode Wireless
+	  Mouse Silent Edition.
+
+config HID_GYRATION
+	tristate "Gyration remote control"
+	help
+	Support for Gyration remote control.
+
+config HID_ICADE
+	tristate "ION iCade arcade controller"
+	help
+	Support for the ION iCade arcade controller to work as a joystick.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-icade.
+
+config HID_ITE
+	tristate "ITE devices"
+	default !EXPERT
+	help
+	Support for ITE devices not fully compliant with HID standard.
+
+config HID_JABRA
+	tristate "Jabra USB HID Driver"
+	help
+	Support for Jabra USB HID devices.
+
+	Prevents mapping of vendor defined HID usages to input events. Without
+	this driver HID	reports from Jabra devices may incorrectly be seen as
+	mouse button events.
+	Say M here if you may ever plug in a Jabra USB device.
+
+config HID_TWINHAN
+	tristate "Twinhan IR remote control"
+	help
+	Support for Twinhan IR remote control.
+
+config HID_KENSINGTON
+	tristate "Kensington Slimblade Trackball"
+	default !EXPERT
+	help
+	Support for Kensington Slimblade Trackball.
+
+config HID_LCPOWER
+	tristate "LC-Power"
+	help
+	Support for LC-Power RC1000MCE RF remote control.
+
+config HID_LED
+	tristate "Simple RGB LED support"
+	depends on LEDS_CLASS
+	help
+	Support for simple RGB LED devices. Currently supported are:
+	- Riso Kagaku Webmail Notifier
+	- Dream Cheeky Webmail Notifier and Friends Alert
+	- ThingM blink(1)
+	- Delcom Visual Signal Indicator Generation 2
+	- Greynut Luxafor
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-led.
+
+config HID_LENOVO
+	tristate "Lenovo / Thinkpad devices"
+	select NEW_LEDS
+	select LEDS_CLASS
+	help
+	Support for IBM/Lenovo devices that are not fully compliant with HID standard.
+
+	Say Y if you want support for horizontal scrolling of the IBM/Lenovo
+	Scrollpoint mice or the non-compliant features of the Lenovo Thinkpad
+	standalone keyboards, e.g:
+	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
+	  configuration)
+	- ThinkPad Compact Bluetooth Keyboard with TrackPoint (supports Fn keys)
+	- ThinkPad Compact USB Keyboard with TrackPoint (supports Fn keys)
+
+config HID_LETSKETCH
+	tristate "Letsketch WP9620N tablets"
+	depends on USB_HID
+	help
+	  Driver for the LetSketch / VSON WP9620N drawing tablet. This
+	  drawing tablet is also sold under other brand names such as Case U,
+	  presumably this driver will work for all of them. But it has only been
+	  tested with a LetSketch WP9620N model.
+
+	  These tablets also work without a special HID driver, but then only
+	  part of the active area works and both the pad and stylus buttons are
+	  hardwired to special key-combos. E.g. the 2 stylus buttons send right
+	  mouse clicks / resp. "e" key presses.
+
+config HID_LOGITECH
+	tristate "Logitech devices"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	default !EXPERT
+	help
+	Support for Logitech devices that are not fully compliant with HID standard.
+
+config HID_LOGITECH_DJ
+	tristate "Logitech receivers full support"
+	depends on USB_HID
+	depends on HIDRAW
+	depends on HID_LOGITECH
+	select HID_LOGITECH_HIDPP
+	help
+	Say Y if you want support for Logitech receivers and devices.
+	Logitech receivers are capable of pairing multiple Logitech compliant
+	devices to the same receiver. Without this driver it will be handled by
+	generic USB_HID driver and all incoming events will be multiplexed
+	into a single mouse and a single keyboard device.
+
+config HID_LOGITECH_HIDPP
+	tristate "Logitech HID++ devices support"
+	depends on HID_LOGITECH
+	select POWER_SUPPLY
+	help
+	Support for Logitech devices relying on the HID++ Logitech specification
+
+	Say Y if you want support for Logitech devices relying on the HID++
+	specification. Such devices are the various Logitech Touchpads (T650,
+	T651, TK820), some mice (Zone Touch mouse), or even keyboards (Solar
+	Keyboard).
+
+config LOGITECH_FF
+	bool "Logitech force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have one of these devices:
+	  - Logitech WingMan Cordless RumblePad
+	  - Logitech WingMan Cordless RumblePad 2
+	  - Logitech WingMan Force 3D
+
+	  and if you want to enable force feedback for them.
+	  Note: if you say N here, this device will still be supported, but without
+	  force feedback.
+
+config LOGIRUMBLEPAD2_FF
+	bool "Logitech force feedback support (variant 2)"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for:
+	  - Logitech RumblePad
+	  - Logitech Rumblepad 2
+	  - Logitech Formula Vibration Feedback Wheel
+
+config LOGIG940_FF
+	bool "Logitech Flight System G940 force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Flight System G940 devices.
+
+config LOGIWHEELS_FF
+	bool "Logitech wheels configuration and force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	default LOGITECH_FF
+	help
+	  Say Y here if you want to enable force feedback and range setting(*)
+	  support for following Logitech wheels:
+	  - Logitech G25 (*)
+	  - Logitech G27 (*)
+	  - Logitech G29 (*)
+	  - Logitech Driving Force
+	  - Logitech Driving Force Pro (*)
+	  - Logitech Driving Force GT (*)
+	  - Logitech Driving Force EX/RX
+	  - Logitech Driving Force Wireless
+	  - Logitech Speed Force Wireless
+	  - Logitech MOMO Force
+	  - Logitech MOMO Racing Force
+	  - Logitech Formula Force GP
+	  - Logitech Formula Force EX/RX
+	  - Logitech Wingman Formula Force GP
+
+config HID_MAGICMOUSE
+	tristate "Apple Magic Mouse/Trackpad multi-touch support"
+	help
+	Support for the Apple Magic Mouse/Trackpad multi-touch.
+
+	Say Y here if you want support for the multi-touch features of the
+	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
+
+config HID_MALTRON
+	tristate "Maltron L90 keyboard"
+	help
+	Adds support for the volume up, volume down, mute, and play/pause buttons
+	of the Maltron L90 keyboard.
+
+config HID_MAYFLASH
+	tristate "Mayflash game controller adapter force feedback"
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have HJZ Mayflash PS3 game controller adapters
+	and want to enable force feedback support.
+
+config HID_MEGAWORLD_FF
+	tristate "Mega World based game controller force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a Mega World based game controller and want
+	to have force feedback support for it.
+
+config HID_REDRAGON
+	tristate "Redragon keyboards"
+	default !EXPERT
+	help
+    Support for Redragon keyboards that need fix-ups to work properly.
+
+config HID_MICROSOFT
+	tristate "Microsoft non-fully HID-compliant devices"
+	default !EXPERT
+	select INPUT_FF_MEMLESS
+	help
+	Support for Microsoft devices that are not fully compliant with HID standard.
+
+config HID_MONTEREY
+	tristate "Monterey Genius KB29E keyboard"
+	default !EXPERT
+	help
+	Support for Monterey Genius KB29E.
+
+config HID_MULTITOUCH
+	tristate "HID Multitouch panels"
+	help
+	  Generic support for HID multitouch panels.
+
+	  Say Y here if you have one of the following devices:
+	  - 3M PCT touch screens
+	  - ActionStar dual touch panels
+	  - Atmel panels
+	  - Cando dual touch panels
+	  - Chunghwa panels
+	  - CJTouch panels
+	  - CVTouch panels
+	  - Cypress TrueTouch panels
+	  - Elan Microelectronics touch panels
+	  - Elo TouchSystems IntelliTouch Plus panels
+	  - GeneralTouch 'Sensing Win7-TwoFinger' panels
+	  - GoodTouch panels
+	  - Hanvon dual touch panels
+	  - Ilitek dual touch panels
+	  - IrTouch Infrared USB panels
+	  - LG Display panels (Dell ST2220Tc)
+	  - Lumio CrystalTouch panels
+	  - MosArt dual-touch panels
+	  - Panasonic multitouch panels
+	  - PenMount dual touch panels
+	  - Perixx Peripad 701 touchpad
+	  - PixArt optical touch screen
+	  - Pixcir dual touch panels
+	  - Quanta panels
+	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
+	  - SiS multitouch panels
+	  - Stantum multitouch panels
+	  - Touch International Panels
+	  - Unitec Panels
+	  - Wistron optical touch panels
+	  - XAT optical touch panels
+	  - Xiroku optical touch panels
+	  - Zytronic touch panels
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-multitouch.
+
+config HID_NINTENDO
+	tristate "Nintendo Joy-Con and Pro Controller support"
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
+	help
+	Adds support for the Nintendo Switch Joy-Cons and Pro Controller.
+	All controllers support bluetooth, and the Pro Controller also supports
+	its USB mode.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-nintendo.
+
+config NINTENDO_FF
+	bool "Nintendo Switch controller force feedback support"
+	depends on HID_NINTENDO
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a Nintendo Switch controller and want to enable
+	force feedback support for it. This works for both joy-cons and the pro
+	controller. For the pro controller, both rumble motors can be controlled
+	individually.
+
+config HID_NTI
+	tristate "NTI keyboard adapters"
+	help
+	Support for the "extra" Sun keyboard keys on keyboards attached
+	through Network Technologies USB-SUN keyboard adapters.
+
+config HID_NTRIG
+	tristate "N-Trig touch screen"
+	depends on USB_HID
+	help
+	Support for N-Trig touch screen.
+
+config HID_ORTEK
+	tristate "Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad"
+	help
+	There are certain devices which have LogicalMaximum wrong in the keyboard
+	usage page of their report descriptor. The most prevailing ones so far
+	are manufactured by Ortek, thus the name of the driver. Currently
+	supported devices by this driver are
+
+	   - Ortek PKB-1700
+	   - Ortek WKB-2000
+	   - Skycable wireless presenter
+
+config HID_PANTHERLORD
+	tristate "Pantherlord/GreenAsia game controller"
+	help
+	  Say Y here if you have a PantherLord/GreenAsia based game controller
+	  or adapter.
+
+config PANTHERLORD_FF
+	bool "Pantherlord force feedback support"
+	depends on HID_PANTHERLORD
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a PantherLord/GreenAsia based game controller
+	  or adapter and want to enable force feedback support for it.
+
+config HID_PENMOUNT
+	tristate "Penmount touch device"
+	depends on USB_HID
+	help
+	  This selects a driver for the PenMount 6000 touch controller.
+
+	  The driver works around a problem in the report descript allowing
+	  the userspace to touch events instead of mouse events.
+
+	  Say Y here if you have a Penmount based touch controller.
+
+config HID_PETALYNX
+	tristate "Petalynx Maxter remote control"
+	help
+	Support for Petalynx Maxter remote control.
+
+config HID_PICOLCD
+	tristate "PicoLCD (graphic version)"
+	help
+	  This provides support for Minibox PicoLCD devices, currently
+	  only the graphical ones are supported.
+
+	  This includes support for the following device features:
+	  - Keypad
+	  - Switching between Firmware and Flash mode
+	  - EEProm / Flash access     (via debugfs)
+	  Features selectively enabled:
+	  - Framebuffer for monochrome 256x64 display
+	  - Backlight control
+	  - Contrast control
+	  - General purpose outputs
+	  Features that are not (yet) supported:
+	  - IR
+
+config HID_PICOLCD_FB
+	bool "Framebuffer support" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=FB || FB=y
+	select FB_DEFERRED_IO
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	help
+	  Provide access to PicoLCD's 256x64 monochrome display via a
+	  framebuffer device.
+
+config HID_PICOLCD_BACKLIGHT
+	bool "Backlight control" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=BACKLIGHT_CLASS_DEVICE || BACKLIGHT_CLASS_DEVICE=y
+	help
+	  Provide access to PicoLCD's backlight control via backlight
+	  class.
+
+config HID_PICOLCD_LCD
+	bool "Contrast control" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=LCD_CLASS_DEVICE || LCD_CLASS_DEVICE=y
+	help
+	  Provide access to PicoLCD's LCD contrast via lcd class.
+
+config HID_PICOLCD_LEDS
+	bool "GPO via leds class" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=LEDS_CLASS || LEDS_CLASS=y
+	help
+	  Provide access to PicoLCD's GPO pins via leds class.
+
+config HID_PICOLCD_CIR
+	bool "CIR via RC class" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=RC_CORE || RC_CORE=y
+	help
+	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
+
+config HID_PLANTRONICS
+	tristate "Plantronics USB HID Driver"
+	help
+	  Provides HID support for Plantronics USB audio devices.
+	  Correctly maps vendor unique volume up/down HID usages to
+	  KEY_VOLUMEUP and KEY_VOLUMEDOWN events and prevents core mapping
+	  of other vendor unique HID usages to random mouse events.
+
+	  Say M here if you may ever plug in a Plantronics USB audio device.
+
+config HID_PLAYSTATION
+	tristate "PlayStation HID Driver"
+	depends on LEDS_CLASS_MULTICOLOR
+	select CRC32
+	select POWER_SUPPLY
+	help
+	  Provides support for Sony PS5 controllers including support for
+	  its special functionalities e.g. touchpad, lights and motion
+	  sensors.
+
+config PLAYSTATION_FF
+	bool "PlayStation force feedback support"
+	depends on HID_PLAYSTATION
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you would like to enable force feedback support for
+	  PlayStation game controllers.
+
+config HID_PXRC
+       tristate "PhoenixRC HID Flight Controller"
+       depends on HID
+       help
+       Support for PhoenixRC HID Flight Controller, a 8-axis flight controller.
+
+       To compile this driver as a module, choose M here: the
+       module will be called hid-pxrc.
+
+config HID_RAZER
+	tristate "Razer non-fully HID-compliant devices"
+	help
+	Support for Razer devices that are not fully compliant with the
+	HID standard.
+
+config HID_PRIMAX
+	tristate "Primax non-fully HID-compliant devices"
+	help
+	Support for Primax devices that are not fully compliant with the
+	HID standard.
+
+config HID_RETRODE
+	tristate "Retrode 2 USB adapter for vintage video games"
+	depends on USB_HID
+	help
+	Support for
+	  * Retrode 2 cartridge and controller adapter
+
+config HID_ROCCAT
+	tristate "Roccat device support"
+	depends on USB_HID
+	help
+	Support for Roccat devices.
+	Say Y here if you have a Roccat mouse or keyboard and want
+	support for its special functionalities.
+
+config HID_SAITEK
+	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
+	help
+	Support for Saitek devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- PS1000 Dual Analog Pad
+	- Saitek R.A.T.7, R.A.T.9, M.M.O.7 Gaming Mice
+	- Mad Catz R.A.T.5, R.A.T.9 Gaming Mice
+
+config HID_SAMSUNG
+	tristate "Samsung InfraRed remote control or keyboards"
+	depends on USB_HID
+	help
+	Support for Samsung InfraRed remote control or keyboards.
+
+config HID_SEMITEK
+	tristate "Semitek USB keyboards"
+	help
+	Support for Semitek USB keyboards that are not fully compliant
+	with the HID standard.
+
+	There are many variants, including:
+	- GK61, GK64, GK68, GK84, GK96, etc.
+	- SK61, SK64, SK68, SK84, SK96, etc.
+	- Dierya DK61/DK66
+	- Tronsmart TK09R
+	- Woo-dy
+	- X-Bows Nature/Knight
+
+config HID_SIGMAMICRO
+	tristate "SiGma Micro-based keyboards"
+	depends on USB_HID
+	help
+	  Support for keyboards that use the SiGma Micro (a.k.a SigmaChip) IC.
+
+	  Supported devices:
+	  - Landslides KR-700
+	  - Rapoo V500
+
+config HID_SONY
+	tristate "Sony PS2/3/4 accessories"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
+	select CRC32
+	help
+	Support for
+
+	  * Sony PS3 6-axis controllers
+	  * Sony PS4 DualShock 4 controllers
+	  * Buzz controllers
+	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
+	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
+	  * Guitar Hero Live PS3, Wii U and PS4 guitar dongles
+	  * Guitar Hero PS3 and PC guitar dongles
+
+config SONY_FF
+	bool "Sony PS2/3/4 accessories force feedback support" 
+	depends on HID_SONY
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a Sony PS2/3/4 accessory and want to enable
+	force feedback support for it.
+
+config HID_SPEEDLINK
+	tristate "Speedlink VAD Cezanne mouse support"
+	help
+	Support for Speedlink Vicious and Divine Cezanne mouse.
+
+config HID_STEAM
+	tristate "Steam Controller support"
+	select POWER_SUPPLY
+	help
+	Say Y here if you have a Steam Controller if you want to use it
+	without running the Steam Client. It supports both the wired and
+	the wireless adaptor.
+
+config HID_STEELSERIES
+	tristate "Steelseries SRW-S1 steering wheel support"
+	help
+	Support for Steelseries SRW-S1 steering wheel
+
+config HID_SUNPLUS
+	tristate "Sunplus wireless desktop"
+	help
+	Support for Sunplus wireless desktop.
+
+config HID_RMI
+	tristate "Synaptics RMI4 device support"
+	select RMI4_CORE
+	select RMI4_F03
+	select RMI4_F11
+	select RMI4_F12
+	select RMI4_F30
+	help
+	Support for Synaptics RMI4 touchpads.
+	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
+
+config HID_GREENASIA
+	tristate "GreenAsia (Product ID 0x12) game controller support"
+	help
+	  Say Y here if you have a GreenAsia (Product ID 0x12) based game
+	  controller or adapter.
+
+config GREENASIA_FF
+	bool "GreenAsia (Product ID 0x12) force feedback support"
+	depends on HID_GREENASIA
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a GreenAsia (Product ID 0x12) based game controller
+	(like MANTA Warrior MM816 and SpeedLink Strike2 SL-6635) or adapter
+	and want to enable force feedback support for it.
+
+config HID_HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HYPERV
+	help
+	Select this option to enable the Hyper-V mouse driver.
+
+config HID_SMARTJOYPLUS
+	tristate "SmartJoy PLUS PS2/USB adapter support"
+	help
+	Support for SmartJoy PLUS PS2/USB adapter, Super Dual Box,
+	Super Joy Box 3 Pro, Super Dual Box Pro, and Super Joy Box 5 Pro.
+
+	Note that DDR (Dance Dance Revolution) mode is not supported, nor
+	is pressure sensitive buttons on the pro models.
+
+config SMARTJOYPLUS_FF
+	bool "SmartJoy PLUS PS2/USB adapter force feedback support"
+	depends on HID_SMARTJOYPLUS
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a SmartJoy PLUS PS2/USB adapter and want to
+	enable force feedback support for it.
+
+config HID_TIVO
+	tristate "TiVo Slide Bluetooth remote control support"
+	help
+	Say Y if you have a TiVo Slide Bluetooth remote control.
+
+config HID_TOPSEED
+	tristate "TopSeed Cyberlink, BTC Emprex, Conceptronic remote control support"
+	help
+	Say Y if you have a TopSeed Cyberlink or BTC Emprex or Conceptronic
+	CLLRCMCE remote control.
+
+config HID_TOPRE
+	tristate "Topre REALFORCE keyboards"
+	depends on HID
+	help
+	  Say Y for N-key rollover support on Topre REALFORCE R2 108 key keyboards.
+
+config HID_THINGM
+	tristate "ThingM blink(1) USB RGB LED"
+	depends on LEDS_CLASS
+	select HID_LED
+	help
+	Support for the ThingM blink(1) USB RGB LED. This driver has been
+	merged into the generic hid led driver. Config symbol HID_THINGM
+	just selects HID_LED and will be removed soon.
+
+config HID_THRUSTMASTER
+	tristate "ThrustMaster devices support"
+	depends on USB_HID
+	help
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2,
+	  a THRUSTMASTER Ferrari GT Rumble Wheel or Thrustmaster FFB
+	  Wheel (T150RS, T300RS, T300 Ferrari Alcantara Edition, T500RS).
+
+config THRUSTMASTER_FF
+	bool "ThrustMaster devices force feedback support"
+	depends on HID_THRUSTMASTER
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or 3,
+	  a THRUSTMASTER Dual Trigger 3-in-1 or a THRUSTMASTER Ferrari GT
+	  Rumble Force or Force Feedback Wheel.
+
+config HID_UDRAW_PS3
+	tristate "THQ PS3 uDraw tablet"
+	help
+	  Say Y here if you want to use the THQ uDraw gaming tablet for
+	  the PS3.
+
+config HID_U2FZERO
+	tristate "U2F Zero LED and RNG support"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on HW_RANDOM
+	help
+	  Support for the LED of the U2F Zero device.
+
+	  U2F Zero supports custom commands for blinking the LED
+	  and getting data from the internal hardware RNG.
+	  The internal hardware can be used to feed the enthropy pool.
+
+	  U2F Zero only supports blinking its LED, so this driver doesn't
+	  allow setting the brightness to anything but 1, which will
+	  trigger a single blink and immediately reset back to 0.
+
+config HID_WACOM
+	tristate "Wacom Intuos/Graphire tablet support (USB)"
+	depends on USB_HID
+	select POWER_SUPPLY
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	help
+	  Say Y here if you want to use the USB or BT version of the Wacom Intuos
+	  or Graphire tablet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom.
+
+config HID_WIIMOTE
+	tristate "Nintendo Wii / Wii U peripherals"
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
+	select INPUT_FF_MEMLESS
+	help
+	Support for Nintendo Wii and Wii U Bluetooth peripherals. Supported
+	devices are the Wii Remote and its extension devices, but also devices
+	based on the Wii Remote like the Wii U Pro Controller or the
+	Wii Balance Board.
+
+	Support for all official Nintendo extensions is available, however, 3rd
+	party extensions might not be supported. Please report these devices to:
+	  http://github.com/dvdhrm/xwiimote/issues
+
+	Other Nintendo Wii U peripherals that are IEEE 802.11 based (including
+	the Wii U Gamepad) might be supported in the future. But currently
+	support is limited to Bluetooth based devices.
+
+	If unsure, say N.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-wiimote.
+
+config HID_XINMO
+	tristate "Xin-Mo non-fully compliant devices"
+	help
+	Support for Xin-Mo devices that are not fully compliant with the HID
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	if you have a Xin-Mo Dual Arcade controller.
+
+config HID_ZEROPLUS
+	tristate "Zeroplus based game controller support"
+	help
+	  Say Y here if you have a Zeroplus based game controller.
+
+config ZEROPLUS_FF
+	bool "Zeroplus based game controller force feedback support"
+	depends on HID_ZEROPLUS
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a Zeroplus based game controller and want
+	  to have force feedback support for it.
+
+config HID_ZYDACRON
+	tristate "Zydacron remote control support"
+	help
+	Support for Zydacron remote control.
+
+config HID_SENSOR_HUB
+	tristate "HID Sensors framework support"
+	depends on HAS_IOMEM
+	select MFD_CORE
+	default n
+	help
+	  Support for HID Sensor framework. This creates a MFD instance
+	  for a sensor hub and identifies all the sensors connected to it.
+	  Each sensor is registered as a MFD cell, so that sensor specific
+	  processing can be done in a separate driver. Each sensor
+	  drivers can use the service provided by this driver to register
+	  for events and handle data streams. Each sensor driver can format
+	  data and present to user mode using input or IIO interface.
+
+config HID_SENSOR_CUSTOM_SENSOR
+	tristate "HID Sensors hub custom sensor support"
+	depends on HID_SENSOR_HUB
+	default n
+	help
+	  HID Sensor hub specification allows definition of some custom and
+	  generic sensors. Unlike other HID sensors, they can't be exported
+	  via Linux IIO because of custom fields. This is up to the manufacturer
+	  to decide how to interpret these special sensor ids and process in
+	  the user space. Currently some manufacturers are using these ids for
+	  sensor calibration and debugging other sensors. Manufacturers
+	  shouldn't use these special custom sensor ids to export any of the
+	  standard sensors.
+	  Select this config option for custom/generic sensor support.
+
+config HID_ALPS
+	tristate "Alps HID device support"
+	help
+	Support for Alps I2C HID touchpads and StickPointer.
+	Say Y here if you have a Alps touchpads over i2c-hid or usbhid
+	and want support for its special functionalities.
+
+config HID_MCP2221
+	tristate "Microchip MCP2221 HID USB-to-I2C/SMbus host support"
+	depends on USB_HID && I2C
+	depends on GPIOLIB
+	help
+	Provides I2C and SMBUS host adapter functionality over USB-HID
+	through MCP2221 device.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-mcp2221.ko.
+
+config HID_KUNIT_TEST
+	tristate "KUnit tests for HID" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on HID_BATTERY_STRENGTH
+	depends on HID_UCLOGIC
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for HID. This option is not useful for
+	  distributions or general kernels, but only for kernel
+	  developers working on HID and associated drivers.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+
+	  If in doubt, say "N".
+
+endmenu
+
+endif # HID
+
+source "drivers/hid/usbhid/Kconfig"
+
+source "drivers/hid/i2c-hid/Kconfig"
+
+source "drivers/hid/intel-ish-hid/Kconfig"
+
+source "drivers/hid/amd-sfh-hid/Kconfig"
+
+source "drivers/hid/surface-hid/Kconfig"
+
+endmenu

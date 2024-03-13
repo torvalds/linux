@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SDM845 OnePlus 6T (fajita) device tree.
+ *
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ */
+
+#include "sdm845-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 6T";
+	compatible = "oneplus,fajita", "qcom,sdm845";
+	chassis-type = "handset";
+	qcom,msm-id = <0x141 0x20001>;
+	qcom,board-id = <8 0 18801 41>;
+
+	battery: battery {
+		compatible = "simple-battery";
+
+		charge-full-design-microamp-hours = <3700000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4400000>;
+	};
+};
+
+&display_panel {
+	status = "okay";
+
+	compatible = "samsung,s6e3fc2x01";
+};
+
+&bq27441_fg {
+	monitored-battery = <&battery>;
+};
+
+&rmi4_f12 {
+	touchscreen-y-mm = <148>;
+};

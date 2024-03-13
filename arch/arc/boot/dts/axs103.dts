@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
+ */
+
+/*
+ * Device Tree for AXS103 SDP with AXS10X Main Board and
+ * AXC003 FPGA Card (with UP bitfile)
+ */
+/dts-v1/;
+
+/include/ "axc003.dtsi"
+/include/ "axs10x_mb.dtsi"
+
+/ {
+	model = "snps,axs103";
+	compatible = "snps,axs103", "snps,arc-sdp";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xe0022000,115200n8 console=ttyS3,115200n8 debug print-fatal-signals=1";
+	};
+};

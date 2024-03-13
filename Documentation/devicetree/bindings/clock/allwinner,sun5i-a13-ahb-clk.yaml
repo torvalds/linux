@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/allwinner,sun5i-a13-ahb-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A13 AHB Clock
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+deprecated: true
+
+properties:
+  "#clock-cells":
+    const: 0
+
+  compatible:
+    const: allwinner,sun5i-a13-ahb-clk
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 3
+    description: >
+      The parent order must match the hardware programming order.
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - "#clock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-output-names
+
+additionalProperties: false
+
+examples:
+  - |
+    ahb@1c20054 {
+        #clock-cells = <0>;
+        compatible = "allwinner,sun5i-a13-ahb-clk";
+        reg = <0x01c20054 0x4>;
+        clocks = <&axi>, <&cpu>, <&pll6 1>;
+        clock-output-names = "ahb";
+    };
+
+...

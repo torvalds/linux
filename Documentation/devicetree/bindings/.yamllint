@@ -1,0 +1,39 @@
+extends: relaxed
+
+rules:
+  line-length:
+    # 80 chars should be enough, but don't fail if a line is longer
+    max: 110
+    allow-non-breakable-words: true
+    level: warning
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+  colons: {max-spaces-before: 0, max-spaces-after: 1}
+  commas: {min-spaces-after: 1, max-spaces-after: 1}
+  comments:
+    require-starting-space: false
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  document-start:
+    present: true
+  empty-lines:
+    max: 3
+    max-end: 1
+  empty-values:
+    forbid-in-block-mappings: true
+    forbid-in-flow-mappings: true
+  hyphens:
+    max-spaces-after: 1
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+  trailing-spaces: false

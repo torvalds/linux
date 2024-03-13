@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree common file for kirkwood-6281 based 2-Bay Buffalo Linkstation
+ *
+ * Copyright (C) 2015, 2016
+ * Roger Shimizu <rogershimizu@gmail.com>
+ */
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-linkstation.dtsi"
+
+/ {
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_power_hdd0: pmx-power-hdd0 {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_power_hdd1: pmx-power-hdd1 {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_usb_vbus: pmx-usb-vbus {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_led_alarm: pmx-led-alarm {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+			pmx_led_function_red: pmx-led-function-red {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+			pmx_led_function_blue: pmx-led-function-blue {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_led_info: pmx-led-info {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_button_function: pmx-button-function {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_power_switch: pmx-power-switch {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_power_auto_switch: pmx-power-auto-switch {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+		};
+
+		sata@80000 {
+			nr-ports = <2>;
+		};
+	};
+
+	gpio_keys {
+		function-button {
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		};
+
+		power-on-switch {
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		};
+
+		power-auto-switch {
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_leds {
+		red-alarm-led {
+			label = "linkstation:red:alarm";
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+		};
+
+		red-function-led {
+			label = "linkstation:red:function";
+			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		amber-info-led {
+			label = "linkstation:amber:info";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		blue-function-led {
+			label = "linkstation:blue:function";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+
+		blue-power-led {
+			label = "linkstation:blue:power";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
+		};
+	};
+
+	regulators {
+		pinctrl-0 = <&pmx_power_hdd0 &pmx_power_hdd1 &pmx_usb_vbus>;
+
+		usb_power: regulator@1 {
+			gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+		};
+
+		hdd_power0: regulator@2 {
+			gpio = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		};
+
+		hdd_power1: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "HDD1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy1: ethernet-phy@8 {
+		device_type = "ethernet-phy";
+		reg = <8>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};

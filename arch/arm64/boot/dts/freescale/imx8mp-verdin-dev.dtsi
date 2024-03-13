@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+#include "imx8mp-verdin-dahlia.dtsi"
+
+/ {
+	/* TODO: Audio Codec */
+
+	reg_eth2phy: regulator-eth2phy {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio_expander_21 4 GPIO_ACTIVE_HIGH>; /* ETH_PWR_EN */
+		off-on-delay-us = <500000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "+V3.3_ETH";
+		startup-delay-us = <200000>;
+		vin-supply = <&reg_3p3v>;
+	};
+};
+
+&fec {
+	phy-supply = <&reg_eth2phy>;
+	status = "okay";
+};
+
+&gpio_expander_21 {
+	status = "okay";
+	vcc-supply = <&reg_1p8v>;
+};
+
+/* TODO: Verdin I2C_1 with Audio Codec */
+
+/* Verdin UART_1, connector X50 through RS485 transceiver */
+&uart1 {
+	linux,rs485-enabled-at-boot-time;
+	rs485-rts-active-low;
+	rs485-rx-during-tx;
+};
+
+/* Limit frequency on dev board due to long traces and bad signal integrity */
+&usdhc2 {
+	max-frequency = <100000000>;
+};

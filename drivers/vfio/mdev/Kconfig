@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VFIO_MDEV
+	tristate "Mediated device driver framework"
+	default n
+	help
+	  Provides a framework to virtualize devices.
+	  See Documentation/driver-api/vfio-mediated-device.rst for more details.
+
+	  If you don't know what do here, say N.
