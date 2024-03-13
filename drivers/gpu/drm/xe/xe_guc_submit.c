@@ -242,7 +242,6 @@ static void guc_submit_fini(struct drm_device *drm, void *arg)
 	mutex_destroy(&guc->submission_state.lock);
 }
 
-#define GUC_ID_MAX		65535
 #define GUC_ID_NUMBER_MLRC	4096
 #define GUC_ID_NUMBER_SLRC	(GUC_ID_MAX - GUC_ID_NUMBER_MLRC)
 #define GUC_ID_START_MLRC	GUC_ID_NUMBER_SLRC
