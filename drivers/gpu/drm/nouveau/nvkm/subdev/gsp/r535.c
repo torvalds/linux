@@ -1054,8 +1054,6 @@ r535_gsp_postinit(struct nvkm_gsp *gsp)
 	/* Release the DMA buffers that were needed only for boot and init */
 	nvkm_gsp_mem_dtor(gsp, &gsp->boot.fw);
 	nvkm_gsp_mem_dtor(gsp, &gsp->libos);
-	nvkm_gsp_mem_dtor(gsp, &gsp->rmargs);
-	nvkm_gsp_mem_dtor(gsp, &gsp->wpr_meta);
 
 	return ret;
 }
@@ -2163,6 +2161,8 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 
 	r535_gsp_dtor_fws(gsp);
 
+	nvkm_gsp_mem_dtor(gsp, &gsp->rmargs);
+	nvkm_gsp_mem_dtor(gsp, &gsp->wpr_meta);
 	nvkm_gsp_mem_dtor(gsp, &gsp->shm.mem);
 	nvkm_gsp_mem_dtor(gsp, &gsp->loginit);
 	nvkm_gsp_mem_dtor(gsp, &gsp->logintr);

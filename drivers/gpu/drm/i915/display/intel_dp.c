@@ -5699,6 +5699,9 @@ intel_dp_detect(struct drm_connector *connector,
 		goto out;
 	}
 
+	if (!intel_dp_is_edp(intel_dp))
+		intel_psr_init_dpcd(intel_dp);
+
 	intel_dp_detect_dsc_caps(intel_dp, intel_connector);
 
 	intel_dp_configure_mst(intel_dp);
@@ -5857,6 +5860,19 @@ intel_dp_connector_unregister(struct drm_connector *connector)
 	drm_dp_cec_unregister_connector(&intel_dp->aux);
 	drm_dp_aux_unregister(&intel_dp->aux);
 	intel_connector_unregister(connector);
+}
+
+void intel_dp_connector_sync_state(struct intel_connector *connector,
+				   const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	if (crtc_state && crtc_state->dsc.compression_enable) {
+		drm_WARN_ON(&i915->drm, !connector->dp.dsc_decompression_aux);
+		connector->dp.dsc_decompression_enabled = true;
+	} else {
+		connector->dp.dsc_decompression_enabled = false;
+	}
 }
 
 void intel_dp_encoder_flush_work(struct drm_encoder *encoder)

@@ -428,7 +428,6 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
  * Set up dirty tracking on a second only or nested translation type.
  */
 int intel_pasid_setup_dirty_tracking(struct intel_iommu *iommu,
-				     struct dmar_domain *domain,
 				     struct device *dev, u32 pasid,
 				     bool enabled)
 {
@@ -445,7 +444,7 @@ int intel_pasid_setup_dirty_tracking(struct intel_iommu *iommu,
 		return -ENODEV;
 	}
 
-	did = domain_id_iommu(domain, iommu);
+	did = pasid_get_domain_id(pte);
 	pgtt = pasid_pte_get_pgtt(pte);
 	if (pgtt != PASID_ENTRY_PGTT_SL_ONLY &&
 	    pgtt != PASID_ENTRY_PGTT_NESTED) {
@@ -658,6 +657,8 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	pasid_set_domain_id(pte, did);
 	pasid_set_address_width(pte, s2_domain->agaw);
 	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	if (s2_domain->dirty_tracking)
+		pasid_set_ssade(pte);
 	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_NESTED);
 	pasid_set_present(pte);
 	spin_unlock(&iommu->lock);

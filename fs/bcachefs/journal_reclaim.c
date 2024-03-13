@@ -892,9 +892,11 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 					 journal_seq_pin(j, seq)->devs);
 		seq++;
 
-		spin_unlock(&j->lock);
-		ret = bch2_mark_replicas(c, &replicas.e);
-		spin_lock(&j->lock);
+		if (replicas.e.nr_devs) {
+			spin_unlock(&j->lock);
+			ret = bch2_mark_replicas(c, &replicas.e);
+			spin_lock(&j->lock);
+		}
 	}
 	spin_unlock(&j->lock);
 err:

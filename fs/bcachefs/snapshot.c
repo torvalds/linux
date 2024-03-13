@@ -728,7 +728,7 @@ static int check_snapshot(struct btree_trans *trans,
 		return 0;
 
 	memset(&s, 0, sizeof(s));
-	memcpy(&s, k.v, bkey_val_bytes(k.k));
+	memcpy(&s, k.v, min(sizeof(s), bkey_val_bytes(k.k)));
 
 	id = le32_to_cpu(s.parent);
 	if (id) {

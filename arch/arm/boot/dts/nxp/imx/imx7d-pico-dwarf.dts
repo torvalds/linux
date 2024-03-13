@@ -63,6 +63,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		#interrupt-cells = <2>;
+		interrupt-controller;
 		reg = <0x25>;
 	};
 

@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/poison.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -43,17 +44,7 @@
 #define DEPOT_OFFSET_BITS (DEPOT_POOL_ORDER + PAGE_SHIFT - DEPOT_STACK_ALIGN)
 #define DEPOT_POOL_INDEX_BITS (DEPOT_HANDLE_BITS - DEPOT_OFFSET_BITS - \
 			       STACK_DEPOT_EXTRA_BITS)
-#if IS_ENABLED(CONFIG_KMSAN) && CONFIG_STACKDEPOT_MAX_FRAMES >= 32
-/*
- * KMSAN is frequently used in fuzzing scenarios and thus saves a lot of stack
- * traces. As KMSAN does not support evicting stack traces from the stack
- * depot, the stack depot capacity might be reached quickly with large stack
- * records. Adjust the maximum number of stack depot pools for this case.
- */
-#define DEPOT_POOLS_CAP (8192 * (CONFIG_STACKDEPOT_MAX_FRAMES / 16))
-#else
 #define DEPOT_POOLS_CAP 8192
-#endif
 #define DEPOT_MAX_POOLS \
 	(((1LL << (DEPOT_POOL_INDEX_BITS)) < DEPOT_POOLS_CAP) ? \
 	 (1LL << (DEPOT_POOL_INDEX_BITS)) : DEPOT_POOLS_CAP)
@@ -93,9 +84,6 @@ struct stack_record {
 	};
 };
 
-#define DEPOT_STACK_RECORD_SIZE \
-	ALIGN(sizeof(struct stack_record), 1 << DEPOT_STACK_ALIGN)
-
 static bool stack_depot_disabled;
 static bool __stack_depot_early_init_requested __initdata = IS_ENABLED(CONFIG_STACKDEPOT_ALWAYS_INIT);
 static bool __stack_depot_early_init_passed __initdata;
@@ -121,32 +109,31 @@ static void *stack_pools[DEPOT_MAX_POOLS];
 static void *new_pool;
 /* Number of pools in stack_pools. */
 static int pools_num;
+/* Offset to the unused space in the currently used pool. */
+static size_t pool_offset = DEPOT_POOL_SIZE;
 /* Freelist of stack records within stack_pools. */
 static LIST_HEAD(free_stacks);
-/*
- * Stack depot tries to keep an extra pool allocated even before it runs out
- * of space in the currently used pool. This flag marks whether this extra pool
- * needs to be allocated. It has the value 0 when either an extra pool is not
- * yet allocated or if the limit on the number of pools is reached.
- */
-static bool new_pool_required = true;
 /* The lock must be held when performing pool or freelist modifications. */
 static DEFINE_RAW_SPINLOCK(pool_lock);
 
 /* Statistics counters for debugfs. */
 enum depot_counter_id {
-	DEPOT_COUNTER_ALLOCS,
-	DEPOT_COUNTER_FREES,
-	DEPOT_COUNTER_INUSE,
+	DEPOT_COUNTER_REFD_ALLOCS,
+	DEPOT_COUNTER_REFD_FREES,
+	DEPOT_COUNTER_REFD_INUSE,
 	DEPOT_COUNTER_FREELIST_SIZE,
+	DEPOT_COUNTER_PERSIST_COUNT,
+	DEPOT_COUNTER_PERSIST_BYTES,
 	DEPOT_COUNTER_COUNT,
 };
 static long counters[DEPOT_COUNTER_COUNT];
 static const char *const counter_names[] = {
-	[DEPOT_COUNTER_ALLOCS]		= "allocations",
-	[DEPOT_COUNTER_FREES]		= "frees",
-	[DEPOT_COUNTER_INUSE]		= "in_use",
+	[DEPOT_COUNTER_REFD_ALLOCS]	= "refcounted_allocations",
+	[DEPOT_COUNTER_REFD_FREES]	= "refcounted_frees",
+	[DEPOT_COUNTER_REFD_INUSE]	= "refcounted_in_use",
 	[DEPOT_COUNTER_FREELIST_SIZE]	= "freelist_size",
+	[DEPOT_COUNTER_PERSIST_COUNT]	= "persistent_count",
+	[DEPOT_COUNTER_PERSIST_BYTES]	= "persistent_bytes",
 };
 static_assert(ARRAY_SIZE(counter_names) == DEPOT_COUNTER_COUNT);
 
@@ -294,48 +281,52 @@ out_unlock:
 EXPORT_SYMBOL_GPL(stack_depot_init);
 
 /*
- * Initializes new stack depot @pool, release all its entries to the freelist,
- * and update the list of pools.
+ * Initializes new stack pool, and updates the list of pools.
  */
-static void depot_init_pool(void *pool)
+static bool depot_init_pool(void **prealloc)
 {
-	int offset;
-
 	lockdep_assert_held(&pool_lock);
 
-	/* Initialize handles and link stack records into the freelist. */
-	for (offset = 0; offset <= DEPOT_POOL_SIZE - DEPOT_STACK_RECORD_SIZE;
-	     offset += DEPOT_STACK_RECORD_SIZE) {
-		struct stack_record *stack = pool + offset;
-
-		stack->handle.pool_index = pools_num;
-		stack->handle.offset = offset >> DEPOT_STACK_ALIGN;
-		stack->handle.extra = 0;
-
-		/*
-		 * Stack traces of size 0 are never saved, and we can simply use
-		 * the size field as an indicator if this is a new unused stack
-		 * record in the freelist.
-		 */
-		stack->size = 0;
-
-		INIT_LIST_HEAD(&stack->hash_list);
-		/*
-		 * Add to the freelist front to prioritize never-used entries:
-		 * required in case there are entries in the freelist, but their
-		 * RCU cookie still belongs to the current RCU grace period
-		 * (there can still be concurrent readers).
-		 */
-		list_add(&stack->free_list, &free_stacks);
-		counters[DEPOT_COUNTER_FREELIST_SIZE]++;
+	if (unlikely(pools_num >= DEPOT_MAX_POOLS)) {
+		/* Bail out if we reached the pool limit. */
+		WARN_ON_ONCE(pools_num > DEPOT_MAX_POOLS); /* should never happen */
+		WARN_ON_ONCE(!new_pool); /* to avoid unnecessary pre-allocation */
+		WARN_ONCE(1, "Stack depot reached limit capacity");
+		return false;
 	}
 
+	if (!new_pool && *prealloc) {
+		/* We have preallocated memory, use it. */
+		WRITE_ONCE(new_pool, *prealloc);
+		*prealloc = NULL;
+	}
+
+	if (!new_pool)
+		return false; /* new_pool and *prealloc are NULL */
+
 	/* Save reference to the pool to be used by depot_fetch_stack(). */
-	stack_pools[pools_num] = pool;
+	stack_pools[pools_num] = new_pool;
+
+	/*
+	 * Stack depot tries to keep an extra pool allocated even before it runs
+	 * out of space in the currently used pool.
+	 *
+	 * To indicate that a new preallocation is needed new_pool is reset to
+	 * NULL; do not reset to NULL if we have reached the maximum number of
+	 * pools.
+	 */
+	if (pools_num < DEPOT_MAX_POOLS)
+		WRITE_ONCE(new_pool, NULL);
+	else
+		WRITE_ONCE(new_pool, STACK_DEPOT_POISON);
 
 	/* Pairs with concurrent READ_ONCE() in depot_fetch_stack(). */
 	WRITE_ONCE(pools_num, pools_num + 1);
 	ASSERT_EXCLUSIVE_WRITER(pools_num);
+
+	pool_offset = 0;
+
+	return true;
 }
 
 /* Keeps the preallocated memory to be used for a new stack depot pool. */
@@ -347,63 +338,51 @@ static void depot_keep_new_pool(void **prealloc)
 	 * If a new pool is already saved or the maximum number of
 	 * pools is reached, do not use the preallocated memory.
 	 */
-	if (!new_pool_required)
+	if (new_pool)
 		return;
 
-	/*
-	 * Use the preallocated memory for the new pool
-	 * as long as we do not exceed the maximum number of pools.
-	 */
-	if (pools_num < DEPOT_MAX_POOLS) {
-		new_pool = *prealloc;
-		*prealloc = NULL;
-	}
-
-	/*
-	 * At this point, either a new pool is kept or the maximum
-	 * number of pools is reached. In either case, take note that
-	 * keeping another pool is not required.
-	 */
-	WRITE_ONCE(new_pool_required, false);
+	WRITE_ONCE(new_pool, *prealloc);
+	*prealloc = NULL;
 }
 
 /*
- * Try to initialize a new stack depot pool from either a previous or the
- * current pre-allocation, and release all its entries to the freelist.
+ * Try to initialize a new stack record from the current pool, a cached pool, or
+ * the current pre-allocation.
  */
-static bool depot_try_init_pool(void **prealloc)
+static struct stack_record *depot_pop_free_pool(void **prealloc, size_t size)
 {
+	struct stack_record *stack;
+	void *current_pool;
+	u32 pool_index;
+
 	lockdep_assert_held(&pool_lock);
 
-	/* Check if we have a new pool saved and use it. */
-	if (new_pool) {
-		depot_init_pool(new_pool);
-		new_pool = NULL;
-
-		/* Take note that we might need a new new_pool. */
-		if (pools_num < DEPOT_MAX_POOLS)
-			WRITE_ONCE(new_pool_required, true);
-
-		return true;
+	if (pool_offset + size > DEPOT_POOL_SIZE) {
+		if (!depot_init_pool(prealloc))
+			return NULL;
 	}
 
-	/* Bail out if we reached the pool limit. */
-	if (unlikely(pools_num >= DEPOT_MAX_POOLS)) {
-		WARN_ONCE(1, "Stack depot reached limit capacity");
-		return false;
-	}
+	if (WARN_ON_ONCE(pools_num < 1))
+		return NULL;
+	pool_index = pools_num - 1;
+	current_pool = stack_pools[pool_index];
+	if (WARN_ON_ONCE(!current_pool))
+		return NULL;
 
-	/* Check if we have preallocated memory and use it. */
-	if (*prealloc) {
-		depot_init_pool(*prealloc);
-		*prealloc = NULL;
-		return true;
-	}
+	stack = current_pool + pool_offset;
 
-	return false;
+	/* Pre-initialize handle once. */
+	stack->handle.pool_index = pool_index;
+	stack->handle.offset = pool_offset >> DEPOT_STACK_ALIGN;
+	stack->handle.extra = 0;
+	INIT_LIST_HEAD(&stack->hash_list);
+
+	pool_offset += size;
+
+	return stack;
 }
 
-/* Try to find next free usable entry. */
+/* Try to find next free usable entry from the freelist. */
 static struct stack_record *depot_pop_free(void)
 {
 	struct stack_record *stack;
@@ -420,7 +399,7 @@ static struct stack_record *depot_pop_free(void)
 	 * check the first entry.
 	 */
 	stack = list_first_entry(&free_stacks, struct stack_record, free_list);
-	if (stack->size && !poll_state_synchronize_rcu(stack->rcu_state))
+	if (!poll_state_synchronize_rcu(stack->rcu_state))
 		return NULL;
 
 	list_del(&stack->free_list);
@@ -429,48 +408,73 @@ static struct stack_record *depot_pop_free(void)
 	return stack;
 }
 
+static inline size_t depot_stack_record_size(struct stack_record *s, unsigned int nr_entries)
+{
+	const size_t used = flex_array_size(s, entries, nr_entries);
+	const size_t unused = sizeof(s->entries) - used;
+
+	WARN_ON_ONCE(sizeof(s->entries) < used);
+
+	return ALIGN(sizeof(struct stack_record) - unused, 1 << DEPOT_STACK_ALIGN);
+}
+
 /* Allocates a new stack in a stack depot pool. */
 static struct stack_record *
-depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
+depot_alloc_stack(unsigned long *entries, unsigned int nr_entries, u32 hash, depot_flags_t flags, void **prealloc)
 {
-	struct stack_record *stack;
+	struct stack_record *stack = NULL;
+	size_t record_size;
 
 	lockdep_assert_held(&pool_lock);
 
 	/* This should already be checked by public API entry points. */
-	if (WARN_ON_ONCE(!size))
+	if (WARN_ON_ONCE(!nr_entries))
 		return NULL;
 
-	/* Check if we have a stack record to save the stack trace. */
-	stack = depot_pop_free();
-	if (!stack) {
-		/* No usable entries on the freelist - try to refill the freelist. */
-		if (!depot_try_init_pool(prealloc))
-			return NULL;
+	/* Limit number of saved frames to CONFIG_STACKDEPOT_MAX_FRAMES. */
+	if (nr_entries > CONFIG_STACKDEPOT_MAX_FRAMES)
+		nr_entries = CONFIG_STACKDEPOT_MAX_FRAMES;
+
+	if (flags & STACK_DEPOT_FLAG_GET) {
+		/*
+		 * Evictable entries have to allocate the max. size so they may
+		 * safely be re-used by differently sized allocations.
+		 */
+		record_size = depot_stack_record_size(stack, CONFIG_STACKDEPOT_MAX_FRAMES);
 		stack = depot_pop_free();
-		if (WARN_ON(!stack))
+	} else {
+		record_size = depot_stack_record_size(stack, nr_entries);
+	}
+
+	if (!stack) {
+		stack = depot_pop_free_pool(prealloc, record_size);
+		if (!stack)
 			return NULL;
 	}
 
-	/* Limit number of saved frames to CONFIG_STACKDEPOT_MAX_FRAMES. */
-	if (size > CONFIG_STACKDEPOT_MAX_FRAMES)
-		size = CONFIG_STACKDEPOT_MAX_FRAMES;
-
 	/* Save the stack trace. */
 	stack->hash = hash;
-	stack->size = size;
-	/* stack->handle is already filled in by depot_init_pool(). */
-	refcount_set(&stack->count, 1);
-	memcpy(stack->entries, entries, flex_array_size(stack, entries, size));
+	stack->size = nr_entries;
+	/* stack->handle is already filled in by depot_pop_free_pool(). */
+	memcpy(stack->entries, entries, flex_array_size(stack, entries, nr_entries));
+
+	if (flags & STACK_DEPOT_FLAG_GET) {
+		refcount_set(&stack->count, 1);
+		counters[DEPOT_COUNTER_REFD_ALLOCS]++;
+		counters[DEPOT_COUNTER_REFD_INUSE]++;
+	} else {
+		/* Warn on attempts to switch to refcounting this entry. */
+		refcount_set(&stack->count, REFCOUNT_SATURATED);
+		counters[DEPOT_COUNTER_PERSIST_COUNT]++;
+		counters[DEPOT_COUNTER_PERSIST_BYTES] += record_size;
+	}
 
 	/*
 	 * Let KMSAN know the stored stack record is initialized. This shall
 	 * prevent false positive reports if instrumented code accesses it.
 	 */
-	kmsan_unpoison_memory(stack, DEPOT_STACK_RECORD_SIZE);
+	kmsan_unpoison_memory(stack, record_size);
 
-	counters[DEPOT_COUNTER_ALLOCS]++;
-	counters[DEPOT_COUNTER_INUSE]++;
 	return stack;
 }
 
@@ -538,8 +542,8 @@ static void depot_free_stack(struct stack_record *stack)
 	list_add_tail(&stack->free_list, &free_stacks);
 
 	counters[DEPOT_COUNTER_FREELIST_SIZE]++;
-	counters[DEPOT_COUNTER_FREES]++;
-	counters[DEPOT_COUNTER_INUSE]--;
+	counters[DEPOT_COUNTER_REFD_FREES]++;
+	counters[DEPOT_COUNTER_REFD_INUSE]--;
 
 	printk_deferred_exit();
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
@@ -660,7 +664,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 	 * Allocate memory for a new pool if required now:
 	 * we won't be able to do that under the lock.
 	 */
-	if (unlikely(can_alloc && READ_ONCE(new_pool_required))) {
+	if (unlikely(can_alloc && !READ_ONCE(new_pool))) {
 		/*
 		 * Zero out zone modifiers, as we don't have specific zone
 		 * requirements. Keep the flags related to allocation in atomic
@@ -681,7 +685,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 	found = find_stack(bucket, entries, nr_entries, hash, depot_flags);
 	if (!found) {
 		struct stack_record *new =
-			depot_alloc_stack(entries, nr_entries, hash, &prealloc);
+			depot_alloc_stack(entries, nr_entries, hash, depot_flags, &prealloc);
 
 		if (new) {
 			/*

@@ -224,7 +224,7 @@ static const struct stmmac_hwif_entry {
 		.regs = {
 			.ptp_off = PTP_GMAC4_OFFSET,
 			.mmc_off = MMC_GMAC4_OFFSET,
-			.est_off = EST_XGMAC_OFFSET,
+			.est_off = EST_GMAC4_OFFSET,
 		},
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac410_dma_ops,

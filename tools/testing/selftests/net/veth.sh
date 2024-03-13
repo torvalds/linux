@@ -247,6 +247,20 @@ chk_gro "        - aggregation with TSO off" 1
 cleanup
 
 create_ns
+ip -n $NS_DST link set dev veth$DST up
+ip -n $NS_DST link set dev veth$DST xdp object ${BPF_FILE} section xdp
+chk_gro_flag "gro vs xdp while down - gro flag on" $DST on
+ip -n $NS_DST link set dev veth$DST down
+chk_gro_flag "                      - after down" $DST on
+ip -n $NS_DST link set dev veth$DST xdp off
+chk_gro_flag "                      - after xdp off" $DST off
+ip -n $NS_DST link set dev veth$DST up
+chk_gro_flag "                      - after up" $DST off
+ip -n $NS_SRC link set dev veth$SRC xdp object ${BPF_FILE} section xdp
+chk_gro_flag "                      - after peer xdp" $DST off
+cleanup
+
+create_ns
 chk_channels "default channels" $DST 1 1
 
 ip -n $NS_DST link set dev veth$DST down

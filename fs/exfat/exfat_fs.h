@@ -275,6 +275,7 @@ struct exfat_sb_info {
 
 	spinlock_t inode_hash_lock;
 	struct hlist_head inode_hashtable[EXFAT_HASH_SIZE];
+	struct rcu_head rcu;
 };
 
 #define EXFAT_CACHE_VALID	0
