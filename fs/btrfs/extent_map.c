@@ -634,8 +634,8 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 				*em_in = NULL;
 				WARN_ONCE(ret,
 "extent map merge error existing [%llu, %llu) with em [%llu, %llu) start %llu\n",
-					  existing->start, existing->len,
-					  orig_start, orig_len, start);
+					  existing->start, extent_map_end(existing),
+					  orig_start, orig_start + orig_len, start);
 			}
 			free_extent_map(existing);
 		}
