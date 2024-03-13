@@ -27,6 +27,7 @@
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_exec_queue_types.h"
+#include "xe_guc_id_mgr.h"
 #include "xe_guc_submit_types.h"
 #include "xe_hw_engine.h"
 #include "xe_hw_fence.h"
@@ -236,15 +237,9 @@ static void guc_submit_fini(struct drm_device *drm, void *arg)
 	struct xe_guc *guc = arg;
 
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
-	ida_destroy(&guc->submission_state.guc_ids);
-	bitmap_free(guc->submission_state.guc_ids_bitmap);
 	free_submit_wq(guc);
 	mutex_destroy(&guc->submission_state.lock);
 }
-
-#define GUC_ID_NUMBER_MLRC	4096
-#define GUC_ID_NUMBER_SLRC	(GUC_ID_MAX - GUC_ID_NUMBER_MLRC)
-#define GUC_ID_START_MLRC	GUC_ID_NUMBER_SLRC
 
 static const struct xe_exec_queue_ops guc_exec_queue_ops;
 
@@ -268,22 +263,14 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	int err;
 
-	guc->submission_state.guc_ids_bitmap =
-		bitmap_zalloc(GUC_ID_NUMBER_MLRC, GFP_KERNEL);
-	if (!guc->submission_state.guc_ids_bitmap)
-		return -ENOMEM;
-
 	err = alloc_submit_wq(guc);
-	if (err) {
-		bitmap_free(guc->submission_state.guc_ids_bitmap);
+	if (err)
 		return err;
-	}
 
 	gt->exec_queue_ops = &guc_exec_queue_ops;
 
 	mutex_init(&guc->submission_state.lock);
 	xa_init(&guc->submission_state.exec_queue_lookup);
-	ida_init(&guc->submission_state.guc_ids);
 
 	spin_lock_init(&guc->submission_state.suspend.lock);
 	guc->submission_state.suspend.context = dma_fence_context_alloc(1);
@@ -291,6 +278,10 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	primelockdep(guc);
 
 	err = drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
+	if (err)
+		return err;
+
+	err = xe_guc_id_mgr_init(&guc->submission_state.idm, ~0);
 	if (err)
 		return err;
 
@@ -306,12 +297,8 @@ static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa
 	for (i = 0; i < xa_count; ++i)
 		xa_erase(&guc->submission_state.exec_queue_lookup, q->guc->id + i);
 
-	if (xe_exec_queue_is_parallel(q))
-		bitmap_release_region(guc->submission_state.guc_ids_bitmap,
-				      q->guc->id - GUC_ID_START_MLRC,
-				      order_base_2(q->width));
-	else
-		ida_free(&guc->submission_state.guc_ids, q->guc->id);
+	xe_guc_id_mgr_release_locked(&guc->submission_state.idm,
+				     q->guc->id, q->width);
 }
 
 static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
@@ -329,21 +316,12 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 	 */
 	lockdep_assert_held(&guc->submission_state.lock);
 
-	if (xe_exec_queue_is_parallel(q)) {
-		void *bitmap = guc->submission_state.guc_ids_bitmap;
-
-		ret = bitmap_find_free_region(bitmap, GUC_ID_NUMBER_MLRC,
-					      order_base_2(q->width));
-	} else {
-		ret = ida_alloc_max(&guc->submission_state.guc_ids,
-				    GUC_ID_NUMBER_SLRC - 1, GFP_NOWAIT);
-	}
+	ret = xe_guc_id_mgr_reserve_locked(&guc->submission_state.idm,
+					   q->width);
 	if (ret < 0)
 		return ret;
 
 	q->guc->id = ret;
-	if (xe_exec_queue_is_parallel(q))
-		q->guc->id += GUC_ID_START_MLRC;
 
 	for (i = 0; i < q->width; ++i) {
 		ptr = xa_store(&guc->submission_state.exec_queue_lookup,
