@@ -3771,10 +3771,6 @@
 	no5lvl		[X86-64,RISCV,EARLY] Disable 5-level paging mode. Forces
 			kernel to use 4-level paging instead.
 
-	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
-			caches in the slab allocator.  Saves per-node memory,
-			but will impact performance.
-
 	noalign		[KNL,ARM]
 
 	noaltinstr	[S390,EARLY] Disables alternative instructions
@@ -5930,11 +5926,42 @@
 	simeth=		[IA-64]
 	simscsi=
 
-	slram=		[HW,MTD]
+	slab_debug[=options[,slabs][;[options[,slabs]]...]	[MM]
+			Enabling slab_debug allows one to determine the
+			culprit if slab objects become corrupted. Enabling
+			slab_debug can create guard zones around objects and
+			may poison objects when not in use. Also tracks the
+			last alloc / free. For more information see
+			Documentation/mm/slub.rst.
+			(slub_debug legacy name also accepted for now)
+
+	slab_max_order= [MM]
+			Determines the maximum allowed order for slabs.
+			A high setting may cause OOMs due to memory
+			fragmentation. For more information see
+			Documentation/mm/slub.rst.
+			(slub_max_order legacy name also accepted for now)
 
 	slab_merge	[MM]
 			Enable merging of slabs with similar size when the
 			kernel is built without CONFIG_SLAB_MERGE_DEFAULT.
+			(slub_merge legacy name also accepted for now)
+
+	slab_min_objects=	[MM]
+			The minimum number of objects per slab. SLUB will
+			increase the slab order up to slab_max_order to
+			generate a sufficiently large slab able to contain
+			the number of objects indicated. The higher the number
+			of objects the smaller the overhead of tracking slabs
+			and the less frequently locks need to be acquired.
+			For more information see Documentation/mm/slub.rst.
+			(slub_min_objects legacy name also accepted for now)
+
+	slab_min_order=	[MM]
+			Determines the minimum page order for slabs. Must be
+			lower or equal to slab_max_order. For more information see
+			Documentation/mm/slub.rst.
+			(slub_min_order legacy name also accepted for now)
 
 	slab_nomerge	[MM]
 			Disable merging of slabs with similar size. May be
@@ -5948,47 +5975,9 @@
 			unchanged). Debug options disable merging on their
 			own.
 			For more information see Documentation/mm/slub.rst.
+			(slub_nomerge legacy name also accepted for now)
 
-	slab_max_order=	[MM, SLAB]
-			Determines the maximum allowed order for slabs.
-			A high setting may cause OOMs due to memory
-			fragmentation.  Defaults to 1 for systems with
-			more than 32MB of RAM, 0 otherwise.
-
-	slub_debug[=options[,slabs][;[options[,slabs]]...]	[MM, SLUB]
-			Enabling slub_debug allows one to determine the
-			culprit if slab objects become corrupted. Enabling
-			slub_debug can create guard zones around objects and
-			may poison objects when not in use. Also tracks the
-			last alloc / free. For more information see
-			Documentation/mm/slub.rst.
-
-	slub_max_order= [MM, SLUB]
-			Determines the maximum allowed order for slabs.
-			A high setting may cause OOMs due to memory
-			fragmentation. For more information see
-			Documentation/mm/slub.rst.
-
-	slub_min_objects=	[MM, SLUB]
-			The minimum number of objects per slab. SLUB will
-			increase the slab order up to slub_max_order to
-			generate a sufficiently large slab able to contain
-			the number of objects indicated. The higher the number
-			of objects the smaller the overhead of tracking slabs
-			and the less frequently locks need to be acquired.
-			For more information see Documentation/mm/slub.rst.
-
-	slub_min_order=	[MM, SLUB]
-			Determines the minimum page order for slabs. Must be
-			lower than slub_max_order.
-			For more information see Documentation/mm/slub.rst.
-
-	slub_merge	[MM, SLUB]
-			Same with slab_merge.
-
-	slub_nomerge	[MM, SLUB]
-			Same with slab_nomerge. This is supported for legacy.
-			See slab_nomerge for more information.
+	slram=		[HW,MTD]
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]

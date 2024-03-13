@@ -9,7 +9,7 @@ SLUB can enable debugging only for selected slabs in order to avoid
 an impact on overall system performance which may make a bug more
 difficult to find.
 
-In order to switch debugging on one can add an option ``slub_debug``
+In order to switch debugging on one can add an option ``slab_debug``
 to the kernel command line. That will enable full debugging for
 all slabs.
 
@@ -26,16 +26,16 @@ be enabled on the command line. F.e. no tracking information will be
 available without debugging on and validation can only partially
 be performed if debugging was not switched on.
 
-Some more sophisticated uses of slub_debug:
+Some more sophisticated uses of slab_debug:
 -------------------------------------------
 
-Parameters may be given to ``slub_debug``. If none is specified then full
+Parameters may be given to ``slab_debug``. If none is specified then full
 debugging is enabled. Format:
 
-slub_debug=<Debug-Options>
+slab_debug=<Debug-Options>
 	Enable options for all slabs
 
-slub_debug=<Debug-Options>,<slab name1>,<slab name2>,...
+slab_debug=<Debug-Options>,<slab name1>,<slab name2>,...
 	Enable options only for select slabs (no spaces
 	after a comma)
 
@@ -60,23 +60,23 @@ Possible debug options are::
 
 F.e. in order to boot just with sanity checks and red zoning one would specify::
 
-	slub_debug=FZ
+	slab_debug=FZ
 
 Trying to find an issue in the dentry cache? Try::
 
-	slub_debug=,dentry
+	slab_debug=,dentry
 
 to only enable debugging on the dentry cache.  You may use an asterisk at the
 end of the slab name, in order to cover all slabs with the same prefix.  For
 example, here's how you can poison the dentry cache as well as all kmalloc
 slabs::
 
-	slub_debug=P,kmalloc-*,dentry
+	slab_debug=P,kmalloc-*,dentry
 
 Red zoning and tracking may realign the slab.  We can just apply sanity checks
 to the dentry cache with::
 
-	slub_debug=F,dentry
+	slab_debug=F,dentry
 
 Debugging options may require the minimum possible slab order to increase as
 a result of storing the metadata (for example, caches with PAGE_SIZE object
@@ -84,20 +84,20 @@ sizes).  This has a higher liklihood of resulting in slab allocation errors
 in low memory situations or if there's high fragmentation of memory.  To
 switch off debugging for such caches by default, use::
 
-	slub_debug=O
+	slab_debug=O
 
 You can apply different options to different list of slab names, using blocks
 of options. This will enable red zoning for dentry and user tracking for
 kmalloc. All other slabs will not get any debugging enabled::
 
-	slub_debug=Z,dentry;U,kmalloc-*
+	slab_debug=Z,dentry;U,kmalloc-*
 
 You can also enable options (e.g. sanity checks and poisoning) for all caches
 except some that are deemed too performance critical and don't need to be
 debugged by specifying global debug options followed by a list of slab names
 with "-" as options::
 
-	slub_debug=FZ;-,zs_handle,zspage
+	slab_debug=FZ;-,zs_handle,zspage
 
 The state of each debug option for a slab can be found in the respective files
 under::
@@ -105,7 +105,7 @@ under::
 	/sys/kernel/slab/<slab name>/
 
 If the file contains 1, the option is enabled, 0 means disabled. The debug
-options from the ``slub_debug`` parameter translate to the following files::
+options from the ``slab_debug`` parameter translate to the following files::
 
 	F	sanity_checks
 	Z	red_zone
@@ -129,7 +129,7 @@ in order to reduce overhead and increase cache hotness of objects.
 Slab validation
 ===============
 
-SLUB can validate all object if the kernel was booted with slub_debug. In
+SLUB can validate all object if the kernel was booted with slab_debug. In
 order to do so you must have the ``slabinfo`` tool. Then you can do
 ::
 
@@ -150,29 +150,29 @@ list_lock once in a while to deal with partial slabs. That overhead is
 governed by the order of the allocation for each slab. The allocations
 can be influenced by kernel parameters:
 
-.. slub_min_objects=x		(default 4)
-.. slub_min_order=x		(default 0)
-.. slub_max_order=x		(default 3 (PAGE_ALLOC_COSTLY_ORDER))
+.. slab_min_objects=x		(default: automatically scaled by number of cpus)
+.. slab_min_order=x		(default 0)
+.. slab_max_order=x		(default 3 (PAGE_ALLOC_COSTLY_ORDER))
 
-``slub_min_objects``
+``slab_min_objects``
 	allows to specify how many objects must at least fit into one
 	slab in order for the allocation order to be acceptable.  In
 	general slub will be able to perform this number of
 	allocations on a slab without consulting centralized resources
 	(list_lock) where contention may occur.
 
-``slub_min_order``
+``slab_min_order``
 	specifies a minimum order of slabs. A similar effect like
-	``slub_min_objects``.
+	``slab_min_objects``.
 
-``slub_max_order``
-	specified the order at which ``slub_min_objects`` should no
+``slab_max_order``
+	specified the order at which ``slab_min_objects`` should no
 	longer be checked. This is useful to avoid SLUB trying to
-	generate super large order pages to fit ``slub_min_objects``
+	generate super large order pages to fit ``slab_min_objects``
 	of a slab cache with large object sizes into one high order
 	page. Setting command line parameter
 	``debug_guardpage_minorder=N`` (N > 0), forces setting
-	``slub_max_order`` to 0, what cause minimum possible order of
+	``slab_max_order`` to 0, what cause minimum possible order of
 	slabs allocation.
 
 SLUB Debug output
@@ -219,7 +219,7 @@ Here is a sample of slub debug output::
  FIX kmalloc-8: Restoring Redzone 0xc90f6d28-0xc90f6d2b=0xcc
 
 If SLUB encounters a corrupted object (full detection requires the kernel
-to be booted with slub_debug) then the following output will be dumped
+to be booted with slab_debug) then the following output will be dumped
 into the syslog:
 
 1. Description of the problem encountered
@@ -239,7 +239,7 @@ into the syslog:
 	pid=<pid of the process>
 
    (Object allocation / free information is only available if SLAB_STORE_USER is
-   set for the slab. slub_debug sets that option)
+   set for the slab. slab_debug sets that option)
 
 2. The object contents if an object was involved.
 
@@ -262,7 +262,7 @@ into the syslog:
 	the object boundary.
 
 	(Redzone information is only available if SLAB_RED_ZONE is set.
-	slub_debug sets that option)
+	slab_debug sets that option)
 
    Padding <address> : <bytes>
 	Unused data to fill up the space in order to get the next object
@@ -296,7 +296,7 @@ Emergency operations
 
 Minimal debugging (sanity checks alone) can be enabled by booting with::
 
-	slub_debug=F
+	slab_debug=F
 
 This will be generally be enough to enable the resiliency features of slub
 which will keep the system running even if a bad kernel component will
@@ -311,13 +311,13 @@ and enabling debugging only for that cache
 
 I.e.::
 
-	slub_debug=F,dentry
+	slab_debug=F,dentry
 
 If the corruption occurs by writing after the end of the object then it
 may be advisable to enable a Redzone to avoid corrupting the beginning
 of other objects::
 
-	slub_debug=FZ,dentry
+	slab_debug=FZ,dentry
 
 Extended slabinfo mode and plotting
 ===================================
