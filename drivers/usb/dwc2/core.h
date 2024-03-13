@@ -288,6 +288,11 @@ enum dwc2_ep0_state {
  *                      core has been configured to work at either data path
  *                      width.
  *                       8 or 16 (default 16 if available)
+ * @eusb2_disc:         Specifies whether eUSB2 PHY disconnect support flow
+ *                      applicable or no. Applicable in device mode of HSOTG
+ *                      and HS IOT cores v5.00 or higher.
+ *                       0 - eUSB2 PHY disconnect support flow not applicable
+ *                       1 - eUSB2 PHY disconnect support flow applicable
  * @phy_ulpi_ddr:       Specifies whether the ULPI operates at double or single
  *                      data rate. This parameter is only applicable if phy_type
  *                      is ULPI.
@@ -442,6 +447,7 @@ struct dwc2_core_params {
 #define DWC2_SPEED_PARAM_LOW	2
 
 	u8 phy_utmi_width;
+	bool eusb2_disc;
 	bool phy_ulpi_ddr;
 	bool phy_ulpi_ext_vbus;
 	bool enable_dynamic_fifo;
