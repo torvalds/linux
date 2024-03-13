@@ -3302,6 +3302,8 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 
 	iocinit_req.msg_flags |=
 	    MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED;
+	iocinit_req.msg_flags |=
+		MPI3_IOCINIT_MSGFLAGS_WRITESAMEDIVERT_SUPPORTED;
 
 	init_completion(&mrioc->init_cmds.done);
 	retval = mpi3mr_admin_request_post(mrioc, &iocinit_req,

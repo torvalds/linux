@@ -27,7 +27,7 @@ struct mpi3_ioc_init_request {
 	__le64                   sense_buffer_free_queue_address;
 	__le64                   driver_information_address;
 };
-
+#define MPI3_IOCINIT_MSGFLAGS_WRITESAMEDIVERT_SUPPORTED		(0x08)
 #define MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED	(0x04)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_MASK          (0x03)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_NOT_USED      (0x00)
