@@ -1170,6 +1170,7 @@ static inline void acpi_ec_set_gpe_wake_mask(u8 action) {}
 #endif
 
 #ifdef CONFIG_ACPI
+char *acpi_handle_path(acpi_handle handle);
 __printf(3, 4)
 void acpi_handle_printk(const char *level, acpi_handle handle,
 			const char *fmt, ...);
