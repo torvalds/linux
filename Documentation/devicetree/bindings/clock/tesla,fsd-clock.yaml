@@ -12,7 +12,7 @@ maintainers:
 
 description: |
   FSD clock controller consist of several clock management unit
-  (CMU), which generates clocks for various inteernal SoC blocks.
+  (CMU), which generates clocks for various internal SoC blocks.
   The root clock comes from external OSC clock (24 MHz).
 
   All available clocks are defined as preprocessor macros in
