@@ -3417,7 +3417,6 @@ MODULE_DEVICE_TABLE(of, gcc_sm6225_match_table);
 static int gcc_sm6225_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
-	int ret;
 
 	regmap = qcom_cc_map(pdev, &gcc_sm6225_desc);
 	if (IS_ERR(regmap))
@@ -3443,16 +3442,7 @@ static int gcc_sm6225_probe(struct platform_device *pdev)
 	clk_lucid_pll_configure(&gpll8, regmap, &gpll8_config);
 	clk_zonda_pll_configure(&gpll9, regmap, &gpll9_config);
 
-
-	ret = qcom_cc_really_probe(pdev, &gcc_sm6225_desc, regmap);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register GCC clocks\n");
-		return ret;
-	}
-
-	dev_info(&pdev->dev, "Registered GCC clocks\n");
-
-	return ret;
+	return qcom_cc_really_probe(pdev, &gcc_sm6225_desc, regmap);
 }
 
 static struct platform_driver gcc_sm6225_driver = {
