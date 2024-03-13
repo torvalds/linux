@@ -124,6 +124,15 @@
  *    ->private_lock		(zap_pte_range->block_dirty_folio)
  */
 
+static void mapping_set_update(struct xa_state *xas,
+		struct address_space *mapping)
+{
+	if (dax_mapping(mapping) || shmem_mapping(mapping))
+		return;
+	xas_set_update(xas, workingset_update_node);
+	xas_set_lru(xas, &shadow_nodes);
+}
+
 static void page_cache_delete(struct address_space *mapping,
 				   struct folio *folio, void *shadow)
 {

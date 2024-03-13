@@ -254,7 +254,7 @@ static void shmem_inode_unacct_blocks(struct inode *inode, long pages)
 }
 
 static const struct super_operations shmem_ops;
-const struct address_space_operations shmem_aops;
+static const struct address_space_operations shmem_aops;
 static const struct file_operations shmem_file_operations;
 static const struct inode_operations shmem_inode_operations;
 static const struct inode_operations shmem_dir_inode_operations;
@@ -262,6 +262,12 @@ static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
 static const struct vm_operations_struct shmem_anon_vm_ops;
 static struct file_system_type shmem_fs_type;
+
+bool shmem_mapping(struct address_space *mapping)
+{
+	return mapping->a_ops == &shmem_aops;
+}
+EXPORT_SYMBOL_GPL(shmem_mapping);
 
 bool vma_is_anon_shmem(struct vm_area_struct *vma)
 {
@@ -1966,6 +1972,9 @@ static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
 	int error;
 	bool alloced;
 
+	if (WARN_ON_ONCE(!shmem_mapping(inode->i_mapping)))
+		return -EINVAL;
+
 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
 		return -EFBIG;
 repeat:
@@ -2128,12 +2137,36 @@ unlock:
 	return error;
 }
 
+/**
+ * shmem_get_folio - find, and lock a shmem folio.
+ * @inode:	inode to search
+ * @index:	the page index.
+ * @foliop:	pointer to the folio if found
+ * @sgp:	SGP_* flags to control behavior
+ *
+ * Looks up the page cache entry at @inode & @index.  If a folio is
+ * present, it is returned locked with an increased refcount.
+ *
+ * If the caller modifies data in the folio, it must call folio_mark_dirty()
+ * before unlocking the folio to ensure that the folio is not reclaimed.
+ * There is no need to reserve space before calling folio_mark_dirty().
+ *
+ * When no folio is found, the behavior depends on @sgp:
+ *  - for SGP_READ, *@foliop is %NULL and 0 is returned
+ *  - for SGP_NOALLOC, *@foliop is %NULL and -ENOENT is returned
+ *  - for all other flags a new folio is allocated, inserted into the
+ *    page cache and returned locked in @foliop.
+ *
+ * Context: May sleep.
+ * Return: 0 if successful, else a negative error code.
+ */
 int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
 		enum sgp_type sgp)
 {
 	return shmem_get_folio_gfp(inode, index, foliop, sgp,
 			mapping_gfp_mask(inode->i_mapping), NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(shmem_get_folio);
 
 /*
  * This is like autoremove_wake_function, but it removes the wait queue
@@ -3500,10 +3533,10 @@ static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		inode_nohighmem(inode);
+		inode->i_mapping->a_ops = &shmem_aops;
 		error = shmem_get_folio(inode, 0, &folio, SGP_WRITE);
 		if (error)
 			goto out_remove_offset;
-		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
 		memcpy(folio_address(folio), symname, len);
 		folio_mark_uptodate(folio);
@@ -4468,7 +4501,7 @@ static int shmem_error_remove_folio(struct address_space *mapping,
 	return 0;
 }
 
-const struct address_space_operations shmem_aops = {
+static const struct address_space_operations shmem_aops = {
 	.writepage	= shmem_writepage,
 	.dirty_folio	= noop_dirty_folio,
 #ifdef CONFIG_TMPFS
@@ -4480,7 +4513,6 @@ const struct address_space_operations shmem_aops = {
 #endif
 	.error_remove_folio = shmem_error_remove_folio,
 };
-EXPORT_SYMBOL(shmem_aops);
 
 static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
@@ -4835,6 +4867,7 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
 {
 	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
 }
+EXPORT_SYMBOL_GPL(shmem_kernel_file_setup);
 
 /**
  * shmem_file_setup - get an unlinked file living in tmpfs
@@ -4912,7 +4945,6 @@ struct folio *shmem_read_folio_gfp(struct address_space *mapping,
 	struct folio *folio;
 	int error;
 
-	BUG_ON(!shmem_mapping(mapping));
 	error = shmem_get_folio_gfp(inode, index, &folio, SGP_CACHE,
 				    gfp, NULL, NULL);
 	if (error)
