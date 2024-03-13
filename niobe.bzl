@@ -28,6 +28,7 @@ def define_niobe():
         "drivers/clk/qcom/videocc-niobe.ko",
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/cpufreq/qcom-cpufreq-hw-debug.ko",
+        "drivers/cpuidle/governors/qcom_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/dma/qcom/bam_dma.ko",
         "drivers/dma/qcom/msm_gpi.ko",
@@ -151,10 +152,12 @@ def define_niobe():
         "drivers/soc/qcom/qcom_aoss.ko",
         "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_cpucp.ko",
+        "drivers/soc/qcom/qcom_cpuss_sleep_stats.ko",
         "drivers/soc/qcom/qcom_logbuf_boot_log.ko",
         "drivers/soc/qcom/qcom_logbuf_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
+        "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qfprom-sys.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
@@ -165,6 +168,7 @@ def define_niobe():
         "drivers/soc/qcom/smp2p_sleepstate.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sps/sps_drv.ko",
+        "drivers/soc/qcom/sys_pm_vx.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/soc/qcom/tmecom/tmecom-intf.ko",
         "drivers/spi/spi-msm-geni.ko",
@@ -213,6 +217,7 @@ def define_niobe():
 
     _niobe_consolidate_in_tree_modules = _niobe_in_tree_modules + [
         # keep sorted
+        "drivers/cpuidle/governors/qcom_simple_lpm.ko",
         "drivers/hwtracing/coresight/coresight-etm4x.ko",
         "drivers/misc/lkdtm/lkdtm.ko",
         "kernel/locking/locktorture.ko",
