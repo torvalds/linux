@@ -54,6 +54,20 @@ extern "C" {
  */
 #define NOUVEAU_GETPARAM_EXEC_PUSH_MAX   17
 
+/*
+ * NOUVEAU_GETPARAM_VRAM_BAR_SIZE - query bar size
+ *
+ * Query the VRAM BAR size.
+ */
+#define NOUVEAU_GETPARAM_VRAM_BAR_SIZE 18
+
+/*
+ * NOUVEAU_GETPARAM_VRAM_USED
+ *
+ * Get remaining VRAM size.
+ */
+#define NOUVEAU_GETPARAM_VRAM_USED 19
+
 struct drm_nouveau_getparam {
 	__u64 param;
 	__u64 value;

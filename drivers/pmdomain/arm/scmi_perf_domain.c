@@ -159,6 +159,9 @@ static void scmi_perf_domain_remove(struct scmi_device *sdev)
 	struct genpd_onecell_data *scmi_pd_data = dev_get_drvdata(dev);
 	int i;
 
+	if (!scmi_pd_data)
+		return;
+
 	of_genpd_del_provider(dev->of_node);
 
 	for (i = 0; i < scmi_pd_data->num_domains; i++)

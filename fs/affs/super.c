@@ -640,7 +640,7 @@ static void affs_kill_sb(struct super_block *sb)
 		affs_brelse(sbi->s_root_bh);
 		kfree(sbi->s_prefix);
 		mutex_destroy(&sbi->s_bmlock);
-		kfree(sbi);
+		kfree_rcu(sbi, rcu);
 	}
 }
 

@@ -166,7 +166,6 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_IOVEC,
-		.copy_mc = false,
 		.nofault = false,
 		.data_source = direction,
 		.__iov = iov,
@@ -245,26 +244,8 @@ EXPORT_SYMBOL_GPL(_copy_mc_to_iter);
 #endif /* CONFIG_ARCH_HAS_COPY_MC */
 
 static __always_inline
-size_t memcpy_from_iter_mc(void *iter_from, size_t progress,
-			   size_t len, void *to, void *priv2)
-{
-	return copy_mc_to_kernel(to + progress, iter_from, len);
-}
-
-static size_t __copy_from_iter_mc(void *addr, size_t bytes, struct iov_iter *i)
-{
-	if (unlikely(i->count < bytes))
-		bytes = i->count;
-	if (unlikely(!bytes))
-		return 0;
-	return iterate_bvec(i, bytes, addr, NULL, memcpy_from_iter_mc);
-}
-
-static __always_inline
 size_t __copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(iov_iter_is_copy_mc(i)))
-		return __copy_from_iter_mc(addr, bytes, i);
 	return iterate_and_advance(i, bytes, addr,
 				   copy_from_user_iter, memcpy_from_iter);
 }
@@ -633,7 +614,6 @@ void iov_iter_kvec(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter){
 		.iter_type = ITER_KVEC,
-		.copy_mc = false,
 		.data_source = direction,
 		.kvec = kvec,
 		.nr_segs = nr_segs,
@@ -650,7 +630,6 @@ void iov_iter_bvec(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter){
 		.iter_type = ITER_BVEC,
-		.copy_mc = false,
 		.data_source = direction,
 		.bvec = bvec,
 		.nr_segs = nr_segs,
@@ -679,7 +658,6 @@ void iov_iter_xarray(struct iov_iter *i, unsigned int direction,
 	BUG_ON(direction & ~1);
 	*i = (struct iov_iter) {
 		.iter_type = ITER_XARRAY,
-		.copy_mc = false,
 		.data_source = direction,
 		.xarray = xarray,
 		.xarray_start = start,
@@ -703,7 +681,6 @@ void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count)
 	BUG_ON(direction != READ);
 	*i = (struct iov_iter){
 		.iter_type = ITER_DISCARD,
-		.copy_mc = false,
 		.data_source = false,
 		.count = count,
 		.iov_offset = 0
