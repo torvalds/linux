@@ -43,6 +43,7 @@ enum oxp_board {
 	aok_zoe_a1 = 1,
 	aya_neo_2,
 	aya_neo_air,
+	aya_neo_air_plus_mendo,
 	aya_neo_air_pro,
 	aya_neo_geek,
 	oxp_mini_amd,
@@ -97,6 +98,13 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR"),
 		},
 		.driver_data = (void *)aya_neo_air,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AB05-Mendocino"),
+		},
+		.driver_data = (void *)aya_neo_air_plus_mendo,
 	},
 	{
 		.matches = {
@@ -332,6 +340,7 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 			switch (board) {
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
 			case aya_neo_geek:
 			case oxp_mini_amd:
@@ -374,6 +383,7 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 			switch (board) {
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
 			case aya_neo_geek:
 			case oxp_mini_amd:

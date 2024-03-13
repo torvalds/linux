@@ -47,6 +47,8 @@ properties:
           - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
+            # Temperature monitoring of Astera Labs PT5161L PCIe retimer
+          - asteralabs,pt5161l
             # i2c serial eeprom (24cxx)
           - at,24c08
             # ATSHA204 - i2c h/w symmetric crypto module
@@ -129,6 +131,8 @@ properties:
           - mps,mp2975
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
+            # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
+          - mps,mpq8785
             # Honeywell Humidicon HIH-6130 humidity/temperature sensor
           - honeywell,hi6130
             # IBM Common Form Factor Power Supply Versions (all versions)
@@ -139,14 +143,6 @@ properties:
           - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
-            # Infineon IR38060 Voltage Regulator
-          - infineon,ir38060
-            # Infineon IR38064 Voltage Regulator
-          - infineon,ir38064
-            # Infineon IR38164 Voltage Regulator
-          - infineon,ir38164
-            # Infineon IR38263 Voltage Regulator
-          - infineon,ir38263
             # Infineon IRPS5401 Voltage Regulator (PMIC)
           - infineon,irps5401
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor

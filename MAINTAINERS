@@ -1104,6 +1104,14 @@ F:	Documentation/devicetree/bindings/perf/amlogic,g12-ddr-pmu.yaml
 F:	drivers/perf/amlogic/
 F:	include/soc/amlogic/
 
+AMPHENOL CHIPCAP 2 HUMIDITY-TEMPERATURE IIO DRIVER
+M:	Javier Carrasco <javier.carrasco.cruz@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/amphenol,chipcap2.yaml
+F:	Documentation/hwmon/chipcap2.rst
+F:	drivers/hwmon/chipcap2.c
+
 AMPHION VPU CODEC V4L2 DRIVER
 M:	Ming Qian <ming.qian@nxp.com>
 M:	Zhou Peng <eagle.zhou@nxp.com>
@@ -1389,15 +1397,6 @@ F:	drivers/iio/adc/ltc249*
 F:	drivers/iio/amplifiers/hmc425a.c
 F:	drivers/staging/iio/*/ad*
 X:	drivers/iio/*/adjd*
-
-ANALOG DEVICES INC MAX31760 DRIVER
-M:	Ibrahim Tilki <Ibrahim.Tilki@analog.com>
-S:	Maintained
-W:	http://wiki.analog.com/
-W:	https://ez.analog.com/linux-software-drivers
-F:	Documentation/devicetree/bindings/hwmon/adi,max31760.yaml
-F:	Documentation/hwmon/max31760.rst
-F:	drivers/hwmon/max31760.c
 
 ANALOGBITS PLL LIBRARIES
 M:	Paul Walmsley <paul.walmsley@sifive.com>
@@ -3189,6 +3188,12 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pdx86/platform-drivers-x86.git
 F:	drivers/platform/x86/asus-tf103c-dock.c
+
+ASUS ROG RYUJIN AIO HARDWARE MONITOR DRIVER
+M:	Aleksa Savic <savicaleksa83@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	drivers/hwmon/asus_rog_ryujin.c
 
 ASUS WIRELESS RADIO CONTROL DRIVER
 M:	João Paulo Rechi Vita <jprvita@gmail.com>
@@ -10531,22 +10536,6 @@ L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/fbdev/imsttfb.c
 
-INA209 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml
-F:	Documentation/hwmon/ina209.rst
-F:	drivers/hwmon/ina209.c
-
-INA2XX HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/ina2xx.rst
-F:	drivers/hwmon/ina2xx.c
-F:	include/linux/platform_data/ina2xx.h
-
 INDEX OF FURTHER KERNEL DOCUMENTATION
 M:	Carlos Bilbao <carlos.bilbao@amd.com>
 S:	Maintained
@@ -11530,14 +11519,6 @@ L:	jailhouse-dev@googlegroups.com
 S:	Maintained
 F:	arch/x86/include/asm/jailhouse_para.h
 F:	arch/x86/kernel/jailhouse.c
-
-JC42.4 TEMPERATURE SENSOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/jedec,jc42.yaml
-F:	Documentation/hwmon/jc42.rst
-F:	drivers/hwmon/jc42.c
 
 JFS FILESYSTEM
 M:	Dave Kleikamp <shaggy@kernel.org>
@@ -12603,13 +12584,6 @@ F:	Documentation/hwmon/lm90.rst
 F:	drivers/hwmon/lm90.c
 F:	include/dt-bindings/thermal/lm90.h
 
-LM95234 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/lm95234.rst
-F:	drivers/hwmon/lm95234.c
-
 LME2510 MEDIA DRIVER
 M:	Malcolm Priestley <tvboxspy@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -12813,12 +12787,13 @@ W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/iio/temperature/adi,ltc2983.yaml
 F:	drivers/iio/temperature/ltc2983.c
 
-LTC4261 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
+LTC4282 HARDWARE MONITOR DRIVER
+M:	Nuno Sa <nuno.sa@analog.com>
 L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/ltc4261.rst
-F:	drivers/hwmon/ltc4261.c
+S:	Supported
+F:	Documentation/devicetree/bindings/hwmon/adi,ltc4282.yaml
+F:	Documentation/hwmon/ltc4282.rst
+F:	drivers/hwmon/ltc4282.c
 
 LTC4286 HARDWARE MONITOR DRIVER
 M:	Delphine CC Chiu <Delphine_CC_Chiu@Wiwynn.com>
@@ -13176,13 +13151,6 @@ S:	Maintained
 F:	Documentation/hwmon/max15301.rst
 F:	drivers/hwmon/pmbus/max15301.c
 
-MAX16065 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/max16065.rst
-F:	drivers/hwmon/max16065.c
-
 MAX2175 SDR TUNER DRIVER
 M:	Ramesh Shanmugasundaram <rashanmu@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -13192,15 +13160,6 @@ F:	Documentation/devicetree/bindings/media/i2c/max2175.txt
 F:	Documentation/userspace-api/media/drivers/max2175.rst
 F:	drivers/media/i2c/max2175*
 F:	include/uapi/linux/max2175.h
-
-MAX31827 TEMPERATURE SWITCH DRIVER
-M:	Daniel Matyas <daniel.matyas@analog.com>
-L:	linux-hwmon@vger.kernel.org
-S:	Supported
-W:	https://ez.analog.com/linux-software-drivers
-F:	Documentation/devicetree/bindings/hwmon/adi,max31827.yaml
-F:	Documentation/hwmon/max31827.rst
-F:	drivers/hwmon/max31827.c
 
 MAX31335 RTC DRIVER
 M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
@@ -13215,15 +13174,6 @@ L:	linux-hwmon@vger.kernel.org
 S:	Orphan
 F:	Documentation/hwmon/max6650.rst
 F:	drivers/hwmon/max6650.c
-
-MAX6697 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/max6697.txt
-F:	Documentation/hwmon/max6697.rst
-F:	drivers/hwmon/max6697.c
-F:	include/linux/platform_data/max6697.h
 
 MAX9286 QUAD GMSL DESERIALIZER DRIVER
 M:	Jacopo Mondi <jacopo+renesas@jmondi.org>
@@ -14630,6 +14580,14 @@ F:	Documentation/driver-api/surface_aggregator/clients/dtx.rst
 F:	drivers/platform/surface/surface_dtx.c
 F:	include/uapi/linux/surface_aggregator/dtx.h
 
+MICROSOFT SURFACE SENSOR FAN DRIVER
+M:	Maximilian Luz <luzmaximilian@gmail.com>
+M:	Ivor Wanders <ivor@iwanders.net>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/surface_fan.rst
+F:	drivers/hwmon/surface_fan.c
+
 MICROSOFT SURFACE GPE LID SUPPORT DRIVER
 M:	Maximilian Luz <luzmaximilian@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
@@ -15133,15 +15091,6 @@ NCSI LIBRARY
 M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
 S:	Maintained
 F:	net/ncsi/
-
-NCT6775 HARDWARE MONITOR DRIVER - CORE & PLATFORM DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/hwmon/nct6775.rst
-F:	drivers/hwmon/nct6775-core.c
-F:	drivers/hwmon/nct6775-platform.c
-F:	drivers/hwmon/nct6775.h
 
 NCT6775 HARDWARE MONITOR DRIVER - I2C DRIVER
 M:	Zev Weiss <zev@bewilderbeest.net>
@@ -15897,6 +15846,14 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/nzxt-kraken2.rst
 F:	drivers/hwmon/nzxt-kraken2.c
+
+NZXT-KRAKEN3 HARDWARE MONITORING DRIVER
+M:	Jonas Malaco <jonas@protocubo.io>
+M:	Aleksa Savic <savicaleksa83@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/nzxt-kraken3.rst
+F:	drivers/hwmon/nzxt-kraken3.c
 
 NZXT-SMART2 HARDWARE MONITORING DRIVER
 M:	Aleksandr Mezin <mezin.alexander@gmail.com>
@@ -17490,35 +17447,6 @@ S:	Maintained
 F:	Documentation/hwmon/pm6764tr.rst
 F:	drivers/hwmon/pmbus/pm6764tr.c
 
-PMBUS HARDWARE MONITORING DRIVERS
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-W:	http://hwmon.wiki.kernel.org/
-W:	http://www.roeck-us.net/linux/drivers/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
-F:	Documentation/devicetree/bindings/hwmon/ltc2978.txt
-F:	Documentation/devicetree/bindings/hwmon/max31785.txt
-F:	Documentation/hwmon/adm1275.rst
-F:	Documentation/hwmon/ibm-cffps.rst
-F:	Documentation/hwmon/ir35221.rst
-F:	Documentation/hwmon/lm25066.rst
-F:	Documentation/hwmon/ltc2978.rst
-F:	Documentation/hwmon/ltc3815.rst
-F:	Documentation/hwmon/max16064.rst
-F:	Documentation/hwmon/max20751.rst
-F:	Documentation/hwmon/max31785.rst
-F:	Documentation/hwmon/max34440.rst
-F:	Documentation/hwmon/max8688.rst
-F:	Documentation/hwmon/pmbus-core.rst
-F:	Documentation/hwmon/pmbus.rst
-F:	Documentation/hwmon/tps40422.rst
-F:	Documentation/hwmon/ucd9000.rst
-F:	Documentation/hwmon/ucd9200.rst
-F:	Documentation/hwmon/zl6100.rst
-F:	drivers/hwmon/pmbus/
-F:	include/linux/pmbus.h
-
 PMC SIERRA MaxRAID DRIVER
 L:	linux-scsi@vger.kernel.org
 S:	Orphan
@@ -17739,6 +17667,13 @@ F:	drivers/firmware/efi/efi-pstore.c
 F:	fs/pstore/
 F:	include/linux/pstore*
 K:	\b(pstore|ramoops)
+
+PT5161L HARDWARE MONITOR DRIVER
+M:	Cosmo Chou <cosmo.chou@quantatw.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/pt5161l.rst
+F:	drivers/hwmon/pt5161l.c
 
 PTP HARDWARE CLOCK SUPPORT
 M:	Richard Cochran <richardcochran@gmail.com>
@@ -22226,22 +22161,6 @@ S:	Supported
 F:	drivers/mmc/host/renesas_sdhi*
 F:	drivers/mmc/host/tmio_mmc*
 F:	include/linux/mfd/tmio.h
-
-TMP401 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/ti,tmp401.yaml
-F:	Documentation/hwmon/tmp401.rst
-F:	drivers/hwmon/tmp401.c
-
-TMP464 HARDWARE MONITOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/hwmon/ti,tmp464.yaml
-F:	Documentation/hwmon/tmp464.rst
-F:	drivers/hwmon/tmp464.c
 
 TMP513 HARDWARE MONITOR DRIVER
 M:	Eric Tremblay <etremblay@distech-controls.com>
