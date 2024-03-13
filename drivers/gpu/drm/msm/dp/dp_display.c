@@ -572,6 +572,7 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 	ret = dp_display_usbpd_configure_cb(&pdev->dev);
 	if (ret) {	/* link train failed */
 		dp->hpd_state = ST_DISCONNECTED;
+		pm_runtime_put_sync(&pdev->dev);
 	} else {
 		dp->hpd_state = ST_MAINLINK_READY;
 	}
