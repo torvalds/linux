@@ -34,6 +34,7 @@ union firmware_info {
 	struct atom_firmware_info_v3_2 v32;
 	struct atom_firmware_info_v3_3 v33;
 	struct atom_firmware_info_v3_4 v34;
+	struct atom_firmware_info_v3_5 v35;
 };
 
 /*
@@ -871,6 +872,10 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
 	case 4:
 		fw_reserved_fb_size =
 			(firmware_info->v34.fw_reserved_size_in_kb << 10);
+		break;
+	case 5:
+		fw_reserved_fb_size =
+			(firmware_info->v35.fw_reserved_size_in_kb << 10);
 		break;
 	default:
 		fw_reserved_fb_size = 0;
