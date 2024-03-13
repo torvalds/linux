@@ -666,7 +666,7 @@ bool xe_device_mem_access_ongoing(struct xe_device *xe)
  */
 void xe_device_assert_mem_access(struct xe_device *xe)
 {
-	XE_WARN_ON(xe_pm_runtime_suspended(xe));
+	xe_assert(xe, !xe_pm_runtime_suspended(xe));
 }
 
 bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)
