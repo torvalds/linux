@@ -3420,8 +3420,11 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	dwc2_hsotg_init_fifo(hsotg);
 
-	if (!is_usb_reset)
+	if (!is_usb_reset) {
 		dwc2_set_bit(hsotg, DCTL, DCTL_SFTDISCON);
+		if (hsotg->params.eusb2_disc)
+			dwc2_set_bit(hsotg, GOTGCTL, GOTGCTL_EUSB2_DISC_SUPP);
+	}
 
 	dcfg |= DCFG_EPMISCNT(1);
 

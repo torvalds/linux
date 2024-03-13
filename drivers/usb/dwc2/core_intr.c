@@ -84,6 +84,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 	u32 gotgint;
 	u32 gotgctl;
 	u32 gintmsk;
+	u32 pcgctl;
 
 	gotgint = dwc2_readl(hsotg, GOTGINT);
 	gotgctl = dwc2_readl(hsotg, GOTGCTL);
@@ -96,8 +97,22 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			dwc2_op_state_str(hsotg));
 		gotgctl = dwc2_readl(hsotg, GOTGCTL);
 
-		if (dwc2_is_device_mode(hsotg))
+		if (dwc2_is_device_mode(hsotg)) {
+			if (hsotg->params.eusb2_disc) {
+				/* Clear the Gate hclk. */
+				pcgctl = dwc2_readl(hsotg, PCGCTL);
+				pcgctl &= ~PCGCTL_GATEHCLK;
+				dwc2_writel(hsotg, pcgctl, PCGCTL);
+				udelay(5);
+
+				/* Clear Phy Clock bit. */
+				pcgctl = dwc2_readl(hsotg, PCGCTL);
+				pcgctl &= ~PCGCTL_STOPPCLK;
+				dwc2_writel(hsotg, pcgctl, PCGCTL);
+				udelay(5);
+			}
 			dwc2_hsotg_disconnect(hsotg);
+		}
 
 		if (hsotg->op_state == OTG_STATE_B_HOST) {
 			hsotg->op_state = OTG_STATE_B_PERIPHERAL;
@@ -117,7 +132,7 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			 * disconnected
 			 */
 			/* Reset to a clean state */
-			hsotg->lx_state = DWC2_L0;
+			hsotg->lx_state = DWC2_L3;
 		}
 
 		gotgctl = dwc2_readl(hsotg, GOTGCTL);
@@ -286,7 +301,7 @@ static void dwc2_handle_session_req_intr(struct dwc2_hsotg *hsotg)
 		hsotg->lx_state);
 
 	if (dwc2_is_device_mode(hsotg)) {
-		if (hsotg->lx_state == DWC2_L2) {
+		if (hsotg->lx_state != DWC2_L0) {
 			if (hsotg->in_ppd) {
 				ret = dwc2_exit_partial_power_down(hsotg, 0,
 								   true);
