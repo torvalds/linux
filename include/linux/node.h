@@ -34,6 +34,18 @@ struct access_coordinate {
 	unsigned int write_latency;
 };
 
+/*
+ * ACCESS_COORDINATE_LOCAL correlates to ACCESS CLASS 0
+ *	- access_coordinate between target node and nearest initiator node
+ * ACCESS_COORDINATE_CPU correlates to ACCESS CLASS 1
+ *	- access_coordinate between target node and nearest CPU node
+ */
+enum access_coordinate_class {
+	ACCESS_COORDINATE_LOCAL,
+	ACCESS_COORDINATE_CPU,
+	ACCESS_COORDINATE_MAX
+};
+
 enum cache_indexing {
 	NODE_CACHE_DIRECT_MAP,
 	NODE_CACHE_INDEXED,
@@ -66,7 +78,7 @@ struct node_cache_attrs {
 #ifdef CONFIG_HMEM_REPORTING
 void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
 void node_set_perf_attrs(unsigned int nid, struct access_coordinate *coord,
-			 unsigned access);
+			 enum access_coordinate_class access);
 #else
 static inline void node_add_cache(unsigned int nid,
 				  struct node_cache_attrs *cache_attrs)
@@ -75,7 +87,7 @@ static inline void node_add_cache(unsigned int nid,
 
 static inline void node_set_perf_attrs(unsigned int nid,
 				       struct access_coordinate *coord,
-				       unsigned access)
+				       enum access_coordinate_class access)
 {
 }
 #endif
@@ -137,7 +149,7 @@ extern void unregister_memory_block_under_nodes(struct memory_block *mem_blk);
 
 extern int register_memory_node_under_compute_node(unsigned int mem_nid,
 						   unsigned int cpu_nid,
-						   unsigned access);
+						   enum access_coordinate_class access);
 #else
 static inline void node_dev_init(void)
 {
