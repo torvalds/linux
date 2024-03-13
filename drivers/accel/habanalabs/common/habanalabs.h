@@ -651,6 +651,8 @@ struct hl_hints_range {
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
  * @reserved_fw_mem_size: size of dram memory reserved for FW.
+ * @fw_event_queue_size: queue size for events from CPU-CP.
+ *                       A value of 0 means using the default HL_EQ_SIZE_IN_BYTES value.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -782,6 +784,7 @@ struct asic_fixed_properties {
 	u32				glbl_err_max_cause_num;
 	u32				hbw_flush_reg;
 	u32				reserved_fw_mem_size;
+	u32				fw_event_queue_size;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -1229,6 +1232,7 @@ struct hl_user_pending_interrupt {
  * @hdev: pointer to the device structure
  * @kernel_address: holds the queue's kernel virtual address
  * @bus_address: holds the queue's DMA address
+ * @size: the event queue size
  * @ci: ci inside the queue
  * @prev_eqe_index: the index of the previous event queue entry. The index of
  *                  the current entry's index must be +1 of the previous one.
@@ -1240,6 +1244,7 @@ struct hl_eq {
 	struct hl_device	*hdev;
 	void			*kernel_address;
 	dma_addr_t		bus_address;
+	u32			size;
 	u32			ci;
 	u32			prev_eqe_index;
 	bool			check_eqe_index;

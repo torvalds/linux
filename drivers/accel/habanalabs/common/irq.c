@@ -652,14 +652,16 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
  */
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
+	u32 size = hdev->asic_prop.fw_event_queue_size ? : HL_EQ_SIZE_IN_BYTES;
 	void *p;
 
-	p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_EQ_SIZE_IN_BYTES, &q->bus_address);
+	p = hl_cpu_accessible_dma_pool_alloc(hdev, size, &q->bus_address);
 	if (!p)
 		return -ENOMEM;
 
 	q->hdev = hdev;
 	q->kernel_address = p;
+	q->size = size;
 	q->ci = 0;
 	q->prev_eqe_index = 0;
 
@@ -678,7 +680,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 {
 	flush_workqueue(hdev->eq_wq);
 
-	hl_cpu_accessible_dma_pool_free(hdev, HL_EQ_SIZE_IN_BYTES, q->kernel_address);
+	hl_cpu_accessible_dma_pool_free(hdev, q->size, q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
@@ -693,5 +695,5 @@ void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 	 * when the device is operational again
 	 */
 
-	memset(q->kernel_address, 0, HL_EQ_SIZE_IN_BYTES);
+	memset(q->kernel_address, 0, q->size);
 }
