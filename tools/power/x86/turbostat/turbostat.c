@@ -251,11 +251,8 @@ char *output_buffer, *outp;
 unsigned int do_dts;
 unsigned int do_ptm;
 unsigned int do_ipc;
-unsigned long long gfx_cur_rc6_ms;
 unsigned long long cpuidle_cur_cpu_lpi_us;
 unsigned long long cpuidle_cur_sys_lpi_us;
-unsigned int gfx_cur_mhz;
-unsigned int gfx_act_mhz;
 unsigned int tj_max;
 unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
@@ -285,6 +282,9 @@ enum gfx_sysfs_idx {
 
 struct gfx_sysfs_info {
 	const char *path;
+	FILE *fp;
+	unsigned int val;
+	unsigned long long val_ull;
 };
 
 static struct gfx_sysfs_info gfx_info[GFX_MAX];
@@ -3573,17 +3573,17 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	}
 
 	if (DO_BIC(BIC_GFX_rc6))
-		p->gfx_rc6_ms = gfx_cur_rc6_ms;
+		p->gfx_rc6_ms = gfx_info[GFX_rc6].val_ull;
 
 	/* n.b. assume die0 uncore frequency applies to whole package */
 	if (DO_BIC(BIC_UNCORE_MHZ))
 		p->uncore_mhz = get_uncore_mhz(p->package_id, 0);
 
 	if (DO_BIC(BIC_GFXMHz))
-		p->gfx_mhz = gfx_cur_mhz;
+		p->gfx_mhz = gfx_info[GFX_MHz].val;
 
 	if (DO_BIC(BIC_GFXACTMHz))
-		p->gfx_act_mhz = gfx_act_mhz;
+		p->gfx_act_mhz = gfx_info[GFX_ACTMHz].val;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (get_mp(cpu, mp, &p->counter[i]))
@@ -4621,81 +4621,40 @@ int snapshot_proc_interrupts(void)
 }
 
 /*
- * snapshot_gfx_rc6_ms()
+ * snapshot_graphics()
  *
- * record snapshot of
- * /sys/class/drm/card0/power/rc6_residency_ms
+ * record snapshot of specified graphics sysfs knob
  *
  * return 1 if config change requires a restart, else return 0
  */
-int snapshot_gfx_rc6_ms(void)
+int snapshot_graphics(int idx)
 {
 	FILE *fp;
 	int retval;
 
-	fp = fopen_or_die(gfx_info[GFX_rc6].path, "r");
-
-	retval = fscanf(fp, "%lld", &gfx_cur_rc6_ms);
-	if (retval != 1)
-		err(1, "GFX rc6");
-
-	fclose(fp);
-
-	return 0;
-}
-
-/*
- * snapshot_gfx_mhz()
- *
- * fall back to /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz
- * when /sys/class/drm/card0/gt_cur_freq_mhz is not available.
- *
- * return 1 if config change requires a restart, else return 0
- */
-int snapshot_gfx_mhz(void)
-{
-	static FILE *fp;
-	int retval;
-
-	if (fp == NULL) {
-		fp = fopen_or_die(gfx_info[GFX_MHz].path, "r");
-	} else {
-		rewind(fp);
-		fflush(fp);
+	switch (idx) {
+	case GFX_rc6:
+		fp = fopen_or_die(gfx_info[idx].path, "r");
+		retval = fscanf(fp, "%lld", &gfx_info[idx].val_ull);
+		if (retval != 1)
+			err(1, "rc6");
+		fclose(fp);
+		return 0;
+	case GFX_MHz:
+	case GFX_ACTMHz:
+		if (gfx_info[idx].fp == NULL) {
+			gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
+		} else {
+			rewind(gfx_info[idx].fp);
+			fflush(gfx_info[idx].fp);
+		}
+		retval = fscanf(gfx_info[idx].fp, "%d", &gfx_info[idx].val);
+		if (retval != 1)
+			err(1, "MHz");
+		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	retval = fscanf(fp, "%d", &gfx_cur_mhz);
-	if (retval != 1)
-		err(1, "GFX MHz");
-
-	return 0;
-}
-
-/*
- * snapshot_gfx_cur_mhz()
- *
- * fall back to /sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz
- * when /sys/class/drm/card0/gt_act_freq_mhz is not available.
- *
- * return 1 if config change requires a restart, else return 0
- */
-int snapshot_gfx_act_mhz(void)
-{
-	static FILE *fp;
-	int retval;
-
-	if (fp == NULL) {
-		fp = fopen_or_die(gfx_info[GFX_ACTMHz].path, "r");
-	} else {
-		rewind(fp);
-		fflush(fp);
-	}
-
-	retval = fscanf(fp, "%d", &gfx_act_mhz);
-	if (retval != 1)
-		err(1, "GFX ACT MHz");
-
-	return 0;
 }
 
 /*
@@ -4760,13 +4719,13 @@ int snapshot_proc_sysfs_files(void)
 			return 1;
 
 	if (DO_BIC(BIC_GFX_rc6))
-		snapshot_gfx_rc6_ms();
+		snapshot_graphics(GFX_rc6);
 
 	if (DO_BIC(BIC_GFXMHz))
-		snapshot_gfx_mhz();
+		snapshot_graphics(GFX_MHz);
 
 	if (DO_BIC(BIC_GFXACTMHz))
-		snapshot_gfx_act_mhz();
+		snapshot_graphics(GFX_ACTMHz);
 
 	if (DO_BIC(BIC_CPU_LPI))
 		snapshot_cpu_lpi_us();
