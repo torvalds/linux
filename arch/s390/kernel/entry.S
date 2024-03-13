@@ -119,8 +119,8 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)
-	.macro SIEEXIT
-	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
+	.macro SIEEXIT sie_control
+	lg	%r9,\sie_control		# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
 	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
@@ -316,21 +316,13 @@ SYM_CODE_START(pgm_check_handler)
 	stpt	__LC_SYS_ENTER_TIMER
 	BPOFF
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
-	lghi	%r10,0
+	lgr	%r10,%r15
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	tmhh	%r8,0x0001		# coming from user space?
 	jno	.Lpgm_skip_asce
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
-#if IS_ENABLED(CONFIG_KVM)
-	# cleanup critical section for program checks in __sie64a
-	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
-	jz	1f
-	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT
-	lghi	%r10,_PIF_GUEST_FAULT
-#endif
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
@@ -341,13 +333,20 @@ SYM_CODE_START(pgm_check_handler)
 	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,4f
 3:	lg	%r15,__LC_KERNEL_STACK
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	stg	%r10,__PT_FLAGS(%r11)
+	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK
-	stmg	%r8,%r9,__PT_PSW(%r11)
-
+	stctg	%c1,%c1,__PT_CR1(%r11)
+#if IS_ENABLED(CONFIG_KVM)
+	lg	%r12,__LC_GMAP
+	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
+	jne	5f
+	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
+	SIEEXIT __SF_SIE_CONTROL(%r10)
+#endif
+5:	stmg	%r8,%r9,__PT_PSW(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
 	xgr	%r1,%r1
@@ -399,7 +398,7 @@ SYM_CODE_START(\name)
 	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
 	jz	0f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT
+	SIEEXIT __SF_SIE_CONTROL(%r15)
 #endif
 0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
@@ -507,7 +506,7 @@ SYM_CODE_START(mcck_int_handler)
 	clgrjhe	%r9,%r14, 4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 4:	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT
+	SIEEXIT __SF_SIE_CONTROL(%r15)
 #endif
 .Lmcck_user:
 	lg	%r15,__LC_MCCK_STACK
