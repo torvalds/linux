@@ -63,7 +63,6 @@
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
 #include <linux/nospec.h>
-#include <linux/highmem.h>
 #include <linux/fsnotify.h>
 #include <linux/fadvise.h>
 #include <linux/task_work.h>
@@ -2657,7 +2656,7 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 	struct page **page_array;
 	unsigned int nr_pages;
 	void *page_addr;
-	int ret, i, pinned;
+	int ret, pinned;
 
 	*npages = 0;
 
@@ -2679,34 +2678,13 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 		goto free_pages;
 	}
 
-	page_addr = page_address(page_array[0]);
-	for (i = 0; i < nr_pages; i++) {
-		ret = -EINVAL;
-
-		/*
-		 * Can't support mapping user allocated ring memory on 32-bit
-		 * archs where it could potentially reside in highmem. Just
-		 * fail those with -EINVAL, just like we did on kernels that
-		 * didn't support this feature.
-		 */
-		if (PageHighMem(page_array[i]))
-			goto free_pages;
-
-		/*
-		 * No support for discontig pages for now, should either be a
-		 * single normal page, or a huge page. Later on we can add
-		 * support for remapping discontig pages, for now we will
-		 * just fail them with EINVAL.
-		 */
-		if (page_address(page_array[i]) != page_addr)
-			goto free_pages;
-		page_addr += PAGE_SIZE;
+	page_addr = vmap(page_array, nr_pages, VM_MAP, PAGE_KERNEL);
+	if (page_addr) {
+		*pages = page_array;
+		*npages = nr_pages;
+		return page_addr;
 	}
-
-	*pages = page_array;
-	*npages = nr_pages;
-	return page_to_virt(page_array[0]);
-
+	ret = -ENOMEM;
 free_pages:
 	io_pages_free(&page_array, pinned > 0 ? pinned : 0);
 	return ERR_PTR(ret);
@@ -2736,6 +2714,8 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 		ctx->n_ring_pages = 0;
 		io_pages_free(&ctx->sqe_pages, ctx->n_sqe_pages);
 		ctx->n_sqe_pages = 0;
+		vunmap(ctx->rings);
+		vunmap(ctx->sq_sqes);
 	}
 
 	ctx->rings = NULL;
