@@ -7682,6 +7682,19 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
+	/* enable interrupt */
+	if (priv->plat->phy_intr_en_extn_stm) {
+		priv->phydev->irq = PHY_MAC_INTERRUPT;
+		priv->phydev->interrupts =  PHY_INTERRUPT_ENABLED;
+
+		if (priv->phydev->drv &&
+		    priv->phydev->drv->config_intr &&
+		    !priv->phydev->drv->config_intr(priv->phydev)) {
+			pr_debug("qcom-ethqos: %s config_phy_intr successful aftre connect\n",
+				 __func__);
+		}
+	}
+
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
