@@ -2800,7 +2800,7 @@ static int __init nvme_tcp_init_module(void)
 	BUILD_BUG_ON(sizeof(struct nvme_tcp_term_pdu) != 24);
 
 	nvme_tcp_wq = alloc_workqueue("nvme_tcp_wq",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_SYSFS, 0);
 	if (!nvme_tcp_wq)
 		return -ENOMEM;
 
