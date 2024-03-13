@@ -2696,13 +2696,9 @@ void io_mem_free(void *ptr)
 
 static void io_pages_free(struct page ***pages, int npages)
 {
-	struct page **page_array;
+	struct page **page_array = *pages;
 	int i;
 
-	if (!pages)
-		return;
-
-	page_array = *pages;
 	if (!page_array)
 		return;
 
