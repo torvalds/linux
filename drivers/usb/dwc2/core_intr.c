@@ -705,6 +705,11 @@ static inline void dwc_handle_gpwrdn_disc_det(struct dwc2_hsotg *hsotg,
 	gpwrdn_tmp &= ~GPWRDN_PMUINTSEL;
 	dwc2_writel(hsotg, gpwrdn_tmp, GPWRDN);
 
+	/* Reset ULPI latch */
+	gpwrdn = dwc2_readl(hsotg, GPWRDN);
+	gpwrdn &= ~GPWRDN_ULPI_LATCH_EN_DURING_HIB_ENTRY;
+	dwc2_writel(hsotg, gpwrdn, GPWRDN);
+
 	/* De-assert Wakeup Logic */
 	gpwrdn_tmp = dwc2_readl(hsotg, GPWRDN);
 	gpwrdn_tmp &= ~GPWRDN_PMUACTV;
