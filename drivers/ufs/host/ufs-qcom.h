@@ -621,7 +621,6 @@ struct ufs_qcom_host {
 	atomic_t therm_mitigation;
 	cpumask_t perf_mask;
 	cpumask_t def_mask;
-	cpumask_t esi_affinity_mask;
 	cpumask_t cluster_mask[MAX_NUM_CLUSTERS];
 	bool disable_wb_support;
 	struct ufs_qcom_ber_hist ber_hist[UFS_QCOM_BER_MODE_MAX];
