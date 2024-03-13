@@ -3,7 +3,7 @@
  * Copyright (c) 2011, 2013-2021, The Linux Foundation. All rights reserved.
  * Linux Foundation chooses to take subject only to the GPLv2 license terms,
  * and distributes only under these terms.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This code also borrows from drivers/usb/gadget/u_serial.c, which is
  * Copyright (C) 2000 - 2003 Al Borchers (alborchers@steinerpoint.com)
@@ -975,18 +975,21 @@ static void usb_cser_read_complete(struct usb_ep *ep, struct usb_request *req)
 
 	if (req->status || !req->actual) {
 		/*
-		 * ECONNRESET/EPIPE can be returned when host issues clear
+		 * EPIPE can be returned when host issues clear
 		 * EP halt, restart OUT requests if so.
 		 */
-		if (req->status == -ECONNRESET ||
-		    req->status == -EPIPE) {
+		if (req->status == -EPIPE) {
 			spin_unlock_irqrestore(&port->port_lock, flags);
 			ret = usb_ep_queue(ep, req, GFP_KERNEL);
 			if (!ret)
 				return;
 			spin_lock_irqsave(&port->port_lock, flags);
 		}
-
+		/*
+		 * ECONNRESET is returned when the requests are dequeued
+		 * (one reason being send_gadget_ep_cmd failure), add the
+		 * requests back to read_pool so that it can requeued.
+		 */
 		list_add_tail(&req->list, &port->read_pool);
 		spin_unlock_irqrestore(&port->port_lock, flags);
 		return;
