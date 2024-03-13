@@ -704,27 +704,61 @@ config THREAD_SIZE_ORDER
 	  affects irq stack size, which is equal to thread stack size.
 
 config RISCV_MISALIGNED
-	bool "Support misaligned load/store traps for kernel and userspace"
+	bool
 	select SYSCTL_ARCH_UNALIGN_ALLOW
-	default y
 	help
-	  Say Y here if you want the kernel to embed support for misaligned
-	  load/store for both kernel and userspace. When disable, misaligned
-	  accesses will generate SIGBUS in userspace and panic in kernel.
+	  Embed support for emulating misaligned loads and stores.
+
+choice
+	prompt "Unaligned Accesses Support"
+	default RISCV_PROBE_UNALIGNED_ACCESS
+	help
+	  This determines the level of support for unaligned accesses. This
+	  information is used by the kernel to perform optimizations. It is also
+	  exposed to user space via the hwprobe syscall. The hardware will be
+	  probed at boot by default.
+
+config RISCV_PROBE_UNALIGNED_ACCESS
+	bool "Probe for hardware unaligned access support"
+	select RISCV_MISALIGNED
+	help
+	  During boot, the kernel will run a series of tests to determine the
+	  speed of unaligned accesses. This probing will dynamically determine
+	  the speed of unaligned accesses on the underlying system. If unaligned
+	  memory accesses trap into the kernel as they are not supported by the
+	  system, the kernel will emulate the unaligned accesses to preserve the
+	  UABI.
+
+config RISCV_EMULATED_UNALIGNED_ACCESS
+	bool "Emulate unaligned access where system support is missing"
+	select RISCV_MISALIGNED
+	help
+	  If unaligned memory accesses trap into the kernel as they are not
+	  supported by the system, the kernel will emulate the unaligned
+	  accesses to preserve the UABI. When the underlying system does support
+	  unaligned accesses, the unaligned accesses are assumed to be slow.
+
+config RISCV_SLOW_UNALIGNED_ACCESS
+	bool "Assume the system supports slow unaligned memory accesses"
+	depends on NONPORTABLE
+	help
+	  Assume that the system supports slow unaligned memory accesses. The
+	  kernel and userspace programs may not be able to run at all on systems
+	  that do not support unaligned memory accesses.
 
 config RISCV_EFFICIENT_UNALIGNED_ACCESS
-	bool "Assume the CPU supports fast unaligned memory accesses"
+	bool "Assume the system supports fast unaligned memory accesses"
 	depends on NONPORTABLE
 	select DCACHE_WORD_ACCESS if MMU
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	help
-	  Say Y here if you want the kernel to assume that the CPU supports
-	  efficient unaligned memory accesses.  When enabled, this option
-	  improves the performance of the kernel on such CPUs.  However, the
-	  kernel will run much more slowly, or will not be able to run at all,
-	  on CPUs that do not support efficient unaligned memory accesses.
+	  Assume that the system supports fast unaligned memory accesses. When
+	  enabled, this option improves the performance of the kernel on such
+	  systems. However, the kernel and userspace programs will run much more
+	  slowly, or will not be able to run at all, on systems that do not
+	  support efficient unaligned memory accesses.
 
-	  If unsure what to do here, say N.
+endchoice
 
 endmenu # "Platform type"
 
