@@ -161,6 +161,8 @@ Command	    Function
             will be printed to your console. (``0``, for example would make
             it so that only emergency messages like PANICs or OOPSes would
             make it to your console.)
+
+``R``	    Replay the kernel log messages on consoles.
 =========== ===================================================================
 
 Okay, so what can I use them for?
@@ -210,6 +212,13 @@ processes.
 
 "just thaw ``it(j)``" is useful if your system becomes unresponsive due to a
 frozen (probably root) filesystem via the FIFREEZE ioctl.
+
+``Replay logs(R)`` is useful to view the kernel log messages when system is hung
+or you are not able to use dmesg command to view the messages in printk buffer.
+User may have to press the key combination multiple times if console system is
+busy. If it is completely locked up, then messages won't be printed. Output
+messages depend on current console loglevel, which can be modified using
+sysrq[0-9] (see above).
 
 Sometimes SysRq seems to get 'stuck' after using it, what can I do?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
