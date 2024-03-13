@@ -19,6 +19,7 @@
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
 #include "common.h"
+#include "gdsc.h"
 #include "reset.h"
 
 enum {
@@ -3202,6 +3203,84 @@ static struct clk_branch gcc_video_xo_clk = {
 	},
 };
 
+static struct gdsc gcc_camss_top_gdsc = {
+	.gdscr = 0x58004,
+	.pd = {
+		.name = "camss_top_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc gcc_ufs_phy_gdsc = {
+	.gdscr = 0x45004,
+	.pd = {
+		.name = "ufs_phy_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc gcc_usb30_prim_gdsc = {
+	.gdscr = 0x1a004,
+	.pd = {
+		.name = "usb30_prim_gdsc",
+	},
+	/* TODO: Change to OFF_ON when USB drivers get proper suspend support */
+	.pwrsts = PWRSTS_RET_ON,
+};
+
+static struct gdsc gcc_vcodec0_gdsc = {
+	.gdscr = 0x58098,
+	.pd = {
+		.name = "vcodec0_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = HW_CTRL,
+};
+
+static struct gdsc gcc_venus_gdsc = {
+	.gdscr = 0x5807c,
+	.pd = {
+		.name = "venus_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc hlos1_vote_turing_mmu_tbu1_gdsc = {
+	.gdscr = 0x7d060,
+	.pd = {
+		.name = "hlos1_vote_turing_mmu_tbu1_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_turing_mmu_tbu0_gdsc = {
+	.gdscr = 0x7d07c,
+	.pd = {
+		.name = "hlos1_vote_turing_mmu_tbu0_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc = {
+	.gdscr = 0x7d074,
+	.pd = {
+		.name = "hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc = {
+	.gdscr = 0x7d078,
+	.pd = {
+		.name = "hlos1_vote_mm_snoc_mmu_tbu_nrt_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
 static struct clk_regmap *gcc_sm6225_clocks[] = {
 	[GCC_AHB2PHY_CSI_CLK] = &gcc_ahb2phy_csi_clk.clkr,
 	[GCC_AHB2PHY_USB_CLK] = &gcc_ahb2phy_usb_clk.clkr,
@@ -3366,6 +3445,18 @@ static struct clk_regmap *gcc_sm6225_clocks[] = {
 	[GPLL9_OUT_MAIN] = &gpll9_out_main.clkr,
 };
 
+static struct gdsc *gcc_sm6115_gdscs[] = {
+	[GCC_CAMSS_TOP_GDSC] = &gcc_camss_top_gdsc,
+	[GCC_UFS_PHY_GDSC] = &gcc_ufs_phy_gdsc,
+	[GCC_USB30_PRIM_GDSC] = &gcc_usb30_prim_gdsc,
+	[GCC_VCODEC0_GDSC] = &gcc_vcodec0_gdsc,
+	[GCC_VENUS_GDSC] = &gcc_venus_gdsc,
+	[HLOS1_VOTE_TURING_MMU_TBU1_GDSC] = &hlos1_vote_turing_mmu_tbu1_gdsc,
+	[HLOS1_VOTE_TURING_MMU_TBU0_GDSC] = &hlos1_vote_turing_mmu_tbu0_gdsc,
+	[HLOS1_VOTE_MM_SNOC_MMU_TBU_RT_GDSC] = &hlos1_vote_mm_snoc_mmu_tbu_rt_gdsc,
+	[HLOS1_VOTE_MM_SNOC_MMU_TBU_NRT_GDSC] = &hlos1_vote_mm_snoc_mmu_tbu_nrt_gdsc,
+};
+
 static const struct qcom_reset_map gcc_sm6225_resets[] = {
 	[GCC_QUSB2PHY_PRIM_BCR] = { 0x1c000 },
 	[GCC_QUSB2PHY_SEC_BCR] = { 0x1c004 },
@@ -3406,6 +3497,8 @@ static const struct qcom_cc_desc gcc_sm6225_desc = {
 	.num_clks = ARRAY_SIZE(gcc_sm6225_clocks),
 	.resets = gcc_sm6225_resets,
 	.num_resets = ARRAY_SIZE(gcc_sm6225_resets),
+	.gdscs = cam_cc_sm6225_gdscs,
+	.num_gdscs = ARRAY_SIZE(cam_cc_sm6225_gdscs),
 };
 
 static const struct of_device_id gcc_sm6225_match_table[] = {
