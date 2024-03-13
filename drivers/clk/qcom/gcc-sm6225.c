@@ -44,260 +44,6 @@ enum {
 	P_USB3_PHY_WRAPPER_GCC_USB30_PIPE_CLK,
 };
 
-static const struct parent_map gcc_parent_map_0[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-};
-
-static const char * const gcc_parent_names_0[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-};
-
-static const struct parent_map gcc_parent_map_1[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_GPLL6_OUT_EVEN, 4 },
-};
-
-static const char * const gcc_parent_names_1[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"gpll6_out_even",
-};
-
-static const struct parent_map gcc_parent_map_2[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_SLEEP_CLK, 5 },
-};
-
-static const char * const gcc_parent_names_2[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"sleep_clk",
-};
-
-static const struct parent_map gcc_parent_map_3[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL9_OUT_EARLY, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_EVEN, 6 },
-};
-
-static const char * const gcc_parent_names_3[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll9",
-	"gpll10",
-	"gpll9_out_main",
-	"gpll3_out_even",
-};
-
-static const struct parent_map gcc_parent_map_4[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_GPLL4_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_EVEN, 6 },
-};
-
-static const char * const gcc_parent_names_4[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"gpll4",
-	"gpll3_out_even",
-};
-
-static const struct parent_map gcc_parent_map_5[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL8_OUT_MAIN, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL8_OUT_EVEN, 4 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_EVEN, 6 },
-};
-
-static const char * const gcc_parent_names_5[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll8",
-	"gpll10",
-	"gpll8_out_even",
-	"gpll9_out_main",
-	"gpll3_out_even",
-};
-
-static const struct parent_map gcc_parent_map_6[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL8_OUT_MAIN, 2 },
-	{ P_GPLL5_OUT_MAIN, 3 },
-	{ P_GPLL6_OUT_EVEN, 4 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_MAIN, 6 },
-};
-
-static const char * const gcc_parent_names_6[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll8",
-	"gpll5",
-	"gpll6_out_even",
-	"gpll9_out_main",
-	"gpll3",
-};
-
-static const struct parent_map gcc_parent_map_7[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL4_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_MAIN, 6 },
-};
-
-static const char * const gcc_parent_names_7[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"gpll10",
-	"gpll4",
-	"gpll3",
-};
-
-static const struct parent_map gcc_parent_map_8[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL8_OUT_MAIN, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL8_OUT_EVEN, 4 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_MAIN, 6 },
-};
-
-static const char * const gcc_parent_names_8[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll8",
-	"gpll10",
-	"gpll8_out_even",
-	"gpll9_out_main",
-	"gpll3",
-};
-
-static const struct parent_map gcc_parent_map_9[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL8_OUT_EVEN, 4 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_MAIN, 6 },
-};
-
-static const char * const gcc_parent_names_9[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"gpll10",
-	"gpll8_out_even",
-	"gpll9_out_main",
-	"gpll3",
-};
-
-static const struct parent_map gcc_parent_map_10[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL8_OUT_MAIN, 2 },
-	{ P_GPLL10_OUT_MAIN, 3 },
-	{ P_GPLL6_OUT_MAIN, 4 },
-	{ P_GPLL9_OUT_MAIN, 5 },
-	{ P_GPLL3_OUT_EVEN, 6 },
-};
-
-static const char * const gcc_parent_names_10[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll8",
-	"gpll10",
-	"gpll6",
-	"gpll9_out_main",
-	"gpll3_out_even",
-};
-
-static const struct parent_map gcc_parent_map_11[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL0_OUT_EVEN, 2 },
-	{ P_GPLL7_OUT_MAIN, 3 },
-	{ P_GPLL4_OUT_MAIN, 5 },
-};
-
-static const char * const gcc_parent_names_11[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll0_out_even",
-	"gpll7",
-	"gpll4",
-};
-
-static const struct parent_map gcc_parent_map_12[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_SLEEP_CLK, 5 },
-};
-
-static const char * const gcc_parent_names_12[] = {
-	"bi_tcxo",
-	"sleep_clk",
-};
-
-static const struct parent_map gcc_parent_map_13[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL11_OUT_MAIN, 1 },
-	{ P_GPLL11_OUT_EVEN, 2 },
-	{ P_GPLL11_OUT_ODD, 3 },
-};
-
-static const char * const gcc_parent_names_13[] = {
-	"bi_tcxo",
-	"gpll11",
-	"gpll11",
-	"gpll11",
-};
-
-static const struct parent_map gcc_parent_map_14[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL6_OUT_EVEN, 4 },
-};
-
-static const char * const gcc_parent_names_14[] = {
-	"bi_tcxo",
-	"gpll0",
-	"gpll6_out_even",
-};
-
-static const struct parent_map gcc_parent_map_15[] = {
-	{ P_USB3_PHY_WRAPPER_GCC_USB30_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const char * const gcc_parent_names_15[] = {
-	"usb3_phy_wrapper_gcc_usb30_pipe_clk",
-	"bi_tcxo",
-};
-
 static struct pll_vco lucid_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
@@ -675,6 +421,260 @@ static struct clk_regmap_div gcc_usb30_prim_mock_utmi_postdiv_clk_src = {
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_regmap_div_ro_ops,
 	},
+};
+
+static const struct parent_map gcc_parent_map_0[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+};
+
+static const char * const gcc_parent_names_0[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+};
+
+static const struct parent_map gcc_parent_map_1[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_GPLL6_OUT_EVEN, 4 },
+};
+
+static const char * const gcc_parent_names_1[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"gpll6_out_even",
+};
+
+static const struct parent_map gcc_parent_map_2[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_SLEEP_CLK, 5 },
+};
+
+static const char * const gcc_parent_names_2[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"sleep_clk",
+};
+
+static const struct parent_map gcc_parent_map_3[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL9_OUT_EARLY, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_EVEN, 6 },
+};
+
+static const char * const gcc_parent_names_3[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll9",
+	"gpll10",
+	"gpll9_out_main",
+	"gpll3_out_even",
+};
+
+static const struct parent_map gcc_parent_map_4[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_GPLL4_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_EVEN, 6 },
+};
+
+static const char * const gcc_parent_names_4[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"gpll4",
+	"gpll3_out_even",
+};
+
+static const struct parent_map gcc_parent_map_5[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL8_OUT_MAIN, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL8_OUT_EVEN, 4 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_EVEN, 6 },
+};
+
+static const char * const gcc_parent_names_5[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll8",
+	"gpll10",
+	"gpll8_out_even",
+	"gpll9_out_main",
+	"gpll3_out_even",
+};
+
+static const struct parent_map gcc_parent_map_6[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL8_OUT_MAIN, 2 },
+	{ P_GPLL5_OUT_MAIN, 3 },
+	{ P_GPLL6_OUT_EVEN, 4 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_MAIN, 6 },
+};
+
+static const char * const gcc_parent_names_6[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll8",
+	"gpll5",
+	"gpll6_out_even",
+	"gpll9_out_main",
+	"gpll3",
+};
+
+static const struct parent_map gcc_parent_map_7[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL4_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_MAIN, 6 },
+};
+
+static const char * const gcc_parent_names_7[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"gpll10",
+	"gpll4",
+	"gpll3",
+};
+
+static const struct parent_map gcc_parent_map_8[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL8_OUT_MAIN, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL8_OUT_EVEN, 4 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_MAIN, 6 },
+};
+
+static const char * const gcc_parent_names_8[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll8",
+	"gpll10",
+	"gpll8_out_even",
+	"gpll9_out_main",
+	"gpll3",
+};
+
+static const struct parent_map gcc_parent_map_9[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL8_OUT_EVEN, 4 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_MAIN, 6 },
+};
+
+static const char * const gcc_parent_names_9[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"gpll10",
+	"gpll8_out_even",
+	"gpll9_out_main",
+	"gpll3",
+};
+
+static const struct parent_map gcc_parent_map_10[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL8_OUT_MAIN, 2 },
+	{ P_GPLL10_OUT_MAIN, 3 },
+	{ P_GPLL6_OUT_MAIN, 4 },
+	{ P_GPLL9_OUT_MAIN, 5 },
+	{ P_GPLL3_OUT_EVEN, 6 },
+};
+
+static const char * const gcc_parent_names_10[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll8",
+	"gpll10",
+	"gpll6",
+	"gpll9_out_main",
+	"gpll3_out_even",
+};
+
+static const struct parent_map gcc_parent_map_11[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL0_OUT_EVEN, 2 },
+	{ P_GPLL7_OUT_MAIN, 3 },
+	{ P_GPLL4_OUT_MAIN, 5 },
+};
+
+static const char * const gcc_parent_names_11[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll0_out_even",
+	"gpll7",
+	"gpll4",
+};
+
+static const struct parent_map gcc_parent_map_12[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_SLEEP_CLK, 5 },
+};
+
+static const char * const gcc_parent_names_12[] = {
+	"bi_tcxo",
+	"sleep_clk",
+};
+
+static const struct parent_map gcc_parent_map_13[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL11_OUT_MAIN, 1 },
+	{ P_GPLL11_OUT_EVEN, 2 },
+	{ P_GPLL11_OUT_ODD, 3 },
+};
+
+static const char * const gcc_parent_names_13[] = {
+	"bi_tcxo",
+	"gpll11",
+	"gpll11",
+	"gpll11",
+};
+
+static const struct parent_map gcc_parent_map_14[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_GPLL6_OUT_EVEN, 4 },
+};
+
+static const char * const gcc_parent_names_14[] = {
+	"bi_tcxo",
+	"gpll0",
+	"gpll6_out_even",
+};
+
+static const struct parent_map gcc_parent_map_15[] = {
+	{ P_USB3_PHY_WRAPPER_GCC_USB30_PIPE_CLK, 0 },
+	{ P_BI_TCXO, 2 },
+};
+
+static const char * const gcc_parent_names_15[] = {
+	"usb3_phy_wrapper_gcc_usb30_pipe_clk",
+	"bi_tcxo",
 };
 
 static const struct freq_tbl ftbl_gcc_camss_axi_clk_src[] = {
