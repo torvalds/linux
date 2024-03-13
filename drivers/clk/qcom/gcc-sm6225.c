@@ -22,6 +22,12 @@
 #include "reset.h"
 
 enum {
+	DT_BI_TCXO,
+	DT_BI_TCXO_AO,
+	DT_SLEEP_CLK
+};
+
+enum {
 	P_BI_TCXO,
 	P_GPLL0_OUT_EVEN,
 	P_GPLL0_OUT_MAIN,
@@ -61,7 +67,7 @@ static struct clk_alpha_pll gpll0 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -100,7 +106,7 @@ static struct clk_alpha_pll gpll1 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll1",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -132,7 +138,7 @@ static struct clk_alpha_pll gpll10 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll10",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_lucid_ops,
@@ -164,7 +170,7 @@ static struct clk_alpha_pll gpll11 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll11",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_lucid_ops,
@@ -181,7 +187,7 @@ static struct clk_alpha_pll gpll3 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll3",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -220,7 +226,7 @@ static struct clk_alpha_pll gpll4 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll4",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -237,7 +243,7 @@ static struct clk_alpha_pll gpll5 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll5",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -254,7 +260,7 @@ static struct clk_alpha_pll gpll6 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll6",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -293,7 +299,7 @@ static struct clk_alpha_pll gpll7 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll7",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_fixed_lucid_ops,
@@ -325,7 +331,7 @@ static struct clk_alpha_pll gpll8 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll8",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_lucid_ops,
@@ -377,7 +383,7 @@ static struct clk_alpha_pll gpll9 = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll9",
 			.parent_data = &(const struct clk_parent_data){
-				.fw_name = "bi_tcxo",
+				.index = DT_BI_TCXO,
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_zonda_ops,
@@ -430,7 +436,7 @@ static const struct parent_map gcc_parent_map_0[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_0[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 };
@@ -443,7 +449,7 @@ static const struct parent_map gcc_parent_map_1[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_1[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 	{ .hw = &gpll6_out_even.hw },
@@ -457,10 +463,10 @@ static const struct parent_map gcc_parent_map_2[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_2[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
-	{ .fw_name = "sleep_clk" },
+	{ .index = DT_SLEEP_CLK },
 };
 
 static const struct parent_map gcc_parent_map_3[] = {
@@ -473,7 +479,7 @@ static const struct parent_map gcc_parent_map_3[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_3[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll9.clkr.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -490,7 +496,7 @@ static const struct parent_map gcc_parent_map_4[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_4[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 	{ .hw = &gpll4.clkr.hw },
@@ -508,7 +514,7 @@ static const struct parent_map gcc_parent_map_5[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_5[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll8.clkr.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -528,7 +534,7 @@ static const struct parent_map gcc_parent_map_6[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_6[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll8.clkr.hw },
 	{ .hw = &gpll5.clkr.hw },
@@ -547,7 +553,7 @@ static const struct parent_map gcc_parent_map_7[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_7[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -566,7 +572,7 @@ static const struct parent_map gcc_parent_map_8[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_8[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll8.clkr.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -586,7 +592,7 @@ static const struct parent_map gcc_parent_map_9[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_9[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -606,7 +612,7 @@ static const struct parent_map gcc_parent_map_10[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_10[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll8.clkr.hw },
 	{ .hw = &gpll10.clkr.hw },
@@ -624,7 +630,7 @@ static const struct parent_map gcc_parent_map_11[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_11[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll0_out_even.hw },
 	{ .hw = &gpll7.clkr.hw },
@@ -637,8 +643,8 @@ static const struct parent_map gcc_parent_map_12[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_12[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
-	{ .fw_name = "sleep_clk" },
+	{ .index = DT_BI_TCXO },
+	{ .index = DT_SLEEP_CLK },
 };
 
 static const struct parent_map gcc_parent_map_13[] = {
@@ -649,7 +655,7 @@ static const struct parent_map gcc_parent_map_13[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_13[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll11.clkr.hw },
 	{ .hw = &gpll11.clkr.hw },
 	{ .hw = &gpll11.clkr.hw },
@@ -662,7 +668,7 @@ static const struct parent_map gcc_parent_map_14[] = {
 };
 
 static const struct clk_parent_data gcc_parent_names_14[] = {
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll0.clkr.hw },
 	{ .hw = &gpll6_out_even.hw },
 };
@@ -674,7 +680,7 @@ static const struct parent_map gcc_parent_map_15[] = {
 
 static const struct clk_parent_data gcc_parent_names_15[] = {
 	{ .hw = &usb3_phy_wrapper_gcc_usb30_pipe_clk.clkr.hw },
-	{ .fw_name = "bi_tcxo", .name = "bi_tcxo" },
+	{ .index = DT_BI_TCXO },
 };
 
 static const struct freq_tbl ftbl_gcc_camss_axi_clk_src[] = {
