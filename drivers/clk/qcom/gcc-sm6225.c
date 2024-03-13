@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018, 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Statzar <azurestatzar@gmail.com>
  */
 
 #include <linux/clk-provider.h>
@@ -3548,5 +3549,5 @@ static struct platform_driver gcc_sm6225_driver = {
 
 module_platform_driver(gcc_sm6225_driver);
 
-MODULE_DESCRIPTION("QTI GCC SM6225 Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Qualcomm SM6225 Global Clock Controller");
+MODULE_LICENSE("GPL");
