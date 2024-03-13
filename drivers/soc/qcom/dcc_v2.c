@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/suspend.h>
 #include <soc/qcom/memory_dump.h>
 #include <soc/qcom/minidump.h>
 #include <dt-bindings/soc/qcom,dcc_v2.h>
@@ -149,6 +150,16 @@ struct dcc_config_entry {
 	struct list_head		list;
 };
 
+/*
+ * struct reg_state
+ * offset: the offset of the reg to be preserved when dcc is without power
+ * val   : the val of the reg to be preserved when dcc is without power
+ */
+struct reg_state {
+	uint32_t		offset;
+	uint32_t		val;
+};
+
 struct dcc_drvdata {
 	void __iomem		*base;
 	uint32_t		reg_size;
@@ -176,6 +187,11 @@ struct dcc_drvdata {
 	uint8_t			curr_list;
 	uint8_t			*cti_trig;
 	uint8_t			loopoff;
+	uint32_t		ram_cpy_len;
+	uint32_t		per_ll_reg_cnt;
+	int32_t			ll_state_cnt;
+	struct reg_state	*ll_state;
+	void			*sram_state;
 	uint8_t			*qad_output;
 };
 
@@ -651,7 +667,7 @@ static int dcc_valid_list(struct dcc_drvdata *drvdata, int curr_list)
 		return -EINVAL;
 	}
 
-	dev_err(drvdata->dev, "DCC list passed %d\n", curr_list);
+	dev_info(drvdata->dev, "DCC list passed %d\n", curr_list);
 	return 0;
 }
 
@@ -765,6 +781,7 @@ static int dcc_enable(struct dcc_drvdata *drvdata)
 		}
 	}
 
+	drvdata->ram_cpy_len = drvdata->ram_cfg * 4;
 err:
 	mutex_unlock(&drvdata->mutex);
 	return ret;
@@ -790,6 +807,7 @@ static void dcc_disable(struct dcc_drvdata *drvdata)
 	}
 	memset_io(drvdata->ram_base, 0, drvdata->ram_size);
 	drvdata->ram_cfg = 0;
+	drvdata->ram_cpy_len = 0;
 	drvdata->ram_start = 0;
 	mutex_unlock(&drvdata->mutex);
 }
@@ -1393,6 +1411,7 @@ static void dcc_config_reset(struct dcc_drvdata *drvdata)
 	}
 	drvdata->ram_start = 0;
 	drvdata->ram_cfg = 0;
+	drvdata->ram_cpy_len = 0;
 	mutex_unlock(&drvdata->mutex);
 }
 
@@ -1762,6 +1781,7 @@ static ssize_t dcc_sram_read(struct file *file, char __user *data,
 {
 	unsigned char *buf;
 	struct dcc_drvdata *drvdata = file->private_data;
+	int ret;
 
 	/* EOF check */
 	if (drvdata->ram_size <= *ppos)
@@ -1775,7 +1795,13 @@ static ssize_t dcc_sram_read(struct file *file, char __user *data,
 	if (!buf)
 		return -ENOMEM;
 
-	dcc_sram_memcpy(buf, (drvdata->ram_base + *ppos), len);
+	ret = dcc_sram_memcpy(buf, (drvdata->ram_base + *ppos), len);
+	if (ret) {
+		dev_err(drvdata->dev,
+			"Target address or size not aligned with 4 bytes\n");
+		kfree(buf);
+		return ret;
+	}
 
 	if (copy_to_user(data, buf, len)) {
 		dev_err(drvdata->dev,
@@ -2015,6 +2041,18 @@ static int dcc_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
+	drvdata->ll_state_cnt = of_property_count_elems_of_size(dev->of_node,
+					"ll-reg-offsets", sizeof(u32)); /* optional */
+	if (drvdata->ll_state_cnt <= 0) {
+		dev_info(dev, "ll-reg-offsets property doesn't exist\n");
+		drvdata->ll_state_cnt = 0;
+	} else {
+		ret = of_property_read_u32(pdev->dev.of_node, "per-ll-reg-cnt",
+					&drvdata->per_ll_reg_cnt);
+		if (ret)
+			return -EINVAL;
+	}
+
 	ret = of_property_read_u32(pdev->dev.of_node, "dcc-mem-map-ver",
 					&drvdata->mem_map_ver);
 	if (ret) {
@@ -2130,6 +2168,209 @@ static int dcc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#if defined(CONFIG_DEEPSLEEP) || defined(CONFIG_HIBERNATION)
+static int dcc_state_store(struct device *dev)
+{
+	int ret = 0, n, i;
+	u32 *ll_reg_offsets;
+	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (!drvdata) {
+		dev_dbg(dev, "Invalid drvdata\n");
+		return -EINVAL;
+	}
+
+	if (!is_dcc_enabled(drvdata)) {
+		dev_dbg(dev, "DCC is not enabled.\n");
+		return 0;
+	}
+
+	if (!drvdata->ll_state_cnt) {
+		dev_dbg(dev, "reg-offsets property doesn't exist\n");
+		return 0;
+	}
+
+	n = drvdata->ll_state_cnt;
+	ll_reg_offsets = kcalloc(n, sizeof(u32), GFP_KERNEL);
+	if (!ll_reg_offsets) {
+		dev_err(dev, "Failed to alloc memory for reg_offsets\n");
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_variable_u32_array(dev->of_node,
+					"ll-reg-offsets", ll_reg_offsets, n, n);
+	if (ret < 0) {
+		dev_dbg(dev, "Not found reg-offsets property\n");
+		goto out;
+	}
+
+	drvdata->ll_state = kzalloc(n * sizeof(struct reg_state), GFP_KERNEL);
+	if (!drvdata->ll_state) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	drvdata->sram_state = kzalloc(drvdata->ram_size, GFP_KERNEL);
+	if (!drvdata->sram_state) {
+		ret = -ENOMEM;
+		goto sram_alloc_err;
+	}
+
+	if (dcc_sram_memcpy(drvdata->sram_state, drvdata->ram_base,
+				drvdata->ram_cpy_len)) {
+		dev_err(dev, "Failed to copy DCC SRAM contents\n");
+		ret = -EINVAL;
+		goto sram_cpy_err;
+	}
+
+	mutex_lock(&drvdata->mutex);
+
+	for (i = 0; i < n; i++) {
+		drvdata->ll_state[i].offset = ll_reg_offsets[i];
+		drvdata->ll_state[i].val    = __raw_readl(drvdata->base + ll_reg_offsets[i]);
+	}
+
+	mutex_unlock(&drvdata->mutex);
+
+	kfree(ll_reg_offsets);
+	return 0;
+
+sram_cpy_err:
+	kfree(drvdata->sram_state);
+	drvdata->sram_state = NULL;
+sram_alloc_err:
+	kfree(drvdata->ll_state);
+	drvdata->ll_state = NULL;
+out:
+	kfree(ll_reg_offsets);
+	return ret;
+}
+
+static int dcc_state_restore(struct device *dev)
+{
+	int n, i, j, dcc_ll_index;
+	int ret = 0;
+	int *sram_state;
+	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
+	uint32_t ram_cpy_wlen;
+
+	if (!drvdata) {
+		dev_err(dev, "Err: %s Invalid argument\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!is_dcc_enabled(drvdata)) {
+		dev_dbg(dev, "DCC is not enabled.\n");
+		ret = 0;
+		goto out;
+	}
+
+	if (!drvdata->ll_state_cnt) {
+		dev_dbg(dev, "reg-offsets property doesn't exist\n");
+		ret = 0;
+		goto out;
+	}
+
+	if (!drvdata->sram_state || !drvdata->ll_state) {
+		dev_err(dev, "Err: Restore state is NULL\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ram_cpy_wlen = drvdata->ram_cpy_len / 4;
+	sram_state = drvdata->sram_state;
+	n = drvdata->ll_state_cnt;
+
+	for (i = 0; i < ram_cpy_wlen; i++)
+		dcc_sram_writel(drvdata, sram_state[i], i * 4);
+
+	mutex_lock(&drvdata->mutex);
+
+	for (i = 0, dcc_ll_index = 0;
+		 (dcc_ll_index < drvdata->nr_link_list) && (i < n);
+		 dcc_ll_index++) {
+
+		if (list_empty(&drvdata->cfg_head[dcc_ll_index])) {
+			i += drvdata->per_ll_reg_cnt;
+			continue;
+		}
+
+		for (j = 0; j < drvdata->per_ll_reg_cnt; i++, j++)
+			__raw_writel(drvdata->ll_state[i].val,
+						drvdata->base + drvdata->ll_state[i].offset);
+	}
+
+	mutex_unlock(&drvdata->mutex);
+out:
+	kfree(drvdata->sram_state);
+	drvdata->sram_state = NULL;
+
+	kfree(drvdata->ll_state);
+	drvdata->ll_state = NULL;
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_DEEPSLEEP
+static int dcc_v2_suspend(struct device *dev)
+{
+	if (mem_sleep_current == PM_SUSPEND_MEM)
+		return dcc_state_store(dev);
+
+	return 0;
+}
+
+static int dcc_v2_resume(struct device *dev)
+{
+	if (mem_sleep_current == PM_SUSPEND_MEM)
+		return dcc_state_restore(dev);
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_HIBERNATION
+static int dcc_v2_freeze(struct device *dev)
+{
+	return dcc_state_store(dev);
+}
+
+static int dcc_v2_restore(struct device *dev)
+{
+	return dcc_state_restore(dev);
+}
+
+static int dcc_v2_thaw(struct device *dev)
+{
+	struct dcc_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (!drvdata || !drvdata->ll_state || !drvdata->sram_state) {
+		dev_err(dev, "Err: %s Invalid argument\n", __func__);
+		return -EINVAL;
+	}
+
+	kfree(drvdata->sram_state);
+	kfree(drvdata->ll_state);
+	drvdata->sram_state = NULL;
+	drvdata->ll_state = NULL;
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops dcc_v2_pm_ops = {
+#ifdef CONFIG_DEEPSLEEP
+	.suspend         = dcc_v2_suspend,
+	.resume          = dcc_v2_resume,
+#endif
+#ifdef CONFIG_HIBERNATION
+	.freeze          = dcc_v2_freeze,
+	.restore         = dcc_v2_restore,
+	.thaw            = dcc_v2_thaw,
+#endif
+};
+
 static const struct of_device_id msm_dcc_match[] = {
 	{ .compatible = "qcom,dcc-v2"},
 	{}
@@ -2141,6 +2382,7 @@ static struct platform_driver dcc_driver = {
 	.driver         = {
 		.name   = "msm-dcc",
 		.of_match_table	= msm_dcc_match,
+		.pm     = &dcc_v2_pm_ops,
 	},
 };
 
