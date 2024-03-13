@@ -1143,7 +1143,7 @@ void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp)
 	opinfo = rcu_dereference(fp->f_opinfo);
 	rcu_read_unlock();
 
-	if (!opinfo->is_lease || opinfo->o_lease->version != 2)
+	if (!opinfo || !opinfo->is_lease || opinfo->o_lease->version != 2)
 		return;
 
 	p_ci = ksmbd_inode_lookup_lock(fp->filp->f_path.dentry->d_parent);
