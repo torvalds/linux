@@ -44,7 +44,7 @@ SYM_FUNC_START(fallback_scalar_usercopy)
 	 * Use byte copy only if too small.
 	 * SZREG holds 4 for RV32 and 8 for RV64
 	 */
-	li	a3, 9*SZREG /* size must be larger than size in word_copy */
+	li	a3, 9*SZREG-1 /* size must >= (word_copy stride + SZREG-1) */
 	bltu	a2, a3, .Lbyte_copy_tail
 
 	/*
