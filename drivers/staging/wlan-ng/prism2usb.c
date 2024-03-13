@@ -128,7 +128,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 failed_register:
 	usb_put_dev(dev);
 failed_reset:
-	wlan_unsetup(wlandev);
+	wlan_teardown(wlandev);
 failed:
 	kfree(wlandev);
 	kfree(hw);
@@ -208,7 +208,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 
 		/* Unhook the wlandev */
 		unregister_wlandev(wlandev);
-		wlan_unsetup(wlandev);
+		wlan_teardown(wlandev);
 
 		usb_put_dev(hw->usb);
 

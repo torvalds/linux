@@ -689,7 +689,7 @@ int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
 }
 
 /*----------------------------------------------------------------
- * wlan_unsetup
+ * wlan_teardown
  *
  * This function is paired with the wlan_setup routine.  It should
  * be called after unregister_wlandev.  Basically, all it does is
@@ -708,7 +708,7 @@ int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
  *	context of the kernel startup code.
  *----------------------------------------------------------------
  */
-void wlan_unsetup(struct wlandevice *wlandev)
+void wlan_teardown(struct wlandevice *wlandev)
 {
 	struct wireless_dev *wdev;
 
