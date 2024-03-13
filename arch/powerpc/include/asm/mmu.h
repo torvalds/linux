@@ -330,17 +330,10 @@ static __always_inline bool early_radix_enabled(void)
 	return early_mmu_has_feature(MMU_FTR_TYPE_RADIX);
 }
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
 static inline bool strict_kernel_rwx_enabled(void)
 {
-	return rodata_enabled;
+	return IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) && rodata_enabled;
 }
-#else
-static inline bool strict_kernel_rwx_enabled(void)
-{
-	return false;
-}
-#endif
 
 static inline bool strict_module_rwx_enabled(void)
 {
