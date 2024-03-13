@@ -126,6 +126,7 @@ struct mhi_ep_ring {
 	union mhi_ep_ring_ctx *ring_ctx;
 	struct mhi_ring_element *ring_cache;
 	enum mhi_ep_ring_type type;
+	struct delayed_work intmodt_work;
 	u64 rbase;
 	size_t rd_offset;
 	size_t wr_offset;
@@ -135,7 +136,9 @@ struct mhi_ep_ring {
 	u32 ch_id;
 	u32 er_index;
 	u32 irq_vector;
+	u32 intmodt;
 	bool started;
+	bool irq_pending;
 };
 
 struct mhi_ep_cmd {
@@ -159,6 +162,7 @@ struct mhi_ep_chan {
 	void (*xfer_cb)(struct mhi_ep_device *mhi_dev, struct mhi_result *result);
 	enum mhi_ch_state state;
 	enum dma_data_direction dir;
+	size_t rd_offset;
 	u64 tre_loc;
 	u32 tre_size;
 	u32 tre_bytes_left;

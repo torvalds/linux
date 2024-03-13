@@ -2834,7 +2834,7 @@ clear_ida:
 	return ret;
 }
 
-static int scmi_remove(struct platform_device *pdev)
+static void scmi_remove(struct platform_device *pdev)
 {
 	int id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
@@ -2868,8 +2868,6 @@ static int scmi_remove(struct platform_device *pdev)
 	scmi_cleanup_txrx_channels(info);
 
 	ida_free(&scmi_id, info->id);
-
-	return 0;
 }
 
 static ssize_t protocol_version_show(struct device *dev,
@@ -2947,7 +2945,7 @@ static struct platform_driver scmi_driver = {
 		   .dev_groups = versions_groups,
 		   },
 	.probe = scmi_probe,
-	.remove = scmi_remove,
+	.remove_new = scmi_remove,
 };
 
 /**

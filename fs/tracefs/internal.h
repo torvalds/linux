@@ -5,12 +5,16 @@
 enum {
 	TRACEFS_EVENT_INODE		= BIT(1),
 	TRACEFS_EVENT_TOP_INODE		= BIT(2),
+	TRACEFS_GID_PERM_SET		= BIT(3),
+	TRACEFS_UID_PERM_SET		= BIT(4),
+	TRACEFS_INSTANCE_INODE		= BIT(5),
 };
 
 struct tracefs_inode {
+	struct inode            vfs_inode;
+	/* The below gets initialized with memset_after(ti, 0, vfs_inode) */
 	unsigned long           flags;
 	void                    *private;
-	struct inode            vfs_inode;
 };
 
 /*
@@ -28,42 +32,37 @@ struct eventfs_attr {
 /*
  * struct eventfs_inode - hold the properties of the eventfs directories.
  * @list:	link list into the parent directory
+ * @rcu:	Union with @list for freeing
+ * @children:	link list into the child eventfs_inode
  * @entries:	the array of entries representing the files in the directory
  * @name:	the name of the directory to create
- * @children:	link list into the child eventfs_inode
- * @dentry:     the dentry of the directory
- * @d_parent:   pointer to the parent's dentry
- * @d_children: The array of dentries to represent the files when created
+ * @events_dir: the dentry of the events directory
  * @entry_attrs: Saved mode and ownership of the @d_children
- * @attr:	Saved mode and ownership of eventfs_inode itself
  * @data:	The private data to pass to the callbacks
+ * @attr:	Saved mode and ownership of eventfs_inode itself
  * @is_freed:	Flag set if the eventfs is on its way to be freed
  *                Note if is_freed is set, then dentry is corrupted.
+ * @is_events:	Flag set for only the top level "events" directory
  * @nr_entries: The number of items in @entries
+ * @ino:	The saved inode number
  */
 struct eventfs_inode {
-	struct list_head		list;
-	const struct eventfs_entry	*entries;
-	const char			*name;
-	struct list_head		children;
-	struct dentry			*dentry; /* Check is_freed to access */
-	struct dentry			*d_parent;
-	struct dentry			**d_children;
-	struct eventfs_attr		*entry_attrs;
-	struct eventfs_attr		attr;
-	void				*data;
-	/*
-	 * Union - used for deletion
-	 * @llist:	for calling dput() if needed after RCU
-	 * @rcu:	eventfs_inode to delete in RCU
-	 */
 	union {
-		struct llist_node	llist;
+		struct list_head	list;
 		struct rcu_head		rcu;
 	};
+	struct list_head		children;
+	const struct eventfs_entry	*entries;
+	const char			*name;
+	struct dentry			*events_dir;
+	struct eventfs_attr		*entry_attrs;
+	void				*data;
+	struct eventfs_attr		attr;
+	struct kref			kref;
 	unsigned int			is_freed:1;
 	unsigned int			is_events:1;
 	unsigned int			nr_entries:30;
+	unsigned int			ino;
 };
 
 static inline struct tracefs_inode *get_tracefs(const struct inode *inode)
@@ -75,10 +74,7 @@ struct dentry *tracefs_start_creating(const char *name, struct dentry *parent);
 struct dentry *tracefs_end_creating(struct dentry *dentry);
 struct dentry *tracefs_failed_creating(struct dentry *dentry);
 struct inode *tracefs_get_inode(struct super_block *sb);
-struct dentry *eventfs_start_creating(const char *name, struct dentry *parent);
-struct dentry *eventfs_failed_creating(struct dentry *dentry);
-struct dentry *eventfs_end_creating(struct dentry *dentry);
-void eventfs_update_gid(struct dentry *dentry, kgid_t gid);
-void eventfs_set_ei_status_free(struct tracefs_inode *ti, struct dentry *dentry);
+
+void eventfs_d_release(struct dentry *dentry);
 
 #endif /* _TRACEFS_INTERNAL_H */

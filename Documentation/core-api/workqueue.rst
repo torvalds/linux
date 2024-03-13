@@ -446,7 +446,7 @@ The command used: ::
 
 There are 24 issuers, each issuing 64 IOs concurrently. ``--verify=sha512``
 makes ``fio`` generate and read back the content each time which makes
-execution locality matter between the issuer and ``kcryptd``. The followings
+execution locality matter between the issuer and ``kcryptd``. The following
 are the read bandwidths and CPU utilizations depending on different affinity
 scope settings on ``kcryptd`` measured over five runs. Bandwidths are in
 MiBps, and CPU util in percents.

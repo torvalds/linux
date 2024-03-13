@@ -74,6 +74,11 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	la.pcrel	t0, fw_arg2
 	st.d		a2, t0, 0
 
+#ifdef CONFIG_PAGE_SIZE_4KB
+	li.d		t0, 0
+	li.d		t1, CSR_STFILL
+	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
+#endif
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
@@ -126,6 +131,11 @@ SYM_CODE_START(smpboot_entry)
 
 	JUMP_VIRT_ADDR	t0, t1
 
+#ifdef CONFIG_PAGE_SIZE_4KB
+	li.d		t0, 0
+	li.d		t1, CSR_STFILL
+	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
+#endif
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD

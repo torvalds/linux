@@ -2432,7 +2432,6 @@ static long pagemap_scan_flush_buffer(struct pagemap_scan_private *p)
 
 static long do_pagemap_scan(struct mm_struct *mm, unsigned long uarg)
 {
-	struct mmu_notifier_range range;
 	struct pagemap_scan_private p = {0};
 	unsigned long walk_start;
 	size_t n_ranges_out = 0;
@@ -2448,15 +2447,9 @@ static long do_pagemap_scan(struct mm_struct *mm, unsigned long uarg)
 	if (ret)
 		return ret;
 
-	/* Protection change for the range is going to happen. */
-	if (p.arg.flags & PM_SCAN_WP_MATCHING) {
-		mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_VMA, 0,
-					mm, p.arg.start, p.arg.end);
-		mmu_notifier_invalidate_range_start(&range);
-	}
-
 	for (walk_start = p.arg.start; walk_start < p.arg.end;
 			walk_start = p.arg.walk_end) {
+		struct mmu_notifier_range range;
 		long n_out;
 
 		if (fatal_signal_pending(current)) {
@@ -2467,8 +2460,20 @@ static long do_pagemap_scan(struct mm_struct *mm, unsigned long uarg)
 		ret = mmap_read_lock_killable(mm);
 		if (ret)
 			break;
+
+		/* Protection change for the range is going to happen. */
+		if (p.arg.flags & PM_SCAN_WP_MATCHING) {
+			mmu_notifier_range_init(&range, MMU_NOTIFY_PROTECTION_VMA, 0,
+						mm, walk_start, p.arg.end);
+			mmu_notifier_invalidate_range_start(&range);
+		}
+
 		ret = walk_page_range(mm, walk_start, p.arg.end,
 				      &pagemap_scan_ops, &p);
+
+		if (p.arg.flags & PM_SCAN_WP_MATCHING)
+			mmu_notifier_invalidate_range_end(&range);
+
 		mmap_read_unlock(mm);
 
 		n_out = pagemap_scan_flush_buffer(&p);
@@ -2493,9 +2498,6 @@ static long do_pagemap_scan(struct mm_struct *mm, unsigned long uarg)
 		p.arg.walk_end = p.arg.end;
 	if (pagemap_scan_writeback_args(&p.arg, uarg))
 		ret = -EFAULT;
-
-	if (p.arg.flags & PM_SCAN_WP_MATCHING)
-		mmu_notifier_invalidate_range_end(&range);
 
 	kfree(p.vec_buf);
 	return ret;

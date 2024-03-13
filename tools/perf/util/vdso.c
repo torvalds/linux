@@ -140,23 +140,34 @@ static struct dso *__machine__addnew_vdso(struct machine *machine, const char *s
 	return dso;
 }
 
+struct machine__thread_dso_type_maps_cb_args {
+	struct machine *machine;
+	enum dso_type dso_type;
+};
+
+static int machine__thread_dso_type_maps_cb(struct map *map, void *data)
+{
+	struct machine__thread_dso_type_maps_cb_args *args = data;
+	struct dso *dso = map__dso(map);
+
+	if (!dso || dso->long_name[0] != '/')
+		return 0;
+
+	args->dso_type = dso__type(dso, args->machine);
+	return (args->dso_type != DSO__TYPE_UNKNOWN) ? 1 : 0;
+}
+
 static enum dso_type machine__thread_dso_type(struct machine *machine,
 					      struct thread *thread)
 {
-	enum dso_type dso_type = DSO__TYPE_UNKNOWN;
-	struct map_rb_node *rb_node;
+	struct machine__thread_dso_type_maps_cb_args args = {
+		.machine = machine,
+		.dso_type = DSO__TYPE_UNKNOWN,
+	};
 
-	maps__for_each_entry(thread__maps(thread), rb_node) {
-		struct dso *dso = map__dso(rb_node->map);
+	maps__for_each_map(thread__maps(thread), machine__thread_dso_type_maps_cb, &args);
 
-		if (!dso || dso->long_name[0] != '/')
-			continue;
-		dso_type = dso__type(dso, machine);
-		if (dso_type != DSO__TYPE_UNKNOWN)
-			break;
-	}
-
-	return dso_type;
+	return args.dso_type;
 }
 
 #if BITS_PER_LONG == 64

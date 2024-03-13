@@ -53,9 +53,9 @@ int bch2_run_thread_with_file(struct thread_with_file *thr,
 	if (ret)
 		goto err;
 
-	fd_install(fd, file);
 	get_task_struct(thr->task);
 	wake_up_process(thr->task);
+	fd_install(fd, file);
 	return fd;
 err:
 	if (fd >= 0)

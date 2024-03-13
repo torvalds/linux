@@ -156,7 +156,7 @@ static inline unsigned inorder_to_eytzinger1(unsigned i, unsigned size)
 }
 
 #define eytzinger1_for_each(_i, _size)			\
-	for ((_i) = eytzinger1_first((_size));		\
+	for (unsigned (_i) = eytzinger1_first((_size));	\
 	     (_i) != 0;					\
 	     (_i) = eytzinger1_next((_i), (_size)))
 
@@ -227,7 +227,7 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 }
 
 #define eytzinger0_for_each(_i, _size)			\
-	for ((_i) = eytzinger0_first((_size));		\
+	for (unsigned (_i) = eytzinger0_first((_size));	\
 	     (_i) != -1;				\
 	     (_i) = eytzinger0_next((_i), (_size)))
 

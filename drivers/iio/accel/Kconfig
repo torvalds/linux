@@ -260,10 +260,11 @@ config BMI088_ACCEL
 	select REGMAP
 	select BMI088_ACCEL_SPI
 	help
-	  Say yes here to build support for the Bosch BMI088 accelerometer.
+	  Say yes here to build support for the following Bosch accelerometers:
+	  BMI088, BMI085, BMI090L. Note that all of these are combo module that
+	  include both accelerometer and gyroscope.
 
-	  This is a combo module with both accelerometer and gyroscope. This
-	  driver only implements the accelerometer part, which has its own
+	  This driver only implements the accelerometer part, which has its own
 	  address and register map. BMG160 provides the gyroscope driver.
 
 config BMI088_ACCEL_SPI

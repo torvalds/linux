@@ -226,16 +226,6 @@ static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	netdev_info(dev, "TXTIMEOUT");
 }
 
-static void _rtl92e_set_chan(struct net_device *dev, short ch)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	priv->chan = ch;
-
-	if (priv->rf_set_chan)
-		priv->rf_set_chan(dev, priv->chan);
-}
-
 static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -297,7 +287,6 @@ static void _rtl92e_update_beacon(void *data)
 	if (ieee->ht_info->current_ht_support)
 		HT_update_self_and_peer_setting(ieee, net);
 	ieee->ht_info->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
-	ieee->ht_info->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
 
@@ -424,38 +413,6 @@ static int _rtl92e_handle_assoc_response(struct net_device *dev,
 
 	_rtl92e_qos_assoc_resp(priv, network);
 	return 0;
-}
-
-static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
-{
-	struct r8192_priv *priv = from_tasklet(priv, t,
-					       irq_prepare_beacon_tasklet);
-	struct net_device *dev = priv->rtllib->dev;
-	struct sk_buff *pskb = NULL, *pnewskb = NULL;
-	struct cb_desc *tcb_desc = NULL;
-	struct rtl8192_tx_ring *ring = NULL;
-	struct tx_desc *pdesc = NULL;
-
-	ring = &priv->tx_ring[BEACON_QUEUE];
-	pskb = __skb_dequeue(&ring->queue);
-	kfree_skb(pskb);
-
-	pnewskb = rtllib_get_beacon(priv->rtllib);
-	if (!pnewskb)
-		return;
-
-	tcb_desc = (struct cb_desc *)(pnewskb->cb + 8);
-	tcb_desc->queue_index = BEACON_QUEUE;
-	tcb_desc->data_rate = 2;
-	tcb_desc->ratr_index = 7;
-	tcb_desc->tx_dis_rate_fallback = 1;
-	tcb_desc->tx_use_drv_assinged_rate = 1;
-	skb_push(pnewskb, priv->rtllib->tx_headroom);
-
-	pdesc = &ring->desc[0];
-	rtl92e_fill_tx_desc(dev, pdesc, tcb_desc, pnewskb);
-	__skb_queue_tail(&ring->queue, pnewskb);
-	pdesc->OWN = 1;
 }
 
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
@@ -685,7 +642,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->rtllib->softmac_hard_start_xmit	= _rtl92e_hard_start_xmit;
-	priv->rtllib->set_chan			= _rtl92e_set_chan;
+	priv->rtllib->set_chan			= rtl92e_set_channel;
 	priv->rtllib->link_change		= rtl92e_link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= _rtl92e_check_nic_enough_desc;
@@ -694,7 +651,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_wireless_mode		= rtl92e_set_wireless_mode;
 	priv->rtllib->leisure_ps_leave		= rtl92e_leisure_ps_leave;
 	priv->rtllib->set_bw_mode_handler	= rtl92e_set_bw_mode;
-	priv->rf_set_chan			= rtl92e_set_channel;
 
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
@@ -767,7 +723,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	skb_queue_head_init(&priv->skb_queue);
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->rtllib->skb_waitQ[i]);
+		skb_queue_head_init(&priv->rtllib->skb_waitq[i]);
 }
 
 static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
@@ -796,8 +752,6 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 	INIT_DELAYED_WORK(&priv->rtllib->hw_sleep_wq, (void *)rtl92e_hw_sleep_wq);
 	tasklet_setup(&priv->irq_rx_tasklet, _rtl92e_irq_rx_tasklet);
 	tasklet_setup(&priv->irq_tx_tasklet, _rtl92e_irq_tx_tasklet);
-	tasklet_setup(&priv->irq_prepare_beacon_tasklet,
-		      _rtl92e_prepare_beacon);
 }
 
 static short _rtl92e_get_channel_map(struct net_device *dev)
@@ -806,13 +760,6 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->chnl_plan >= COUNTRY_CODE_MAX) {
-		netdev_info(dev,
-			    "rtl819x_init:Error channel plan! Set to default.\n");
-		priv->chnl_plan = COUNTRY_CODE_FCC;
-	}
-	dot11d_init(priv->rtllib);
-	dot11d_channel_map(priv->chnl_plan, priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;
 	(priv->rtllib->active_channel_map)[12] = 2;
@@ -1024,21 +971,21 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		}
 	}
 	if ((ieee->link_state == MAC80211_LINKED) && (ieee->iw_mode == IW_MODE_INFRA)) {
-		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
-		ieee->link_detect_info.NumTxOkInPeriod > 100)
+		if (ieee->link_detect_info.num_rx_ok_in_period > 100 ||
+		ieee->link_detect_info.num_tx_ok_in_period > 100)
 			bBusyTraffic = true;
 
-		if (ieee->link_detect_info.NumRxOkInPeriod > 4000 ||
-		    ieee->link_detect_info.NumTxOkInPeriod > 4000) {
+		if (ieee->link_detect_info.num_rx_ok_in_period > 4000 ||
+		    ieee->link_detect_info.num_tx_ok_in_period > 4000) {
 			bHigherBusyTraffic = true;
-			if (ieee->link_detect_info.NumRxOkInPeriod > 5000)
+			if (ieee->link_detect_info.num_rx_ok_in_period > 5000)
 				bHigherBusyRxTraffic = true;
 			else
 				bHigherBusyRxTraffic = false;
 		}
 
 		if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
-		    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
+		    ieee->link_detect_info.num_tx_ok_in_period) > 8) ||
 		    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2))
 			bEnterPS = false;
 		else
@@ -1056,8 +1003,8 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		rtl92e_leisure_ps_leave(dev);
 	}
 
-	ieee->link_detect_info.NumRxOkInPeriod = 0;
-	ieee->link_detect_info.NumTxOkInPeriod = 0;
+	ieee->link_detect_info.num_rx_ok_in_period = 0;
+	ieee->link_detect_info.num_tx_ok_in_period = 0;
 	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
 	ieee->link_detect_info.bBusyTraffic = bBusyTraffic;
 
@@ -1240,7 +1187,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tcb_desc->ratr_index = 7;
 	tcb_desc->tx_dis_rate_fallback = 1;
 	tcb_desc->tx_use_drv_assinged_rate = 1;
-	tcb_desc->bTxEnableFwCalcDur = 1;
+	tcb_desc->tx_enable_fw_calc_dur = 1;
 	skb_push(skb, priv->rtllib->tx_headroom);
 	ret = _rtl92e_tx(dev, skb);
 	if (ret != 0)
@@ -1484,17 +1431,6 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 }
 
-void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
-				    struct rtllib_rx_stats *stats)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (stats->bIsAMPDU && !stats->bFirstMPDU)
-		stats->mac_time = priv->last_rx_desc_tsf;
-	else
-		priv->last_rx_desc_tsf = stats->mac_time;
-}
-
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
 {
 	long	signal_power;
@@ -1638,9 +1574,9 @@ static void _rtl92e_tx_resume(struct net_device *dev)
 
 	for (queue_index = BK_QUEUE;
 	     queue_index < MAX_QUEUE_SIZE; queue_index++) {
-		while ((!skb_queue_empty(&ieee->skb_waitQ[queue_index])) &&
+		while ((!skb_queue_empty(&ieee->skb_waitq[queue_index])) &&
 		(priv->rtllib->check_nic_enough_desc(dev, queue_index) > 0)) {
-			skb = skb_dequeue(&ieee->skb_waitQ[queue_index]);
+			skb = skb_dequeue(&ieee->skb_waitq[queue_index]);
 			ieee->softmac_data_hard_start_xmit(skb, dev, 0);
 		}
 	}
@@ -1827,9 +1763,6 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 	if (inta & IMR_ROK)
 		tasklet_schedule(&priv->irq_rx_tasklet);
 
-	if (inta & IMR_BcnInt)
-		tasklet_schedule(&priv->irq_prepare_beacon_tasklet);
-
 	if (inta & IMR_RDU) {
 		rtl92e_writel(dev, INTA_MASK,
 			      rtl92e_readl(dev, INTA_MASK) & ~IMR_RDU);
@@ -1840,22 +1773,22 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 		tasklet_schedule(&priv->irq_rx_tasklet);
 
 	if (inta & IMR_BKDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, BK_QUEUE);
 	}
 
 	if (inta & IMR_BEDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, BE_QUEUE);
 	}
 
 	if (inta & IMR_VIDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, VI_QUEUE);
 	}
 
 	if (inta & IMR_VODOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, VO_QUEUE);
 	}
 

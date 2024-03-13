@@ -87,7 +87,7 @@ config SERIAL_EARLYCON_SEMIHOST
 
 config SERIAL_EARLYCON_RISCV_SBI
 	bool "Early console using RISC-V SBI"
-	depends on RISCV_SBI_V01
+	depends on RISCV_SBI
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
@@ -532,6 +532,9 @@ config SERIAL_UARTLITE_NR_UARTS
 	help
 	  Set this to the number of uartlites in your system, or the number
 	  you think you might implement.
+	  If maximum number of uartlite serial ports is more than 4, then the
+	  driver uses dynamic allocation instead of static allocation for major
+	  number.
 
 config SERIAL_SUNCORE
 	bool

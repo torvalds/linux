@@ -20,6 +20,7 @@ properties:
       - ti,bq24192
       - ti,bq24192i
       - ti,bq24196
+      - ti,bq24296
 
   reg:
     maxItems: 1

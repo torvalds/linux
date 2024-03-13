@@ -516,7 +516,7 @@ static void __init loongson3_prepare_cpus(unsigned int max_cpus)
 }
 
 /*
- * Setup the PC, SP, and GP of a secondary processor and start it runing!
+ * Setup the PC, SP, and GP of a secondary processor and start it running!
  */
 static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 {

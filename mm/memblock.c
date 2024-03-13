@@ -1885,7 +1885,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 	int mid = memblock_search(type, PFN_PHYS(pfn));
 
 	if (mid == -1)
-		return -1;
+		return NUMA_NO_NODE;
 
 	*start_pfn = PFN_DOWN(type->regions[mid].base);
 	*end_pfn = PFN_DOWN(type->regions[mid].base + type->regions[mid].size);
@@ -2175,6 +2175,9 @@ static void __init memmap_init_reserved_pages(void)
 			nid = memblock_get_region_node(region);
 			start = region->base;
 			end = start + region->size;
+
+			if (nid == NUMA_NO_NODE || nid >= MAX_NUMNODES)
+				nid = early_pfn_to_nid(PFN_DOWN(start));
 
 			reserve_bootmem_region(start, end, nid);
 		}

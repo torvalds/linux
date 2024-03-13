@@ -269,8 +269,6 @@ static int vcn_v4_0_5_hw_fini(void *handle)
 				vcn_v4_0_5_set_powergating_state(adev, AMD_PG_STATE_GATE);
 			}
 		}
-
-		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
 	}
 
 	return 0;
@@ -1669,22 +1667,6 @@ static int vcn_v4_0_5_set_powergating_state(void *handle, enum amd_powergating_s
 }
 
 /**
- * vcn_v4_0_5_set_interrupt_state - set VCN block interrupt state
- *
- * @adev: amdgpu_device pointer
- * @source: interrupt sources
- * @type: interrupt types
- * @state: interrupt states
- *
- * Set VCN block interrupt state
- */
-static int vcn_v4_0_5_set_interrupt_state(struct amdgpu_device *adev, struct amdgpu_irq_src *source,
-		unsigned type, enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
-/**
  * vcn_v4_0_5_process_interrupt - process VCN block interrupt
  *
  * @adev: amdgpu_device pointer
@@ -1726,7 +1708,6 @@ static int vcn_v4_0_5_process_interrupt(struct amdgpu_device *adev, struct amdgp
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v4_0_5_irq_funcs = {
-	.set = vcn_v4_0_5_set_interrupt_state,
 	.process = vcn_v4_0_5_process_interrupt,
 };
 

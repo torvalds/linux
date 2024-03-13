@@ -57,7 +57,7 @@ static const struct pin_config_item conf_items[] = {
 
 static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
 				     struct seq_file *s, const char *gname,
-				     unsigned pin,
+				     unsigned int pin,
 				     const struct pin_config_item *items,
 				     int nitems, int *print_sep)
 {
@@ -110,7 +110,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
  * to be specified the other can be NULL/0.
  */
 void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev, struct seq_file *s,
-			       const char *gname, unsigned pin)
+			       const char *gname, unsigned int pin)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 	int print_sep = 0;
@@ -295,15 +295,15 @@ EXPORT_SYMBOL_GPL(pinconf_generic_parse_dt_config);
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,
-		unsigned *reserved_maps, unsigned *num_maps,
+		unsigned int *reserved_maps, unsigned int *num_maps,
 		enum pinctrl_map_type type)
 {
 	int ret;
 	const char *function;
 	struct device *dev = pctldev->dev;
 	unsigned long *configs = NULL;
-	unsigned num_configs = 0;
-	unsigned reserve, strings_count;
+	unsigned int num_configs = 0;
+	unsigned int reserve, strings_count;
 	struct property *prop;
 	const char *group;
 	const char *subnode_target_type = "pins";
@@ -379,9 +379,9 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dt_subnode_to_map);
 
 int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np_config, struct pinctrl_map **map,
-		unsigned *num_maps, enum pinctrl_map_type type)
+		unsigned int *num_maps, enum pinctrl_map_type type)
 {
-	unsigned reserved_maps;
+	unsigned int reserved_maps;
 	struct device_node *np;
 	int ret;
 
@@ -412,7 +412,7 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
 
 void pinconf_generic_dt_free_map(struct pinctrl_dev *pctldev,
 				 struct pinctrl_map *map,
-				 unsigned num_maps)
+				 unsigned int num_maps)
 {
 	pinctrl_utils_free_map(pctldev, map, num_maps);
 }

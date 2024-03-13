@@ -68,6 +68,7 @@ PMU_FORMAT_ATTR(preset,		"config:0-3");
 PMU_FORMAT_ATTR(sinkid,		"config2:0-31");
 /* config ID - set if a system configuration is selected */
 PMU_FORMAT_ATTR(configid,	"config2:32-63");
+PMU_FORMAT_ATTR(cc_threshold,	"config3:0-11");
 
 
 /*
@@ -101,6 +102,7 @@ static struct attribute *etm_config_formats_attr[] = {
 	&format_attr_preset.attr,
 	&format_attr_configid.attr,
 	&format_attr_branch_broadcast.attr,
+	&format_attr_cc_threshold.attr,
 	NULL,
 };
 

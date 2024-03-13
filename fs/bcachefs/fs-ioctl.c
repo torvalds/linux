@@ -337,11 +337,12 @@ static long __bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 	if (arg.flags & BCH_SUBVOL_SNAPSHOT_RO)
 		create_flags |= BCH_CREATE_SNAPSHOT_RO;
 
-	/* why do we need this lock? */
-	down_read(&c->vfs_sb->s_umount);
-
-	if (arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE)
+	if (arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE) {
+		/* sync_inodes_sb enforce s_umount is locked */
+		down_read(&c->vfs_sb->s_umount);
 		sync_inodes_sb(c->vfs_sb);
+		up_read(&c->vfs_sb->s_umount);
+	}
 retry:
 	if (arg.src_ptr) {
 		error = user_path_at(arg.dirfd,
@@ -425,8 +426,6 @@ err2:
 		goto retry;
 	}
 err1:
-	up_read(&c->vfs_sb->s_umount);
-
 	return error;
 }
 
@@ -443,33 +442,36 @@ static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 				struct bch_ioctl_subvolume arg)
 {
+	const char __user *name = (void __user *)(unsigned long)arg.dst_ptr;
 	struct path path;
 	struct inode *dir;
+	struct dentry *victim;
 	int ret = 0;
 
 	if (arg.flags)
 		return -EINVAL;
 
-	ret = user_path_at(arg.dirfd,
-			(const char __user *)(unsigned long)arg.dst_ptr,
-			LOOKUP_FOLLOW, &path);
-	if (ret)
-		return ret;
+	victim = user_path_locked_at(arg.dirfd, name, &path);
+	if (IS_ERR(victim))
+		return PTR_ERR(victim);
 
-	if (path.dentry->d_sb->s_fs_info != c) {
+	dir = d_inode(path.dentry);
+	if (victim->d_sb->s_fs_info != c) {
 		ret = -EXDEV;
 		goto err;
 	}
-
-	dir = path.dentry->d_parent->d_inode;
-
-	ret = __bch2_unlink(dir, path.dentry, true);
-	if (ret)
+	if (!d_is_positive(victim)) {
+		ret = -ENOENT;
 		goto err;
-
-	fsnotify_rmdir(dir, path.dentry);
-	d_delete(path.dentry);
+	}
+	ret = __bch2_unlink(dir, victim, true);
+	if (!ret) {
+		fsnotify_rmdir(dir, victim);
+		d_delete(victim);
+	}
 err:
+	inode_unlock(dir);
+	dput(victim);
 	path_put(&path);
 	return ret;
 }

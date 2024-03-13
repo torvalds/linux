@@ -33,4 +33,9 @@ struct dma_fence *
 xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 		     struct xe_exec_queue *q, struct xe_vm *vm);
 
+static inline bool xe_sync_is_ufence(struct xe_sync_entry *sync)
+{
+	return !!sync->ufence;
+}
+
 #endif

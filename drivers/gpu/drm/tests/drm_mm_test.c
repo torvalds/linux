@@ -188,13 +188,13 @@ out:
 
 static void drm_test_mm_debug(struct kunit *test)
 {
+	struct drm_printer p = drm_debug_printer(test->name);
 	struct drm_mm mm;
 	struct drm_mm_node nodes[2];
 
 	/* Create a small drm_mm with a couple of nodes and a few holes, and
 	 * check that the debug iterator doesn't explode over a trivial drm_mm.
 	 */
-
 	drm_mm_init(&mm, 0, 4096);
 
 	memset(nodes, 0, sizeof(nodes));
@@ -209,6 +209,9 @@ static void drm_test_mm_debug(struct kunit *test)
 	KUNIT_ASSERT_FALSE_MSG(test, drm_mm_reserve_node(&mm, &nodes[1]),
 			       "failed to reserve node[0] {start=%lld, size=%lld)\n",
 			       nodes[0].start, nodes[0].size);
+
+	drm_mm_print(&mm, &p);
+	KUNIT_SUCCEED(test);
 }
 
 static bool expect_insert(struct kunit *test, struct drm_mm *mm,

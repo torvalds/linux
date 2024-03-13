@@ -317,7 +317,7 @@ static void rpi_firmware_shutdown(struct platform_device *pdev)
 	rpi_firmware_property(fw, RPI_FIRMWARE_NOTIFY_REBOOT, NULL, 0);
 }
 
-static int rpi_firmware_remove(struct platform_device *pdev)
+static void rpi_firmware_remove(struct platform_device *pdev)
 {
 	struct rpi_firmware *fw = platform_get_drvdata(pdev);
 
@@ -327,8 +327,6 @@ static int rpi_firmware_remove(struct platform_device *pdev)
 	rpi_clk = NULL;
 
 	rpi_firmware_put(fw);
-
-	return 0;
 }
 
 static const struct of_device_id rpi_firmware_of_match[] = {
@@ -406,7 +404,7 @@ static struct platform_driver rpi_firmware_driver = {
 	},
 	.probe		= rpi_firmware_probe,
 	.shutdown	= rpi_firmware_shutdown,
-	.remove		= rpi_firmware_remove,
+	.remove_new	= rpi_firmware_remove,
 };
 module_platform_driver(rpi_firmware_driver);
 

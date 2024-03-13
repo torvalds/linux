@@ -141,16 +141,16 @@ static int compression_decompress_bio(struct list_head *ws,
 }
 
 static int compression_decompress(int type, struct list_head *ws,
-               const u8 *data_in, struct page *dest_page,
-               unsigned long start_byte, size_t srclen, size_t destlen)
+		const u8 *data_in, struct page *dest_page,
+		unsigned long dest_pgoff, size_t srclen, size_t destlen)
 {
 	switch (type) {
 	case BTRFS_COMPRESS_ZLIB: return zlib_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_LZO:  return lzo_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_ZSTD: return zstd_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_NONE:
 	default:
 		/*
@@ -1037,14 +1037,23 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
  * start_byte tells us the offset into the compressed data we're interested in
  */
 int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
-		     unsigned long start_byte, size_t srclen, size_t destlen)
+		     unsigned long dest_pgoff, size_t srclen, size_t destlen)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
 	struct list_head *workspace;
+	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
+
+	/*
+	 * The full destination page range should not exceed the page size.
+	 * And the @destlen should not exceed sectorsize, as this is only called for
+	 * inline file extents, which should not exceed sectorsize.
+	 */
+	ASSERT(dest_pgoff + destlen <= PAGE_SIZE && destlen <= sectorsize);
 
 	workspace = get_workspace(type, 0);
 	ret = compression_decompress(type, workspace, data_in, dest_page,
-				     start_byte, srclen, destlen);
+				     dest_pgoff, srclen, destlen);
 	put_workspace(type, workspace);
 
 	return ret;

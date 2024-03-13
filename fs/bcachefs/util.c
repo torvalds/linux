@@ -241,10 +241,15 @@ bool bch2_is_zero(const void *_p, size_t n)
 	return true;
 }
 
-void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
+void bch2_prt_u64_base2_nbits(struct printbuf *out, u64 v, unsigned nr_bits)
 {
 	while (nr_bits)
 		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
+void bch2_prt_u64_base2(struct printbuf *out, u64 v)
+{
+	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines)
@@ -267,14 +272,14 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 	console_unlock();
 }
 
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr)
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr,
+			gfp_t gfp)
 {
 #ifdef CONFIG_STACKTRACE
 	unsigned nr_entries = 0;
-	int ret = 0;
 
 	stack->nr = 0;
-	ret = darray_make_room(stack, 32);
+	int ret = darray_make_room_gfp(stack, 32, gfp);
 	if (ret)
 		return ret;
 
@@ -303,10 +308,10 @@ void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
 	}
 }
 
-int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task, unsigned skipnr)
+int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task, unsigned skipnr, gfp_t gfp)
 {
 	bch_stacktrace stack = { 0 };
-	int ret = bch2_save_backtrace(&stack, task, skipnr + 1);
+	int ret = bch2_save_backtrace(&stack, task, skipnr + 1, gfp);
 
 	bch2_prt_backtrace(out, &stack);
 	darray_exit(&stack);
@@ -413,14 +418,15 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 		bch2_quantiles_update(&stats->quantiles, duration);
 	}
 
-	if (time_after64(end, stats->last_event)) {
+	if (stats->last_event && time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
 		mean_and_variance_update(&stats->freq_stats, freq);
 		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);
-		stats->last_event = end;
 	}
+
+	stats->last_event = end;
 }
 
 static void __bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
@@ -1186,7 +1192,9 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 {
 	darray_init(ret);
 
-	char *dev_name = kstrdup(_dev_name, GFP_KERNEL), *s = dev_name;
+	char *dev_name, *s, *orig;
+
+	dev_name = orig = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
 		return -ENOMEM;
 
@@ -1201,10 +1209,10 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 		}
 	}
 
-	kfree(dev_name);
+	kfree(orig);
 	return 0;
 err:
 	bch2_darray_str_exit(ret);
-	kfree(dev_name);
+	kfree(orig);
 	return -ENOMEM;
 }

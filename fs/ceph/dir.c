@@ -1593,10 +1593,12 @@ struct ceph_lease_walk_control {
 	unsigned long dir_lease_ttl;
 };
 
+static int __dir_lease_check(const struct dentry *, struct ceph_lease_walk_control *);
+static int __dentry_lease_check(const struct dentry *);
+
 static unsigned long
 __dentry_leases_walk(struct ceph_mds_client *mdsc,
-		     struct ceph_lease_walk_control *lwc,
-		     int (*check)(struct dentry*, void*))
+		     struct ceph_lease_walk_control *lwc)
 {
 	struct ceph_dentry_info *di, *tmp;
 	struct dentry *dentry, *last = NULL;
@@ -1624,7 +1626,10 @@ __dentry_leases_walk(struct ceph_mds_client *mdsc,
 			goto next;
 		}
 
-		ret = check(dentry, lwc);
+		if (lwc->dir_lease)
+			ret = __dir_lease_check(dentry, lwc);
+		else
+			ret = __dentry_lease_check(dentry);
 		if (ret & TOUCH) {
 			/* move it into tail of dir lease list */
 			__dentry_dir_lease_touch(mdsc, di);
@@ -1681,7 +1686,7 @@ next:
 	return freed;
 }
 
-static int __dentry_lease_check(struct dentry *dentry, void *arg)
+static int __dentry_lease_check(const struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int ret;
@@ -1696,9 +1701,9 @@ static int __dentry_lease_check(struct dentry *dentry, void *arg)
 	return DELETE;
 }
 
-static int __dir_lease_check(struct dentry *dentry, void *arg)
+static int __dir_lease_check(const struct dentry *dentry,
+			     struct ceph_lease_walk_control *lwc)
 {
-	struct ceph_lease_walk_control *lwc = arg;
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
 	int ret = __dir_lease_try_check(dentry);
@@ -1737,7 +1742,7 @@ int ceph_trim_dentries(struct ceph_mds_client *mdsc)
 
 	lwc.dir_lease = false;
 	lwc.nr_to_scan  = CEPH_CAPS_PER_RELEASE * 2;
-	freed = __dentry_leases_walk(mdsc, &lwc, __dentry_lease_check);
+	freed = __dentry_leases_walk(mdsc, &lwc);
 	if (!lwc.nr_to_scan) /* more invalid leases */
 		return -EAGAIN;
 
@@ -1747,7 +1752,7 @@ int ceph_trim_dentries(struct ceph_mds_client *mdsc)
 	lwc.dir_lease = true;
 	lwc.expire_dir_lease = freed < count;
 	lwc.dir_lease_ttl = mdsc->fsc->mount_options->caps_wanted_delay_max * HZ;
-	freed +=__dentry_leases_walk(mdsc, &lwc, __dir_lease_check);
+	freed +=__dentry_leases_walk(mdsc, &lwc);
 	if (!lwc.nr_to_scan) /* more to check */
 		return -EAGAIN;
 

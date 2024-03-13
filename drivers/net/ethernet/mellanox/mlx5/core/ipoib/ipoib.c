@@ -783,7 +783,7 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u32 port_num,
 		}
 
 		/* This should only be called once per mdev */
-		err = mlx5e_create_mdev_resources(mdev);
+		err = mlx5e_create_mdev_resources(mdev, false);
 		if (err)
 			goto destroy_ht;
 	}

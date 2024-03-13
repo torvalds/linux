@@ -9,10 +9,6 @@ title: Freescale i.MX Universal Asynchronous Receiver/Transmitter (UART)
 maintainers:
   - Fabio Estevam <festevam@gmail.com>
 
-allOf:
-  - $ref: serial.yaml#
-  - $ref: rs485.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -68,7 +64,11 @@ properties:
       - const: tx
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: UART RX Interrupt
+      - description: UART TX Interrupt
+      - description: UART RTS Interrupt
+    minItems: 1
 
   wakeup-source: true
 
@@ -109,6 +109,25 @@ required:
   - clocks
   - clock-names
   - interrupts
+
+allOf:
+  - $ref: serial.yaml#
+  - $ref: rs485.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx1-uart
+    then:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
 
 unevaluatedProperties: false
 

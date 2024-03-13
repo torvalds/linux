@@ -131,7 +131,7 @@ static void vdpa_release_dev(struct device *d)
 	if (ops->free)
 		ops->free(vdev);
 
-	ida_simple_remove(&vdpa_index_ida, vdev->index);
+	ida_free(&vdpa_index_ida, vdev->index);
 	kfree(vdev->driver_override);
 	kfree(vdev);
 }
@@ -205,7 +205,7 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 	return vdev;
 
 err_name:
-	ida_simple_remove(&vdpa_index_ida, vdev->index);
+	ida_free(&vdpa_index_ida, vdev->index);
 err_ida:
 	kfree(vdev);
 err:

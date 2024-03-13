@@ -144,7 +144,7 @@ config XTENSA_VARIANT_CUSTOM_NAME
 	depends on XTENSA_VARIANT_CUSTOM
 	help
 	  Provide the name of a custom Xtensa processor variant.
-	  This CORENAME selects arch/xtensa/variant/CORENAME.
+	  This CORENAME selects arch/xtensa/variants/CORENAME.
 	  Don't forget you have to select MMU if you have one.
 
 config XTENSA_VARIANT_NAME

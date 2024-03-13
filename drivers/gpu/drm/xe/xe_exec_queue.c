@@ -67,6 +67,11 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
 	q->sched_props.preempt_timeout_us =
 				hwe->eclass->sched_props.preempt_timeout_us;
+	if (q->flags & EXEC_QUEUE_FLAG_KERNEL &&
+	    q->flags & EXEC_QUEUE_FLAG_HIGH_PRIORITY)
+		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
+	else
+		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
 
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
@@ -921,20 +926,24 @@ void xe_exec_queue_last_fence_put_unlocked(struct xe_exec_queue *q)
  * @q: The exec queue
  * @vm: The VM the engine does a bind or exec for
  *
- * Get last fence, does not take a ref
+ * Get last fence, takes a ref
  *
  * Returns: last fence if not signaled, dma fence stub if signaled
  */
 struct dma_fence *xe_exec_queue_last_fence_get(struct xe_exec_queue *q,
 					       struct xe_vm *vm)
 {
+	struct dma_fence *fence;
+
 	xe_exec_queue_last_fence_lockdep_assert(q, vm);
 
 	if (q->last_fence &&
 	    test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &q->last_fence->flags))
 		xe_exec_queue_last_fence_put(q, vm);
 
-	return q->last_fence ? q->last_fence : dma_fence_get_stub();
+	fence = q->last_fence ? q->last_fence : dma_fence_get_stub();
+	dma_fence_get(fence);
+	return fence;
 }
 
 /**

@@ -18,7 +18,7 @@ allOf:
             const: marvell,armada-380-sdhci
     then:
       properties:
-        regs:
+        reg:
           minItems: 3
         reg-names:
           minItems: 3
@@ -26,7 +26,7 @@ allOf:
         - reg-names
     else:
       properties:
-        regs:
+        reg:
           maxItems: 1
         reg-names:
           maxItems: 1

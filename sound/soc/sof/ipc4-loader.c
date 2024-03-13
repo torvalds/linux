@@ -482,13 +482,10 @@ void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 		msg = "No CPC match in the firmware file's manifest";
 
 no_cpc:
-	dev_warn(sdev->dev, "%s (UUID: %pUL): %s (ibs/obs: %u/%u)\n",
-		 fw_module->man4_module_entry.name,
-		 &fw_module->man4_module_entry.uuid, msg, basecfg->ibs,
-		 basecfg->obs);
-	dev_warn_once(sdev->dev, "Please try to update the firmware.\n");
-	dev_warn_once(sdev->dev, "If the issue persists, file a bug at\n");
-	dev_warn_once(sdev->dev, "https://github.com/thesofproject/sof/issues/\n");
+	dev_dbg(sdev->dev, "%s (UUID: %pUL): %s (ibs/obs: %u/%u)\n",
+		fw_module->man4_module_entry.name,
+		&fw_module->man4_module_entry.uuid, msg, basecfg->ibs,
+		basecfg->obs);
 }
 
 const struct sof_ipc_fw_loader_ops ipc4_loader_ops = {

@@ -280,7 +280,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 					le64_to_cpu(u->v);
 			break;
 		case BCH_FS_USAGE_inodes:
-			c->usage_base->nr_inodes = le64_to_cpu(u->v);
+			c->usage_base->b.nr_inodes = le64_to_cpu(u->v);
 			break;
 		case BCH_FS_USAGE_key_version:
 			atomic64_set(&c->key_version,

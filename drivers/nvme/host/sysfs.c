@@ -35,15 +35,70 @@ static ssize_t nvme_sysfs_rescan(struct device *dev,
 }
 static DEVICE_ATTR(rescan_controller, S_IWUSR, NULL, nvme_sysfs_rescan);
 
+static ssize_t nvme_adm_passthru_err_log_enabled_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf,
+			  ctrl->passthru_err_log_enabled ? "on\n" : "off\n");
+}
+
+static ssize_t nvme_adm_passthru_err_log_enabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	bool passthru_err_log_enabled;
+	int err;
+
+	err = kstrtobool(buf, &passthru_err_log_enabled);
+	if (err)
+		return -EINVAL;
+
+	ctrl->passthru_err_log_enabled = passthru_err_log_enabled;
+
+	return count;
+}
+
 static inline struct nvme_ns_head *dev_to_ns_head(struct device *dev)
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	if (disk->fops == &nvme_bdev_ops)
-		return nvme_get_ns_from_dev(dev)->head;
-	else
+	if (nvme_disk_is_ns_head(disk))
 		return disk->private_data;
+	return nvme_get_ns_from_dev(dev)->head;
 }
+
+static ssize_t nvme_io_passthru_err_log_enabled_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ns_head *head = dev_to_ns_head(dev);
+
+	return sysfs_emit(buf, head->passthru_err_log_enabled ? "on\n" : "off\n");
+}
+
+static ssize_t nvme_io_passthru_err_log_enabled_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct nvme_ns_head *head = dev_to_ns_head(dev);
+	bool passthru_err_log_enabled;
+	int err;
+
+	err = kstrtobool(buf, &passthru_err_log_enabled);
+	if (err)
+		return -EINVAL;
+	head->passthru_err_log_enabled = passthru_err_log_enabled;
+
+	return count;
+}
+
+static struct device_attribute dev_attr_adm_passthru_err_log_enabled = \
+	__ATTR(passthru_err_log_enabled, S_IRUGO | S_IWUSR, \
+	nvme_adm_passthru_err_log_enabled_show, nvme_adm_passthru_err_log_enabled_store);
+
+static struct device_attribute dev_attr_io_passthru_err_log_enabled = \
+	__ATTR(passthru_err_log_enabled, S_IRUGO | S_IWUSR, \
+	nvme_io_passthru_err_log_enabled_show, nvme_io_passthru_err_log_enabled_store);
 
 static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -209,6 +264,7 @@ static struct attribute *nvme_ns_attrs[] = {
 	&dev_attr_ana_grpid.attr,
 	&dev_attr_ana_state.attr,
 #endif
+	&dev_attr_io_passthru_err_log_enabled.attr,
 	NULL,
 };
 
@@ -233,7 +289,8 @@ static umode_t nvme_ns_attrs_are_visible(struct kobject *kobj,
 	}
 #ifdef CONFIG_NVME_MULTIPATH
 	if (a == &dev_attr_ana_grpid.attr || a == &dev_attr_ana_state.attr) {
-		if (dev_to_disk(dev)->fops != &nvme_bdev_ops) /* per-path attr */
+		/* per-path attr */
+		if (nvme_disk_is_ns_head(dev_to_disk(dev)))
 			return 0;
 		if (!nvme_ctrl_use_ana(nvme_get_ns_from_dev(dev)->ctrl))
 			return 0;
@@ -311,6 +368,7 @@ static ssize_t nvme_sysfs_show_state(struct device *dev,
 				     char *buf)
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	unsigned state = (unsigned)nvme_ctrl_state(ctrl);
 	static const char *const state_name[] = {
 		[NVME_CTRL_NEW]		= "new",
 		[NVME_CTRL_LIVE]	= "live",
@@ -321,9 +379,8 @@ static ssize_t nvme_sysfs_show_state(struct device *dev,
 		[NVME_CTRL_DEAD]	= "dead",
 	};
 
-	if ((unsigned)ctrl->state < ARRAY_SIZE(state_name) &&
-	    state_name[ctrl->state])
-		return sysfs_emit(buf, "%s\n", state_name[ctrl->state]);
+	if (state < ARRAY_SIZE(state_name) && state_name[state])
+		return sysfs_emit(buf, "%s\n", state_name[state]);
 
 	return sysfs_emit(buf, "unknown state\n");
 }
@@ -655,6 +712,7 @@ static struct attribute *nvme_dev_attrs[] = {
 #ifdef CONFIG_NVME_TCP_TLS
 	&dev_attr_tls_key.attr,
 #endif
+	&dev_attr_adm_passthru_err_log_enabled.attr,
 	NULL
 };
 

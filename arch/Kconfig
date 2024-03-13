@@ -301,6 +301,11 @@ config ARCH_HAS_DMA_CLEAR_UNCACHED
 config ARCH_HAS_CPU_FINALIZE_INIT
 	bool
 
+# The architecture has a per-task state that includes the mm's PASID
+config ARCH_HAS_CPU_PASID
+	bool
+	select IOMMU_MM_DATA
+
 config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	bool
 	help
@@ -668,6 +673,7 @@ config SHADOW_CALL_STACK
 	bool "Shadow Call Stack"
 	depends on ARCH_SUPPORTS_SHADOW_CALL_STACK
 	depends on DYNAMIC_FTRACE_WITH_ARGS || DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
+	depends on MMU
 	help
 	  This option enables the compiler's Shadow Call Stack, which
 	  uses a shadow stack to protect function return addresses from

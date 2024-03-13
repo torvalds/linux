@@ -2931,9 +2931,8 @@ static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
 
 		t = &func->function.os_desc_table[desc->bFirstInterfaceNumber];
 		t->if_id = func->interfaces_nums[desc->bFirstInterfaceNumber];
-		memcpy(t->os_desc->ext_compat_id, &desc->CompatibleID,
-		       ARRAY_SIZE(desc->CompatibleID) +
-		       ARRAY_SIZE(desc->SubCompatibleID));
+		memcpy(t->os_desc->ext_compat_id, &desc->IDs,
+		       sizeof_field(struct usb_ext_compat_desc, IDs));
 		length = sizeof(*desc);
 	}
 		break;

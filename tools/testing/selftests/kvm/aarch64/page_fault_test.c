@@ -705,7 +705,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	print_test_banner(mode, p);
 
-	vm = ____vm_create(mode);
+	vm = ____vm_create(VM_SHAPE(mode));
 	setup_memslots(vm, p);
 	kvm_vm_elf_load(vm, program_invocation_name);
 	setup_ucall(vm);

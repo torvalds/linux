@@ -270,16 +270,16 @@ SYM_FUNC_START(__svm_vcpu_run)
 	RESTORE_GUEST_SPEC_CTRL_BODY
 	RESTORE_HOST_SPEC_CTRL_BODY
 
-10:	cmpb $0, kvm_rebooting
+10:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 2b
 	ud2
-30:	cmpb $0, kvm_rebooting
+30:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 4b
 	ud2
-50:	cmpb $0, kvm_rebooting
+50:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 6b
 	ud2
-70:	cmpb $0, kvm_rebooting
+70:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 8b
 	ud2
 
@@ -381,7 +381,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	RESTORE_GUEST_SPEC_CTRL_BODY
 	RESTORE_HOST_SPEC_CTRL_BODY
 
-3:	cmpb $0, kvm_rebooting
+3:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 2b
 	ud2
 

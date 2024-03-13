@@ -860,7 +860,7 @@ static ssize_t cyapa_gen3_show_baseline(struct device *dev,
 
 	dev_dbg(dev, "Baseline report successful. Max: %d Min: %d\n",
 		max_baseline, min_baseline);
-	ret = scnprintf(buf, PAGE_SIZE, "%d %d\n", max_baseline, min_baseline);
+	ret = sysfs_emit(buf, "%d %d\n", max_baseline, min_baseline);
 
 out:
 	return ret;

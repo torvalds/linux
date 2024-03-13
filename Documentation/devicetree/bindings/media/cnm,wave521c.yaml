@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - enum:
-          - ti,k3-j721s2-wave521c
+          - ti,j721s2-wave521c
       - const: cnm,wave521c
 
   reg:
@@ -53,7 +53,7 @@ additionalProperties: false
 examples:
   - |
     vpu: video-codec@12345678 {
-        compatible = "ti,k3-j721s2-wave521c", "cnm,wave521c";
+        compatible = "ti,j721s2-wave521c", "cnm,wave521c";
         reg = <0x12345678 0x1000>;
         clocks = <&clks 42>;
         interrupts = <42>;

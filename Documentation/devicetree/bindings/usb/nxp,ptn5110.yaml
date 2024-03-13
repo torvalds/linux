@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/nxp,ptn5110.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NXP PTN5110 Typec Port Cotroller
+title: NXP PTN5110 Type-C Port Controller
 
 maintainers:
   - Li Jun <jun.li@nxp.com>

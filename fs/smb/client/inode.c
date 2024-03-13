@@ -104,7 +104,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 	fattr->cf_mtime = timestamp_truncate(fattr->cf_mtime, inode);
 	mtime = inode_get_mtime(inode);
 	if (timespec64_equal(&mtime, &fattr->cf_mtime) &&
-	    cifs_i->server_eof == fattr->cf_eof) {
+	    cifs_i->netfs.remote_i_size == fattr->cf_eof) {
 		cifs_dbg(FYI, "%s: inode %llu is unchanged\n",
 			 __func__, cifs_i->uniqueid);
 		return;
@@ -194,7 +194,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	else
 		clear_bit(CIFS_INO_DELETE_PENDING, &cifs_i->flags);
 
-	cifs_i->server_eof = fattr->cf_eof;
+	cifs_i->netfs.remote_i_size = fattr->cf_eof;
 	/*
 	 * Can't safely change the file size here if the client is writing to
 	 * it due to potential races.
@@ -665,8 +665,6 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 /* Fill a cifs_fattr struct with info from POSIX info struct */
 static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 				       struct cifs_open_info_data *data,
-				       struct cifs_sid *owner,
-				       struct cifs_sid *group,
 				       struct super_block *sb)
 {
 	struct smb311_posix_qinfo *info = &data->posix_fi;
@@ -722,8 +720,8 @@ out_reparse:
 		fattr->cf_symlink_target = data->symlink_target;
 		data->symlink_target = NULL;
 	}
-	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
-	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
+	sid_to_id(cifs_sb, &data->posix_owner, fattr, SIDOWNER);
+	sid_to_id(cifs_sb, &data->posix_group, fattr, SIDGROUP);
 
 	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
@@ -1070,9 +1068,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 				 const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 const char *full_path,
-				 struct cifs_fattr *fattr,
-				 struct cifs_sid *owner,
-				 struct cifs_sid *group)
+				 struct cifs_fattr *fattr)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -1117,7 +1113,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 	}
 
 	if (tcon->posix_extensions)
-		smb311_posix_info_to_fattr(fattr, data, owner, group, sb);
+		smb311_posix_info_to_fattr(fattr, data, sb);
 	else
 		cifs_open_info_to_fattr(fattr, data, sb);
 out:
@@ -1171,8 +1167,7 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		 */
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr,
-						   NULL, NULL);
+						   full_path, fattr);
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
@@ -1317,10 +1312,10 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 				  const unsigned int xid)
 {
 	struct cifs_open_info_data tmp_data = {};
+	struct TCP_Server_Info *server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	struct cifs_sid owner, group;
 	int tmprc;
 	int rc = 0;
 
@@ -1328,14 +1323,14 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	/*
 	 * 1. Fetch file metadata if not provided (data)
 	 */
 	if (!data) {
-		rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
-						  full_path, &tmp_data,
-						  &owner, &group);
+		rc = server->ops->query_path_info(xid, tcon, cifs_sb,
+						  full_path, &tmp_data);
 		data = &tmp_data;
 	}
 
@@ -1347,11 +1342,9 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	case 0:
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr,
-						   &owner, &group);
+						   full_path, fattr);
 		} else {
-			smb311_posix_info_to_fattr(fattr, data,
-						   &owner, &group, sb);
+			smb311_posix_info_to_fattr(fattr, data, sb);
 		}
 		break;
 	case -EREMOTE:
@@ -2865,7 +2858,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 
 set_size_out:
 	if (rc == 0) {
-		cifsInode->server_eof = attrs->ia_size;
+		netfs_resize_file(&cifsInode->netfs, attrs->ia_size, true);
 		cifs_setsize(inode, attrs->ia_size);
 		/*
 		 * i_blocks is not related to (i_size / i_blksize), but instead
@@ -3018,6 +3011,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if ((attrs->ia_valid & ATTR_SIZE) &&
 	    attrs->ia_size != i_size_read(inode)) {
 		truncate_setsize(inode, attrs->ia_size);
+		netfs_resize_file(&cifsInode->netfs, attrs->ia_size, true);
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 
@@ -3217,6 +3211,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if ((attrs->ia_valid & ATTR_SIZE) &&
 	    attrs->ia_size != i_size_read(inode)) {
 		truncate_setsize(inode, attrs->ia_size);
+		netfs_resize_file(&cifsInode->netfs, attrs->ia_size, true);
 		fscache_resize_cookie(cifs_inode_cookie(inode), attrs->ia_size);
 	}
 

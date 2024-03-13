@@ -53,7 +53,7 @@ extern "C" {
 #define DRM_IVPU_PARAM_CORE_CLOCK_RATE	    3
 #define DRM_IVPU_PARAM_NUM_CONTEXTS	    4
 #define DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS 5
-#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6
+#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6 /* Deprecated */
 #define DRM_IVPU_PARAM_CONTEXT_ID	    7
 #define DRM_IVPU_PARAM_FW_API_VERSION	    8
 #define DRM_IVPU_PARAM_ENGINE_HEARTBEAT	    9
@@ -64,10 +64,17 @@ extern "C" {
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
+/* Deprecated, use DRM_IVPU_JOB_PRIORITY */
 #define DRM_IVPU_CONTEXT_PRIORITY_IDLE	    0
 #define DRM_IVPU_CONTEXT_PRIORITY_NORMAL    1
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
+
+#define DRM_IVPU_JOB_PRIORITY_DEFAULT  0
+#define DRM_IVPU_JOB_PRIORITY_IDLE     1
+#define DRM_IVPU_JOB_PRIORITY_NORMAL   2
+#define DRM_IVPU_JOB_PRIORITY_FOCUS    3
+#define DRM_IVPU_JOB_PRIORITY_REALTIME 4
 
 /**
  * DRM_IVPU_CAP_METRIC_STREAMER
@@ -111,10 +118,6 @@ struct drm_ivpu_param {
 	 *
 	 * %DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
 	 * Lowest VPU virtual address available in the current context (read-only)
-	 *
-	 * %DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-	 * Value of current context scheduling priority (read-write).
-	 * See DRM_IVPU_CONTEXT_PRIORITY_* for possible values.
 	 *
 	 * %DRM_IVPU_PARAM_CONTEXT_ID:
 	 * Current context ID, always greater than 0 (read-only)
@@ -286,10 +289,23 @@ struct drm_ivpu_submit {
 	 * to be executed. The offset has to be 8-byte aligned.
 	 */
 	__u32 commands_offset;
+
+	/**
+	 * @priority:
+	 *
+	 * Priority to be set for related job command queue, can be one of the following:
+	 * %DRM_IVPU_JOB_PRIORITY_DEFAULT
+	 * %DRM_IVPU_JOB_PRIORITY_IDLE
+	 * %DRM_IVPU_JOB_PRIORITY_NORMAL
+	 * %DRM_IVPU_JOB_PRIORITY_FOCUS
+	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
+	 */
+	__u32 priority;
 };
 
 /* drm_ivpu_bo_wait job status codes */
 #define DRM_IVPU_JOB_STATUS_SUCCESS 0
+#define DRM_IVPU_JOB_STATUS_ABORTED 256
 
 /**
  * struct drm_ivpu_bo_wait - Wait for BO to become inactive

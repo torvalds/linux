@@ -122,6 +122,11 @@ extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
 extern void smb2_set_next_command(struct cifs_tcon *tcon,
 				  struct smb_rqst *rqst);
 extern void smb2_set_related(struct smb_rqst *rqst);
+extern void smb2_set_replay(struct TCP_Server_Info *server,
+			    struct smb_rqst *rqst);
+extern bool smb2_should_replay(struct cifs_tcon *tcon,
+			  int *pretries,
+			  int *pcur_sleep);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -299,9 +304,7 @@ int smb311_posix_query_path_info(const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
 				 const char *full_path,
-				 struct cifs_open_info_data *data,
-				 struct cifs_sid *owner,
-				 struct cifs_sid *group);
+				 struct cifs_open_info_data *data);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);

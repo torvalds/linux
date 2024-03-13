@@ -342,14 +342,15 @@ bool bch2_is_zero(const void *, size_t);
 
 u64 bch2_read_flag_list(char *, const char * const[]);
 
-void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2(struct printbuf *, u64);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned);
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
 void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
-int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned);
+int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned, gfp_t);
 
 static inline void prt_bdevname(struct printbuf *out, struct block_device *bdev)
 {

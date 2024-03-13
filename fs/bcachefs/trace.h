@@ -46,7 +46,7 @@ DECLARE_EVENT_CLASS(fs_str,
 		__assign_str(str, str);
 	),
 
-	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
+	TP_printk("%d,%d\n%s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
 );
 
 DECLARE_EVENT_CLASS(trans_str,
@@ -273,28 +273,14 @@ DEFINE_EVENT(bch_fs, journal_full,
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(bch_fs, journal_entry_full,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(fs_str, journal_entry_full,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(journal_entry_close,
-	TP_PROTO(struct bch_fs *c, unsigned bytes),
-	TP_ARGS(c, bytes),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u32,		bytes			)
-	),
-
-	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->bytes			= bytes;
-	),
-
-	TP_printk("%d,%d entry bytes %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->bytes)
+DEFINE_EVENT(fs_str, journal_entry_close,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(bio, journal_write,
@@ -542,7 +528,7 @@ TRACE_EVENT(btree_path_relock_fail,
 		__entry->level			= path->level;
 		TRACE_BPOS_assign(pos, path->pos);
 
-		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level),
+		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level);
 		__entry->self_read_count	= c.n[SIX_LOCK_read];
 		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
 
@@ -827,40 +813,28 @@ TRACE_EVENT(bucket_evacuate,
 );
 
 DEFINE_EVENT(fs_str, move_extent,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_read,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_write,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_finish,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(move_extent_fail,
-	TP_PROTO(struct bch_fs *c, const char *msg),
-	TP_ARGS(c, msg),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__string(msg,		msg			)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= c->dev;
-		__assign_str(msg, msg);
-	),
-
-	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
+DEFINE_EVENT(fs_str, move_extent_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_start_fail,
@@ -1039,7 +1013,7 @@ TRACE_EVENT(trans_restart_split_race,
 		__entry->level		= b->c.level;
 		__entry->written	= b->written;
 		__entry->blocks		= btree_blocks(trans->c);
-		__entry->u64s_remaining	= bch_btree_keys_u64s_remaining(trans->c, b);
+		__entry->u64s_remaining	= bch2_btree_keys_u64s_remaining(b);
 	),
 
 	TP_printk("%s %pS l=%u written %u/%u u64s remaining %u",
@@ -1146,8 +1120,6 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_btree_node_split,
 	TP_ARGS(trans, caller_ip, path)
 );
 
-struct get_locks_fail;
-
 TRACE_EVENT(trans_restart_upgrade,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
@@ -1195,11 +1167,9 @@ TRACE_EVENT(trans_restart_upgrade,
 		  __entry->node_seq)
 );
 
-DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip,
-		 struct btree_path *path),
-	TP_ARGS(trans, caller_ip, path)
+DEFINE_EVENT(trans_str,	trans_restart_relock,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *str),
+	TP_ARGS(trans, caller_ip, str)
 );
 
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock_next_node,

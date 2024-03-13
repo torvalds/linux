@@ -9,6 +9,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -319,8 +320,6 @@ static const struct intel_pinctrl_soc_data cdf_soc_data = {
 	.ncommunities = ARRAY_SIZE(cdf_communities),
 };
 
-static INTEL_PINCTRL_PM_OPS(cdf_pinctrl_pm_ops);
-
 static const struct acpi_device_id cdf_pinctrl_acpi_match[] = {
 	{ "INTC3001", (kernel_ulong_t)&cdf_soc_data },
 	{ }
@@ -332,7 +331,7 @@ static struct platform_driver cdf_pinctrl_driver = {
 	.driver = {
 		.name = "cedarfork-pinctrl",
 		.acpi_match_table = cdf_pinctrl_acpi_match,
-		.pm = &cdf_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 

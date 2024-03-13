@@ -217,7 +217,7 @@ static int pwm_mediatek_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = pwm_mediatek_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = pwm_mediatek_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 

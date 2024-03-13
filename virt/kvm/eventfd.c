@@ -28,7 +28,7 @@
 
 #include <kvm/iodev.h>
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 
 static struct workqueue_struct *irqfd_cleanup_wq;
 
@@ -526,21 +526,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	synchronize_srcu(&kvm->irq_srcu);
 	kvm_arch_post_irq_ack_notifier_list_update(kvm);
 }
-#endif
 
-void
-kvm_eventfd_init(struct kvm *kvm)
-{
-#ifdef CONFIG_HAVE_KVM_IRQFD
-	spin_lock_init(&kvm->irqfds.lock);
-	INIT_LIST_HEAD(&kvm->irqfds.items);
-	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
-	mutex_init(&kvm->irqfds.resampler_lock);
-#endif
-	INIT_LIST_HEAD(&kvm->ioeventfds);
-}
-
-#ifdef CONFIG_HAVE_KVM_IRQFD
 /*
  * shutdown any irqfd's that match fd+gsi
  */
@@ -1011,4 +997,16 @@ kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		return kvm_deassign_ioeventfd(kvm, args);
 
 	return kvm_assign_ioeventfd(kvm, args);
+}
+
+void
+kvm_eventfd_init(struct kvm *kvm)
+{
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
+	spin_lock_init(&kvm->irqfds.lock);
+	INIT_LIST_HEAD(&kvm->irqfds.items);
+	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
+	mutex_init(&kvm->irqfds.resampler_lock);
+#endif
+	INIT_LIST_HEAD(&kvm->ioeventfds);
 }

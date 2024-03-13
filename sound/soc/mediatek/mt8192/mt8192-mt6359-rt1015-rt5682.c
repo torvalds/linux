@@ -1208,7 +1208,8 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 			dai_link->ignore = 0;
 		}
 
-		if (strcmp(dai_link->codecs[0].dai_name, RT1015_CODEC_DAI) == 0)
+		if (dai_link->num_codecs && dai_link->codecs[0].dai_name &&
+		    strcmp(dai_link->codecs[0].dai_name, RT1015_CODEC_DAI) == 0)
 			dai_link->ops = &mt8192_rt1015_i2s_ops;
 
 		if (!dai_link->platforms->name)

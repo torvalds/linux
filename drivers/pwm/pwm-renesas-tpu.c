@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -416,7 +415,7 @@ static int tpu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = tpu_pwm_config(pwm->chip, pwm,
+	err = tpu_pwm_config(chip, pwm,
 			     state->duty_cycle, state->period, enabled);
 	if (err)
 		return err;

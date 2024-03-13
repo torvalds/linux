@@ -88,6 +88,21 @@ Description:
 		This entry describes the HDRCAP of the master controller
 		driving the bus.
 
+What:		/sys/bus/i3c/devices/i3c-<bus-id>/hotjoin
+KernelVersion:  6.8
+Contact:	linux-i3c@vger.kernel.org
+Description:
+		I3C’s Hot-Join mechanism allows an I3C Device to inform the
+		Active Controller that a newly-joined Target is present on the
+		I3C Bus and is ready to receive a Dynamic Address, in order to
+		become fully functional on the Bus. Hot-Join is used when the
+		Target is mounted on the same I3C bus and remains depowered
+		until needed or until the Target is physically inserted into the
+		I3C bus
+
+		This entry allows to enable or disable Hot-join of the Current
+		Controller driving the bus.
+
 What:		/sys/bus/i3c/devices/i3c-<bus-id>/<bus-id>-<device-pid>
 KernelVersion:  5.0
 Contact:	linux-i3c@vger.kernel.org

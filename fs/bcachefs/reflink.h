@@ -24,14 +24,14 @@ int bch2_reflink_v_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_reflink_v_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
-int bch2_trans_mark_reflink_v(struct btree_trans *, enum btree_id, unsigned,
+int bch2_trigger_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 			      struct bkey_s_c, struct bkey_s, unsigned);
 
 #define bch2_bkey_ops_reflink_v ((struct bkey_ops) {		\
 	.key_invalid	= bch2_reflink_v_invalid,		\
 	.val_to_text	= bch2_reflink_v_to_text,		\
 	.swab		= bch2_ptr_swab,			\
-	.trigger	= bch2_trans_mark_reflink_v,		\
+	.trigger	= bch2_trigger_reflink_v,		\
 	.min_val_size	= 8,					\
 })
 
@@ -39,7 +39,7 @@ int bch2_indirect_inline_data_invalid(struct bch_fs *, struct bkey_s_c,
 				      enum bkey_invalid_flags, struct printbuf *);
 void bch2_indirect_inline_data_to_text(struct printbuf *,
 				struct bch_fs *, struct bkey_s_c);
-int bch2_trans_mark_indirect_inline_data(struct btree_trans *,
+int bch2_trigger_indirect_inline_data(struct btree_trans *,
 					 enum btree_id, unsigned,
 			      struct bkey_s_c, struct bkey_s,
 			      unsigned);
@@ -47,7 +47,7 @@ int bch2_trans_mark_indirect_inline_data(struct btree_trans *,
 #define bch2_bkey_ops_indirect_inline_data ((struct bkey_ops) {	\
 	.key_invalid	= bch2_indirect_inline_data_invalid,	\
 	.val_to_text	= bch2_indirect_inline_data_to_text,	\
-	.trigger	= bch2_trans_mark_indirect_inline_data,	\
+	.trigger	= bch2_trigger_indirect_inline_data,	\
 	.min_val_size	= 8,					\
 })
 

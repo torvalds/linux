@@ -1005,7 +1005,7 @@ static int mc_probe(struct platform_device *pdev)
 		goto free_edac_mc;
 	}
 
-	rc = xlnx_register_event(PM_NOTIFY_CB, EVENT_ERROR_PMC_ERR1,
+	rc = xlnx_register_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR |
 				 XPM_EVENT_ERROR_MASK_NOC_CR | XPM_EVENT_ERROR_MASK_NOC_NCR,
 				 false, err_callback, mci);
@@ -1042,7 +1042,7 @@ static int mc_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(priv->debugfs);
 #endif
 
-	xlnx_unregister_event(PM_NOTIFY_CB, EVENT_ERROR_PMC_ERR1,
+	xlnx_unregister_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 			      XPM_EVENT_ERROR_MASK_DDRMC_CR |
 			      XPM_EVENT_ERROR_MASK_NOC_CR |
 			      XPM_EVENT_ERROR_MASK_NOC_NCR |

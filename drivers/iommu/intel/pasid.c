@@ -26,63 +26,6 @@
  */
 u32 intel_pasid_max_id = PASID_MAX;
 
-int vcmd_alloc_pasid(struct intel_iommu *iommu, u32 *pasid)
-{
-	unsigned long flags;
-	u8 status_code;
-	int ret = 0;
-	u64 res;
-
-	raw_spin_lock_irqsave(&iommu->register_lock, flags);
-	dmar_writeq(iommu->reg + DMAR_VCMD_REG, VCMD_CMD_ALLOC);
-	IOMMU_WAIT_OP(iommu, DMAR_VCRSP_REG, dmar_readq,
-		      !(res & VCMD_VRSP_IP), res);
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
-
-	status_code = VCMD_VRSP_SC(res);
-	switch (status_code) {
-	case VCMD_VRSP_SC_SUCCESS:
-		*pasid = VCMD_VRSP_RESULT_PASID(res);
-		break;
-	case VCMD_VRSP_SC_NO_PASID_AVAIL:
-		pr_info("IOMMU: %s: No PASID available\n", iommu->name);
-		ret = -ENOSPC;
-		break;
-	default:
-		ret = -ENODEV;
-		pr_warn("IOMMU: %s: Unexpected error code %d\n",
-			iommu->name, status_code);
-	}
-
-	return ret;
-}
-
-void vcmd_free_pasid(struct intel_iommu *iommu, u32 pasid)
-{
-	unsigned long flags;
-	u8 status_code;
-	u64 res;
-
-	raw_spin_lock_irqsave(&iommu->register_lock, flags);
-	dmar_writeq(iommu->reg + DMAR_VCMD_REG,
-		    VCMD_CMD_OPERAND(pasid) | VCMD_CMD_FREE);
-	IOMMU_WAIT_OP(iommu, DMAR_VCRSP_REG, dmar_readq,
-		      !(res & VCMD_VRSP_IP), res);
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
-
-	status_code = VCMD_VRSP_SC(res);
-	switch (status_code) {
-	case VCMD_VRSP_SC_SUCCESS:
-		break;
-	case VCMD_VRSP_SC_INVALID_PASID:
-		pr_info("IOMMU: %s: Invalid PASID\n", iommu->name);
-		break;
-	default:
-		pr_warn("IOMMU: %s: Unexpected error code %d\n",
-			iommu->name, status_code);
-	}
-}
-
 /*
  * Per device pasid table management:
  */
@@ -230,30 +173,6 @@ retry:
 /*
  * Interfaces for PASID table entry manipulation:
  */
-static inline void pasid_clear_entry(struct pasid_entry *pe)
-{
-	WRITE_ONCE(pe->val[0], 0);
-	WRITE_ONCE(pe->val[1], 0);
-	WRITE_ONCE(pe->val[2], 0);
-	WRITE_ONCE(pe->val[3], 0);
-	WRITE_ONCE(pe->val[4], 0);
-	WRITE_ONCE(pe->val[5], 0);
-	WRITE_ONCE(pe->val[6], 0);
-	WRITE_ONCE(pe->val[7], 0);
-}
-
-static inline void pasid_clear_entry_with_fpd(struct pasid_entry *pe)
-{
-	WRITE_ONCE(pe->val[0], PASID_PTE_FPD);
-	WRITE_ONCE(pe->val[1], 0);
-	WRITE_ONCE(pe->val[2], 0);
-	WRITE_ONCE(pe->val[3], 0);
-	WRITE_ONCE(pe->val[4], 0);
-	WRITE_ONCE(pe->val[5], 0);
-	WRITE_ONCE(pe->val[6], 0);
-	WRITE_ONCE(pe->val[7], 0);
-}
-
 static void
 intel_pasid_clear_entry(struct device *dev, u32 pasid, bool fault_ignore)
 {
@@ -267,192 +186,6 @@ intel_pasid_clear_entry(struct device *dev, u32 pasid, bool fault_ignore)
 		pasid_clear_entry_with_fpd(pe);
 	else
 		pasid_clear_entry(pe);
-}
-
-static inline void pasid_set_bits(u64 *ptr, u64 mask, u64 bits)
-{
-	u64 old;
-
-	old = READ_ONCE(*ptr);
-	WRITE_ONCE(*ptr, (old & ~mask) | bits);
-}
-
-static inline u64 pasid_get_bits(u64 *ptr)
-{
-	return READ_ONCE(*ptr);
-}
-
-/*
- * Setup the DID(Domain Identifier) field (Bit 64~79) of scalable mode
- * PASID entry.
- */
-static inline void
-pasid_set_domain_id(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[1], GENMASK_ULL(15, 0), value);
-}
-
-/*
- * Get domain ID value of a scalable mode PASID entry.
- */
-static inline u16
-pasid_get_domain_id(struct pasid_entry *pe)
-{
-	return (u16)(READ_ONCE(pe->val[1]) & GENMASK_ULL(15, 0));
-}
-
-/*
- * Setup the SLPTPTR(Second Level Page Table Pointer) field (Bit 12~63)
- * of a scalable mode PASID entry.
- */
-static inline void
-pasid_set_slptr(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[0], VTD_PAGE_MASK, value);
-}
-
-/*
- * Setup the AW(Address Width) field (Bit 2~4) of a scalable mode PASID
- * entry.
- */
-static inline void
-pasid_set_address_width(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[0], GENMASK_ULL(4, 2), value << 2);
-}
-
-/*
- * Setup the PGTT(PASID Granular Translation Type) field (Bit 6~8)
- * of a scalable mode PASID entry.
- */
-static inline void
-pasid_set_translation_type(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[0], GENMASK_ULL(8, 6), value << 6);
-}
-
-/*
- * Enable fault processing by clearing the FPD(Fault Processing
- * Disable) field (Bit 1) of a scalable mode PASID entry.
- */
-static inline void pasid_set_fault_enable(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[0], 1 << 1, 0);
-}
-
-/*
- * Enable second level A/D bits by setting the SLADE (Second Level
- * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
- * entry.
- */
-static inline void pasid_set_ssade(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[0], 1 << 9, 1 << 9);
-}
-
-/*
- * Disable second level A/D bits by clearing the SLADE (Second Level
- * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
- * entry.
- */
-static inline void pasid_clear_ssade(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[0], 1 << 9, 0);
-}
-
-/*
- * Checks if second level A/D bits specifically the SLADE (Second Level
- * Access Dirty Enable) field (Bit 9) of a scalable mode PASID
- * entry is set.
- */
-static inline bool pasid_get_ssade(struct pasid_entry *pe)
-{
-	return pasid_get_bits(&pe->val[0]) & (1 << 9);
-}
-
-/*
- * Setup the SRE(Supervisor Request Enable) field (Bit 128) of a
- * scalable mode PASID entry.
- */
-static inline void pasid_set_sre(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[2], 1 << 0, 1);
-}
-
-/*
- * Setup the WPE(Write Protect Enable) field (Bit 132) of a
- * scalable mode PASID entry.
- */
-static inline void pasid_set_wpe(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[2], 1 << 4, 1 << 4);
-}
-
-/*
- * Setup the P(Present) field (Bit 0) of a scalable mode PASID
- * entry.
- */
-static inline void pasid_set_present(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[0], 1 << 0, 1);
-}
-
-/*
- * Setup Page Walk Snoop bit (Bit 87) of a scalable mode PASID
- * entry.
- */
-static inline void pasid_set_page_snoop(struct pasid_entry *pe, bool value)
-{
-	pasid_set_bits(&pe->val[1], 1 << 23, value << 23);
-}
-
-/*
- * Setup No Execute Enable bit (Bit 133) of a scalable mode PASID
- * entry. It is required when XD bit of the first level page table
- * entry is about to be set.
- */
-static inline void pasid_set_nxe(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[2], 1 << 5, 1 << 5);
-}
-
-/*
- * Setup the Page Snoop (PGSNP) field (Bit 88) of a scalable mode
- * PASID entry.
- */
-static inline void
-pasid_set_pgsnp(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[1], 1ULL << 24, 1ULL << 24);
-}
-
-/*
- * Setup the First Level Page table Pointer field (Bit 140~191)
- * of a scalable mode PASID entry.
- */
-static inline void
-pasid_set_flptr(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[2], VTD_PAGE_MASK, value);
-}
-
-/*
- * Setup the First Level Paging Mode field (Bit 130~131) of a
- * scalable mode PASID entry.
- */
-static inline void
-pasid_set_flpm(struct pasid_entry *pe, u64 value)
-{
-	pasid_set_bits(&pe->val[2], GENMASK_ULL(3, 2), value << 2);
-}
-
-/*
- * Setup the Extended Access Flag Enable (EAFE) field (Bit 135)
- * of a scalable mode PASID entry.
- */
-static inline void pasid_set_eafe(struct pasid_entry *pe)
-{
-	pasid_set_bits(&pe->val[2], 1 << 7, 1 << 7);
 }
 
 static void
@@ -613,9 +346,9 @@ int intel_pasid_setup_first_level(struct intel_iommu *iommu,
  * Skip top levels of page tables for iommu which has less agaw
  * than default. Unnecessary for PT mode.
  */
-static inline int iommu_skip_agaw(struct dmar_domain *domain,
-				  struct intel_iommu *iommu,
-				  struct dma_pte **pgd)
+static int iommu_skip_agaw(struct dmar_domain *domain,
+			   struct intel_iommu *iommu,
+			   struct dma_pte **pgd)
 {
 	int agaw;
 
@@ -767,7 +500,6 @@ int intel_pasid_setup_dirty_tracking(struct intel_iommu *iommu,
  * Set up the scalable mode pasid entry for passthrough translation type.
  */
 int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
-				   struct dmar_domain *domain,
 				   struct device *dev, u32 pasid)
 {
 	u16 did = FLPT_DEFAULT_DID;

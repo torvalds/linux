@@ -74,7 +74,7 @@ __pu_failed:							\
 /* -mprefixed can generate offsets beyond range, fall back hack */
 #ifdef CONFIG_PPC_KERNEL_PREFIXED
 #define __put_user_asm_goto(x, addr, label, op)			\
-	asm_volatile_goto(					\
+	asm goto(					\
 		"1:	" op " %0,0(%1)	# put_user\n"		\
 		EX_TABLE(1b, %l2)				\
 		:						\
@@ -83,7 +83,7 @@ __pu_failed:							\
 		: label)
 #else
 #define __put_user_asm_goto(x, addr, label, op)			\
-	asm_volatile_goto(					\
+	asm goto(					\
 		"1:	" op "%U1%X1 %0,%1	# put_user\n"	\
 		EX_TABLE(1b, %l2)				\
 		:						\
@@ -97,7 +97,7 @@ __pu_failed:							\
 	__put_user_asm_goto(x, ptr, label, "std")
 #else /* __powerpc64__ */
 #define __put_user_asm2_goto(x, addr, label)			\
-	asm_volatile_goto(					\
+	asm goto(					\
 		"1:	stw%X1 %0, %1\n"			\
 		"2:	stw%X1 %L0, %L1\n"			\
 		EX_TABLE(1b, %l2)				\
@@ -146,7 +146,7 @@ do {								\
 /* -mprefixed can generate offsets beyond range, fall back hack */
 #ifdef CONFIG_PPC_KERNEL_PREFIXED
 #define __get_user_asm_goto(x, addr, label, op)			\
-	asm_volatile_goto(					\
+	asm_goto_output(					\
 		"1:	"op" %0,0(%1)	# get_user\n"		\
 		EX_TABLE(1b, %l2)				\
 		: "=r" (x)					\
@@ -155,7 +155,7 @@ do {								\
 		: label)
 #else
 #define __get_user_asm_goto(x, addr, label, op)			\
-	asm_volatile_goto(					\
+	asm_goto_output(					\
 		"1:	"op"%U1%X1 %0, %1	# get_user\n"	\
 		EX_TABLE(1b, %l2)				\
 		: "=r" (x)					\
@@ -169,7 +169,7 @@ do {								\
 	__get_user_asm_goto(x, addr, label, "ld")
 #else /* __powerpc64__ */
 #define __get_user_asm2_goto(x, addr, label)			\
-	asm_volatile_goto(					\
+	asm_goto_output(					\
 		"1:	lwz%X1 %0, %1\n"			\
 		"2:	lwz%X1 %L0, %L1\n"			\
 		EX_TABLE(1b, %l2)				\

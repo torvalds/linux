@@ -60,7 +60,12 @@ static u32 guc_ctl_debug_flags(struct xe_guc *guc)
 
 static u32 guc_ctl_feature_flags(struct xe_guc *guc)
 {
-	return GUC_CTL_ENABLE_SLPC;
+	u32 flags = 0;
+
+	if (!guc_to_xe(guc)->info.skip_guc_pc)
+		flags |= GUC_CTL_ENABLE_SLPC;
+
+	return flags;
 }
 
 static u32 guc_ctl_log_params_flags(struct xe_guc *guc)

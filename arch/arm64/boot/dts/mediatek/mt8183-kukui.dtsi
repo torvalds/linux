@@ -888,7 +888,7 @@
 	status = "okay";
 	cs-gpios = <&pio 86 GPIO_ACTIVE_LOW>;
 
-	cr50@0 {
+	tpm@0 {
 		compatible = "google,cr50";
 		reg = <0>;
 		spi-max-frequency = <1000000>;

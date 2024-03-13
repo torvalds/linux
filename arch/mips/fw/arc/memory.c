@@ -37,7 +37,7 @@ static unsigned int nr_prom_mem __initdata;
  */
 #define ARC_PAGE_SHIFT	12
 
-struct linux_mdesc * __init ArcGetMemoryDescriptor(struct linux_mdesc *Current)
+static struct linux_mdesc * __init ArcGetMemoryDescriptor(struct linux_mdesc *Current)
 {
 	return (struct linux_mdesc *) ARC_CALL1(get_mdesc, Current);
 }

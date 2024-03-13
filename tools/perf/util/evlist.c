@@ -103,7 +103,14 @@ struct evlist *evlist__new_default(void)
 	err = parse_event(evlist, can_profile_kernel ? "cycles:P" : "cycles:Pu");
 	if (err) {
 		evlist__delete(evlist);
-		evlist = NULL;
+		return NULL;
+	}
+
+	if (evlist->core.nr_entries > 1) {
+		struct evsel *evsel;
+
+		evlist__for_each_entry(evlist, evsel)
+			evsel__set_sample_id(evsel, /*can_sample_identifier=*/false);
 	}
 
 	return evlist;
@@ -1056,7 +1063,7 @@ int evlist__create_maps(struct evlist *evlist, struct target *target)
 		return -1;
 
 	if (target__uses_dummy_map(target))
-		cpus = perf_cpu_map__dummy_new();
+		cpus = perf_cpu_map__new_any_cpu();
 	else
 		cpus = perf_cpu_map__new(target->cpu_list);
 
@@ -1352,7 +1359,7 @@ static int evlist__create_syswide_maps(struct evlist *evlist)
 	 * error, and we may not want to do that fallback to a
 	 * default cpu identity map :-\
 	 */
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (!cpus)
 		goto out;
 
@@ -2517,4 +2524,34 @@ void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_lis
 		perf_cpu_map__put(intersect);
 	}
 	perf_cpu_map__put(user_requested_cpus);
+}
+
+void evlist__uniquify_name(struct evlist *evlist)
+{
+	char *new_name, empty_attributes[2] = ":", *attributes;
+	struct evsel *pos;
+
+	if (perf_pmus__num_core_pmus() == 1)
+		return;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (!evsel__is_hybrid(pos))
+			continue;
+
+		if (strchr(pos->name, '/'))
+			continue;
+
+		attributes = strchr(pos->name, ':');
+		if (attributes)
+			*attributes = '\0';
+		else
+			attributes = empty_attributes;
+
+		if (asprintf(&new_name, "%s/%s/%s", pos->pmu_name, pos->name, attributes + 1)) {
+			free(pos->name);
+			pos->name = new_name;
+		} else {
+			*attributes = ':';
+		}
+	}
 }

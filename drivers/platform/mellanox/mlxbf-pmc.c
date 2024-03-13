@@ -1170,7 +1170,7 @@ static int mlxbf_pmc_program_crspace_counter(int blk_num, uint32_t cnt_num,
 	int ret;
 
 	addr = pmc->block[blk_num].mmio_base +
-		(rounddown(cnt_num, 2) * MLXBF_PMC_CRSPACE_PERFSEL_SZ);
+		((cnt_num / 2) * MLXBF_PMC_CRSPACE_PERFSEL_SZ);
 	ret = mlxbf_pmc_readl(addr, &word);
 	if (ret)
 		return ret;
@@ -1413,7 +1413,7 @@ static int mlxbf_pmc_read_crspace_event(int blk_num, uint32_t cnt_num,
 	int ret;
 
 	addr = pmc->block[blk_num].mmio_base +
-		(rounddown(cnt_num, 2) * MLXBF_PMC_CRSPACE_PERFSEL_SZ);
+		((cnt_num / 2) * MLXBF_PMC_CRSPACE_PERFSEL_SZ);
 	ret = mlxbf_pmc_readl(addr, &word);
 	if (ret)
 		return ret;

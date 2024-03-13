@@ -6,9 +6,11 @@
 #include "backpointers.h"
 #include "bkey_buf.h"
 #include "btree_gc.h"
+#include "btree_io.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
+#include "compress.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "errcode.h"
@@ -34,12 +36,46 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k)
+static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
+					  struct bch_io_opts *io_opts,
+					  struct data_update_opts *data_opts)
+{
+	printbuf_tabstop_push(out, 20);
+	prt_str(out, "rewrite ptrs:");
+	prt_tab(out);
+	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
+	prt_newline(out);
+
+	prt_str(out, "kill ptrs: ");
+	prt_tab(out);
+	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
+	prt_newline(out);
+
+	prt_str(out, "target: ");
+	prt_tab(out);
+	bch2_target_to_text(out, c, data_opts->target);
+	prt_newline(out);
+
+	prt_str(out, "compression: ");
+	prt_tab(out);
+	bch2_compression_opt_to_text(out, background_compression(*io_opts));
+	prt_newline(out);
+
+	prt_str(out, "extra replicas: ");
+	prt_tab(out);
+	prt_u64(out, data_opts->extra_replicas);
+}
+
+static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k,
+			       struct bch_io_opts *io_opts,
+			       struct data_update_opts *data_opts)
 {
 	if (trace_move_extent_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, k);
+		prt_newline(&buf);
+		bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
 		trace_move_extent(c, buf.buf);
 		printbuf_exit(&buf);
 	}
@@ -109,6 +145,15 @@ static void move_write(struct moving_io *io)
 	if (unlikely(io->rbio.bio.bi_status || io->rbio.hole)) {
 		move_free(io);
 		return;
+	}
+
+	if (trace_move_extent_write_enabled()) {
+		struct bch_fs *c = io->write.op.c;
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(io->write.k.k));
+		trace_move_extent_write(c, buf.buf);
+		printbuf_exit(&buf);
 	}
 
 	closure_get(&io->write.ctxt->cl);
@@ -241,9 +286,10 @@ int bch2_move_extent(struct moving_context *ctxt,
 	unsigned sectors = k.k->size, pages;
 	int ret = -ENOMEM;
 
+	trace_move_extent2(c, k, &io_opts, &data_opts);
+
 	if (ctxt->stats)
 		ctxt->stats->pos = BBPOS(iter->btree_id, iter->pos);
-	trace_move_extent2(c, k);
 
 	bch2_data_update_opts_normalize(k, &data_opts);
 
@@ -759,6 +805,8 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!b)
 				goto next;
 
+			unsigned sectors = btree_ptr_sectors_written(&b->key);
+
 			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
 			bch2_trans_iter_exit(trans, &iter);
 
@@ -768,11 +816,10 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				goto err;
 
 			if (ctxt->rate)
-				bch2_ratelimit_increment(ctxt->rate,
-							 c->opts.btree_node_size >> 9);
+				bch2_ratelimit_increment(ctxt->rate, sectors);
 			if (ctxt->stats) {
-				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_seen);
-				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_moved);
+				atomic64_add(sectors, &ctxt->stats->sectors_seen);
+				atomic64_add(sectors, &ctxt->stats->sectors_moved);
 			}
 		}
 next:
@@ -1083,9 +1130,9 @@ int bch2_data_job(struct bch_fs *c,
 
 void bch2_move_stats_to_text(struct printbuf *out, struct bch_move_stats *stats)
 {
-	prt_printf(out, "%s: data type=%s pos=",
-		   stats->name,
-		   bch2_data_types[stats->data_type]);
+	prt_printf(out, "%s: data type==", stats->name);
+	bch2_prt_data_type(out, stats->data_type);
+	prt_str(out, " pos=");
 	bch2_bbpos_to_text(out, stats->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);

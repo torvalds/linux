@@ -56,6 +56,7 @@
 #define IVPU_DBG_JSM	 BIT(10)
 #define IVPU_DBG_KREF	 BIT(11)
 #define IVPU_DBG_RPM	 BIT(12)
+#define IVPU_DBG_MMU_MAP BIT(13)
 
 #define ivpu_err(vdev, fmt, ...) \
 	drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
@@ -114,6 +115,7 @@ struct ivpu_device {
 
 	struct ivpu_mmu_context gctx;
 	struct ivpu_mmu_context rctx;
+	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
@@ -145,8 +147,8 @@ struct ivpu_file_priv {
 	struct mutex lock; /* Protects cmdq */
 	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
 	struct ivpu_mmu_context ctx;
-	u32 priority;
 	bool has_mmu_faults;
+	bool bound;
 };
 
 extern int ivpu_dbg_mask;
@@ -162,7 +164,6 @@ extern bool ivpu_disable_mmu_cont_pages;
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
-struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id);
 void ivpu_file_priv_put(struct ivpu_file_priv **link);
 
 int ivpu_boot(struct ivpu_device *vdev);

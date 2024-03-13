@@ -285,9 +285,7 @@ restart_drop_extra_replicas:
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, insert->k.p) ?:
-			bch2_bkey_set_needs_rebalance(c, insert,
-						      op->opts.background_target,
-						      op->opts.background_compression) ?:
+			bch2_bkey_set_needs_rebalance(c, insert, &op->opts) ?:
 			bch2_trans_update(trans, &iter, insert,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(trans, &op->res,
@@ -529,7 +527,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_MOVE|
 		m->data_opts.write_flags;
-	m->op.compression_opt	= io_opts.background_compression ?: io_opts.compression;
+	m->op.compression_opt	= background_compression(io_opts);
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
 	bkey_for_each_ptr(ptrs, ptr)

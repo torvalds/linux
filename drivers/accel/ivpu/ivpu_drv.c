@@ -6,6 +6,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_accel.h>
 #include <drm/drm_file.h>
@@ -17,6 +18,7 @@
 #include "ivpu_debugfs.h"
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
@@ -65,22 +67,20 @@ struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
 	return file_priv;
 }
 
-struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id)
+static void file_priv_unbind(struct ivpu_device *vdev, struct ivpu_file_priv *file_priv)
 {
-	struct ivpu_file_priv *file_priv;
+	mutex_lock(&file_priv->lock);
+	if (file_priv->bound) {
+		ivpu_dbg(vdev, FILE, "file_priv unbind: ctx %u\n", file_priv->ctx.id);
 
-	xa_lock_irq(&vdev->context_xa);
-	file_priv = xa_load(&vdev->context_xa, id);
-	/* file_priv may still be in context_xa during file_priv_release() */
-	if (file_priv && !kref_get_unless_zero(&file_priv->ref))
-		file_priv = NULL;
-	xa_unlock_irq(&vdev->context_xa);
-
-	if (file_priv)
-		ivpu_dbg(vdev, KREF, "file_priv get by id: ctx %u refcount %u\n",
-			 file_priv->ctx.id, kref_read(&file_priv->ref));
-
-	return file_priv;
+		ivpu_cmdq_release_all_locked(file_priv);
+		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
+		ivpu_bo_unbind_all_bos_from_context(vdev, &file_priv->ctx);
+		ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
+		file_priv->bound = false;
+		drm_WARN_ON(&vdev->drm, !xa_erase_irq(&vdev->context_xa, file_priv->ctx.id));
+	}
+	mutex_unlock(&file_priv->lock);
 }
 
 static void file_priv_release(struct kref *ref)
@@ -88,13 +88,15 @@ static void file_priv_release(struct kref *ref)
 	struct ivpu_file_priv *file_priv = container_of(ref, struct ivpu_file_priv, ref);
 	struct ivpu_device *vdev = file_priv->vdev;
 
-	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
+	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u bound %d\n",
+		 file_priv->ctx.id, (bool)file_priv->bound);
 
-	ivpu_cmdq_release_all(file_priv);
-	ivpu_jsm_context_release(vdev, file_priv->ctx.id);
-	ivpu_bo_remove_all_bos_from_context(vdev, &file_priv->ctx);
-	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
+	pm_runtime_get_sync(vdev->drm.dev);
+	mutex_lock(&vdev->context_list_lock);
+	file_priv_unbind(vdev, file_priv);
+	mutex_unlock(&vdev->context_list_lock);
+	pm_runtime_put_autosuspend(vdev->drm.dev);
+
 	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 }
@@ -176,9 +178,6 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 	case DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
 		args->value = vdev->hw->ranges.user.start;
 		break;
-	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-		args->value = file_priv->priority;
-		break;
 	case DRM_IVPU_PARAM_CONTEXT_ID:
 		args->value = file_priv->ctx.id;
 		break;
@@ -218,17 +217,10 @@ static int ivpu_get_param_ioctl(struct drm_device *dev, void *data, struct drm_f
 
 static int ivpu_set_param_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
-	struct ivpu_file_priv *file_priv = file->driver_priv;
 	struct drm_ivpu_param *args = data;
 	int ret = 0;
 
 	switch (args->param) {
-	case DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-		if (args->value <= DRM_IVPU_CONTEXT_PRIORITY_REALTIME)
-			file_priv->priority = args->value;
-		else
-			ret = -EINVAL;
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -241,50 +233,53 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 	struct ivpu_device *vdev = to_ivpu_device(dev);
 	struct ivpu_file_priv *file_priv;
 	u32 ctx_id;
-	void *old;
-	int ret;
+	int idx, ret;
 
-	ret = xa_alloc_irq(&vdev->context_xa, &ctx_id, NULL, vdev->context_xa_limit, GFP_KERNEL);
-	if (ret) {
-		ivpu_err(vdev, "Failed to allocate context id: %d\n", ret);
-		return ret;
-	}
+	if (!drm_dev_enter(dev, &idx))
+		return -ENODEV;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv) {
 		ret = -ENOMEM;
-		goto err_xa_erase;
+		goto err_dev_exit;
 	}
 
 	file_priv->vdev = vdev;
-	file_priv->priority = DRM_IVPU_CONTEXT_PRIORITY_NORMAL;
+	file_priv->bound = true;
 	kref_init(&file_priv->ref);
 	mutex_init(&file_priv->lock);
 
+	mutex_lock(&vdev->context_list_lock);
+
+	ret = xa_alloc_irq(&vdev->context_xa, &ctx_id, file_priv,
+			   vdev->context_xa_limit, GFP_KERNEL);
+	if (ret) {
+		ivpu_err(vdev, "Failed to allocate context id: %d\n", ret);
+		goto err_unlock;
+	}
+
 	ret = ivpu_mmu_user_context_init(vdev, &file_priv->ctx, ctx_id);
 	if (ret)
-		goto err_mutex_destroy;
+		goto err_xa_erase;
 
-	old = xa_store_irq(&vdev->context_xa, ctx_id, file_priv, GFP_KERNEL);
-	if (xa_is_err(old)) {
-		ret = xa_err(old);
-		ivpu_err(vdev, "Failed to store context %u: %d\n", ctx_id, ret);
-		goto err_ctx_fini;
-	}
+	mutex_unlock(&vdev->context_list_lock);
+	drm_dev_exit(idx);
+
+	file->driver_priv = file_priv;
 
 	ivpu_dbg(vdev, FILE, "file_priv create: ctx %u process %s pid %d\n",
 		 ctx_id, current->comm, task_pid_nr(current));
 
-	file->driver_priv = file_priv;
 	return 0;
 
-err_ctx_fini:
-	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
-err_mutex_destroy:
-	mutex_destroy(&file_priv->lock);
-	kfree(file_priv);
 err_xa_erase:
 	xa_erase_irq(&vdev->context_xa, ctx_id);
+err_unlock:
+	mutex_unlock(&vdev->context_list_lock);
+	mutex_destroy(&file_priv->lock);
+	kfree(file_priv);
+err_dev_exit:
+	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -340,8 +335,6 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 
 	if (!ret)
 		ivpu_dbg(vdev, PM, "VPU ready message received successfully\n");
-	else
-		ivpu_hw_diagnose_failure(vdev);
 
 	return ret;
 }
@@ -369,6 +362,9 @@ int ivpu_boot(struct ivpu_device *vdev)
 	ret = ivpu_wait_for_ready(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to boot the firmware: %d\n", ret);
+		ivpu_hw_diagnose_failure(vdev);
+		ivpu_mmu_evtq_dump(vdev);
+		ivpu_fw_log_dump(vdev);
 		return ret;
 	}
 
@@ -484,9 +480,8 @@ static int ivpu_pci_init(struct ivpu_device *vdev)
 	/* Clear any pending errors */
 	pcie_capability_clear_word(pdev, PCI_EXP_DEVSTA, 0x3f);
 
-	/* VPU 37XX does not require 10m D3hot delay */
-	if (ivpu_hw_gen(vdev) == IVPU_HW_37XX)
-		pdev->d3hot_delay = 0;
+	/* NPU does not require 10m D3hot delay */
+	pdev->d3hot_delay = 0;
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
@@ -539,6 +534,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
 	INIT_LIST_HEAD(&vdev->bo_list);
+
+	ret = drmm_mutex_init(&vdev->drm, &vdev->context_list_lock);
+	if (ret)
+		goto err_xa_destroy;
 
 	ret = drmm_mutex_init(&vdev->drm, &vdev->bo_list_lock);
 	if (ret)
@@ -611,14 +610,30 @@ err_xa_destroy:
 	return ret;
 }
 
+static void ivpu_bo_unbind_all_user_contexts(struct ivpu_device *vdev)
+{
+	struct ivpu_file_priv *file_priv;
+	unsigned long ctx_id;
+
+	mutex_lock(&vdev->context_list_lock);
+
+	xa_for_each(&vdev->context_xa, ctx_id, file_priv)
+		file_priv_unbind(vdev, file_priv);
+
+	mutex_unlock(&vdev->context_list_lock);
+}
+
 static void ivpu_dev_fini(struct ivpu_device *vdev)
 {
 	ivpu_pm_disable(vdev);
 	ivpu_shutdown(vdev);
 	if (IVPU_WA(d3hot_after_power_off))
 		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
+
+	ivpu_jobs_abort_all(vdev);
 	ivpu_job_done_consumer_fini(vdev);
 	ivpu_pm_cancel_recovery(vdev);
+	ivpu_bo_unbind_all_user_contexts(vdev);
 
 	ivpu_ipc_fini(vdev);
 	ivpu_fw_fini(vdev);

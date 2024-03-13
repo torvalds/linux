@@ -5361,9 +5361,9 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 			if (private->vol_sw_hw_switch[index])
 				scarlett2_vol_ctl_set_writable(mixer, i, 0);
 
-			snprintf(s, sizeof(s),
-				 "Line Out %02d Volume Control Playback Enum",
-				 i + 1);
+			scnprintf(s, sizeof(s),
+				  "Line Out %02d Volume Control Playback Enum",
+				  i + 1);
 			err = scarlett2_add_new_ctl(mixer,
 						    &scarlett2_sw_hw_enum_ctl,
 						    i, 1, s,
@@ -5406,8 +5406,8 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 	/* Add input level (line/inst) controls */
 	for (i = 0; i < info->level_input_count; i++) {
-		snprintf(s, sizeof(s), fmt, i + 1 + info->level_input_first,
-			 "Level", "Enum");
+		scnprintf(s, sizeof(s), fmt, i + 1 + info->level_input_first,
+			  "Level", "Enum");
 		err = scarlett2_add_new_ctl(mixer, &scarlett2_level_enum_ctl,
 					    i, 1, s, &private->level_ctls[i]);
 		if (err < 0)
@@ -5416,7 +5416,7 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 	/* Add input pad controls */
 	for (i = 0; i < info->pad_input_count; i++) {
-		snprintf(s, sizeof(s), fmt, i + 1, "Pad", "Switch");
+		scnprintf(s, sizeof(s), fmt, i + 1, "Pad", "Switch");
 		err = scarlett2_add_new_ctl(mixer, &scarlett2_pad_ctl,
 					    i, 1, s, &private->pad_ctls[i]);
 		if (err < 0)
@@ -5425,8 +5425,8 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 	/* Add input air controls */
 	for (i = 0; i < info->air_input_count; i++) {
-		snprintf(s, sizeof(s), fmt, i + 1 + info->air_input_first,
-			 "Air", info->air_option ? "Enum" : "Switch");
+		scnprintf(s, sizeof(s), fmt, i + 1 + info->air_input_first,
+			  "Air", info->air_option ? "Enum" : "Switch");
 		err = scarlett2_add_new_ctl(
 			mixer, &scarlett2_air_ctl[info->air_option],
 			i, 1, s, &private->air_ctls[i]);
@@ -5481,9 +5481,9 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 
 		for (i = 0; i < info->gain_input_count; i++) {
 			if (i % 2) {
-				snprintf(s, sizeof(s),
-					 "Line In %d-%d Link Capture Switch",
-					 i, i + 1);
+				scnprintf(s, sizeof(s),
+					  "Line In %d-%d Link Capture Switch",
+					  i, i + 1);
 				err = scarlett2_add_new_ctl(
 					mixer, &scarlett2_input_link_ctl,
 					i / 2, 1, s,
@@ -5492,30 +5492,30 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 					return err;
 			}
 
-			snprintf(s, sizeof(s), fmt, i + 1,
-				 "Gain", "Volume");
+			scnprintf(s, sizeof(s), fmt, i + 1,
+				  "Gain", "Volume");
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_input_gain_ctl,
 				i, 1, s, &private->input_gain_ctls[i]);
 			if (err < 0)
 				return err;
 
-			snprintf(s, sizeof(s), fmt, i + 1,
-				 "Autogain", "Switch");
+			scnprintf(s, sizeof(s), fmt, i + 1,
+				  "Autogain", "Switch");
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_autogain_switch_ctl,
 				i, 1, s, &private->autogain_ctls[i]);
 			if (err < 0)
 				return err;
 
-			snprintf(s, sizeof(s), fmt, i + 1,
-				 "Autogain Status", "Enum");
+			scnprintf(s, sizeof(s), fmt, i + 1,
+				  "Autogain Status", "Enum");
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_autogain_status_ctl,
 				i, 1, s, &private->autogain_status_ctls[i]);
 
-			snprintf(s, sizeof(s), fmt, i + 1,
-				 "Safe", "Switch");
+			scnprintf(s, sizeof(s), fmt, i + 1,
+				  "Safe", "Switch");
 			err = scarlett2_add_new_ctl(
 				mixer, &scarlett2_safe_ctl,
 				i, 1, s, &private->safe_ctls[i]);
@@ -5902,8 +5902,8 @@ static int scarlett2_add_direct_monitor_ctls(struct usb_mixer_interface *mixer)
 			for (k = 0; k < private->num_mix_in; k++, index++) {
 				char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
-				snprintf(name, sizeof(name), format,
-					 mix_type, 'A' + j, k + 1);
+				scnprintf(name, sizeof(name), format,
+					  mix_type, 'A' + j, k + 1);
 
 				err = scarlett2_add_new_ctl(
 					mixer, &scarlett2_monitor_mix_ctl,

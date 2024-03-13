@@ -139,6 +139,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("dir_mode", Opt_dirmode),
 	fsparam_u32("port", Opt_port),
 	fsparam_u32("min_enc_offload", Opt_min_enc_offload),
+	fsparam_u32("retrans", Opt_retrans),
 	fsparam_u32("esize", Opt_min_enc_offload),
 	fsparam_u32("bsize", Opt_blocksize),
 	fsparam_u32("rasize", Opt_rasize),
@@ -210,7 +211,7 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
 
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5p:
-		cifs_errorf(fc, "sec=krb5p is not supported!\n");
+		cifs_errorf(fc, "sec=krb5p is not supported. Use sec=krb5,seal instead\n");
 		return 1;
 	case Opt_sec_krb5i:
 		ctx->sign = true;
@@ -1064,6 +1065,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_min_enc_offload:
 		ctx->min_offload = result.uint_32;
 		break;
+	case Opt_retrans:
+		ctx->retrans = result.uint_32;
+		break;
 	case Opt_blocksize:
 		/*
 		 * inode blocksize realistically should never need to be
@@ -1618,6 +1622,8 @@ int smb3_init_fs_context(struct fs_context *fc)
 
 	ctx->backupuid_specified = false; /* no backup intent for a user */
 	ctx->backupgid_specified = false; /* no backup intent for a group */
+
+	ctx->retrans = 1;
 
 /*
  *	short int override_uid = -1;

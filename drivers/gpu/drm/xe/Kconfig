@@ -47,7 +47,7 @@ config DRM_XE
 
 config DRM_XE_DISPLAY
 	bool "Enable display support"
-	depends on DRM_XE && EXPERT && DRM_XE=m
+	depends on DRM_XE && DRM_XE=m
 	select FB_IOMEM_HELPERS
 	select I2C
 	select I2C_ALGOBIT

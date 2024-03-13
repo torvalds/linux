@@ -39,7 +39,7 @@ static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
 	state.period = period;
 	pwm_set_relative_duty_cycle(&state, 50, 100);
 
-	error = pwm_apply_state(beeper->pwm, &state);
+	error = pwm_apply_might_sleep(beeper->pwm, &state);
 	if (error)
 		return error;
 
@@ -138,7 +138,7 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	/* Sync up PWM state and ensure it is off. */
 	pwm_init_state(beeper->pwm, &state);
 	state.enabled = false;
-	error = pwm_apply_state(beeper->pwm, &state);
+	error = pwm_apply_might_sleep(beeper->pwm, &state);
 	if (error) {
 		dev_err(dev, "failed to apply initial PWM state: %d\n",
 			error);

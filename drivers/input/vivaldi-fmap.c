@@ -27,10 +27,10 @@ ssize_t vivaldi_function_row_physmap_show(const struct vivaldi_data *data,
 		return 0;
 
 	for (i = 0; i < data->num_function_row_keys; i++)
-		size += scnprintf(buf + size, PAGE_SIZE - size,
-				  "%s%02X", size ? " " : "", physmap[i]);
+		size += sysfs_emit_at(buf, size,
+				      "%s%02X", size ? " " : "", physmap[i]);
 	if (size)
-		size += scnprintf(buf + size, PAGE_SIZE - size, "\n");
+		size += sysfs_emit_at(buf, size, "\n");
 
 	return size;
 }

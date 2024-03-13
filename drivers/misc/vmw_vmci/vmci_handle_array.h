@@ -20,14 +20,8 @@ struct vmci_handle_arr {
 	struct vmci_handle entries[] __counted_by(capacity);
 };
 
-#define VMCI_HANDLE_ARRAY_HEADER_SIZE				\
-	offsetof(struct vmci_handle_arr, entries)
 /* Select a default capacity that results in a 64 byte sized array */
 #define VMCI_HANDLE_ARRAY_DEFAULT_CAPACITY			6
-/* Make sure that the max array size can be expressed by a u32 */
-#define VMCI_HANDLE_ARRAY_MAX_CAPACITY				\
-	((U32_MAX - VMCI_HANDLE_ARRAY_HEADER_SIZE - 1) /	\
-	sizeof(struct vmci_handle))
 
 struct vmci_handle_arr *vmci_handle_arr_create(u32 capacity, u32 max_capacity);
 void vmci_handle_arr_destroy(struct vmci_handle_arr *array);

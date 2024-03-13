@@ -159,7 +159,7 @@ static bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *b,
 {
 	size_t u64s = btree_node_u64s_with_format(nr, &b->format, new_f);
 
-	return __vstruct_bytes(struct btree_node, u64s) < btree_bytes(c);
+	return __vstruct_bytes(struct btree_node, u64s) < btree_buf_bytes(b);
 }
 
 /* Btree node freeing/allocation: */
@@ -1097,7 +1097,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		 * Always check for space for two keys, even if we won't have to
 		 * split at prior level - it might have been a merge instead:
 		 */
-		if (bch2_btree_node_insert_fits(c, path->l[update_level].b,
+		if (bch2_btree_node_insert_fits(path->l[update_level].b,
 						BKEY_BTREE_PTR_U64s_MAX * 2))
 			break;
 
@@ -1401,7 +1401,7 @@ static void __btree_split_node(struct btree_update *as,
 
 		unsigned u64s = nr_keys[i].nr_keys * n[i]->data->format.key_u64s +
 			nr_keys[i].val_u64s;
-		if (__vstruct_bytes(struct btree_node, u64s) > btree_bytes(as->c))
+		if (__vstruct_bytes(struct btree_node, u64s) > btree_buf_bytes(b))
 			n[i]->data->format = b->format;
 
 		btree_node_set_format(n[i], n[i]->data->format);
@@ -1703,7 +1703,7 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 
 	bch2_btree_node_prep_for_write(trans, path, b);
 
-	if (!bch2_btree_node_insert_fits(c, b, bch2_keylist_u64s(keys))) {
+	if (!bch2_btree_node_insert_fits(b, bch2_keylist_u64s(keys))) {
 		bch2_btree_node_unlock_write(trans, path, b);
 		goto split;
 	}

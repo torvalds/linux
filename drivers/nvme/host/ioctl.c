@@ -228,7 +228,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	length = (io.nblocks + 1) << ns->head->lba_shift;
 
 	if ((io.control & NVME_RW_PRINFO_PRACT) &&
-	    ns->head->ms == sizeof(struct t10_pi_tuple)) {
+	    (ns->head->ms == ns->head->pi_size)) {
 		/*
 		 * Protection information is stripped/inserted by the
 		 * controller.

@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/rtc.h>
+#include <linux/pm_wakeirq.h>
 
 #define RV8803_I2C_TRY_COUNT		4
 
@@ -607,6 +608,28 @@ static int rv8803_regs_configure(struct rv8803_data *rv8803)
 	return 0;
 }
 
+static int rv8803_resume(struct device *dev)
+{
+	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
+
+	if (rv8803->client->irq > 0 && device_may_wakeup(dev))
+		disable_irq_wake(rv8803->client->irq);
+
+	return 0;
+}
+
+static int rv8803_suspend(struct device *dev)
+{
+	struct rv8803_data *rv8803 = dev_get_drvdata(dev);
+
+	if (rv8803->client->irq > 0 && device_may_wakeup(dev))
+		enable_irq_wake(rv8803->client->irq);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(rv8803_pm_ops, rv8803_suspend, rv8803_resume);
+
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", rv_8803 },
 	{ "rv8804", rx_8804 },
@@ -683,10 +706,18 @@ static int rv8803_probe(struct i2c_client *client)
 		if (err) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
+		} else {
+			device_init_wakeup(&client->dev, true);
+			err = dev_pm_set_wake_irq(&client->dev, client->irq);
+			if (err)
+				dev_err(&client->dev, "failed to set wake IRQ\n");
 		}
+	} else {
+		if (device_property_read_bool(&client->dev, "wakeup-source"))
+			device_init_wakeup(&client->dev, true);
+		else
+			clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 	}
-	if (!client->irq)
-		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
 	if (of_property_read_bool(client->dev.of_node, "epson,vdet-disable"))
 		rv8803->backup |= RX8900_FLAG_VDETOFF;
@@ -737,6 +768,7 @@ static struct i2c_driver rv8803_driver = {
 	.driver = {
 		.name = "rtc-rv8803",
 		.of_match_table = of_match_ptr(rv8803_of_match),
+		.pm = &rv8803_pm_ops,
 	},
 	.probe		= rv8803_probe,
 	.id_table	= rv8803_id,

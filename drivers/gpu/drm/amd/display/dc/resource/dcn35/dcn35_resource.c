@@ -780,8 +780,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = false,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
-	.ips2_eval_delay_us = 200,
-	.ips2_entry_delay_us = 400,
+	.ips2_eval_delay_us = 1650,
+	.ips2_entry_delay_us = 800,
 	.static_screen_wait_frames = 2,
 };
 
@@ -2130,6 +2130,7 @@ static bool dcn35_resource_construct(
 	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
 	dc->dml2_options.use_native_pstate_optimization = true;
 	dc->dml2_options.use_native_soc_bb_construction = true;
+	dc->dml2_options.minimize_dispclk_using_odm = false;
 	if (dc->config.EnableMinDispClkODM)
 		dc->dml2_options.minimize_dispclk_using_odm = true;
 	dc->dml2_options.enable_windowed_mpo_odm = dc->config.enable_windowed_mpo_odm;

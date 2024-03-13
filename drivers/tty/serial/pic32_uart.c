@@ -938,7 +938,7 @@ err:
 	return ret;
 }
 
-static int pic32_uart_remove(struct platform_device *pdev)
+static void pic32_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct pic32_sport *sport = to_pic32_sport(port);
@@ -947,9 +947,6 @@ static int pic32_uart_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sport->clk);
 	platform_set_drvdata(pdev, NULL);
 	pic32_sports[sport->idx] = NULL;
-
-	/* automatic unroll of sport and gpios */
-	return 0;
 }
 
 static const struct of_device_id pic32_serial_dt_ids[] = {
@@ -960,7 +957,7 @@ MODULE_DEVICE_TABLE(of, pic32_serial_dt_ids);
 
 static struct platform_driver pic32_uart_platform_driver = {
 	.probe		= pic32_uart_probe,
-	.remove		= pic32_uart_remove,
+	.remove_new	= pic32_uart_remove,
 	.driver		= {
 		.name	= PIC32_DEV_NAME,
 		.of_match_table	= of_match_ptr(pic32_serial_dt_ids),

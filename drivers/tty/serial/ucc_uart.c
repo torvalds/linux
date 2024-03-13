@@ -189,10 +189,10 @@ struct uart_qe_port {
 	u16 tx_fifosize;
 	int wait_closing;
 	u32 flags;
-	struct qe_bd *rx_bd_base;
-	struct qe_bd *rx_cur;
-	struct qe_bd *tx_bd_base;
-	struct qe_bd *tx_cur;
+	struct qe_bd __iomem *rx_bd_base;
+	struct qe_bd __iomem *rx_cur;
+	struct qe_bd __iomem *tx_bd_base;
+	struct qe_bd __iomem *tx_cur;
 	unsigned char *tx_buf;
 	unsigned char *rx_buf;
 	void *bd_virt;  	/* virtual address of the BD buffers */
@@ -258,7 +258,7 @@ static unsigned int qe_uart_tx_empty(struct uart_port *port)
 {
 	struct uart_qe_port *qe_port =
 		container_of(port, struct uart_qe_port, port);
-	struct qe_bd *bdp = qe_port->tx_bd_base;
+	struct qe_bd __iomem *bdp = qe_port->tx_bd_base;
 
 	while (1) {
 		if (ioread16be(&bdp->status) & BD_SC_READY)
@@ -330,7 +330,7 @@ static void qe_uart_stop_tx(struct uart_port *port)
  */
 static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 {
-	struct qe_bd *bdp;
+	struct qe_bd __iomem *bdp;
 	unsigned char *p;
 	unsigned int count;
 	struct uart_port *port = &qe_port->port;
@@ -341,7 +341,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 		/* Pick next descriptor and fill from buffer */
 		bdp = qe_port->tx_cur;
 
-		p = qe2cpu_addr(be32_to_cpu(bdp->buf), qe_port);
+		p = qe2cpu_addr(ioread32be(&bdp->buf), qe_port);
 
 		*p++ = port->x_char;
 		iowrite16be(1, &bdp->length);
@@ -368,7 +368,7 @@ static int qe_uart_tx_pump(struct uart_qe_port *qe_port)
 
 	while (!(ioread16be(&bdp->status) & BD_SC_READY) && !uart_circ_empty(xmit)) {
 		count = 0;
-		p = qe2cpu_addr(be32_to_cpu(bdp->buf), qe_port);
+		p = qe2cpu_addr(ioread32be(&bdp->buf), qe_port);
 		while (count < qe_port->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
 			uart_xmit_advance(port, 1);
@@ -460,7 +460,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
 	struct tty_port *tport = &port->state->port;
-	struct qe_bd *bdp;
+	struct qe_bd __iomem *bdp;
 	u16 status;
 	unsigned int flg;
 
@@ -487,7 +487,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		}
 
 		/* get pointer */
-		cp = qe2cpu_addr(be32_to_cpu(bdp->buf), qe_port);
+		cp = qe2cpu_addr(ioread32be(&bdp->buf), qe_port);
 
 		/* loop through the buffer */
 		while (i-- > 0) {
@@ -590,7 +590,7 @@ static void qe_uart_initbd(struct uart_qe_port *qe_port)
 {
 	int i;
 	void *bd_virt;
-	struct qe_bd *bdp;
+	struct qe_bd __iomem *bdp;
 
 	/* Set the physical address of the host memory buffers in the buffer
 	 * descriptors, and the virtual address for us to work with.
@@ -648,7 +648,7 @@ static void qe_uart_init_ucc(struct uart_qe_port *qe_port)
 {
 	u32 cecr_subblock;
 	struct ucc_slow __iomem *uccp = qe_port->uccp;
-	struct ucc_uart_pram *uccup = qe_port->uccup;
+	struct ucc_uart_pram __iomem *uccup = qe_port->uccup;
 
 	unsigned int i;
 
@@ -983,7 +983,7 @@ static int qe_uart_request_port(struct uart_port *port)
 
 	qe_port->us_private = uccs;
 	qe_port->uccp = uccs->us_regs;
-	qe_port->uccup = (struct ucc_uart_pram *) uccs->us_pram;
+	qe_port->uccup = (struct ucc_uart_pram __iomem *)uccs->us_pram;
 	qe_port->rx_bd_base = uccs->rx_bd;
 	qe_port->tx_bd_base = uccs->tx_bd;
 
@@ -1156,7 +1156,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 	firmware = (struct qe_firmware *) fw->data;
 
-	if (firmware->header.length != fw->size) {
+	if (be32_to_cpu(firmware->header.length) != fw->size) {
 		dev_err(dev, "invalid firmware\n");
 		goto out;
 	}
@@ -1459,7 +1459,7 @@ out_free:
 	return ret;
 }
 
-static int ucc_uart_remove(struct platform_device *ofdev)
+static void ucc_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_qe_port *qe_port = platform_get_drvdata(ofdev);
 
@@ -1470,8 +1470,6 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 	of_node_put(qe_port->np);
 
 	kfree(qe_port);
-
-	return 0;
 }
 
 static const struct of_device_id ucc_uart_match[] = {
@@ -1492,7 +1490,7 @@ static struct platform_driver ucc_uart_of_driver = {
 		.of_match_table    = ucc_uart_match,
 	},
 	.probe  	= ucc_uart_probe,
-	.remove 	= ucc_uart_remove,
+	.remove_new 	= ucc_uart_remove,
 };
 
 static int __init ucc_uart_init(void)

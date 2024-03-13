@@ -1158,7 +1158,7 @@ stifb_init_display(struct stifb_info *fb)
 	    }
 	    break;
 	}
-	stifb_blank(0, (struct fb_info *)fb);	/* 0=enable screen */
+	stifb_blank(0, fb->info);	/* 0=enable screen */
 
 	SETUP_FB(fb);
 }

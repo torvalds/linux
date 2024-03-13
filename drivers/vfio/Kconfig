@@ -80,6 +80,16 @@ config VFIO_VIRQFD
 	select EVENTFD
 	default n
 
+config VFIO_DEBUGFS
+	bool "Export VFIO internals in DebugFS"
+	depends on DEBUG_FS
+	help
+	  Allows exposure of VFIO device internals. This option enables
+	  the use of debugfs by VFIO drivers as required. The device can
+	  cause the VFIO code create a top-level debug/vfio directory
+	  during initialization, and then populate a subdirectory with
+	  entries as required.
+
 source "drivers/vfio/pci/Kconfig"
 source "drivers/vfio/platform/Kconfig"
 source "drivers/vfio/mdev/Kconfig"

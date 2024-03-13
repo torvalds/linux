@@ -298,4 +298,5 @@ static struct platform_driver bgmac_enet_driver = {
 };
 
 module_platform_driver(bgmac_enet_driver);
+MODULE_DESCRIPTION("Broadcom iProc GBit platform interface driver");
 MODULE_LICENSE("GPL");

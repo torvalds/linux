@@ -627,14 +627,12 @@ err_disable_unprepare_clk:
 }
 EXPORT_SYMBOL(qnoc_probe);
 
-int qnoc_remove(struct platform_device *pdev)
+void qnoc_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&qp->provider);
 	icc_nodes_remove(&qp->provider);
 	clk_disable_unprepare(qp->bus_clk);
-
-	return 0;
 }
 EXPORT_SYMBOL(qnoc_remove);

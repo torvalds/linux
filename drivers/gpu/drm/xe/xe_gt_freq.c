@@ -196,6 +196,9 @@ void xe_gt_freq_init(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
+	if (xe->info.skip_guc_pc)
+		return;
+
 	gt->freq = kobject_create_and_add("freq0", gt->sysfs);
 	if (!gt->freq) {
 		drm_warn(&xe->drm, "failed to add freq0 directory to %s\n",

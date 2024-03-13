@@ -207,7 +207,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->nr_inodes);
+		u->v		= cpu_to_le64(c->usage_base->b.nr_inodes);
 	}
 
 	{

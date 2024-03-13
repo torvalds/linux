@@ -74,22 +74,27 @@ static inline bool btree_node_hashed(struct btree *b)
 	     _iter = 0;	_iter < (_tbl)->size; _iter++)			\
 		rht_for_each_entry_rcu((_b), (_pos), _tbl, _iter, hash)
 
-static inline size_t btree_bytes(struct bch_fs *c)
+static inline size_t btree_buf_bytes(const struct btree *b)
 {
-	return c->opts.btree_node_size;
+	return 1UL << b->byte_order;
 }
 
-static inline size_t btree_max_u64s(struct bch_fs *c)
+static inline size_t btree_buf_max_u64s(const struct btree *b)
 {
-	return (btree_bytes(c) - sizeof(struct btree_node)) / sizeof(u64);
+	return (btree_buf_bytes(b) - sizeof(struct btree_node)) / sizeof(u64);
 }
 
-static inline size_t btree_pages(struct bch_fs *c)
+static inline size_t btree_max_u64s(const struct bch_fs *c)
 {
-	return btree_bytes(c) / PAGE_SIZE;
+	return (c->opts.btree_node_size - sizeof(struct btree_node)) / sizeof(u64);
 }
 
-static inline unsigned btree_blocks(struct bch_fs *c)
+static inline size_t btree_sectors(const struct bch_fs *c)
+{
+	return c->opts.btree_node_size >> SECTOR_SHIFT;
+}
+
+static inline unsigned btree_blocks(const struct bch_fs *c)
 {
 	return btree_sectors(c) >> c->block_bits;
 }

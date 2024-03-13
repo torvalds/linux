@@ -21,6 +21,7 @@
 #include "btree_gc.h"
 #include "buckets.h"
 #include "clock.h"
+#include "compress.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "inode.h"
@@ -247,7 +248,7 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 	mutex_lock(&c->btree_cache.lock);
 	list_for_each_entry(b, &c->btree_cache.live, list)
-		ret += btree_bytes(c);
+		ret += btree_buf_bytes(b);
 
 	mutex_unlock(&c->btree_cache.lock);
 	return ret;
@@ -330,7 +331,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	prt_newline(out);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(s); i++) {
-		prt_str(out, bch2_compression_types[i]);
+		bch2_prt_compression_type(out, i);
 		prt_tab(out);
 
 		prt_human_readable_u64(out, s[i].sectors_compressed << 9);
@@ -725,8 +726,10 @@ STORE(bch2_fs_opts_dir)
 	bch2_opt_set_sb(c, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
 
-	if ((id == Opt_background_target ||
-	     id == Opt_background_compression) && v)
+	if (v &&
+	    (id == Opt_background_target ||
+	     id == Opt_background_compression ||
+	     (id == Opt_compression && !c->opts.background_compression)))
 		bch2_set_rebalance_needs_scan(c, 0);
 
 	ret = size;
@@ -883,7 +886,7 @@ static void dev_io_done_to_text(struct printbuf *out, struct bch_dev *ca)
 
 		for (i = 1; i < BCH_DATA_NR; i++)
 			prt_printf(out, "%-12s:%12llu\n",
-			       bch2_data_types[i],
+			       bch2_data_type_str(i),
 			       percpu_u64_get(&ca->io_done->sectors[rw][i]) << 9);
 	}
 }
@@ -908,7 +911,7 @@ SHOW(bch2_dev)
 	}
 
 	if (attr == &sysfs_has_data) {
-		prt_bitflags(out, bch2_data_types, bch2_dev_has_data(c, ca));
+		prt_bitflags(out, __bch2_data_types, bch2_dev_has_data(c, ca));
 		prt_char(out, '\n');
 	}
 

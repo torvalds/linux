@@ -475,7 +475,8 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 
 	spin_lock_irqsave(&subpage->lock, flags);
 	bitmap_set(subpage->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
-	folio_start_writeback(folio);
+	if (!folio_test_writeback(folio))
+		folio_start_writeback(folio);
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
 

@@ -396,10 +396,11 @@ Memory barriers come in four basic varieties:
 
 
  (2) Address-dependency barriers (historical).
-     [!] This section is marked as HISTORICAL: For more up-to-date
-     information, including how compiler transformations related to pointer
-     comparisons can sometimes cause problems, see
-     Documentation/RCU/rcu_dereference.rst.
+     [!] This section is marked as HISTORICAL: it covers the long-obsolete
+     smp_read_barrier_depends() macro, the semantics of which are now
+     implicit in all marked accesses.  For more up-to-date information,
+     including how compiler transformations can sometimes break address
+     dependencies, see Documentation/RCU/rcu_dereference.rst.
 
      An address-dependency barrier is a weaker form of read barrier.  In the
      case where two loads are performed such that the second depends on the
@@ -560,9 +561,11 @@ There are certain things that the Linux kernel memory barriers do not guarantee:
 
 ADDRESS-DEPENDENCY BARRIERS (HISTORICAL)
 ----------------------------------------
-[!] This section is marked as HISTORICAL: For more up-to-date information,
-including how compiler transformations related to pointer comparisons can
-sometimes cause problems, see Documentation/RCU/rcu_dereference.rst.
+[!] This section is marked as HISTORICAL: it covers the long-obsolete
+smp_read_barrier_depends() macro, the semantics of which are now implicit
+in all marked accesses.  For more up-to-date information, including
+how compiler transformations can sometimes break address dependencies,
+see Documentation/RCU/rcu_dereference.rst.
 
 As of v4.15 of the Linux kernel, an smp_mb() was added to READ_ONCE() for
 DEC Alpha, which means that about the only people who need to pay attention

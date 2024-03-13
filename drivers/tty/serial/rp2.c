@@ -178,7 +178,6 @@ struct rp2_card;
 struct rp2_uart_port {
 	struct uart_port		port;
 	int				idx;
-	int				ignore_rx;
 	struct rp2_card			*card;
 	void __iomem			*asic_base;
 	void __iomem			*base;
