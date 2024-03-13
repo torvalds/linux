@@ -455,8 +455,8 @@ static int io_pin_pbuf_ring(struct io_uring_buf_reg *reg,
 			    struct io_buffer_list *bl)
 {
 	struct io_uring_buf_ring *br = NULL;
-	int nr_pages, ret, i;
 	struct page **pages;
+	int nr_pages, ret;
 
 	pages = io_pin_pages(reg->ring_addr,
 			     flex_array_size(br, bufs, reg->ring_entries),
@@ -492,8 +492,7 @@ static int io_pin_pbuf_ring(struct io_uring_buf_reg *reg,
 	bl->is_mmap = 0;
 	return 0;
 error_unpin:
-	for (i = 0; i < nr_pages; i++)
-		unpin_user_page(pages[i]);
+	unpin_user_pages(pages, nr_pages);
 	kvfree(pages);
 	vunmap(br);
 	return ret;

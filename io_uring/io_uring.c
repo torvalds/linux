@@ -2630,13 +2630,11 @@ void io_pages_unmap(void *ptr, struct page ***pages, unsigned short *npages,
 static void io_pages_free(struct page ***pages, int npages)
 {
 	struct page **page_array = *pages;
-	int i;
 
 	if (!page_array)
 		return;
 
-	for (i = 0; i < npages; i++)
-		unpin_user_page(page_array[i]);
+	unpin_user_pages(page_array, npages);
 	kvfree(page_array);
 	*pages = NULL;
 }
