@@ -830,7 +830,7 @@ struct f2fs_inode_info {
 	spinlock_t i_size_lock;		/* protect last_disk_size */
 
 #ifdef CONFIG_QUOTA
-	struct dquot *i_dquot[MAXQUOTAS];
+	struct dquot __rcu *i_dquot[MAXQUOTAS];
 
 	/* quota space reservation, managed internally by quota code */
 	qsize_t i_reserved_quota;

@@ -59,7 +59,7 @@ static int udf_fiiter_find_entry(struct inode *dir, const struct qstr *child,
 		child->name[0] == '.' && child->name[1] == '.';
 	int ret;
 
-	fname = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	fname = kmalloc(UDF_NAME_LEN, GFP_KERNEL);
 	if (!fname)
 		return -ENOMEM;
 
@@ -566,7 +566,7 @@ out:
 static int udf_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *symname)
 {
-	struct inode *inode = udf_new_inode(dir, S_IFLNK | 0777);
+	struct inode *inode;
 	struct pathComponent *pc;
 	const char *compstart;
 	struct extent_position epos = {};
@@ -579,17 +579,20 @@ static int udf_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	struct udf_inode_info *iinfo;
 	struct super_block *sb = dir->i_sb;
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL);
+	if (!name) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	inode = udf_new_inode(dir, S_IFLNK | 0777);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		goto out;
+	}
 
 	iinfo = UDF_I(inode);
 	down_write(&iinfo->i_data_sem);
-	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
-	if (!name) {
-		err = -ENOMEM;
-		goto out_no_entry;
-	}
-
 	inode->i_data.a_ops = &udf_symlink_aops;
 	inode->i_op = &udf_symlink_inode_operations;
 	inode_nohighmem(inode);

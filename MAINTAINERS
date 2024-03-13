@@ -8021,6 +8021,7 @@ M:	Jan Kara <jack@suse.com>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/ext2.rst
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jack/linux-fs.git
 F:	fs/ext2/
 F:	include/linux/ext2*
 
