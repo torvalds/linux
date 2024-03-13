@@ -4895,7 +4895,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		    MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
 		scsiio_flags |= MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING;
 	}
-	scsiio_req->flags = cpu_to_le32(scsiio_flags);
+	scsiio_req->flags |= cpu_to_le32(scsiio_flags);
 
 	if (mpi3mr_op_request_post(mrioc, op_req_q,
 	    scmd_priv_data->mpi3mr_scsiio_req)) {
