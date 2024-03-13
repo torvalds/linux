@@ -316,7 +316,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 }
 
 
-static uint32_t read_doorbell_id(void *mqd)
+static uint32_t check_preemption_failed(void *mqd)
 {
 	struct v9_mqd *m = (struct v9_mqd *)mqd;
 
@@ -881,7 +881,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
-		mqd->read_doorbell_id = read_doorbell_id;
+		mqd->check_preemption_failed = check_preemption_failed;
 		if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) {
 			mqd->init_mqd = init_mqd_hiq_v9_4_3;
 			mqd->load_mqd = hiq_load_mqd_kiq_v9_4_3;
