@@ -3463,17 +3463,7 @@ static struct platform_driver gcc_sm6225_driver = {
 	},
 };
 
-static int __init gcc_sm6225_init(void)
-{
-	return platform_driver_register(&gcc_sm6225_driver);
-}
-subsys_initcall(gcc_sm6225_init);
-
-static void __exit gcc_sm6225_exit(void)
-{
-	platform_driver_unregister(&gcc_sm6225_driver);
-}
-module_exit(gcc_sm6225_exit);
+module_platform_driver(gcc_sm6225_driver);
 
 MODULE_DESCRIPTION("QTI GCC SM6225 Driver");
 MODULE_LICENSE("GPL v2");
