@@ -3502,7 +3502,7 @@ static const struct qcom_cc_desc gcc_sm6225_desc = {
 };
 
 static const struct of_device_id gcc_sm6225_match_table[] = {
-	{ .compatible = "qcom,sm6225-gcc" },
+	{ .compatible = "qcom,gcc-sm6225" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gcc_sm6225_match_table);
