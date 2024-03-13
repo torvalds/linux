@@ -82,7 +82,7 @@
 			clocks = <&clocks CLK_NANDXL>, <&clocks DOUT_FLASH>;
 			clock-names = "bus", "onenand";
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
