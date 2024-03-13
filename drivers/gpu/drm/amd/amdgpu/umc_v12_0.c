@@ -404,10 +404,16 @@ static int umc_v12_0_err_cnt_init_per_channel(struct amdgpu_device *adev,
 static void umc_v12_0_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
+	struct ras_query_context qctx;
+
+	memset(&qctx, 0, sizeof(qctx));
+	qctx.event_id = amdgpu_ras_acquire_event_id(adev, amdgpu_ras_intr_triggered() ?
+						    RAS_EVENT_TYPE_ISR : RAS_EVENT_TYPE_INVALID);
+
 	amdgpu_mca_smu_log_ras_error(adev,
-		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_CE, ras_error_status);
+		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_CE, ras_error_status, &qctx);
 	amdgpu_mca_smu_log_ras_error(adev,
-		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_UE, ras_error_status);
+		AMDGPU_RAS_BLOCK__UMC, AMDGPU_MCA_ERROR_TYPE_UE, ras_error_status, &qctx);
 }
 
 static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *adev,

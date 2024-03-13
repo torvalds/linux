@@ -44,6 +44,7 @@ struct amdgpu_hive_info {
 
 	struct amdgpu_reset_domain *reset_domain;
 	atomic_t ras_recovery;
+	struct ras_event_manager event_mgr;
 };
 
 struct amdgpu_pcs_ras_field {

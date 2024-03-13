@@ -169,6 +169,7 @@ void amdgpu_mca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root
 void amdgpu_mca_bank_set_init(struct mca_bank_set *mca_set);
 int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_entry *entry);
 void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set);
-int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type, struct ras_err_data *err_data);
+int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
+				 struct ras_err_data *err_data, struct ras_query_context *qctx);
 
 #endif
