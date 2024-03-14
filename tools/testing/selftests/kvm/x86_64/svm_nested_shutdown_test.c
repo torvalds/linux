@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 
 	vcpu_alloc_svm(vm, &svm_gva);
 
-	vcpu_args_set(vcpu, 2, svm_gva, vm->idt);
+	vcpu_args_set(vcpu, 2, svm_gva, vm->arch.idt);
 
 	vcpu_run(vcpu);
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SHUTDOWN);

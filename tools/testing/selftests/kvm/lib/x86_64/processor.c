@@ -418,7 +418,7 @@ static void kvm_seg_set_unusable(struct kvm_segment *segp)
 
 static void kvm_seg_fill_gdt_64bit(struct kvm_vm *vm, struct kvm_segment *segp)
 {
-	void *gdt = addr_gva2hva(vm, vm->gdt);
+	void *gdt = addr_gva2hva(vm, vm->arch.gdt);
 	struct desc64 *desc = gdt + (segp->selector >> 3) * 8;
 
 	desc->limit0 = segp->limit & 0xFFFF;
@@ -519,21 +519,21 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt)
 {
-	if (!vm->gdt)
-		vm->gdt = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
+	if (!vm->arch.gdt)
+		vm->arch.gdt = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
 
-	dt->base = vm->gdt;
+	dt->base = vm->arch.gdt;
 	dt->limit = getpagesize();
 }
 
 static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
 				int selector)
 {
-	if (!vm->tss)
-		vm->tss = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
+	if (!vm->arch.tss)
+		vm->arch.tss = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
 
 	memset(segp, 0, sizeof(*segp));
-	segp->base = vm->tss;
+	segp->base = vm->arch.tss;
 	segp->limit = 0x67;
 	segp->selector = selector;
 	segp->type = 0xb;
@@ -1097,7 +1097,7 @@ static void set_idt_entry(struct kvm_vm *vm, int vector, unsigned long addr,
 			  int dpl, unsigned short selector)
 {
 	struct idt_entry *base =
-		(struct idt_entry *)addr_gva2hva(vm, vm->idt);
+		(struct idt_entry *)addr_gva2hva(vm, vm->arch.idt);
 	struct idt_entry *e = &base[vector];
 
 	memset(e, 0, sizeof(*e));
@@ -1150,7 +1150,7 @@ void vm_init_descriptor_tables(struct kvm_vm *vm)
 	extern void *idt_handlers;
 	int i;
 
-	vm->idt = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
+	vm->arch.idt = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
 	vm->handlers = __vm_vaddr_alloc_page(vm, MEM_REGION_DATA);
 	/* Handlers have the same address in both address spaces.*/
 	for (i = 0; i < NUM_INTERRUPTS; i++)
@@ -1164,9 +1164,9 @@ void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
 	struct kvm_sregs sregs;
 
 	vcpu_sregs_get(vcpu, &sregs);
-	sregs.idt.base = vm->idt;
+	sregs.idt.base = vm->arch.idt;
 	sregs.idt.limit = NUM_INTERRUPTS * sizeof(struct idt_entry) - 1;
-	sregs.gdt.base = vm->gdt;
+	sregs.gdt.base = vm->arch.gdt;
 	sregs.gdt.limit = getpagesize() - 1;
 	kvm_seg_set_kernel_data_64bit(NULL, DEFAULT_DATA_SELECTOR, &sregs.gs);
 	vcpu_sregs_set(vcpu, &sregs);
