@@ -51,7 +51,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 
 	for (i = 0; i < info->n_entries; i++) {
 		if (!(i & 1)) {
-			if (GRAPHICS_VERx100(xe) >= 1250)
+			if (regs_are_mcr(gt))
 				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i >> 1));
 			else
 				reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i >> 1));
@@ -91,7 +91,7 @@ static void read_mocs_table(struct xe_gt *gt,
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
 
 	for (i = 0; i < info->n_entries; i++) {
-		if (GRAPHICS_VERx100(xe) >= 1250)
+		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else
 			reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));

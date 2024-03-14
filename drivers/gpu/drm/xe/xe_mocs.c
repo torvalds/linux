@@ -466,6 +466,16 @@ static u32 get_entry_control(const struct xe_mocs_info *info,
 	return info->table[info->unused_entries_index].control_value;
 }
 
+static bool regs_are_mcr(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe_gt_is_media_type(gt))
+		return MEDIA_VER(xe) >= 20;
+	else
+		return GRAPHICS_VERx100(xe) >= 1250;
+}
+
 static void __init_mocs_table(struct xe_gt *gt,
 			      const struct xe_mocs_info *info)
 {
@@ -485,7 +495,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 		mocs_dbg(&gt_to_xe(gt)->drm, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) > 1250)
+		if (regs_are_mcr(gt))
 			xe_gt_mcr_multicast_write(gt, XEHP_GLOBAL_MOCS(i), mocs);
 		else
 			xe_mmio_write32(gt, XELP_GLOBAL_MOCS(i), mocs);
@@ -525,7 +535,7 @@ static void init_l3cc_table(struct xe_gt *gt,
 		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_LNCFCMOCS(i).addr, l3cc);
 
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+		if (regs_are_mcr(gt))
 			xe_gt_mcr_multicast_write(gt, XEHP_LNCFCMOCS(i), l3cc);
 		else
 			xe_mmio_write32(gt, XELP_LNCFCMOCS(i), l3cc);
