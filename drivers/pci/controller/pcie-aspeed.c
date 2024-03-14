@@ -586,6 +586,9 @@ static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain,
 
 	bit = bitmap_find_free_region(pcie->msi_irq_in_use, MAX_MSI_HOST_IRQS,
 				      get_count_order(nr_irqs));
+
+	mutex_unlock(&pcie->lock);
+
 	if (bit < 0)
 		return -ENOSPC;
 
@@ -595,8 +598,6 @@ static int aspeed_irq_msi_domain_alloc(struct irq_domain *domain,
 				    domain->host_data, handle_simple_irq, NULL,
 				    NULL);
 	}
-
-	mutex_unlock(&pcie->lock);
 
 	return 0;
 }
