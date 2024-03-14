@@ -53,6 +53,7 @@ qti-regmap-debugfs.ko
 qcom-spmi-pmic.ko
 nvmem_qcom-spmi-sdam.ko
 rtc-pm8xxx.ko
+qcom-reboot-reason.ko
 pmic-pon-log.ko
 ufs_qcom.ko
 llcc-qcom.ko
