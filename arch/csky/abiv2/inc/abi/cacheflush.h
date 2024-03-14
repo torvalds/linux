@@ -41,6 +41,7 @@ void flush_icache_mm_range(struct mm_struct *mm,
 void flush_icache_deferred(struct mm_struct *mm);
 
 #define flush_cache_vmap(start, end)		do { } while (0)
+#define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
