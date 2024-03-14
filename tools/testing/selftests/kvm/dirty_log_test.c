@@ -105,7 +105,7 @@ static void guest_code(void)
 	 */
 	for (i = 0; i < guest_num_pages; i++) {
 		addr = guest_test_virt_mem + i * guest_page_size;
-		*(uint64_t *)addr = READ_ONCE(iteration);
+		vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
 	}
 
 	while (true) {
@@ -114,7 +114,8 @@ static void guest_code(void)
 			addr += (guest_random_u64(&guest_rng) % guest_num_pages)
 				* guest_page_size;
 			addr = align_down(addr, host_page_size);
-			*(uint64_t *)addr = READ_ONCE(iteration);
+
+			vcpu_arch_put_guest(*(uint64_t *)addr, READ_ONCE(iteration));
 		}
 
 		GUEST_SYNC(1);

@@ -171,8 +171,9 @@ static volatile bool guest_saw_irq;
 static void evtchn_handler(struct ex_regs *regs)
 {
 	struct vcpu_info *vi = (void *)VCPU_INFO_VADDR;
-	vi->evtchn_upcall_pending = 0;
-	vi->evtchn_pending_sel = 0;
+
+	vcpu_arch_put_guest(vi->evtchn_upcall_pending, 0);
+	vcpu_arch_put_guest(vi->evtchn_pending_sel, 0);
 	guest_saw_irq = true;
 
 	GUEST_SYNC(TEST_GUEST_SAW_IRQ);
