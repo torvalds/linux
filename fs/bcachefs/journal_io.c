@@ -1848,7 +1848,8 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 
 	bch2_journal_super_entries_add_common(c, &end, seq);
 	u64s	= (u64 *) end - (u64 *) start;
-	BUG_ON(u64s > j->entry_u64s_reserved);
+
+	WARN_ON(u64s > j->entry_u64s_reserved);
 
 	le32_add_cpu(&jset->u64s, u64s);
 
