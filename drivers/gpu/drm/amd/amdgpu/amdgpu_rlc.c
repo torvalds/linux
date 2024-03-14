@@ -241,7 +241,7 @@ void amdgpu_gfx_rlc_setup_cp_table(struct amdgpu_device *adev)
 			table_size = le32_to_cpu(hdr->jt_size);
 		}
 
-		for (i = 0; i < table_size; i ++) {
+		for (i = 0; i < table_size; i++) {
 			dst_ptr[bo_offset + i] =
 				cpu_to_le32(le32_to_cpu(fw_data[table_offset + i]));
 		}

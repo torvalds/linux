@@ -42,7 +42,8 @@ generated_oob := $(obj)/generated/xe_wa_oob.c $(obj)/generated/xe_wa_oob.h
 quiet_cmd_wa_oob = GEN     $(notdir $(generated_oob))
       cmd_wa_oob = mkdir -p $(@D); $^ $(generated_oob)
 
-$(generated_oob) &: $(obj)/xe_gen_wa_oob $(srctree)/$(src)/xe_wa_oob.rules
+$(obj)/generated/%_wa_oob.c $(obj)/generated/%_wa_oob.h: $(obj)/xe_gen_wa_oob \
+		 $(srctree)/$(src)/xe_wa_oob.rules
 	$(call cmd,wa_oob)
 
 uses_generated_oob := \
@@ -76,6 +77,7 @@ xe-y += xe_bb.o \
 	xe_ggtt.o \
 	xe_gpu_scheduler.o \
 	xe_gsc.o \
+	xe_gsc_proxy.o \
 	xe_gsc_submit.o \
 	xe_gt.o \
 	xe_gt_ccs_mode.o \
@@ -92,6 +94,7 @@ xe-y += xe_bb.o \
 	xe_guc.o \
 	xe_guc_ads.o \
 	xe_guc_ct.o \
+	xe_guc_db_mgr.o \
 	xe_guc_debugfs.o \
 	xe_guc_hwconfig.o \
 	xe_guc_log.o \
@@ -137,6 +140,7 @@ xe-y += xe_bb.o \
 	xe_uc_debugfs.o \
 	xe_uc_fw.o \
 	xe_vm.o \
+	xe_vram_freq.o \
 	xe_wait_user_fence.o \
 	xe_wa.o \
 	xe_wopcm.o
@@ -145,18 +149,25 @@ xe-y += xe_bb.o \
 xe-$(CONFIG_HWMON) += xe_hwmon.o
 
 # graphics virtualization (SR-IOV) support
-xe-y += xe_sriov.o
+xe-y += \
+	xe_guc_relay.o \
+	xe_memirq.o \
+	xe_sriov.o
 
 xe-$(CONFIG_PCI_IOV) += \
 	xe_lmtt.o \
 	xe_lmtt_2l.o \
 	xe_lmtt_ml.o
 
+# include helpers for tests even when XE is built-in
+ifdef CONFIG_DRM_XE_KUNIT_TEST
+xe-y += tests/xe_kunit_helpers.o
+endif
+
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
 	-I$(srctree)/$(src)/display/ext \
 	-I$(srctree)/$(src)/compat-i915-headers \
-	-I$(srctree)/drivers/gpu/drm/xe/display/ \
 	-I$(srctree)/drivers/gpu/drm/i915/display/ \
 	-Ddrm_i915_gem_object=xe_bo \
 	-Ddrm_i915_private=xe_device
@@ -176,17 +187,17 @@ $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
 
 # Display code specific to xe
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
-	xe_display.o \
+	display/ext/i915_irq.o \
+	display/ext/i915_utils.o \
+	display/intel_fb_bo.o \
+	display/intel_fbdev_fb.o \
+	display/xe_display.o \
+	display/xe_display_misc.o \
+	display/xe_display_rps.o \
+	display/xe_dsb_buffer.o \
 	display/xe_fb_pin.o \
 	display/xe_hdcp_gsc.o \
-	display/xe_plane_initial.o \
-	display/xe_display_rps.o \
-	display/xe_display_misc.o \
-	display/xe_dsb_buffer.o \
-	display/intel_fbdev_fb.o \
-	display/intel_fb_bo.o \
-	display/ext/i915_irq.o \
-	display/ext/i915_utils.o
+	display/xe_plane_initial.o
 
 # SOC code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
@@ -213,8 +224,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_ddi.o \
 	i915-display/intel_ddi_buf_trans.o \
 	i915-display/intel_display.o \
-	i915-display/intel_display_debugfs.o \
-	i915-display/intel_display_debugfs_params.o \
 	i915-display/intel_display_device.o \
 	i915-display/intel_display_driver.o \
 	i915-display/intel_display_irq.o \
@@ -258,7 +267,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
 	i915-display/intel_panel.o \
-	i915-display/intel_pipe_crc.o \
 	i915-display/intel_pmdemand.o \
 	i915-display/intel_pps.o \
 	i915-display/intel_psr.o \
@@ -283,6 +291,13 @@ endif
 
 ifeq ($(CONFIG_DRM_FBDEV_EMULATION),y)
 	xe-$(CONFIG_DRM_XE_DISPLAY) += i915-display/intel_fbdev.o
+endif
+
+ifeq ($(CONFIG_DEBUG_FS),y)
+	xe-$(CONFIG_DRM_XE_DISPLAY) += \
+		i915-display/intel_display_debugfs.o \
+		i915-display/intel_display_debugfs_params.o \
+		i915-display/intel_pipe_crc.o
 endif
 
 obj-$(CONFIG_DRM_XE) += xe.o

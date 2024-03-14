@@ -24,8 +24,6 @@ struct drm_printer;
 struct i915_drm_client {
 	struct kref kref;
 
-	unsigned int id;
-
 	spinlock_t ctx_lock; /* For add/remove from ctx_list. */
 	struct list_head ctx_list; /* List of contexts belonging to client. */
 

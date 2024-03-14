@@ -277,3 +277,41 @@ int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm)
 
 	return drm_sched_job_add_dependency(&job->drm, fence);
 }
+
+struct xe_sched_job_snapshot *
+xe_sched_job_snapshot_capture(struct xe_sched_job *job)
+{
+	struct xe_exec_queue *q = job->q;
+	struct xe_device *xe = q->gt->tile->xe;
+	struct xe_sched_job_snapshot *snapshot;
+	size_t len = sizeof(*snapshot) + (sizeof(u64) * q->width);
+	u16 i;
+
+	snapshot = kzalloc(len, GFP_ATOMIC);
+	if (!snapshot)
+		return NULL;
+
+	snapshot->batch_addr_len = q->width;
+	for (i = 0; i < q->width; i++)
+		snapshot->batch_addr[i] = xe_device_uncanonicalize_addr(xe, job->batch_addr[i]);
+
+	return snapshot;
+}
+
+void xe_sched_job_snapshot_free(struct xe_sched_job_snapshot *snapshot)
+{
+	kfree(snapshot);
+}
+
+void
+xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot,
+			    struct drm_printer *p)
+{
+	u16 i;
+
+	if (!snapshot)
+		return;
+
+	for (i = 0; i < snapshot->batch_addr_len; i++)
+		drm_printf(p, "batch_addr[%u]: 0x%016llx\n", i, snapshot->batch_addr[i]);
+}

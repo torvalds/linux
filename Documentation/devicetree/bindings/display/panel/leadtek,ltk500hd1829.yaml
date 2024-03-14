@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: leadtek,ltk500hd1829
+    enum:
+      - leadtek,ltk101b4029w
+      - leadtek,ltk500hd1829
   reg: true
   backlight: true
   reset-gpios: true

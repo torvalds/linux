@@ -155,6 +155,20 @@ config DRM_I915_PXP
 	  protected session and manage the status of the alive software session,
 	  as well as its life cycle.
 
+config DRM_I915_DP_TUNNEL
+	bool "Enable DP tunnel support"
+	depends on DRM_I915
+	depends on USB4
+	select DRM_DISPLAY_DP_TUNNEL
+	default y
+	help
+	  Choose this option to detect DP tunnels and enable the Bandwidth
+	  Allocation mode for such tunnels. This allows using the maximum
+	  resolution allowed by the link BW on all displays sharing the
+	  link BW, for instance on a Thunderbolt link.
+
+	  If in doubt, say "Y".
+
 menu "drm/i915 Debugging"
 depends on DRM_I915
 depends on EXPERT

@@ -231,7 +231,7 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 	if (err)
 		goto err_force_wake;
 
-	p = drm_debug_printer(KBUILD_MODNAME);
+	p = drm_dbg_printer(&xe->drm, DRM_UT_DRIVER, NULL);
 	xa_for_each(&sr->xa, reg, entry) {
 		if (slot == RING_MAX_NONPRIV_SLOTS) {
 			xe_gt_err(gt,

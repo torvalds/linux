@@ -1508,10 +1508,7 @@ enum link_training_result dp_perform_link_training(
 	 * Non-LT AUX transactions inside training mode.
 	 */
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) && encoding == DP_8b_10b_ENCODING)
-		if (link->dc->config.use_old_fixed_vs_sequence)
-			status = dp_perform_fixed_vs_pe_training_sequence_legacy(link, link_res, &lt_settings);
-		else
-			status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
+		status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
 	else if (encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_8b_10b_link_training(link, link_res, &lt_settings);
 	else if (encoding == DP_128b_132b_ENCODING)

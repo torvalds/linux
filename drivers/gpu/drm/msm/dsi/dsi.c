@@ -216,6 +216,7 @@ void __exit msm_dsi_unregister(void)
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 			 struct drm_encoder *encoder)
 {
+	struct drm_bridge *bridge;
 	int ret;
 
 	msm_dsi->dev = dev;
@@ -235,15 +236,14 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 		return 0;
 	}
 
-	msm_dsi->encoder = encoder;
-
-	ret = msm_dsi_manager_bridge_init(msm_dsi);
-	if (ret) {
+	bridge = msm_dsi_manager_bridge_init(msm_dsi, encoder);
+	if (IS_ERR(bridge)) {
+		ret = PTR_ERR(bridge);
 		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);
 		return ret;
 	}
 
-	ret = msm_dsi_manager_ext_bridge_init(msm_dsi->id);
+	ret = msm_dsi_manager_ext_bridge_init(msm_dsi->id, bridge);
 	if (ret) {
 		DRM_DEV_ERROR(dev->dev,
 			"failed to create dsi connector: %d\n", ret);

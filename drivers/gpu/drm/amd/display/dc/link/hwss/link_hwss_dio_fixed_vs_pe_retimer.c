@@ -80,21 +80,23 @@ static bool set_dio_fixed_vs_pe_retimer_dp_link_test_pattern_override(struct dc_
 	const uint8_t vendor_lttpr_write_data_pg0[4] = {0x1, 0x11, 0x0, 0x0};
 	const uint8_t vendor_lttpr_exit_manual_automation_0[4] = {0x1, 0x11, 0x0, 0x06};
 
+	if (!link->dpcd_caps.lttpr_caps.main_link_channel_coding.bits.DP_128b_132b_SUPPORTED)
+		return false;
 
 	if (tp_params == NULL)
 		return false;
 
-	if (link->current_test_pattern >= DP_TEST_PATTERN_SQUARE_BEGIN &&
-			link->current_test_pattern <= DP_TEST_PATTERN_SQUARE_END) {
+	if (IS_DP_PHY_SQUARE_PATTERN(link->current_test_pattern))
 		// Deprogram overrides from previous test pattern
 		dp_dio_fixed_vs_pe_retimer_exit_manual_automation(link);
-	}
 
 	switch (tp_params->dp_phy_pattern) {
 	case DP_TEST_PATTERN_80BIT_CUSTOM:
 		if (tp_params->custom_pattern_size == 0 || memcmp(tp_params->custom_pattern,
 				pltpat_custom, tp_params->custom_pattern_size) != 0)
 			return false;
+		hw_tp_params.custom_pattern = tp_params->custom_pattern;
+		hw_tp_params.custom_pattern_size = tp_params->custom_pattern_size;
 		break;
 	case DP_TEST_PATTERN_D102:
 		break;
@@ -185,13 +187,7 @@ static const struct link_hwss dio_fixed_vs_pe_retimer_link_hwss = {
 
 bool requires_fixed_vs_pe_retimer_dio_link_hwss(const struct dc_link *link)
 {
-	if (!(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN))
-		return false;
-
-	if (!link->dpcd_caps.lttpr_caps.main_link_channel_coding.bits.DP_128b_132b_SUPPORTED)
-		return false;
-
-	return true;
+	return (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN);
 }
 
 const struct link_hwss *get_dio_fixed_vs_pe_retimer_link_hwss(void)

@@ -62,6 +62,7 @@
 typedef struct {
 	struct atom_context *ctx;
 	uint32_t *ps, *ws;
+	int ps_size, ws_size;
 	int ps_shift;
 	uint16_t start;
 	unsigned last_jump;
@@ -70,8 +71,8 @@ typedef struct {
 } atom_exec_context;
 
 int amdgpu_atom_debug;
-static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params);
-int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params);
+static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params, int params_size);
+int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params, int params_size);
 
 static uint32_t atom_arg_mask[8] =
 	{ 0xFFFFFFFF, 0xFFFF, 0xFFFF00, 0xFFFF0000, 0xFF, 0xFF00, 0xFF0000,
@@ -223,7 +224,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		(*ptr)++;
 		/* get_unaligned_le32 avoids unaligned accesses from atombios
 		 * tables, noticed on a DEC Alpha. */
-		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
+		if (idx < ctx->ps_size)
+			val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
+		else
+			pr_info("PS index out of range: %i > %i\n", idx, ctx->ps_size);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
@@ -261,7 +265,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = gctx->reg_block;
 			break;
 		default:
-			val = ctx->ws[idx];
+			if (idx < ctx->ws_size)
+				val = ctx->ws[idx];
+			else
+				pr_info("WS index out of range: %i > %i\n", idx, ctx->ws_size);
 		}
 		break;
 	case ATOM_ARG_ID:
@@ -313,7 +320,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 				DEBUG("IMM 0x%02X\n", val);
 			return val;
 		}
-		return 0;
+		break;
 	case ATOM_ARG_PLL:
 		idx = U8(*ptr);
 		(*ptr)++;
@@ -495,6 +502,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 		idx = U8(*ptr);
 		(*ptr)++;
 		DEBUG("PS[0x%02X]", idx);
+		if (idx >= ctx->ps_size) {
+			pr_info("PS index out of range: %i > %i\n", idx, ctx->ps_size);
+			return;
+		}
 		ctx->ps[idx] = cpu_to_le32(val);
 		break;
 	case ATOM_ARG_WS:
@@ -527,6 +538,10 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 			gctx->reg_block = val;
 			break;
 		default:
+			if (idx >= ctx->ws_size) {
+				pr_info("WS index out of range: %i > %i\n", idx, ctx->ws_size);
+				return;
+			}
 			ctx->ws[idx] = val;
 		}
 		break;
@@ -624,7 +639,7 @@ static void atom_op_calltable(atom_exec_context *ctx, int *ptr, int arg)
 	else
 		SDEBUG("   table: %d\n", idx);
 	if (U16(ctx->ctx->cmd_table + 4 + 2 * idx))
-		r = amdgpu_atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
+		r = amdgpu_atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift, ctx->ps_size - ctx->ps_shift);
 	if (r) {
 		ctx->abort = true;
 	}
@@ -1203,7 +1218,7 @@ static struct {
 	atom_op_div32, ATOM_ARG_WS},
 };
 
-static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params)
+static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t *params, int params_size)
 {
 	int base = CU16(ctx->cmd_table + 4 + 2 * index);
 	int len, ws, ps, ptr;
@@ -1225,12 +1240,16 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
 	ectx.ps_shift = ps / 4;
 	ectx.start = base;
 	ectx.ps = params;
+	ectx.ps_size = params_size;
 	ectx.abort = false;
 	ectx.last_jump = 0;
-	if (ws)
+	if (ws) {
 		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
-	else
+		ectx.ws_size = ws;
+	} else {
 		ectx.ws = NULL;
+		ectx.ws_size = 0;
+	}
 
 	debug_depth++;
 	while (1) {
@@ -1264,7 +1283,7 @@ free:
 	return ret;
 }
 
-int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params)
+int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params, int params_size)
 {
 	int r;
 
@@ -1280,7 +1299,7 @@ int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *par
 	/* reset divmul */
 	ctx->divmul[0] = 0;
 	ctx->divmul[1] = 0;
-	r = amdgpu_atom_execute_table_locked(ctx, index, params);
+	r = amdgpu_atom_execute_table_locked(ctx, index, params, params_size);
 	mutex_unlock(&ctx->mutex);
 	return r;
 }
@@ -1552,7 +1571,7 @@ int amdgpu_atom_asic_init(struct atom_context *ctx)
 
 	if (!CU16(ctx->cmd_table + 4 + 2 * ATOM_CMD_INIT))
 		return 1;
-	ret = amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, ps);
+	ret = amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, ps, 16);
 	if (ret)
 		return ret;
 

@@ -53,7 +53,7 @@ obj_meminfo(struct drm_i915_gem_object *obj,
 					obj->mm.region->id : INTEL_REGION_SMEM;
 	const u64 sz = obj->base.size;
 
-	if (obj->base.handle_count > 1)
+	if (drm_gem_object_is_shared_for_memory_stats(&obj->base))
 		stats[id].shared += sz;
 	else
 		stats[id].private += sz;

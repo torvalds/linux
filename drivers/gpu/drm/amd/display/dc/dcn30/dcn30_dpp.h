@@ -637,4 +637,6 @@ void dpp3_program_cm_dealpha(
 		struct dpp *dpp_base,
 	uint32_t enable, uint32_t additive_blending);
 
+void dpp3_cm_get_gamut_remap(struct dpp *dpp_base,
+			     struct dpp_grph_csc_adjustment *adjust);
 #endif /* __DC_HWSS_DCN30_H__ */
