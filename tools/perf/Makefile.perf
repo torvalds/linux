@@ -458,18 +458,19 @@ SHELL = $(SHELL_PATH)
 
 arm64_gen_sysreg_dir := $(srctree)/tools/arch/arm64/tools
 ifneq ($(OUTPUT),)
-  arm64_gen_sysreg_outdir := $(OUTPUT)
+  arm64_gen_sysreg_outdir := $(abspath $(OUTPUT))
 else
   arm64_gen_sysreg_outdir := $(CURDIR)
 endif
 
 arm64-sysreg-defs: FORCE
-	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir)
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
+		prefix= subdir=
 
 arm64-sysreg-defs-clean:
 	$(call QUIET_CLEAN,arm64-sysreg-defs)
 	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
-		clean > /dev/null
+		prefix= subdir= clean > /dev/null
 
 beauty_linux_dir := $(srctree)/tools/perf/trace/beauty/include/linux/
 beauty_uapi_linux_dir := $(srctree)/tools/perf/trace/beauty/include/uapi/linux/
