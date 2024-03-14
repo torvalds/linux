@@ -489,6 +489,14 @@ static void v4l_print_create_buffers(const void *arg, bool write_only)
 	v4l_print_format(&p->format, write_only);
 }
 
+static void v4l_print_remove_buffers(const void *arg, bool write_only)
+{
+	const struct v4l2_remove_buffers *p = arg;
+
+	pr_cont("type=%s, index=%u, count=%u\n",
+		prt_names(p->type, v4l2_type_names), p->index, p->count);
+}
+
 static void v4l_print_streamparm(const void *arg, bool write_only)
 {
 	const struct v4l2_streamparm *p = arg;
@@ -2092,6 +2100,7 @@ static int v4l_overlay(const struct v4l2_ioctl_ops *ops,
 static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_requestbuffers *p = arg;
 	int ret = check_fmt(file, p->type);
 
@@ -2099,6 +2108,10 @@ static int v4l_reqbufs(const struct v4l2_ioctl_ops *ops,
 		return ret;
 
 	memset_after(p, 0, flags);
+
+	p->capabilities = 0;
+	if (is_valid_ioctl(vfd, VIDIOC_REMOVE_BUFS))
+		p->capabilities = V4L2_BUF_CAP_SUPPORTS_REMOVE_BUFS;
 
 	return ops->vidioc_reqbufs(file, fh, p);
 }
@@ -2133,6 +2146,7 @@ static int v4l_dqbuf(const struct v4l2_ioctl_ops *ops,
 static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
+	struct video_device *vfd = video_devdata(file);
 	struct v4l2_create_buffers *create = arg;
 	int ret = check_fmt(file, create->format.type);
 
@@ -2142,6 +2156,10 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
 	memset_after(create, 0, flags);
 
 	v4l_sanitize_format(&create->format);
+
+	create->capabilities = 0;
+	if (is_valid_ioctl(vfd, VIDIOC_REMOVE_BUFS))
+		create->capabilities = V4L2_BUF_CAP_SUPPORTS_REMOVE_BUFS;
 
 	ret = ops->vidioc_create_bufs(file, fh, create);
 
@@ -2159,6 +2177,17 @@ static int v4l_prepare_buf(const struct v4l2_ioctl_ops *ops,
 	int ret = check_fmt(file, b->type);
 
 	return ret ? ret : ops->vidioc_prepare_buf(file, fh, b);
+}
+
+static int v4l_remove_bufs(const struct v4l2_ioctl_ops *ops,
+			   struct file *file, void *fh, void *arg)
+{
+	struct v4l2_remove_buffers *remove = arg;
+
+	if (ops->vidioc_remove_bufs)
+		return ops->vidioc_remove_bufs(file, fh, remove);
+
+	return -ENOTTY;
 }
 
 static int v4l_g_parm(const struct v4l2_ioctl_ops *ops,
@@ -2910,6 +2939,7 @@ static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
 	IOCTL_INFO(VIDIOC_DBG_G_CHIP_INFO, v4l_dbg_g_chip_info, v4l_print_dbg_chip_info, INFO_FL_CLEAR(v4l2_dbg_chip_info, match)),
 	IOCTL_INFO(VIDIOC_QUERY_EXT_CTRL, v4l_query_ext_ctrl, v4l_print_query_ext_ctrl, INFO_FL_CTRL | INFO_FL_CLEAR(v4l2_query_ext_ctrl, id)),
+	IOCTL_INFO(VIDIOC_REMOVE_BUFS, v4l_remove_bufs, v4l_print_remove_buffers, INFO_FL_PRIO | INFO_FL_QUEUE | INFO_FL_CLEAR(v4l2_remove_buffers, type)),
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
