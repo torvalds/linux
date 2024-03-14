@@ -3653,7 +3653,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
  * There will only ever be one attribute.
  */
 static int smack_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
-			     size_t *size, u32 flags)
+			     u32 *size, u32 flags)
 {
 	int rc;
 	struct smack_known *skp;
@@ -3774,7 +3774,7 @@ static int do_setattr(u64 attr, void *value, size_t size)
  * Returns 0 on success, an error code otherwise.
  */
 static int smack_setselfattr(unsigned int attr, struct lsm_ctx *ctx,
-			     size_t size, u32 flags)
+			     u32 size, u32 flags)
 {
 	int rc;
 
