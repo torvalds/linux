@@ -25,7 +25,6 @@
 
 enum {
 	DT_BI_TCXO,
-	DT_BI_TCXO_AO,
 	DT_SLEEP_CLK
 };
 
@@ -118,11 +117,11 @@ static struct clk_alpha_pll gpll1 = {
 
 /* 1152MHz configuration */
 static const struct alpha_pll_config gpll10_config = {
-	.l = 0x3C,
+	.l = 0x3c,
 	.alpha = 0x0,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00002261,
-	.config_ctl_hi1_val = 0x329A299C,
+	.config_ctl_hi1_val = 0x329a299c,
 	.user_ctl_val = 0x00000001,
 	.user_ctl_hi_val = 0x00000805,
 	.user_ctl_hi1_val = 0x00000000,
@@ -150,11 +149,11 @@ static struct clk_alpha_pll gpll10 = {
 
 /* 600MHz configuration */
 static const struct alpha_pll_config gpll11_config = {
-	.l = 0x1F,
+	.l = 0x1f,
 	.alpha = 0x4000,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00002261,
-	.config_ctl_hi1_val = 0x329A299C,
+	.config_ctl_hi1_val = 0x329a299c,
 	.user_ctl_val = 0x00000001,
 	.user_ctl_hi_val = 0x00000805,
 	.user_ctl_hi1_val = 0x00000000,
@@ -312,10 +311,10 @@ static struct clk_alpha_pll gpll7 = {
 /* 400MHz configuration */
 static const struct alpha_pll_config gpll8_config = {
 	.l = 0x14,
-	.alpha = 0xD555,
+	.alpha = 0xd555,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00002261,
-	.config_ctl_hi1_val = 0x329A299C,
+	.config_ctl_hi1_val = 0x329a299c,
 	.user_ctl_val = 0x00000101,
 	.user_ctl_hi_val = 0x00000805,
 	.user_ctl_hi1_val = 0x00000000,
@@ -366,7 +365,7 @@ static struct clk_alpha_pll_postdiv gpll8_out_even = {
 
 /* 1440MHz configuration */
 static const struct alpha_pll_config gpll9_config = {
-	.l = 0x4B,
+	.l = 0x4b,
 	.alpha = 0x0,
 	.config_ctl_val = 0x08200800,
 	.config_ctl_hi_val = 0x05022011,
