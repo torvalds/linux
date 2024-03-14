@@ -15,8 +15,9 @@
 #define NUM_INTERRUPTS 256
 #endif
 
-#define DEFAULT_CODE_SELECTOR 0x8
-#define DEFAULT_DATA_SELECTOR 0x10
+#define KERNEL_CS	0x8
+#define KERNEL_DS	0x10
+#define KERNEL_TSS	0x18
 
 #define MAX_NR_CPUID_ENTRIES 100
 
@@ -548,11 +549,11 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 	kvm_seg_set_unusable(&sregs.ldt);
-	kvm_seg_set_kernel_code_64bit(vm, DEFAULT_CODE_SELECTOR, &sregs.cs);
-	kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.ds);
-	kvm_seg_set_kernel_data_64bit(vm, DEFAULT_DATA_SELECTOR, &sregs.es);
-	kvm_seg_set_kernel_data_64bit(NULL, DEFAULT_DATA_SELECTOR, &sregs.gs);
-	kvm_setup_tss_64bit(vm, &sregs.tr, 0x18);
+	kvm_seg_set_kernel_code_64bit(vm, KERNEL_CS, &sregs.cs);
+	kvm_seg_set_kernel_data_64bit(vm, KERNEL_DS, &sregs.ds);
+	kvm_seg_set_kernel_data_64bit(vm, KERNEL_DS, &sregs.es);
+	kvm_seg_set_kernel_data_64bit(NULL, KERNEL_DS, &sregs.gs);
+	kvm_setup_tss_64bit(vm, &sregs.tr, KERNEL_TSS);
 
 	sregs.cr3 = vm->pgd;
 	vcpu_sregs_set(vcpu, &sregs);
@@ -621,8 +622,7 @@ static void vm_init_descriptor_tables(struct kvm_vm *vm)
 
 	/* Handlers have the same address in both address spaces.*/
 	for (i = 0; i < NUM_INTERRUPTS; i++)
-		set_idt_entry(vm, i, (unsigned long)(&idt_handlers)[i], 0,
-			DEFAULT_CODE_SELECTOR);
+		set_idt_entry(vm, i, (unsigned long)(&idt_handlers)[i], 0, KERNEL_CS);
 
 	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
 }
