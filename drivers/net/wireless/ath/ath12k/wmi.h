@@ -164,10 +164,6 @@ struct wmi_tlv {
 #define WLAN_SCAN_MAX_HINT_BSSID         10
 #define MAX_RNR_BSS                    5
 
-#define WLAN_SCAN_MAX_HINT_S_SSID        10
-#define WLAN_SCAN_MAX_HINT_BSSID         10
-#define MAX_RNR_BSS                    5
-
 #define WMI_APPEND_TO_EXISTING_CHAN_LIST_FLAG 1
 
 #define WMI_BA_MODE_BUFFER_SIZE_256  3
@@ -4747,8 +4743,6 @@ struct wmi_probe_tmpl_cmd {
 	__le32 vdev_id;
 	__le32 buf_len;
 } __packed;
-
-#define WMI_MAX_MEM_REQS 32
 
 #define MAX_RADIOS 3
 
