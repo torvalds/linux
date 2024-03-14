@@ -184,6 +184,7 @@ properties:
               - oneplus,bacon
               - samsung,klte
               - sony,xperia-castor
+              - sony,xperia-leo
           - const: qcom,msm8974pro
           - const: qcom,msm8974
 
