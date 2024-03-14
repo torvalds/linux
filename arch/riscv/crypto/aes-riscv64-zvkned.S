@@ -139,19 +139,25 @@ SYM_FUNC_END(aes_ecb_decrypt_zvkned)
 .endm
 
 .macro	aes_cbc_decrypt	keylen
+	srli		LEN, LEN, 2	// Convert LEN from bytes to words
 	vle32.v		v16, (IVP)	// Load IV
 1:
-	vle32.v		v17, (INP)	// Load ciphertext block
-	vmv.v.v		v18, v17	// Save ciphertext block
-	aes_decrypt	v17, \keylen	// Decrypt
-	vxor.vv		v17, v17, v16	// XOR with IV or prev ciphertext block
-	vse32.v		v17, (OUTP)	// Store plaintext block
-	vmv.v.v		v16, v18	// Next "IV" is prev ciphertext block
-	addi		INP, INP, 16
-	addi		OUTP, OUTP, 16
-	addi		LEN, LEN, -16
+	vsetvli		t0, LEN, e32, m4, ta, ma
+	vle32.v		v20, (INP)	// Load ciphertext blocks
+	vslideup.vi	v16, v20, 4	// Setup prev ciphertext blocks
+	addi		t1, t0, -4
+	vslidedown.vx	v24, v20, t1	// Save last ciphertext block
+	aes_decrypt	v20, \keylen	// Decrypt the blocks
+	vxor.vv		v20, v20, v16	// XOR with prev ciphertext blocks
+	vse32.v		v20, (OUTP)	// Store plaintext blocks
+	vmv.v.v		v16, v24	// Next "IV" is last ciphertext block
+	slli		t1, t0, 2	// Words to bytes
+	add		INP, INP, t1
+	add		OUTP, OUTP, t1
+	sub		LEN, LEN, t0
 	bnez		LEN, 1b
 
+	vsetivli	zero, 4, e32, m1, ta, ma
 	vse32.v		v16, (IVP)	// Store next IV
 	ret
 .endm
@@ -178,3 +184,156 @@ SYM_FUNC_START(aes_cbc_decrypt_zvkned)
 192:
 	aes_cbc_decrypt	192
 SYM_FUNC_END(aes_cbc_decrypt_zvkned)
+
+.macro	aes_cbc_cts_encrypt	keylen
+
+	// CBC-encrypt all blocks except the last.  But don't store the
+	// second-to-last block to the output buffer yet, since it will be
+	// handled specially in the ciphertext stealing step.  Exception: if the
+	// message is single-block, still encrypt the last (and only) block.
+	li		t0, 16
+	j		2f
+1:
+	vse32.v		v16, (OUTP)	// Store ciphertext block
+	addi		OUTP, OUTP, 16
+2:
+	vle32.v		v17, (INP)	// Load plaintext block
+	vxor.vv		v16, v16, v17	// XOR with IV or prev ciphertext block
+	aes_encrypt	v16, \keylen	// Encrypt
+	addi		INP, INP, 16
+	addi		LEN, LEN, -16
+	bgt		LEN, t0, 1b	// Repeat if more than one block remains
+
+	// Special case: if the message is a single block, just do CBC.
+	beqz		LEN, .Lcts_encrypt_done\@
+
+	// Encrypt the last two blocks using ciphertext stealing as follows:
+	//	C[n-1] = Encrypt(Encrypt(P[n-1] ^ C[n-2]) ^ P[n])
+	//	C[n] = Encrypt(P[n-1] ^ C[n-2])[0..LEN]
+	//
+	// C[i] denotes the i'th ciphertext block, and likewise P[i] the i'th
+	// plaintext block.  Block n, the last block, may be partial; its length
+	// is 1 <= LEN <= 16.  If there are only 2 blocks, C[n-2] means the IV.
+	//
+	// v16 already contains Encrypt(P[n-1] ^ C[n-2]).
+	// INP points to P[n].  OUTP points to where C[n-1] should go.
+	// To support in-place encryption, load P[n] before storing C[n].
+	addi		t0, OUTP, 16	// Get pointer to where C[n] should go
+	vsetvli		zero, LEN, e8, m1, tu, ma
+	vle8.v		v17, (INP)	// Load P[n]
+	vse8.v		v16, (t0)	// Store C[n]
+	vxor.vv		v16, v16, v17	// v16 = Encrypt(P[n-1] ^ C[n-2]) ^ P[n]
+	vsetivli	zero, 4, e32, m1, ta, ma
+	aes_encrypt	v16, \keylen
+.Lcts_encrypt_done\@:
+	vse32.v		v16, (OUTP)	// Store C[n-1] (or C[n] in single-block case)
+	ret
+.endm
+
+#define LEN32		t4 // Length of remaining full blocks in 32-bit words
+#define LEN_MOD16	t5 // Length of message in bytes mod 16
+
+.macro	aes_cbc_cts_decrypt	keylen
+	andi		LEN32, LEN, ~15
+	srli		LEN32, LEN32, 2
+	andi		LEN_MOD16, LEN, 15
+
+	// Save C[n-2] in v28 so that it's available later during the ciphertext
+	// stealing step.  If there are fewer than three blocks, C[n-2] means
+	// the IV, otherwise it means the third-to-last ciphertext block.
+	vmv.v.v		v28, v16	// IV
+	add		t0, LEN, -33
+	bltz		t0, .Lcts_decrypt_loop\@
+	andi		t0, t0, ~15
+	add		t0, t0, INP
+	vle32.v		v28, (t0)
+
+	// CBC-decrypt all full blocks.  For the last full block, or the last 2
+	// full blocks if the message is block-aligned, this doesn't write the
+	// correct output blocks (unless the message is only a single block),
+	// because it XORs the wrong values with the raw AES plaintexts.  But we
+	// fix this after this loop without redoing the AES decryptions.  This
+	// approach allows more of the AES decryptions to be parallelized.
+.Lcts_decrypt_loop\@:
+	vsetvli		t0, LEN32, e32, m4, ta, ma
+	addi		t1, t0, -4
+	vle32.v		v20, (INP)	// Load next set of ciphertext blocks
+	vmv.v.v		v24, v16	// Get IV or last ciphertext block of prev set
+	vslideup.vi	v24, v20, 4	// Setup prev ciphertext blocks
+	vslidedown.vx	v16, v20, t1	// Save last ciphertext block of this set
+	aes_decrypt	v20, \keylen	// Decrypt this set of blocks
+	vxor.vv		v24, v24, v20	// XOR prev ciphertext blocks with decrypted blocks
+	vse32.v		v24, (OUTP)	// Store this set of plaintext blocks
+	sub		LEN32, LEN32, t0
+	slli		t0, t0, 2	// Words to bytes
+	add		INP, INP, t0
+	add		OUTP, OUTP, t0
+	bnez		LEN32, .Lcts_decrypt_loop\@
+
+	vsetivli	zero, 4, e32, m4, ta, ma
+	vslidedown.vx	v20, v20, t1	// Extract raw plaintext of last full block
+	addi		t0, OUTP, -16	// Get pointer to last full plaintext block
+	bnez		LEN_MOD16, .Lcts_decrypt_non_block_aligned\@
+
+	// Special case: if the message is a single block, just do CBC.
+	li		t1, 16
+	beq		LEN, t1, .Lcts_decrypt_done\@
+
+	// Block-aligned message.  Just fix up the last 2 blocks.  We need:
+	//
+	//	P[n-1] = Decrypt(C[n]) ^ C[n-2]
+	//	P[n] = Decrypt(C[n-1]) ^ C[n]
+	//
+	// We have C[n] in v16, Decrypt(C[n]) in v20, and C[n-2] in v28.
+	// Together with Decrypt(C[n-1]) ^ C[n-2] from the output buffer, this
+	// is everything needed to fix the output without re-decrypting blocks.
+	addi		t1, OUTP, -32	// Get pointer to where P[n-1] should go
+	vxor.vv		v20, v20, v28	// Decrypt(C[n]) ^ C[n-2] == P[n-1]
+	vle32.v		v24, (t1)	// Decrypt(C[n-1]) ^ C[n-2]
+	vse32.v		v20, (t1)	// Store P[n-1]
+	vxor.vv		v20, v24, v16	// Decrypt(C[n-1]) ^ C[n-2] ^ C[n] == P[n] ^ C[n-2]
+	j		.Lcts_decrypt_finish\@
+
+.Lcts_decrypt_non_block_aligned\@:
+	// Decrypt the last two blocks using ciphertext stealing as follows:
+	//
+	//	P[n-1] = Decrypt(C[n] || Decrypt(C[n-1])[LEN_MOD16..16]) ^ C[n-2]
+	//	P[n] = (Decrypt(C[n-1]) ^ C[n])[0..LEN_MOD16]
+	//
+	// We already have Decrypt(C[n-1]) in v20 and C[n-2] in v28.
+	vmv.v.v		v16, v20	// v16 = Decrypt(C[n-1])
+	vsetvli		zero, LEN_MOD16, e8, m1, tu, ma
+	vle8.v		v20, (INP)	// v20 = C[n] || Decrypt(C[n-1])[LEN_MOD16..16]
+	vxor.vv		v16, v16, v20	// v16 = Decrypt(C[n-1]) ^ C[n]
+	vse8.v		v16, (OUTP)	// Store P[n]
+	vsetivli	zero, 4, e32, m1, ta, ma
+	aes_decrypt	v20, \keylen	// v20 = Decrypt(C[n] || Decrypt(C[n-1])[LEN_MOD16..16])
+.Lcts_decrypt_finish\@:
+	vxor.vv		v20, v20, v28	// XOR with C[n-2]
+	vse32.v		v20, (t0)	// Store last full plaintext block
+.Lcts_decrypt_done\@:
+	ret
+.endm
+
+.macro	aes_cbc_cts_crypt	keylen
+	vle32.v		v16, (IVP)	// Load IV
+	beqz		a5, .Lcts_decrypt\@
+	aes_cbc_cts_encrypt \keylen
+.Lcts_decrypt\@:
+	aes_cbc_cts_decrypt \keylen
+.endm
+
+// void aes_cbc_cts_crypt_zvkned(const struct crypto_aes_ctx *key,
+//			         const u8 *in, u8 *out, size_t len,
+//				 const u8 iv[16], bool enc);
+//
+// Encrypts or decrypts a message with the CS3 variant of AES-CBC-CTS.
+// This is the variant that unconditionally swaps the last two blocks.
+SYM_FUNC_START(aes_cbc_cts_crypt_zvkned)
+	aes_begin	KEYP, 128f, 192f
+	aes_cbc_cts_crypt 256
+128:
+	aes_cbc_cts_crypt 128
+192:
+	aes_cbc_cts_crypt 192
+SYM_FUNC_END(aes_cbc_cts_crypt_zvkned)
