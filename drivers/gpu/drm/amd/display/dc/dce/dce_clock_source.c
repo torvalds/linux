@@ -1082,11 +1082,11 @@ static bool dcn401_program_pix_clk(
 
 	// all but TMDS gets Driver to program DP_DTO without calling VBIOS Command table
 	if (!dc_is_tmds_signal(pix_clk_params->signal_type)) {
-		long long ref_dtbclk_khz = clock_source->ctx->dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(clock_source->ctx->dc->clk_mgr);
-		long long dprefclk_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
 		long long dtbclk_p_src_clk_khz;
-		/* if signal is DP132B128B dtbclk_p_src is DTBCLK else DPREFCLK */
-		dtbclk_p_src_clk_khz = encoding == DP_128b_132b_ENCODING ? ref_dtbclk_khz : dprefclk_khz;
+
+		dtbclk_p_src_clk_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
+		dto_params.clk_src = DPREFCLK;
+
 		if (e) {
 			dto_params.pixclk_hz = e->target_pixel_rate_khz * e->mult_factor;
 			dto_params.refclk_hz = dtbclk_p_src_clk_khz * e->div_factor;
