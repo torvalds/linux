@@ -17,10 +17,10 @@
 #include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-#define mocs_dbg drm_dbg
+#define mocs_dbg xe_gt_dbg
 #else
 __printf(2, 3)
-static inline void mocs_dbg(const struct drm_device *dev,
+static inline void mocs_dbg(const struct xe_gt *gt,
 			    const char *format, ...)
 { /* noop */ }
 #endif
@@ -479,20 +479,18 @@ static bool regs_are_mcr(struct xe_gt *gt)
 static void __init_mocs_table(struct xe_gt *gt,
 			      const struct xe_mocs_info *info)
 {
-	struct xe_device *xe = gt_to_xe(gt);
-
 	unsigned int i;
 	u32 mocs;
 
-	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
-		      "Unused entries index should have been defined\n");
+	xe_gt_WARN_ONCE(gt, !info->unused_entries_index,
+			"Unused entries index should have been defined\n");
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "mocs entries: %d\n", info->n_entries);
+	mocs_dbg(gt, "mocs entries: %d\n", info->n_entries);
 
 	for (i = 0; i < info->n_entries; i++) {
 		mocs = get_entry_control(info, i);
 
-		mocs_dbg(&gt_to_xe(gt)->drm, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
+		mocs_dbg(gt, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
 		if (regs_are_mcr(gt))
@@ -526,13 +524,13 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "l3cc entries: %d\n", info->n_entries);
+	mocs_dbg(gt, "l3cc entries: %d\n", info->n_entries);
 
 	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
 		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				    get_entry_l3cc(info, 2 * i + 1));
 
-		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i,
+		mocs_dbg(gt, "LNCFCMOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_LNCFCMOCS(i).addr, l3cc);
 
 		if (regs_are_mcr(gt))
@@ -568,7 +566,7 @@ void xe_mocs_init(struct xe_gt *gt)
 	 * performed by the GuC.
 	 */
 	flags = get_mocs_settings(gt_to_xe(gt), &table);
-	mocs_dbg(&gt_to_xe(gt)->drm, "flag:0x%x\n", flags);
+	mocs_dbg(gt, "flag:0x%x\n", flags);
 
 	if (flags & HAS_GLOBAL_MOCS)
 		__init_mocs_table(gt, &table);
