@@ -99,4 +99,13 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
  */
 bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
 
+/*
+ * Obtain all the DP overheads in dp tunneling for the dpia link
+ *
+ * @link: pointer to the dc_link struct instance
+ *
+ * return: DP overheads in DP tunneling
+ */
+int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
+
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

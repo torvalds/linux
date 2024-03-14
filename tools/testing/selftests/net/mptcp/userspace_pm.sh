@@ -75,7 +75,7 @@ print_test()
 {
 	test_name="${1}"
 
-	_printf "%-63s" "${test_name}"
+	_printf "%-68s" "${test_name}"
 }
 
 print_results()
@@ -555,7 +555,7 @@ verify_subflow_events()
 	local remid
 	local info
 
-	info="${e_saddr} (${e_from}) => ${e_daddr} (${e_to})"
+	info="${e_saddr} (${e_from}) => ${e_daddr}:${e_dport} (${e_to})"
 
 	if [ "$e_type" = "$SUB_ESTABLISHED" ]
 	then
@@ -887,9 +887,10 @@ test_prio()
 
 	# Check TX
 	print_test "MP_PRIO TX"
-	count=$(ip netns exec "$ns2" nstat -as | grep MPTcpExtMPPrioTx | awk '{print $2}')
-	[ -z "$count" ] && count=0
-	if [ $count != 1 ]; then
+	count=$(mptcp_lib_get_counter "$ns2" "MPTcpExtMPPrioTx")
+	if [ -z "$count" ]; then
+		test_skip
+	elif [ $count != 1 ]; then
 		test_fail "Count != 1: ${count}"
 	else
 		test_pass
@@ -897,9 +898,10 @@ test_prio()
 
 	# Check RX
 	print_test "MP_PRIO RX"
-	count=$(ip netns exec "$ns1" nstat -as | grep MPTcpExtMPPrioRx | awk '{print $2}')
-	[ -z "$count" ] && count=0
-	if [ $count != 1 ]; then
+	count=$(mptcp_lib_get_counter "$ns1" "MPTcpExtMPPrioRx")
+	if [ -z "$count" ]; then
+		test_skip
+	elif [ $count != 1 ]; then
 		test_fail "Count != 1: ${count}"
 	else
 		test_pass
