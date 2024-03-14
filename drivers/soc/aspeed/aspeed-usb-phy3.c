@@ -35,6 +35,11 @@ struct usb_dwc3_ctrl {
 	u32 value;
 };
 
+static struct usb_dwc3_ctrl ctrl_data[DWC_CRTL_NUM] = {
+	{0xc12c, 0x0c854802},	/* Set DWC3 GUCTL for ref_clk */
+	{0xc630, 0x0c800020},	/* Set DWC3 GLADJ for ref_clk */
+};
+
 static const struct of_device_id aspeed_usb_phy3_dt_ids[] = {
 	{
 		.compatible = "aspeed,ast2700-phy3a",
@@ -51,12 +56,12 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *reg_base;
 	u32 val;
-	bool bypass_phy_sram_quirk;
+	bool phy_ext_load_quirk;
 	struct clk				*clk;
 	struct reset_control	*rst;
 	int timeout = 100;
 	int rc = 0;
-	struct usb_dwc3_ctrl ctrl_data[DWC_CRTL_NUM];
+
 	int i, j;
 
 	clk = devm_clk_get(&pdev->dev, NULL);
@@ -90,27 +95,20 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 		}
 	}
 
-	bypass_phy_sram_quirk =
-		device_property_read_bool(&pdev->dev, "aspeed,bypass_phy_sram_quirk");
+	phy_ext_load_quirk =
+		device_property_read_bool(&pdev->dev, "aspeed,phy_ext_load_quirk");
 
 	val = readl(reg_base + AST_USB_PHY3S00);
 
-	if (bypass_phy_sram_quirk)
-		val |= USB_PHY3_SRAM_BYPASS;
-	else
+	if (phy_ext_load_quirk)
 		val |= USB_PHY3_SRAM_EXT_LOAD;
+	else
+		val |= USB_PHY3_SRAM_BYPASS;
 	writel(val, reg_base + AST_USB_PHY3S00);
 
 	/* Set PHY PCFGI[54]: protocol1_ext_rx_los_lfps_en for better compatibility */
 	val = readl(reg_base + AST_USB_PHY3P04) | BIT(22);
 	writel(val, reg_base + AST_USB_PHY3P04);
-
-	rc = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data,
-					DWC_CRTL_NUM * 2);
-	if (rc < 0) {
-		dev_info(&pdev->dev, "No ctrl property to set\n");
-		goto done;
-	}
 
 	/* xHCI DWC specific command initially set when PCIe xHCI enable */
 	for (i = 0, j = AST_USB_DWC_CMD; i < DWC_CRTL_NUM; i++) {
@@ -135,7 +133,7 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 			j += 4;
 		}
 	}
-done:
+
 	dev_info(&pdev->dev, "Initialized USB PHY3\n");
 
 	return 0;
