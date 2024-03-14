@@ -48,7 +48,7 @@ static void store_node(struct topo_scan *tscan, unsigned int nr_nodes, u16 node_
 	tscan->amd_node_id = node_id;
 }
 
-static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
+static bool parse_8000_001e(struct topo_scan *tscan, bool has_topoext)
 {
 	struct {
 		// eax
@@ -78,7 +78,7 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 	 * topology_set_dom() would propagate and overwrite the already
 	 * propagated CORE level.
 	 */
-	if (!has_0xb) {
+	if (!has_topoext) {
 		unsigned int nthreads = leaf.core_nthreads + 1;
 
 		topology_update_dom(tscan, TOPO_SMT_DOMAIN, get_count_order(nthreads), nthreads);
@@ -137,21 +137,24 @@ static void legacy_set_llc(struct topo_scan *tscan)
 
 static void parse_topology_amd(struct topo_scan *tscan)
 {
-	bool has_0xb = false;
+	bool has_topoext = false;
 
 	/*
 	 * If the extended topology leaf 0x8000_001e is available
-	 * try to get SMT and CORE shift from leaf 0xb first, then
-	 * try to get the CORE shift from leaf 0x8000_0008.
+	 * try to get SMT, CORE, TILE, and DIE shifts from extended
+	 * CPUID leaf 0x8000_0026 on supported processors first. If
+	 * extended CPUID leaf 0x8000_0026 is not supported, try to
+	 * get SMT and CORE shift from leaf 0xb first, then try to
+	 * get the CORE shift from leaf 0x8000_0008.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_TOPOEXT))
-		has_0xb = cpu_parse_topology_ext(tscan);
+		has_topoext = cpu_parse_topology_ext(tscan);
 
-	if (!has_0xb && !parse_8000_0008(tscan))
+	if (!has_topoext && !parse_8000_0008(tscan))
 		return;
 
 	/* Prefer leaf 0x8000001e if available */
-	if (parse_8000_001e(tscan, has_0xb))
+	if (parse_8000_001e(tscan, has_topoext))
 		return;
 
 	/* Try the NODEID MSR */
