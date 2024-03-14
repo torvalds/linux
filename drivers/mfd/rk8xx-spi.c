@@ -34,7 +34,7 @@ static const struct regmap_config rk806_regmap_config_spi = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = RK806_BUCK_RSERVE_REG5,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &rk806_volatile_table,
 };
 

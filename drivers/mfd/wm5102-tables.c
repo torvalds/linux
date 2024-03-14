@@ -1922,7 +1922,7 @@ const struct regmap_config wm5102_spi_regmap = {
 	.readable_reg = wm5102_readable_register,
 	.volatile_reg = wm5102_volatile_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm5102_reg_default,
 	.num_reg_defaults = ARRAY_SIZE(wm5102_reg_default),
 };
