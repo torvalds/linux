@@ -1334,7 +1334,7 @@ static ssize_t current_clocksource_show(struct device *dev,
 	ssize_t count = 0;
 
 	mutex_lock(&clocksource_mutex);
-	count = snprintf(buf, PAGE_SIZE, "%s\n", curr_clocksource->name);
+	count = sysfs_emit(buf, "%s\n", curr_clocksource->name);
 	mutex_unlock(&clocksource_mutex);
 
 	return count;
