@@ -1160,6 +1160,37 @@ struct sys_counters {
 	struct msr_counter *pp;
 } sys;
 
+void free_sys_counters(void)
+{
+	struct msr_counter *p = sys.tp, *pnext = NULL;
+	while (p) {
+		pnext = p->next;
+		free(p);
+		p = pnext;
+	}
+
+	p = sys.cp, pnext = NULL;
+	while (p) {
+		pnext = p->next;
+		free(p);
+		p = pnext;
+	}
+
+	p = sys.pp, pnext = NULL;
+	while (p) {
+		pnext = p->next;
+		free(p);
+		p = pnext;
+	}
+
+	sys.added_thread_counters = 0;
+	sys.added_core_counters = 0;
+	sys.added_package_counters = 0;
+	sys.tp = NULL;
+	sys.cp = NULL;
+	sys.pp = NULL;
+}
+
 struct system_summary {
 	struct thread_data threads;
 	struct core_data cores;
@@ -1315,6 +1346,8 @@ static void bic_disable_msr_access(void)
 	    BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_PkgTmp;
 
 	bic_enabled &= ~bic_msrs;
+
+	free_sys_counters();
 }
 
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
@@ -6601,11 +6634,23 @@ static void set_amperf_source(void)
 	fprintf(outf, "aperf/mperf source preference: %s\n", amperf_source == AMPERF_SOURCE_MSR ? "msr" : "perf");
 }
 
+bool has_added_counters(void)
+{
+	/*
+	 * It only makes sense to call this after the command line is parsed,
+	 * otherwise sys structure is not populated.
+	 */
+
+	return sys.added_core_counters | sys.added_thread_counters | sys.added_package_counters;
+}
+
 bool is_msr_access_required(void)
 {
-	/* TODO: add detection for dynamic counters from add_counter() */
 	if (no_msr)
 		return false;
+
+	if (has_added_counters())
+		return true;
 
 	return BIC_IS_ENABLED(BIC_SMI)
 	    || BIC_IS_ENABLED(BIC_CPU_c1)
