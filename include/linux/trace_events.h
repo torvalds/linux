@@ -103,12 +103,15 @@ struct trace_iterator {
 	unsigned int		temp_size;
 	char			*fmt;	/* modified format holder */
 	unsigned int		fmt_size;
-	long			wait_index;
+	atomic_t		wait_index;
 
 	/* trace_seq for __print_flags() and __print_symbolic() etc. */
 	struct trace_seq	tmp_seq;
 
 	cpumask_var_t		started;
+
+	/* Set when the file is closed to prevent new waiters */
+	bool			closed;
 
 	/* it's true when current open file is snapshot */
 	bool			snapshot;
