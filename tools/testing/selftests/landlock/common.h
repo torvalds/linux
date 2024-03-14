@@ -74,31 +74,19 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 		EXPECT_EQ(0, cap_set_secbits(noroot));
 
 	cap_p = cap_get_proc();
-	EXPECT_NE(NULL, cap_p)
-	{
-		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
-	}
-	EXPECT_NE(-1, cap_clear(cap_p))
-	{
-		TH_LOG("Failed to cap_clear: %s", strerror(errno));
-	}
+	EXPECT_NE(NULL, cap_p);
+	EXPECT_NE(-1, cap_clear(cap_p));
 	if (!drop_all) {
 		EXPECT_NE(-1, cap_set_flag(cap_p, CAP_PERMITTED,
-					   ARRAY_SIZE(caps), caps, CAP_SET))
-		{
-			TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
-		}
+					   ARRAY_SIZE(caps), caps, CAP_SET));
 	}
 
 	/* Automatically resets ambient capabilities. */
 	EXPECT_NE(-1, cap_set_proc(cap_p))
 	{
-		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
+		TH_LOG("Failed to set capabilities: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_free(cap_p))
-	{
-		TH_LOG("Failed to cap_free: %s", strerror(errno));
-	}
+	EXPECT_NE(-1, cap_free(cap_p));
 
 	/* Quickly checks that ambient capabilities are cleared. */
 	EXPECT_NE(-1, cap_get_ambient(caps[0]));
@@ -122,22 +110,13 @@ static void _change_cap(struct __test_metadata *const _metadata,
 	cap_t cap_p;
 
 	cap_p = cap_get_proc();
-	EXPECT_NE(NULL, cap_p)
-	{
-		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
-	}
-	EXPECT_NE(-1, cap_set_flag(cap_p, flag, 1, &cap, value))
-	{
-		TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
-	}
+	EXPECT_NE(NULL, cap_p);
+	EXPECT_NE(-1, cap_set_flag(cap_p, flag, 1, &cap, value));
 	EXPECT_NE(-1, cap_set_proc(cap_p))
 	{
-		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
+		TH_LOG("Failed to set capability %d: %s", cap, strerror(errno));
 	}
-	EXPECT_NE(-1, cap_free(cap_p))
-	{
-		TH_LOG("Failed to cap_free: %s", strerror(errno));
-	}
+	EXPECT_NE(-1, cap_free(cap_p));
 }
 
 static void __maybe_unused set_cap(struct __test_metadata *const _metadata,

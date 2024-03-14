@@ -16,9 +16,9 @@
 
 #include "common.h"
 #include "cred.h"
-#include "ptrace.h"
 #include "ruleset.h"
 #include "setup.h"
+#include "task.h"
 
 /**
  * domain_scope_le - Checks domain ordering for scoped ptrace
@@ -113,7 +113,7 @@ static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(ptrace_traceme, hook_ptrace_traceme),
 };
 
-__init void landlock_add_ptrace_hooks(void)
+__init void landlock_add_task_hooks(void)
 {
 	security_add_hooks(landlock_hooks, ARRAY_SIZE(landlock_hooks),
 			   &landlock_lsmid);

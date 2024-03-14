@@ -6,9 +6,9 @@
  * Copyright © 2019 ANSSI
  */
 
-#ifndef _SECURITY_LANDLOCK_PTRACE_H
-#define _SECURITY_LANDLOCK_PTRACE_H
+#ifndef _SECURITY_LANDLOCK_TASK_H
+#define _SECURITY_LANDLOCK_TASK_H
 
-__init void landlock_add_ptrace_hooks(void);
+__init void landlock_add_task_hooks(void);
 
-#endif /* _SECURITY_LANDLOCK_PTRACE_H */
+#endif /* _SECURITY_LANDLOCK_TASK_H */
