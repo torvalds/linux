@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/pinctrl/xlnx,zynq-pinctrl.yaml#
+$id: http://devicetree.org/schemas/pinctrl/xlnx,pinctrl-zynq.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Xilinx Zynq Pinctrl
@@ -28,7 +28,7 @@ description: |
 
 properties:
   compatible:
-    const: xlnx,zynq-pinctrl
+    const: xlnx,pinctrl-zynq
 
   reg:
     description: Specifies the base address and size of the SLCR space.
@@ -181,7 +181,7 @@ examples:
   - |
     #include <dt-bindings/pinctrl/pinctrl-zynq.h>
     pinctrl0: pinctrl@700 {
-       compatible = "xlnx,zynq-pinctrl";
+       compatible = "xlnx,pinctrl-zynq";
        reg = <0x700 0x200>;
        syscon = <&slcr>;
 

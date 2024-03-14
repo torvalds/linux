@@ -478,6 +478,18 @@ config GPIO_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
+config GPIO_NOMADIK
+	bool "Nomadik GPIO driver"
+	depends on ARCH_U8500 || ARCH_NOMADIK || MACH_EYEQ5 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the Nomadik SoC GPIO block. This block is also
+	  used by the Mobileye EyeQ5 SoC.
+
+	  It handles up to 32 GPIOs per bank, that can all be interrupt sources.
+	  It is deeply interconnected with the associated pinctrl driver as GPIO
+	  registers handle muxing ("alternate functions") as well.
+
 config GPIO_NPCM_SGPIO
 	bool "Nuvoton SGPIO support"
 	depends on ARCH_NPCM || COMPILE_TEST
