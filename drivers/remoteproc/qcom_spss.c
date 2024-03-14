@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Qualcomm Technologies, Inc. SPSS Peripheral Image Loader
  *
  */
@@ -828,6 +828,7 @@ static const struct of_device_id spss_of_match[] = {
 	{ .compatible = "qcom,waipio-spss-pas", .data = &spss_resource_init},
 	{ .compatible = "qcom,kalama-spss-pas", .data = &spss_resource_init},
 	{ .compatible = "qcom,pineapple-spss-pas", .data = &spss_resource_init},
+	{ .compatible = "qcom,niobe-spss-pas", .data = &spss_resource_init},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, spss_of_match);
