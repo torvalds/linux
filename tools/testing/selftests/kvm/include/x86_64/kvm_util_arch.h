@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+extern bool is_forced_emulation_enabled;
+
 struct kvm_vm_arch {
 	uint64_t c_bit;
 	uint64_t s_bit;
