@@ -866,6 +866,20 @@ void bch2_fs_debug_exit(struct bch_fs *c)
 		debugfs_remove_recursive(c->fs_debug_dir);
 }
 
+static void bch2_fs_debug_btree_init(struct bch_fs *c, struct btree_debug *bd)
+{
+	struct dentry *d;
+
+	d = debugfs_create_dir(bch2_btree_id_str(bd->id), c->btree_debug_dir);
+
+	debugfs_create_file("keys", 0400, d, bd, &btree_debug_ops);
+
+	debugfs_create_file("formats", 0400, d, bd, &btree_format_debug_ops);
+
+	debugfs_create_file("bfloat-failed", 0400, d, bd,
+			    &bfloat_failed_debug_ops);
+}
+
 void bch2_fs_debug_init(struct bch_fs *c)
 {
 	struct btree_debug *bd;
@@ -902,21 +916,7 @@ void bch2_fs_debug_init(struct bch_fs *c)
 	     bd < c->btree_debug + ARRAY_SIZE(c->btree_debug);
 	     bd++) {
 		bd->id = bd - c->btree_debug;
-		debugfs_create_file(bch2_btree_id_str(bd->id),
-				    0400, c->btree_debug_dir, bd,
-				    &btree_debug_ops);
-
-		snprintf(name, sizeof(name), "%s-formats",
-			 bch2_btree_id_str(bd->id));
-
-		debugfs_create_file(name, 0400, c->btree_debug_dir, bd,
-				    &btree_format_debug_ops);
-
-		snprintf(name, sizeof(name), "%s-bfloat-failed",
-			 bch2_btree_id_str(bd->id));
-
-		debugfs_create_file(name, 0400, c->btree_debug_dir, bd,
-				    &bfloat_failed_debug_ops);
+		bch2_fs_debug_btree_init(c, bd);
 	}
 }
 
