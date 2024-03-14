@@ -780,7 +780,9 @@ static int lsm_superblock_alloc(struct super_block *sb)
  * @id: LSM id
  * @flags: LSM defined flags
  *
- * Fill all of the fields in a userspace lsm_ctx structure.
+ * Fill all of the fields in a userspace lsm_ctx structure.  If @uctx is NULL
+ * simply calculate the required size to output via @utc_len and return
+ * success.
  *
  * Returns 0 on success, -E2BIG if userspace buffer is not large enough,
  * -EFAULT on a copyout error, -ENOMEM if memory can't be allocated.
@@ -798,6 +800,10 @@ int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, u32 *uctx_len,
 		rc = -E2BIG;
 		goto out;
 	}
+
+	/* no buffer - return success/0 and set @uctx_len to the req size */
+	if (!uctx)
+		goto out;
 
 	nctx = kzalloc(nctx_len, GFP_KERNEL);
 	if (nctx == NULL) {
