@@ -188,11 +188,6 @@ properties:
           - const: qcom,msm8974
 
       - items:
-          - const: qcom,msm8916-mtp
-          - const: qcom,msm8916-mtp/1
-          - const: qcom,msm8916
-
-      - items:
           - enum:
               - acer,a1-724
               - alcatel,idol347
@@ -200,6 +195,8 @@ properties:
               - gplus,fl8005a
               - huawei,g7
               - longcheer,l8910
+              - longcheer,l8150
+              - qcom,msm8916-mtp
               - samsung,a3u-eur
               - samsung,a5u-eur
               - samsung,e5
@@ -218,11 +215,6 @@ properties:
               - thwc,ufi001c
               - wingtech,wt88047
               - yiming,uz801-v3
-          - const: qcom,msm8916
-
-      - items:
-          - const: longcheer,l8150
-          - const: qcom,msm8916-v1-qrd/9-v1
           - const: qcom,msm8916
 
       - items:
