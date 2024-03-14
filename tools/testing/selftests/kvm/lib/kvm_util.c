@@ -18,6 +18,9 @@
 
 #define KVM_UTIL_MIN_PFN	2
 
+uint32_t guest_random_seed;
+struct guest_random_state guest_rng;
+
 static int vcpu_mmap_sz(void);
 
 int open_path_or_exit(const char *path, int flags)
@@ -429,6 +432,10 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	 */
 	slot0 = memslot2region(vm, 0);
 	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
+
+	pr_info("Random seed: 0x%x\n", guest_random_seed);
+	guest_rng = new_guest_random_state(guest_random_seed);
+	sync_global_to_guest(vm, guest_rng);
 
 	kvm_arch_vm_post_create(vm);
 
@@ -2302,6 +2309,8 @@ void __attribute((constructor)) kvm_selftest_init(void)
 {
 	/* Tell stdout not to buffer its content. */
 	setbuf(stdout, NULL);
+
+	guest_random_seed = random();
 
 	kvm_selftest_arch_init();
 }

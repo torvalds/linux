@@ -54,7 +54,7 @@ void memstress_guest_code(uint32_t vcpu_idx)
 	uint64_t page;
 	int i;
 
-	rand_state = new_guest_random_state(args->random_seed + vcpu_idx);
+	rand_state = new_guest_random_state(guest_random_seed + vcpu_idx);
 
 	gva = vcpu_args->gva;
 	pages = vcpu_args->pages;
@@ -239,12 +239,6 @@ void memstress_set_write_percent(struct kvm_vm *vm, uint32_t write_percent)
 {
 	memstress_args.write_percent = write_percent;
 	sync_global_to_guest(vm, memstress_args.write_percent);
-}
-
-void memstress_set_random_seed(struct kvm_vm *vm, uint32_t random_seed)
-{
-	memstress_args.random_seed = random_seed;
-	sync_global_to_guest(vm, memstress_args.random_seed);
 }
 
 void memstress_set_random_access(struct kvm_vm *vm, bool random_access)

@@ -73,7 +73,6 @@
 static uint64_t host_page_size;
 static uint64_t guest_page_size;
 static uint64_t guest_num_pages;
-static uint64_t random_array[TEST_PAGES_PER_LOOP];
 static uint64_t iteration;
 
 /*
@@ -112,13 +111,12 @@ static void guest_code(void)
 	while (true) {
 		for (i = 0; i < TEST_PAGES_PER_LOOP; i++) {
 			addr = guest_test_virt_mem;
-			addr += (READ_ONCE(random_array[i]) % guest_num_pages)
+			addr += (guest_random_u64(&guest_rng) % guest_num_pages)
 				* guest_page_size;
 			addr = align_down(addr, host_page_size);
 			*(uint64_t *)addr = READ_ONCE(iteration);
 		}
 
-		/* Tell the host that we need more random numbers */
 		GUEST_SYNC(1);
 	}
 }
@@ -505,20 +503,10 @@ static void log_mode_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		mode->after_vcpu_run(vcpu, ret, err);
 }
 
-static void generate_random_array(uint64_t *guest_array, uint64_t size)
-{
-	uint64_t i;
-
-	for (i = 0; i < size; i++)
-		guest_array[i] = random();
-}
-
 static void *vcpu_worker(void *data)
 {
 	int ret;
 	struct kvm_vcpu *vcpu = data;
-	struct kvm_vm *vm = vcpu->vm;
-	uint64_t *guest_array;
 	uint64_t pages_count = 0;
 	struct kvm_signal_mask *sigmask = alloca(offsetof(struct kvm_signal_mask, sigset)
 						 + sizeof(sigset_t));
@@ -537,11 +525,8 @@ static void *vcpu_worker(void *data)
 	sigemptyset(sigset);
 	sigaddset(sigset, SIG_IPI);
 
-	guest_array = addr_gva2hva(vm, (vm_vaddr_t)random_array);
-
 	while (!READ_ONCE(host_quit)) {
 		/* Clear any existing kick signals */
-		generate_random_array(guest_array, TEST_PAGES_PER_LOOP);
 		pages_count += TEST_PAGES_PER_LOOP;
 		/* Let the guest dirty the random pages */
 		ret = __vcpu_run(vcpu);
