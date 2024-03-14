@@ -1600,6 +1600,7 @@ static struct wmi_driver dell_smm_wmi_driver = {
 	},
 	.id_table = dell_smm_wmi_id_table,
 	.probe = dell_smm_wmi_probe,
+	.no_singleton = true,
 };
 
 /*
