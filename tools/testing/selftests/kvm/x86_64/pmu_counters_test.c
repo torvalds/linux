@@ -28,9 +28,6 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 	struct kvm_vm *vm;
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(*vcpu);
-
 	sync_global_to_guest(vm, kvm_pmu_version);
 
 	/*

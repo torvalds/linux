@@ -408,8 +408,6 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&params[0].vcpu, halter_guest_code);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(params[0].vcpu);
 	vm_install_exception_handler(vm, IPI_VECTOR, guest_ipi_handler);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
