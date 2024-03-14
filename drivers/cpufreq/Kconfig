@@ -18,6 +18,23 @@ config CPU_FREQ
 
 	  If in doubt, say N.
 
+config CPU_FREQ_MSM
+	bool "CPU Frequency scaling"
+	select SRCU
+	help
+	  CPU Frequency scaling allows you to change the clock speed of
+	  CPUs on the fly. This is a nice method to save power, because
+	  the lower the CPU clock speed, the less power the CPU consumes.
+
+	  Note that this driver doesn't automatically change the CPU
+	  clock speed, you need to either enable a dynamic cpufreq governor
+	  (see below) after boot, or use a userspace tool.
+
+	  For details, take a look at
+	  <file:Documentation/admin-guide/pm/cpufreq.rst>.
+
+	  If in doubt, say N.
+
 if CPU_FREQ
 
 config CPU_FREQ_GOV_ATTR_SET
