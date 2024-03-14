@@ -188,6 +188,7 @@ static struct clk_rcg2 gpu_cc_ff_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gpu_cc_gmu_clk_src[] = {
+	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(350000000, P_GPU_CC_PLL0_OUT_EVEN, 1, 0, 0),
 	F(650000000, P_GPU_CC_PLL0_OUT_EVEN, 1, 0, 0),
 	F(687500000, P_GPU_CC_PLL0_OUT_EVEN, 1, 0, 0),
@@ -252,49 +253,6 @@ static struct clk_rcg2 gpu_cc_hub_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_gpu_cc_xo_clk_src[] = {
-	F(19200000, P_BI_TCXO, 1, 0, 0),
-	{ }
-};
-
-static struct clk_rcg2 gpu_cc_xo_clk_src = {
-	.cmd_rcgr = 0x9014,
-	.mnd_width = 0,
-	.hid_width = 5,
-	.parent_map = gpu_cc_parent_map_2,
-	.freq_tbl = ftbl_gpu_cc_xo_clk_src,
-	.enable_safe_config = true,
-	.flags = HW_CLK_CTRL_MODE,
-	.clkr.hw.init = &(const struct clk_init_data) {
-		.name = "gpu_cc_xo_clk_src",
-		.parent_data = gpu_cc_parent_data_2,
-		.num_parents = ARRAY_SIZE(gpu_cc_parent_data_2),
-		.flags = CLK_SET_RATE_PARENT,
-		.ops = &clk_rcg2_ops,
-	},
-	.clkr.vdd_data = {
-		.vdd_class = &vdd_cx,
-		.num_rate_max = VDD_NUM,
-		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_LOWER] = 19200000},
-	},
-};
-
-static struct clk_regmap_div gpu_cc_demet_div_clk_src = {
-	.reg = 0x9058,
-	.shift = 0,
-	.width = 4,
-	.clkr.hw.init = &(const struct clk_init_data) {
-		.name = "gpu_cc_demet_div_clk_src",
-		.parent_hws = (const struct clk_hw*[]) {
-			&gpu_cc_xo_clk_src.clkr.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-		.ops = &clk_regmap_div_ro_ops,
-	},
-};
-
 static struct clk_regmap_div gpu_cc_hub_div_clk_src = {
 	.reg = 0x942c,
 	.shift = 0,
@@ -303,21 +261,6 @@ static struct clk_regmap_div gpu_cc_hub_div_clk_src = {
 		.name = "gpu_cc_hub_div_clk_src",
 		.parent_hws = (const struct clk_hw*[]) {
 			&gpu_cc_hub_clk_src.clkr.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-		.ops = &clk_regmap_div_ro_ops,
-	},
-};
-
-static struct clk_regmap_div gpu_cc_xo_div_clk_src = {
-	.reg = 0x9054,
-	.shift = 0,
-	.width = 4,
-	.clkr.hw.init = &(const struct clk_init_data) {
-		.name = "gpu_cc_xo_div_clk_src",
-		.parent_hws = (const struct clk_hw*[]) {
-			&gpu_cc_xo_clk_src.clkr.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -351,11 +294,6 @@ static struct clk_branch gpu_cc_cx_accu_shift_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gpu_cc_cx_accu_shift_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gpu_cc_xo_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -405,11 +343,7 @@ static struct clk_branch gpu_cc_cxo_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gpu_cc_cxo_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gpu_cc_xo_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_DONT_HOLD_STATE | CLK_SET_RATE_PARENT,
+			.flags = CLK_DONT_HOLD_STATE,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -436,11 +370,6 @@ static struct clk_branch gpu_cc_freq_measure_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gpu_cc_freq_measure_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gpu_cc_xo_div_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -454,11 +383,6 @@ static struct clk_branch gpu_cc_gx_accu_shift_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gpu_cc_gx_accu_shift_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gpu_cc_xo_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -586,7 +510,6 @@ static struct clk_regmap *gpu_cc_volcano_clocks[] = {
 	[GPU_CC_CX_FF_CLK] = &gpu_cc_cx_ff_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
 	[GPU_CC_CXO_CLK] = &gpu_cc_cxo_clk.clkr,
-	[GPU_CC_DEMET_DIV_CLK_SRC] = &gpu_cc_demet_div_clk_src.clkr,
 	[GPU_CC_DPM_CLK] = &gpu_cc_dpm_clk.clkr,
 	[GPU_CC_FF_CLK_SRC] = &gpu_cc_ff_clk_src.clkr,
 	[GPU_CC_FREQ_MEASURE_CLK] = &gpu_cc_freq_measure_clk.clkr,
@@ -603,8 +526,6 @@ static struct clk_regmap *gpu_cc_volcano_clocks[] = {
 	[GPU_CC_MEMNOC_GFX_CLK] = &gpu_cc_memnoc_gfx_clk.clkr,
 	[GPU_CC_PLL0] = &gpu_cc_pll0.clkr,
 	[GPU_CC_PLL0_OUT_EVEN] = &gpu_cc_pll0_out_even.clkr,
-	[GPU_CC_XO_CLK_SRC] = &gpu_cc_xo_clk_src.clkr,
-	[GPU_CC_XO_DIV_CLK_SRC] = &gpu_cc_xo_div_clk_src.clkr,
 };
 
 static const struct qcom_reset_map gpu_cc_volcano_resets[] = {
