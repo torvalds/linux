@@ -6,6 +6,8 @@
 #ifndef _XE_REG_DEFS_H_
 #define _XE_REG_DEFS_H_
 
+#include <linux/build_bug.h>
+
 #include "compat-i915-headers/i915_reg_defs.h"
 
 /**
@@ -44,6 +46,7 @@ struct xe_reg {
 		u32 raw;
 	};
 };
+static_assert(sizeof(struct xe_reg) == sizeof(u32));
 
 /**
  * struct xe_reg_mcr - MCR register definition
