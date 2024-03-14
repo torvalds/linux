@@ -566,8 +566,7 @@ out:
 		ret = -BCH_ERR_journal_res_get_blocked;
 
 	if (ret == JOURNAL_ERR_max_in_flight &&
-	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
-			       &j->max_in_flight_start, true)) {
+	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight], true)) {
 
 		struct printbuf buf = PRINTBUF;
 		prt_printf(&buf, "seq %llu\n", journal_cur_seq(j));
