@@ -38,6 +38,10 @@ struct xe_reg {
 			 */
 			u32 mcr:1;
 			/**
+			 * @vf: register is accessible from the Virtual Function.
+			 */
+			u32 vf:1;
+			/**
 			 * @ext: access MMIO extension space for current register.
 			 */
 			u32 ext:1;
@@ -77,6 +81,13 @@ struct xe_reg_mcr {
  * To be used with XE_REG(). XE_REG_MCR() and XE_REG_INITIALIZER()
  */
 #define XE_REG_OPTION_MASKED		.masked = 1
+
+/**
+ * XE_REG_OPTION_VF - Register is "VF" accessible.
+ *
+ * To be used with XE_REG() and XE_REG_INITIALIZER().
+ */
+#define XE_REG_OPTION_VF		.vf = 1
 
 /**
  * XE_REG_INITIALIZER - Initializer for xe_reg_t.
