@@ -90,13 +90,13 @@
 		.intr_detection_width = -1,		\
 	}
 
-#define UFS_RESET(pg_name, offset)				\
+#define UFS_RESET(pg_name, offset, io)				\
 	{					        \
 		.name = #pg_name,			\
 		.pins = pg_name##_pins,			\
 		.npins = (unsigned int)ARRAY_SIZE(pg_name##_pins),	\
 		.ctl_reg = offset,			\
-		.io_reg = offset + 0x4,			\
+		.io_reg = io,				\
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
 		.intr_target_reg = 0,			\
@@ -2594,7 +2594,7 @@ static const struct msm_pingroup niobe_groups[] = {
 			 -1),
 	[199] = PINGROUP(199, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, egpio, 0,
 			 -1),
-	[200] = UFS_RESET(ufs_reset, 0x1D2004),
+	[200] = UFS_RESET(ufs_reset, 0x1D2004, 0x1D3000),
 };
 
 static struct pinctrl_qup niobe_qup_regs[] = {
