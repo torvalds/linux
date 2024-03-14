@@ -444,7 +444,8 @@ static void xgpu_nv_ras_poison_handler(struct amdgpu_device *adev,
 		amdgpu_virt_fini_data_exchange(adev);
 		xgpu_nv_send_access_requests_with_param(adev,
 					IDH_RAS_POISON,	block, 0, 0);
-		amdgpu_virt_init_data_exchange(adev);
+		if (block != AMDGPU_RAS_BLOCK__SDMA)
+			amdgpu_virt_init_data_exchange(adev);
 	}
 }
 
