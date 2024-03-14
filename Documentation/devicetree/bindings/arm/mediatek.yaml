@@ -343,6 +343,14 @@ properties:
           - const: google,tomato-rev3
           - const: google,tomato
           - const: mediatek,mt8195
+      - description: HP Dojo sku1, 3, 5, 7 (HP Chromebook x360 13b-ca0002sa)
+        items:
+          - const: google,dojo-sku7
+          - const: google,dojo-sku5
+          - const: google,dojo-sku3
+          - const: google,dojo-sku1
+          - const: google,dojo
+          - const: mediatek,mt8195
       - items:
           - enum:
               - mediatek,mt8195-demo
