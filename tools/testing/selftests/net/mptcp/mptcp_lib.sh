@@ -6,7 +6,7 @@ readonly KSFT_FAIL=1
 readonly KSFT_SKIP=4
 
 # shellcheck disable=SC2155 # declare and assign separately
-readonly KSFT_TEST=$(basename "${0}" | sed 's/\.sh$//g')
+readonly KSFT_TEST="${MPTCP_LIB_KSFT_TEST:-$(basename "${0}" .sh)}"
 
 MPTCP_LIB_SUBTESTS=()
 
@@ -206,4 +206,13 @@ mptcp_lib_result_print_all_tap() {
 	for subtest in "${MPTCP_LIB_SUBTESTS[@]}"; do
 		printf "%s\n" "${subtest}"
 	done
+}
+
+# $1: PID
+mptcp_lib_kill_wait() {
+	[ "${1}" -eq 0 ] && return 0
+
+	kill -SIGUSR1 "${1}" > /dev/null 2>&1
+	kill "${1}" > /dev/null 2>&1
+	wait "${1}" 2>/dev/null
 }

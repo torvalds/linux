@@ -58,7 +58,7 @@ int pa_serialize_tlb_flushes __ro_after_init;
 
 struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-struct pdc_btlb_info btlb_info __ro_after_init;
+struct pdc_btlb_info btlb_info;
 #endif
 
 DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
@@ -850,7 +850,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 #endif
 			"   fic,m	%3(%4,%0)\n"
 			"2: sync\n"
-			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b, "%1")
 			: "+r" (start), "+r" (error)
 			: "r" (end), "r" (dcache_stride), "i" (SR_USER));
 	}
@@ -865,7 +865,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 #endif
 			"   fdc,m	%3(%4,%0)\n"
 			"2: sync\n"
-			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b, "%1")
 			: "+r" (start), "+r" (error)
 			: "r" (end), "r" (icache_stride), "i" (SR_USER));
 	}

@@ -745,7 +745,7 @@ static int vmx_set_guest_uret_msr(struct vcpu_vmx *vmx,
  */
 static int kvm_cpu_vmxoff(void)
 {
-	asm_volatile_goto("1: vmxoff\n\t"
+	asm goto("1: vmxoff\n\t"
 			  _ASM_EXTABLE(1b, %l[fault])
 			  ::: "cc", "memory" : fault);
 
@@ -2789,7 +2789,7 @@ static int kvm_cpu_vmxon(u64 vmxon_pointer)
 
 	cr4_set_bits(X86_CR4_VMXE);
 
-	asm_volatile_goto("1: vmxon %[vmxon_pointer]\n\t"
+	asm goto("1: vmxon %[vmxon_pointer]\n\t"
 			  _ASM_EXTABLE(1b, %l[fault])
 			  : : [vmxon_pointer] "m"(vmxon_pointer)
 			  : : fault);
