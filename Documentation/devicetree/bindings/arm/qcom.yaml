@@ -176,6 +176,7 @@ properties:
       - items:
           - enum:
               - lge,hammerhead
+              - samsung,hlte
               - sony,xperia-amami
               - sony,xperia-honami
           - const: qcom,msm8974
