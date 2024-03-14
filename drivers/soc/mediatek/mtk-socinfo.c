@@ -144,7 +144,14 @@ static int mtk_socinfo_get_socinfo_data(struct mtk_socinfo *mtk_socinfop)
 		}
 	}
 
-	return match_socinfo_index >= 0 ? match_socinfo_index : -ENOENT;
+	if (match_socinfo_index < 0) {
+		dev_warn(mtk_socinfop->dev,
+			 "Unknown MediaTek SoC with ID 0x%08x 0x%08x\n",
+			  cell_data[0], cell_data[1]);
+		return -ENOENT;
+	}
+
+	return match_socinfo_index;
 }
 
 static int mtk_socinfo_probe(struct platform_device *pdev)
