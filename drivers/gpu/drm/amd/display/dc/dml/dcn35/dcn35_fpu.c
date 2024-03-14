@@ -603,7 +603,7 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 		if (is_pwrseq0 && allow_z10)
 			support = DCN_ZSTATE_SUPPORT_ALLOW;
 		else if (is_pwrseq0 && (is_psr || is_replay))
-			support = allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
+			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY;
 		else if (allow_z8)
 			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY;
 

@@ -570,6 +570,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	struct dml2_dcn_clocks out_clks;
 	unsigned int result = 0;
 	bool need_recalculation = false;
+	uint32_t cstate_enter_plus_exit_z8_ns;
 
 	if (!context || context->stream_count == 0)
 		return true;
@@ -641,6 +642,14 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 		dml2_extract_watermark_set(&context->bw_ctx.bw.dcn.watermarks.d, &dml2->v20.dml_core_ctx);
 		//copy for deciding zstate use
 		context->bw_ctx.dml.vba.StutterPeriod = context->bw_ctx.dml2->v20.dml_core_ctx.mp.StutterPeriod;
+
+		cstate_enter_plus_exit_z8_ns = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_z8_ns;
+
+		if (context->bw_ctx.dml.vba.StutterPeriod < in_dc->debug.minimum_z8_residency_time &&
+				cstate_enter_plus_exit_z8_ns < in_dc->debug.minimum_z8_residency_time * 1000)
+			cstate_enter_plus_exit_z8_ns = in_dc->debug.minimum_z8_residency_time * 1000;
+
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_z8_ns = cstate_enter_plus_exit_z8_ns;
 	}
 
 	return result;
