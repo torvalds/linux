@@ -600,6 +600,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	case ASIC_GAUDI2:
 	case ASIC_GAUDI2B:
 	case ASIC_GAUDI2C:
+	case ASIC_GAUDI2D:
 		hl_mmu_v2_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		if (prop->pmmu.host_resident)
 			hl_mmu_v2_hr_set_funcs(hdev, &hdev->mmu_func[MMU_HR_PGT]);

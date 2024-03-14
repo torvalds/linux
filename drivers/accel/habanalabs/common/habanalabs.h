@@ -1273,15 +1273,18 @@ struct hl_dec {
  * @ASIC_GAUDI2: Gaudi2 device.
  * @ASIC_GAUDI2B: Gaudi2B device.
  * @ASIC_GAUDI2C: Gaudi2C device.
+ * @ASIC_GAUDI2D: Gaudi2D device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
+
 	ASIC_GOYA,
 	ASIC_GAUDI,
 	ASIC_GAUDI_SEC,
 	ASIC_GAUDI2,
 	ASIC_GAUDI2B,
 	ASIC_GAUDI2C,
+	ASIC_GAUDI2D,
 };
 
 struct hl_cs_parser;
