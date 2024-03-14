@@ -439,10 +439,10 @@ static void kvm_seg_fill_gdt_64bit(struct kvm_vm *vm, struct kvm_segment *segp)
 		desc->base3 = segp->base >> 32;
 }
 
-static void kvm_seg_set_kernel_code_64bit(uint16_t selector, struct kvm_segment *segp)
+static void kvm_seg_set_kernel_code_64bit(struct kvm_segment *segp)
 {
 	memset(segp, 0, sizeof(*segp));
-	segp->selector = selector;
+	segp->selector = KERNEL_CS;
 	segp->limit = 0xFFFFFFFFu;
 	segp->s = 0x1; /* kTypeCodeData */
 	segp->type = 0x08 | 0x01 | 0x02; /* kFlagCode | kFlagCodeAccessed
@@ -453,10 +453,10 @@ static void kvm_seg_set_kernel_code_64bit(uint16_t selector, struct kvm_segment 
 	segp->present = 1;
 }
 
-static void kvm_seg_set_kernel_data_64bit(uint16_t selector, struct kvm_segment *segp)
+static void kvm_seg_set_kernel_data_64bit(struct kvm_segment *segp)
 {
 	memset(segp, 0, sizeof(*segp));
-	segp->selector = selector;
+	segp->selector = KERNEL_DS;
 	segp->limit = 0xFFFFFFFFu;
 	segp->s = 0x1; /* kTypeCodeData */
 	segp->type = 0x00 | 0x01 | 0x02; /* kFlagData | kFlagDataAccessed
@@ -481,13 +481,12 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	return vm_untag_gpa(vm, PTE_GET_PA(*pte)) | (gva & ~HUGEPAGE_MASK(level));
 }
 
-static void kvm_seg_set_tss_64bit(vm_vaddr_t base, struct kvm_segment *segp,
-				  int selector)
+static void kvm_seg_set_tss_64bit(vm_vaddr_t base, struct kvm_segment *segp)
 {
 	memset(segp, 0, sizeof(*segp));
 	segp->base = base;
 	segp->limit = 0x67;
-	segp->selector = selector;
+	segp->selector = KERNEL_TSS;
 	segp->type = 0xb;
 	segp->present = 1;
 }
@@ -511,11 +510,11 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 	kvm_seg_set_unusable(&sregs.ldt);
-	kvm_seg_set_kernel_code_64bit(KERNEL_CS, &sregs.cs);
-	kvm_seg_set_kernel_data_64bit(KERNEL_DS, &sregs.ds);
-	kvm_seg_set_kernel_data_64bit(KERNEL_DS, &sregs.es);
-	kvm_seg_set_kernel_data_64bit(KERNEL_DS, &sregs.gs);
-	kvm_seg_set_tss_64bit(vm->arch.tss, &sregs.tr, KERNEL_TSS);
+	kvm_seg_set_kernel_code_64bit(&sregs.cs);
+	kvm_seg_set_kernel_data_64bit(&sregs.ds);
+	kvm_seg_set_kernel_data_64bit(&sregs.es);
+	kvm_seg_set_kernel_data_64bit(&sregs.gs);
+	kvm_seg_set_tss_64bit(vm->arch.tss, &sregs.tr);
 
 	sregs.cr3 = vm->pgd;
 	vcpu_sregs_set(vcpu, &sregs);
@@ -589,13 +588,13 @@ static void vm_init_descriptor_tables(struct kvm_vm *vm)
 
 	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
 
-	kvm_seg_set_kernel_code_64bit(KERNEL_CS, &seg);
+	kvm_seg_set_kernel_code_64bit(&seg);
 	kvm_seg_fill_gdt_64bit(vm, &seg);
 
-	kvm_seg_set_kernel_data_64bit(KERNEL_DS, &seg);
+	kvm_seg_set_kernel_data_64bit(&seg);
 	kvm_seg_fill_gdt_64bit(vm, &seg);
 
-	kvm_seg_set_tss_64bit(vm->arch.tss, &seg, KERNEL_TSS);
+	kvm_seg_set_tss_64bit(vm->arch.tss, &seg);
 	kvm_seg_fill_gdt_64bit(vm, &seg);
 }
 
