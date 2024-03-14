@@ -100,17 +100,20 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
 					   XE_BO_CREATE_VRAM0_BIT |
-					   XE_BO_CREATE_GGTT_BIT);
+					   XE_BO_CREATE_GGTT_BIT |
+					   XE_BO_PAGETABLE);
 	else
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
 					   XE_BO_CREATE_STOLEN_BIT |
-					   XE_BO_CREATE_GGTT_BIT);
+					   XE_BO_CREATE_GGTT_BIT |
+					   XE_BO_PAGETABLE);
 	if (IS_ERR(dpt))
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
 					   XE_BO_CREATE_SYSTEM_BIT |
-					   XE_BO_CREATE_GGTT_BIT);
+					   XE_BO_CREATE_GGTT_BIT |
+					   XE_BO_PAGETABLE);
 	if (IS_ERR(dpt))
 		return PTR_ERR(dpt);
 
