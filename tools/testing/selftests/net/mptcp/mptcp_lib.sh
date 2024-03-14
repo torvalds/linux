@@ -208,6 +208,16 @@ mptcp_lib_result_print_all_tap() {
 	done
 }
 
+# get the value of keyword $1 in the line marked by keyword $2
+mptcp_lib_get_info_value() {
+	grep "${2}" | sed -n 's/.*\('"${1}"':\)\([0-9a-f:.]*\).*$/\2/p;q'
+}
+
+# $1: info name ; $2: evts_ns ; [$3: event type; [$4: addr]]
+mptcp_lib_evts_get_info() {
+	grep "${4:-}" "${2}" | mptcp_lib_get_info_value "${1}" "^type:${3:-1},"
+}
+
 # $1: PID
 mptcp_lib_kill_wait() {
 	[ "${1}" -eq 0 ] && return 0
@@ -215,6 +225,11 @@ mptcp_lib_kill_wait() {
 	kill -SIGUSR1 "${1}" > /dev/null 2>&1
 	kill "${1}" > /dev/null 2>&1
 	wait "${1}" 2>/dev/null
+}
+
+# $1: IP address
+mptcp_lib_is_v6() {
+	[ -z "${1##*:*}" ]
 }
 
 # $1: ns, $2: MIB counter
