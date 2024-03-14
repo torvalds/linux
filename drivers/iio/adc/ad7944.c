@@ -32,8 +32,25 @@ struct ad7944_timing_spec {
 	unsigned int turbo_conv_ns;
 };
 
+enum ad7944_spi_mode {
+	/* datasheet calls this "4-wire mode" */
+	AD7944_SPI_MODE_DEFAULT,
+	/* datasheet calls this "3-wire mode" (not related to SPI_3WIRE!) */
+	AD7944_SPI_MODE_SINGLE,
+	/* datasheet calls this "chain mode" */
+	AD7944_SPI_MODE_CHAIN,
+};
+
+/* maps adi,spi-mode property value to enum */
+static const char * const ad7944_spi_modes[] = {
+	[AD7944_SPI_MODE_DEFAULT] = "",
+	[AD7944_SPI_MODE_SINGLE] = "single",
+	[AD7944_SPI_MODE_CHAIN] = "chain",
+};
+
 struct ad7944_adc {
 	struct spi_device *spi;
+	enum ad7944_spi_mode spi_mode;
 	/* Chip-specific timing specifications. */
 	const struct ad7944_timing_spec *timing_spec;
 	/* GPIO connected to CNV pin. */
@@ -57,6 +74,9 @@ struct ad7944_adc {
 		u64 timestamp __aligned(8);
 	 } sample __aligned(IIO_DMA_MINALIGN);
 };
+
+/* quite time before CNV rising edge */
+#define T_QUIET_NS	20
 
 static const struct ad7944_timing_spec ad7944_timing_spec = {
 	.conv_ns = 420,
@@ -109,6 +129,65 @@ AD7944_DEFINE_CHIP_INFO(ad7944, ad7944, 14, 0);
 AD7944_DEFINE_CHIP_INFO(ad7985, ad7944, 16, 0);
 /* fully differential */
 AD7944_DEFINE_CHIP_INFO(ad7986, ad7986, 18, 1);
+
+/*
+ * ad7944_3wire_cs_mode_conversion - Perform a 3-wire CS mode conversion and
+ *                                   acquisition
+ * @adc: The ADC device structure
+ * @chan: The channel specification
+ * Return: 0 on success, a negative error code on failure
+ *
+ * This performs a conversion and reads data when the chip is wired in 3-wire
+ * mode with the CNV line on the ADC tied to the CS line on the SPI controller.
+ *
+ * Upon successful return adc->sample.raw will contain the conversion result.
+ */
+static int ad7944_3wire_cs_mode_conversion(struct ad7944_adc *adc,
+					   const struct iio_chan_spec *chan)
+{
+	unsigned int t_conv_ns = adc->always_turbo ? adc->timing_spec->turbo_conv_ns
+						   : adc->timing_spec->conv_ns;
+	struct spi_transfer xfers[] = {
+		{
+			/*
+			 * NB: can get better performance from some SPI
+			 * controllers if we use the same bits_per_word
+			 * in every transfer.
+			 */
+			.bits_per_word = chan->scan_type.realbits,
+			/*
+			 * CS is tied to CNV and we need a low to high
+			 * transition to start the conversion, so place CNV
+			 * low for t_QUIET to prepare for this.
+			 */
+			.delay = {
+				.value = T_QUIET_NS,
+				.unit = SPI_DELAY_UNIT_NSECS,
+			},
+
+		},
+		{
+			.bits_per_word = chan->scan_type.realbits,
+			/*
+			 * CS has to be high for full conversion time to avoid
+			 * triggering the busy indication.
+			 */
+			.cs_off = 1,
+			.delay = {
+				.value = t_conv_ns,
+				.unit = SPI_DELAY_UNIT_NSECS,
+			},
+		},
+		{
+			/* Then we can read the data during the acquisition phase */
+			.rx_buf = &adc->sample.raw,
+			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
+			.bits_per_word = chan->scan_type.realbits,
+		},
+	};
+
+	return spi_sync_transfer(adc->spi, xfers, ARRAY_SIZE(xfers));
+}
 
 /*
  * ad7944_4wire_mode_conversion - Perform a 4-wire mode conversion and acquisition
@@ -167,9 +246,22 @@ static int ad7944_single_conversion(struct ad7944_adc *adc,
 {
 	int ret;
 
-	ret = ad7944_4wire_mode_conversion(adc, chan);
-	if (ret)
-		return ret;
+	switch (adc->spi_mode) {
+	case AD7944_SPI_MODE_DEFAULT:
+		ret = ad7944_4wire_mode_conversion(adc, chan);
+		if (ret)
+			return ret;
+
+		break;
+	case AD7944_SPI_MODE_SINGLE:
+		ret = ad7944_3wire_cs_mode_conversion(adc, chan);
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	if (chan->scan_type.storagebits > 16)
 		*val = adc->sample.raw.u32;
@@ -230,9 +322,23 @@ static irqreturn_t ad7944_trigger_handler(int irq, void *p)
 	struct ad7944_adc *adc = iio_priv(indio_dev);
 	int ret;
 
-	ret = ad7944_4wire_mode_conversion(adc, &indio_dev->channels[0]);
-	if (ret)
+	switch (adc->spi_mode) {
+	case AD7944_SPI_MODE_DEFAULT:
+		ret = ad7944_4wire_mode_conversion(adc, &indio_dev->channels[0]);
+		if (ret)
+			goto out;
+
+		break;
+	case AD7944_SPI_MODE_SINGLE:
+		ret = ad7944_3wire_cs_mode_conversion(adc, &indio_dev->channels[0]);
+		if (ret)
+			goto out;
+
+		break;
+	default:
+		/* not supported */
 		goto out;
+	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &adc->sample.raw,
 					   pf->timestamp);
@@ -260,15 +366,8 @@ static int ad7944_probe(struct spi_device *spi)
 	struct ad7944_adc *adc;
 	bool have_refin = false;
 	struct regulator *ref;
+	const char *str_val;
 	int ret;
-
-	/*
-	 * driver currently only supports the conventional "4-wire" mode and
-	 * not other special wiring configurations.
-	 */
-	if (device_property_present(dev, "adi,spi-mode"))
-		return dev_err_probe(dev, -EINVAL,
-				     "adi,spi-mode is not currently supported\n");
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!indio_dev)
@@ -282,6 +381,22 @@ static int ad7944_probe(struct spi_device *spi)
 		return dev_err_probe(dev, -EINVAL, "no chip info\n");
 
 	adc->timing_spec = chip_info->timing_spec;
+
+	if (device_property_read_string(dev, "adi,spi-mode", &str_val) == 0) {
+		ret = sysfs_match_string(ad7944_spi_modes, str_val);
+		if (ret < 0)
+			return dev_err_probe(dev, -EINVAL,
+					     "unsupported adi,spi-mode\n");
+
+		adc->spi_mode = ret;
+	} else {
+		/* absence of adi,spi-mode property means default mode */
+		adc->spi_mode = AD7944_SPI_MODE_DEFAULT;
+	}
+
+	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN)
+		return dev_err_probe(dev, -EINVAL,
+				     "chain mode is not implemented\n");
 
 	/*
 	 * Some chips use unusual word sizes, so check now instead of waiting
@@ -349,14 +464,16 @@ static int ad7944_probe(struct spi_device *spi)
 		adc->ref_mv = AD7944_INTERNAL_REF_MV;
 	}
 
-	/*
-	 * CNV gpio is required in 4-wire mode which is the only currently
-	 * supported mode.
-	 */
-	adc->cnv = devm_gpiod_get(dev, "cnv", GPIOD_OUT_LOW);
+	adc->cnv = devm_gpiod_get_optional(dev, "cnv", GPIOD_OUT_LOW);
 	if (IS_ERR(adc->cnv))
 		return dev_err_probe(dev, PTR_ERR(adc->cnv),
 				     "failed to get CNV GPIO\n");
+
+	if (!adc->cnv && adc->spi_mode == AD7944_SPI_MODE_DEFAULT)
+		return dev_err_probe(&spi->dev, -EINVAL, "CNV GPIO is required\n");
+	if (adc->cnv && adc->spi_mode != AD7944_SPI_MODE_DEFAULT)
+		return dev_err_probe(&spi->dev, -EINVAL,
+				     "CNV GPIO in single and chain mode is not currently supported\n");
 
 	adc->turbo = devm_gpiod_get_optional(dev, "turbo", GPIOD_OUT_LOW);
 	if (IS_ERR(adc->turbo))
@@ -368,6 +485,10 @@ static int ad7944_probe(struct spi_device *spi)
 	if (adc->turbo && adc->always_turbo)
 		return dev_err_probe(dev, -EINVAL,
 			"cannot have both turbo-gpios and adi,always-turbo\n");
+
+	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN && adc->always_turbo)
+		return dev_err_probe(dev, -EINVAL,
+			"cannot have both chain mode and always turbo\n");
 
 	indio_dev->name = chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
