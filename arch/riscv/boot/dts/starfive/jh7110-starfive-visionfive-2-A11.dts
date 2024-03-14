@@ -2,11 +2,11 @@
 /*
  * Copyright (C) 2022 StarFive Technology Co., Ltd.
  * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ * For VisionFive2 version A1.1
  */
 
 /dts-v1/;
-#include "jh7110-visionfive-v2.dtsi"
-#include "codecs/sf_hdmi.dtsi"
+#include "jh7110-starfive-visionfive-2.dtsi"
 
 / {
 	model = "StarFive VisionFive V2";
@@ -15,7 +15,7 @@
 	gpio-restart {
 		compatible = "gpio-restart";
 		gpios = <&gpio 35 GPIO_ACTIVE_HIGH>;
-		priority = <160>;
+		priority = <224>;
 	};
 
 };
@@ -64,63 +64,13 @@
 			starfive,pin-gpio-dout = <GPO_SDIO0_RST_N>;
 			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
-
-		mmc0-pins-cLK {
-			starfive,pins = <PAD_SD0_CLK>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(2) | GPIO_SLEW(1))>;
-		};
-
-		mmc0-pins-cmd {
-			starfive,pins = <PAD_SD0_CMD>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data0 {
-			starfive,pins = <PAD_SD0_DATA0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data1 {
-			starfive,pins = <PAD_SD0_DATA1>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data2 {
-			starfive,pins = <PAD_SD0_DATA2>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data3 {
-			starfive,pins = <PAD_SD0_DATA3>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data4 {
-			starfive,pins = <PAD_SD0_DATA4>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data5 {
-			starfive,pins = <PAD_SD0_DATA5>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data6 {
-			starfive,pins = <PAD_SD0_DATA6>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
-
-		mmc0-pins-data7 {
-			starfive,pins = <PAD_SD0_DATA7>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
-		};
 	};
 
 	sdcard1_pins: sdcard1-pins {
 		sdcard1-pins0 {
 			starfive,pins = <PAD_GPIO10>;
 			starfive,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(2) | GPIO_SLEW(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
 			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
@@ -128,7 +78,7 @@
 		sdcard1-pins1 {
 			starfive,pins = <PAD_GPIO9>;
 			starfive,pinmux = <PAD_GPIO9_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CCMD_OUT>;
 			starfive,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
 			starfive,pin-gpio-din =  <GPI_SDIO1_CCMD_IN>;
@@ -137,7 +87,7 @@
 		sdcard1-pins2 {
 			starfive,pins = <PAD_GPIO11>;
 			starfive,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_0>;
 			starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
 			starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_0>;
@@ -146,7 +96,7 @@
 		sdcard1-pins3 {
 			starfive,pins = <PAD_GPIO12>;
 			starfive,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_1>;
 			starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
 			starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_1>;
@@ -155,7 +105,7 @@
 		sdcard1-pins4 {
 			starfive,pins = <PAD_GPIO7>;
 			starfive,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_2>;
 			starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_2>;
 			starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_2>;
@@ -164,7 +114,7 @@
 		sdcard1-pins5 {
 			starfive,pins = <PAD_GPIO8>;
 			starfive,pinmux = <PAD_GPIO8_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)) | GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_3>;
 			starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_3>;
 			starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_3>;
@@ -204,46 +154,13 @@
 		};
 	};
 
-	mclk_ext_pins: mclk_ext_pins {
-		mclk_ext_pins {
-			starfive,pins = <PAD_GPIO4>;
+	pcie0_vbus_default: pcie0_vbus_default {
+		drive-vbus-pin {
+			starfive,pins = <PAD_GPIO25>;
+			starfive,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
 			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-din = <GPI_CRG0_EXT_MCLK>;
-			starfive,pin-gpio-doen = <OEN_HIGH>;
-		};
-	};
-
-	tdm0_pins: tdm0-pins {
-		tdm0-pins-tx {
-			starfive,pins = <PAD_GPIO44>;
-			starfive,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_TDM0_PCM_TXD>;
+			starfive,pin-gpio-dout = <GPO_HIGH>;
 			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-
-		tdm0-pins-rx {
-			starfive,pins = <PAD_GPIO61>;
-			starfive,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-doen = <OEN_HIGH>;
-			starfive,pin-gpio-din =  <GPI_TDM0_PCM_RXD>;
-		};
-
-		tdm0-pins-sync {
-			starfive,pins = <PAD_GPIO63>;
-			starfive,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-doen = <OEN_HIGH>;
-			starfive,pin-gpio-din = <GPI_TDM0_PCM_SYNCIN>;
-		};
-
-		tdm0-pins-pcmclk {
-			starfive,pins = <PAD_GPIO38>;
-			starfive,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-doen = <OEN_HIGH>;
-			starfive,pin-gpio-din = <GPI_TDM0_CLK_SLV>;
 		};
 	};
 };
@@ -274,26 +191,17 @@
 };
 
 &hdmi {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&inno_hdmi_pins>;
-	hpd-gpio = <&gpio 15 GPIO_ACTIVE_HIGH>;
+};
+
+&pcie0 {
+	pinctrl-names = "default", "perst-default", "perst-active";
+	pinctrl-0 = <&pcie0_wake_default>,
+		    <&pcie0_clkreq_default>,
+		    <&pcie0_vbus_default>;
+	pinctrl-1 = <&pcie0_perst_default>;
+	pinctrl-2 = <&pcie0_perst_active>;
 	status = "okay";
-};
-
-&i2stx_4ch0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mclk_ext_pins>;
-	status = "okay";
-};
-
-&cpu1 {
-	cpu-supply = <&cpu_vdd>;
-	clocks = <&clkgen JH7110_CPU_CORE>;
-	clock-names = "cpu";
-};
-
-&tdm {
-	pinctrl-names = "default";
-	pinctrl-0 = <&tdm0_pins>;
-	status = "disabled";
 };

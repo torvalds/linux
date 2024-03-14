@@ -5,15 +5,16 @@
  */
 
 /dts-v1/;
-#include "jh7110-visionfive-v2.dts"
-#include "codecs/sf_ac108.dtsi"
+#include "jh7110-starfive-visionfive-2-v1.3b.dts"
+#include "codecs/sf_wm8960.dtsi"
 
 &i2c0 {
-	ac108_a: ac108@3b {
-		compatible = "x-power,ac108_0";
-		reg = <0x3b>;
+	wm8960: codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
 		#sound-dai-cells = <0>;
-		data-protocol = <0>;
+
+		wlf,shared-lrclk;
 	};
 };
 
@@ -21,3 +22,6 @@
 	status = "okay";
 };
 
+&i2stx_4ch1 {
+	status = "okay";
+};
