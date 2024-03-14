@@ -1882,9 +1882,12 @@ int bch2_btree_increase_depth(struct btree_trans *trans, btree_path_idx_t path, 
 {
 	struct bch_fs *c = trans->c;
 	struct btree *b = bch2_btree_id_root(c, trans->paths[path].btree_id)->b;
+
+	if (btree_node_fake(b))
+		return bch2_btree_split_leaf(trans, path, flags);
+
 	struct btree_update *as =
-		bch2_btree_update_start(trans, trans->paths + path,
-					b->c.level, true, flags);
+		bch2_btree_update_start(trans, trans->paths + path, b->c.level, true, flags);
 	if (IS_ERR(as))
 		return PTR_ERR(as);
 
