@@ -465,12 +465,11 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 		}
 	}
 err_gsi_geni_transfer:
-	if (q2spi->gsi->qup_gsi_err) {
+	if (q2spi->gsi->qup_gsi_err || !timeout) {
 		Q2SPI_ERROR(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		geni_gsi_disconnect_doorbell_stop_ch(q2spi->gsi->tx_c, true);
-		geni_gsi_ch_start(q2spi->gsi->tx_c);
+		dmaengine_terminate_all(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
