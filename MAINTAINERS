@@ -20974,6 +20974,13 @@ S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	Documentation/devicetree/bindings/soc/starfive/
 
+STARFIVE STARLINK PMU DRIVER
+M:	Ji Sheng Teoh <jisheng.teoh@starfivetech.com>
+S:	Maintained
+F:	Documentation/admin-guide/perf/starfive_starlink_pmu.rst
+F:	Documentation/devicetree/bindings/perf/starfive,jh8100-starlink-pmu.yaml
+F:	drivers/perf/starfive_starlink_pmu.c
+
 STARFIVE TRNG DRIVER
 M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
 S:	Supported

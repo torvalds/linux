@@ -103,6 +103,9 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
 {
 	struct ptdesc *ptdesc = virt_to_ptdesc(pudp);
 
+	if (!pgtable_l4_enabled())
+		return;
+
 	pagetable_pud_dtor(ptdesc);
 	tlb_remove_ptdesc(tlb, ptdesc);
 }

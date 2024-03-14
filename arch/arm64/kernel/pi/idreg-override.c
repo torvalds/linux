@@ -14,21 +14,14 @@
 #include <asm/cpufeature.h>
 #include <asm/setup.h>
 
+#include "pi.h"
+
 #define FTR_DESC_NAME_LEN	20
 #define FTR_DESC_FIELD_LEN	10
 #define FTR_ALIAS_NAME_LEN	30
 #define FTR_ALIAS_OPTION_LEN	116
 
 static u64 __boot_status __initdata;
-
-// temporary __prel64 related definitions
-// to be removed when this code is moved under pi/
-
-#define __prel64_initconst	__initconst
-
-#define PREL64(type, name)	union { type *name; }
-
-#define prel64_pointer(__d)	(__d)
 
 typedef bool filter_t(u64 val);
 
@@ -62,6 +55,35 @@ static const struct ftr_set_desc mmfr1 __prel64_initconst = {
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
 		FIELD("vh", ID_AA64MMFR1_EL1_VH_SHIFT, mmfr1_vh_filter),
+		{}
+	},
+};
+
+
+static bool __init mmfr2_varange_filter(u64 val)
+{
+	int __maybe_unused feat;
+
+	if (val)
+		return false;
+
+#ifdef CONFIG_ARM64_LPA2
+	feat = cpuid_feature_extract_signed_field(read_sysreg(id_aa64mmfr0_el1),
+						  ID_AA64MMFR0_EL1_TGRAN_SHIFT);
+	if (feat >= ID_AA64MMFR0_EL1_TGRAN_LPA2) {
+		id_aa64mmfr0_override.val |=
+			(ID_AA64MMFR0_EL1_TGRAN_LPA2 - 1) << ID_AA64MMFR0_EL1_TGRAN_SHIFT;
+		id_aa64mmfr0_override.mask |= 0xfU << ID_AA64MMFR0_EL1_TGRAN_SHIFT;
+	}
+#endif
+	return true;
+}
+
+static const struct ftr_set_desc mmfr2 __prel64_initconst = {
+	.name		= "id_aa64mmfr2",
+	.override	= &id_aa64mmfr2_override,
+	.fields		= {
+		FIELD("varange", ID_AA64MMFR2_EL1_VARange_SHIFT, mmfr2_varange_filter),
 		{}
 	},
 };
@@ -166,6 +188,7 @@ static const struct ftr_set_desc sw_features __prel64_initconst = {
 	.fields		= {
 		FIELD("nokaslr", ARM64_SW_FEATURE_OVERRIDE_NOKASLR, NULL),
 		FIELD("hvhe", ARM64_SW_FEATURE_OVERRIDE_HVHE, hvhe_filter),
+		FIELD("rodataoff", ARM64_SW_FEATURE_OVERRIDE_RODATA_OFF, NULL),
 		{}
 	},
 };
@@ -173,6 +196,7 @@ static const struct ftr_set_desc sw_features __prel64_initconst = {
 static const
 PREL64(const struct ftr_set_desc, reg) regs[] __prel64_initconst = {
 	{ &mmfr1	},
+	{ &mmfr2	},
 	{ &pfr0 	},
 	{ &pfr1 	},
 	{ &isar1	},
@@ -197,6 +221,8 @@ static const struct {
 	{ "arm64.nomops",		"id_aa64isar2.mops=0" },
 	{ "arm64.nomte",		"id_aa64pfr1.mte=0" },
 	{ "nokaslr",			"arm64_sw.nokaslr=1" },
+	{ "rodata=off",			"arm64_sw.rodataoff=1" },
+	{ "arm64.nolva",		"id_aa64mmfr2.varange=0" },
 };
 
 static int __init parse_hexdigit(const char *p, u64 *v)
@@ -313,42 +339,35 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 	} while (1);
 }
 
-static __init const u8 *get_bootargs_cmdline(void)
+static __init const u8 *get_bootargs_cmdline(const void *fdt, int node)
 {
+	static char const bootargs[] __initconst = "bootargs";
 	const u8 *prop;
-	void *fdt;
-	int node;
 
-	fdt = get_early_fdt_ptr();
-	if (!fdt)
-		return NULL;
-
-	node = fdt_path_offset(fdt, "/chosen");
 	if (node < 0)
 		return NULL;
 
-	prop = fdt_getprop(fdt, node, "bootargs", NULL);
+	prop = fdt_getprop(fdt, node, bootargs, NULL);
 	if (!prop)
 		return NULL;
 
 	return strlen(prop) ? prop : NULL;
 }
 
-static __init void parse_cmdline(void)
+static __init void parse_cmdline(const void *fdt, int chosen)
 {
-	const u8 *prop = get_bootargs_cmdline();
+	static char const cmdline[] __initconst = CONFIG_CMDLINE;
+	const u8 *prop = get_bootargs_cmdline(fdt, chosen);
 
 	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
-		__parse_cmdline(CONFIG_CMDLINE, true);
+		__parse_cmdline(cmdline, true);
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
 		__parse_cmdline(prop, true);
 }
 
-/* Keep checkers quiet */
-void init_feature_override(u64 boot_status);
-
-asmlinkage void __init init_feature_override(u64 boot_status)
+void __init init_feature_override(u64 boot_status, const void *fdt,
+				  int chosen)
 {
 	struct arm64_ftr_override *override;
 	const struct ftr_set_desc *reg;
@@ -364,7 +383,7 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 
 	__boot_status = boot_status;
 
-	parse_cmdline();
+	parse_cmdline(fdt, chosen);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		reg = prel64_pointer(regs[i].reg);
@@ -372,4 +391,11 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 		dcache_clean_inval_poc((unsigned long)override,
 				       (unsigned long)(override + 1));
 	}
+}
+
+char * __init skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
 }
