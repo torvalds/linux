@@ -156,6 +156,9 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 	TEST_ASSERT_VAL("merge check failed", !ret);
 
 	maps__zput(maps);
+	map__zput(map_kcore1);
+	map__zput(map_kcore2);
+	map__zput(map_kcore3);
 	return TEST_OK;
 }
 
