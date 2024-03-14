@@ -12,7 +12,7 @@
 #define __SOF_AMD_ACP_H
 
 #include <linux/dmi.h>
-
+#include <linux/soundwire/sdw_amd.h>
 #include "../sof-priv.h"
 #include "../sof-audio.h"
 
@@ -31,6 +31,9 @@
 #define ACP_ASSERT_RESET			0x01
 #define ACP_RELEASE_RESET			0x00
 #define ACP_SOFT_RESET_DONE_MASK		0x00010001
+#define ACP_DSP_ASSERT_RESET			0x04
+#define ACP_DSP_RELEASE_RESET			0x00
+#define ACP_DSP_SOFT_RESET_DONE_MASK		0x00050004
 
 #define ACP_DSP_INTR_EN_MASK			0x00000001
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
@@ -93,8 +96,13 @@
 #define PROBE_STATUS_BIT			BIT(31)
 
 #define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_ERROR_IRQ_MASK			BIT(29)
+#define ACP_SDW0_IRQ_MASK			BIT(21)
+#define ACP_SDW1_IRQ_MASK			BIT(2)
+#define SDW_ACPI_ADDR_ACP63			5
 #define ACP_DEFAULT_SRAM_LENGTH			0x00080000
 #define ACP_SRAM_PAGE_COUNT			128
+#define ACP6X_SDW_MAX_MANAGER_COUNT		2
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -184,13 +192,19 @@ struct sof_amd_acp_desc {
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_enb;
+	u32 ext_intr_cntl;
 	u32 ext_intr_stat;
+	u32 ext_intr_stat1;
 	u32 dsp_intr_base;
 	u32 sram_pte_offset;
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
 	u32 fusion_dsp_offset;
 	u32 probe_reg_offset;
+	u32 reg_start_addr;
+	u32 reg_end_addr;
+	u32 sdw_max_link_count;
+	u64 sdw_acpi_dev_addr;
 };
 
 /* Common device data struct for ACP devices */
@@ -199,6 +213,12 @@ struct acp_dev_data {
 	const struct firmware *fw_dbin;
 	/* DMIC device */
 	struct platform_device *dmic_dev;
+	/* mutex lock to protect ACP common registers access */
+	struct mutex acp_lock;
+	/* ACPI information stored between scan and probe steps */
+	struct sdw_amd_acpi_info info;
+	/* sdw context allocated by SoundWire driver */
+	struct sdw_amd_ctx *sdw;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
 	unsigned int fw_sram_data_bin_size;
@@ -207,6 +227,9 @@ struct acp_dev_data {
 	const char *fw_sram_data_bin;
 	u32 fw_bin_page_count;
 	u32 fw_data_bin_page_count;
+	u32 addr;
+	u32 reg_range;
+	u32 blk_type;
 	dma_addr_t sha_dma_addr;
 	u8 *bin_buf;
 	dma_addr_t dma_addr;
@@ -222,6 +245,7 @@ struct acp_dev_data {
 	bool enable_fw_debug;
 	bool is_dram_in_use;
 	bool is_sram_in_use;
+	bool sdw_en_stat;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);

@@ -185,12 +185,14 @@ static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_
 		return rt1318_map;
 }
 
-static int first_spk_init(struct snd_soc_pcm_runtime *rtd)
+int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	const struct snd_soc_dapm_route *rt_amp_map;
 	char codec_name[CODEC_NAME_SIZE];
+	struct snd_soc_dai *dai;
 	int ret;
+	int i;
 
 	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
 
@@ -214,38 +216,14 @@ static int first_spk_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);
-	if (ret)
-		dev_err(rtd->dev, "failed to add first SPK map: %d\n", ret);
+	for_each_rtd_codec_dais(rtd, i, dai) {
+		if (strstr(dai->component->name_prefix, "-1"))
+			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);
+		else if (strstr(dai->component->name_prefix, "-2"))
+			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map + 2, 2);
+	}
 
 	return ret;
-}
-
-static int second_spk_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	const struct snd_soc_dapm_route *rt_amp_map;
-	char codec_name[CODEC_NAME_SIZE];
-	int ret;
-
-	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map + 2, 2);
-	if (ret)
-		dev_err(rtd->dev, "failed to add second SPK map: %d\n", ret);
-
-	return ret;
-}
-
-static int all_spk_init(struct snd_soc_pcm_runtime *rtd)
-{
-	int ret;
-
-	ret = first_spk_init(rtd);
-	if (ret)
-		return ret;
-
-	return second_spk_init(rtd);
 }
 
 static int rt1308_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -317,8 +295,6 @@ int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 		return 0;
 
 	info->amp_num++;
-	if (info->amp_num == 1)
-		dai_links->init = first_spk_init;
 
 	if (info->amp_num == 2) {
 		sdw_dev1 = bus_find_device_by_name(&sdw_bus_type, NULL, dai_links->codecs[0].name);
@@ -342,17 +318,6 @@ int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 			return ret;
 		}
 		ctx->amp_dev2 = sdw_dev2;
-
-		/*
-		 * if two amps are in one dai link, the init function
-		 * in this dai link will be first set for the first speaker,
-		 * and it should be reset to initialize all speakers when
-		 * the second speaker is found.
-		 */
-		if (dai_links->init)
-			dai_links->init = all_spk_init;
-		else
-			dai_links->init = second_spk_init;
 	}
 
 	return 0;

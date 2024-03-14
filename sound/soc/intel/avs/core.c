@@ -69,9 +69,14 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
 
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable)
 {
-	u32 value = enable ? AZX_VS_EM2_L1SEN : 0;
-
-	snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN, value);
+	if (enable) {
+		if (atomic_inc_and_test(&adev->l1sen_counter))
+			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN,
+					      AZX_VS_EM2_L1SEN);
+	} else {
+		if (atomic_dec_return(&adev->l1sen_counter) == -1)
+			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN, 0);
+	}
 }
 
 static int avs_hdac_bus_init_streams(struct hdac_bus *bus)
@@ -144,7 +149,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	/* configure effectively creates new ASoC component */
 	ret = snd_hda_codec_configure(codec);
 	if (ret < 0) {
-		dev_err(bus->dev, "failed to config codec %d\n", ret);
+		dev_warn(bus->dev, "failed to config codec #%d: %d\n", addr, ret);
 		return ret;
 	}
 
@@ -153,15 +158,16 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 
 static void avs_hdac_bus_probe_codecs(struct hdac_bus *bus)
 {
-	int c;
+	int ret, c;
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < HDA_MAX_CODECS; c++) {
 		if (!(bus->codec_mask & BIT(c)))
 			continue;
 
-		if (!probe_codec(bus, c))
-			/* success, continue probing */
+		ret = probe_codec(bus, c);
+		/* Ignore codecs with no supporting driver. */
+		if (!ret || ret == -ENODEV)
 			continue;
 
 		/*
@@ -314,6 +320,20 @@ static irqreturn_t hdac_bus_irq_thread(int irq, void *context)
 	spin_unlock_irqrestore(&bus->reg_lock, flags);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+
+	return avs_dsp_op(adev, irq_handler);
+}
+
+static irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+
+	return avs_dsp_op(adev, irq_thread);
 }
 
 static int avs_hdac_acquire_irq(struct avs_dev *adev)
@@ -725,37 +745,106 @@ static const struct dev_pm_ops avs_dev_pm = {
 	SET_RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
 };
 
+static const struct avs_sram_spec skl_sram_spec = {
+	.base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+	.window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
+	.rom_status_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_sram_spec apl_sram_spec = {
+	.base_offset = APL_ADSP_SRAM_BASE_OFFSET,
+	.window_size = APL_ADSP_SRAM_WINDOW_SIZE,
+	.rom_status_offset = APL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_hipc_spec skl_hipc_spec = {
+	.req_offset = SKL_ADSP_REG_HIPCI,
+	.req_ext_offset = SKL_ADSP_REG_HIPCIE,
+	.req_busy_mask = SKL_ADSP_HIPCI_BUSY,
+	.ack_offset = SKL_ADSP_REG_HIPCIE,
+	.ack_done_mask = SKL_ADSP_HIPCIE_DONE,
+	.rsp_offset = SKL_ADSP_REG_HIPCT,
+	.rsp_busy_mask = SKL_ADSP_HIPCT_BUSY,
+	.ctl_offset = SKL_ADSP_REG_HIPCCTL,
+};
+
+static const struct avs_hipc_spec cnl_hipc_spec = {
+	.req_offset = CNL_ADSP_REG_HIPCIDR,
+	.req_ext_offset = CNL_ADSP_REG_HIPCIDD,
+	.req_busy_mask = CNL_ADSP_HIPCIDR_BUSY,
+	.ack_offset = CNL_ADSP_REG_HIPCIDA,
+	.ack_done_mask = CNL_ADSP_HIPCIDA_DONE,
+	.rsp_offset = CNL_ADSP_REG_HIPCTDR,
+	.rsp_busy_mask = CNL_ADSP_HIPCTDR_BUSY,
+	.ctl_offset = CNL_ADSP_REG_HIPCCTL,
+};
+
 static const struct avs_spec skl_desc = {
 	.name = "skl",
-	.min_fw_version = {
-		.major = 9,
-		.minor = 21,
-		.hotfix = 0,
-		.build = 4732,
-	},
-	.dsp_ops = &skl_dsp_ops,
+	.min_fw_version = { 9, 21, 0, 4732 },
+	.dsp_ops = &avs_skl_dsp_ops,
 	.core_init_mask = 1,
 	.attributes = AVS_PLATATTR_CLDMA,
-	.sram_base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
-	.sram_window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status = SKL_ADSP_SRAM_BASE_OFFSET,
+	.sram = &skl_sram_spec,
+	.hipc = &skl_hipc_spec,
 };
 
 static const struct avs_spec apl_desc = {
 	.name = "apl",
-	.min_fw_version = {
-		.major = 9,
-		.minor = 22,
-		.hotfix = 1,
-		.build = 4323,
-	},
-	.dsp_ops = &apl_dsp_ops,
+	.min_fw_version = { 9, 22, 1, 4323 },
+	.dsp_ops = &avs_apl_dsp_ops,
 	.core_init_mask = 3,
 	.attributes = AVS_PLATATTR_IMR,
-	.sram_base_offset = APL_ADSP_SRAM_BASE_OFFSET,
-	.sram_window_size = APL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status = APL_ADSP_SRAM_BASE_OFFSET,
+	.sram = &apl_sram_spec,
+	.hipc = &skl_hipc_spec,
 };
+
+static const struct avs_spec cnl_desc = {
+	.name = "cnl",
+	.min_fw_version = { 10, 23, 0, 5314 },
+	.dsp_ops = &avs_cnl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_IMR,
+	.sram = &apl_sram_spec,
+	.hipc = &cnl_hipc_spec,
+};
+
+static const struct avs_spec icl_desc = {
+	.name = "icl",
+	.min_fw_version = { 10, 23, 0, 5040 },
+	.dsp_ops = &avs_icl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_IMR,
+	.sram = &apl_sram_spec,
+	.hipc = &cnl_hipc_spec,
+};
+
+static const struct avs_spec jsl_desc = {
+	.name = "jsl",
+	.min_fw_version = { 10, 26, 0, 5872 },
+	.dsp_ops = &avs_icl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_IMR,
+	.sram = &apl_sram_spec,
+	.hipc = &cnl_hipc_spec,
+};
+
+#define AVS_TGL_BASED_SPEC(sname)		\
+static const struct avs_spec sname##_desc = {	\
+	.name = #sname,				\
+	.min_fw_version = { 10,	29, 0, 5646 },	\
+	.dsp_ops = &avs_tgl_dsp_ops,		\
+	.core_init_mask = 1,			\
+	.attributes = AVS_PLATATTR_IMR,		\
+	.sram = &apl_sram_spec,			\
+	.hipc = &cnl_hipc_spec,			\
+}
+
+AVS_TGL_BASED_SPEC(lkf);
+AVS_TGL_BASED_SPEC(tgl);
+AVS_TGL_BASED_SPEC(ehl);
+AVS_TGL_BASED_SPEC(adl);
+AVS_TGL_BASED_SPEC(adl_n);
 
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
@@ -766,6 +855,32 @@ static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_CML_S, &skl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_APL, &apl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_GML, &apl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_LP,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_H,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_LP,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_H,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RKL_S,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ICL_LP,	&icl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ICL_N,	&icl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ICL_H,	&icl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_JSL_N,	&jsl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_LKF,	&lkf_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_TGL_LP,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_TGL_H,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_R,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_EHL_0,	&ehl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_EHL_3,	&ehl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_S,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_P,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_PS,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_M,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_PX,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_N,	&adl_n_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_S,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_P_0,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_P_1,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_M,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_PX,	&adl_desc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, avs_ids);
@@ -776,6 +891,7 @@ static struct pci_driver avs_pci_driver = {
 	.probe = avs_pci_probe,
 	.remove = avs_pci_remove,
 	.shutdown = avs_pci_shutdown,
+	.dev_groups = avs_attr_groups,
 	.driver = {
 		.pm = &avs_dev_pm,
 	},

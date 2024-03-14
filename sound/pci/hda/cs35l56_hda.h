@@ -42,7 +42,7 @@ struct cs35l56_hda {
 
 extern const struct dev_pm_ops cs35l56_hda_pm_ops;
 
-int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id);
+int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id);
 void cs35l56_hda_remove(struct device *dev);
 
 #endif /*__CS35L56_HDA_H__*/

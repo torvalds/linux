@@ -5042,6 +5042,7 @@ F:	include/linux/mfd/cs42l43*
 F:	include/sound/cs*
 F:	sound/pci/hda/cirrus*
 F:	sound/pci/hda/cs*
+F:	sound/pci/hda/hda_component*
 F:	sound/pci/hda/hda_cs_dsp_ctl.*
 F:	sound/soc/codecs/cs*
 
@@ -20514,6 +20515,12 @@ F:	include/sound/compress_driver.h
 F:	include/uapi/sound/compress_*
 F:	sound/core/compress_offload.c
 F:	sound/soc/soc-compress.c
+
+SOUND - CORE KUNIT TEST
+M:	Ivan Orlov <ivan.orlov0322@gmail.com>
+L:	linux-sound@vger.kernel.org
+S:	Supported
+F:	sound/core/sound_kunit.c
 
 SOUND - DMAENGINE HELPERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
