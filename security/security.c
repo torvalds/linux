@@ -780,12 +780,14 @@ static int lsm_superblock_alloc(struct super_block *sb)
  * @id: LSM id
  * @flags: LSM defined flags
  *
- * Fill all of the fields in a userspace lsm_ctx structure.
+ * Fill all of the fields in a userspace lsm_ctx structure.  If @uctx is NULL
+ * simply calculate the required size to output via @utc_len and return
+ * success.
  *
  * Returns 0 on success, -E2BIG if userspace buffer is not large enough,
  * -EFAULT on a copyout error, -ENOMEM if memory can't be allocated.
  */
-int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, size_t *uctx_len,
+int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, u32 *uctx_len,
 		      void *val, size_t val_len,
 		      u64 id, u64 flags)
 {
@@ -798,6 +800,10 @@ int lsm_fill_user_ctx(struct lsm_ctx __user *uctx, size_t *uctx_len,
 		rc = -E2BIG;
 		goto out;
 	}
+
+	/* no buffer - return success/0 and set @uctx_len to the req size */
+	if (!uctx)
+		goto out;
 
 	nctx = kzalloc(nctx_len, GFP_KERNEL);
 	if (nctx == NULL) {
@@ -3931,14 +3937,14 @@ EXPORT_SYMBOL(security_d_instantiate);
  * If @size is insufficient to contain the data -E2BIG is returned.
  */
 int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
-			 size_t __user *size, u32 flags)
+			 u32 __user *size, u32 flags)
 {
 	struct security_hook_list *hp;
 	struct lsm_ctx lctx = { .id = LSM_ID_UNDEF, };
 	u8 __user *base = (u8 __user *)uctx;
-	size_t total = 0;
-	size_t entrysize;
-	size_t left;
+	u32 entrysize;
+	u32 total = 0;
+	u32 left;
 	bool toobig = false;
 	bool single = false;
 	int count = 0;
@@ -4024,7 +4030,7 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
  * LSM specific failure.
  */
 int security_setselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
-			 size_t size, u32 flags)
+			 u32 size, u32 flags)
 {
 	struct security_hook_list *hp;
 	struct lsm_ctx *lctx;
