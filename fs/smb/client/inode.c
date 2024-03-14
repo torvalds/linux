@@ -401,7 +401,6 @@ cifs_get_file_info_unix(struct file *filp)
 		cifs_unix_basic_to_fattr(&fattr, &find_data, cifs_sb);
 	} else if (rc == -EREMOTE) {
 		cifs_create_junction_fattr(&fattr, inode->i_sb);
-		rc = 0;
 	} else
 		goto cifs_gfiunix_out;
 
@@ -846,7 +845,6 @@ cifs_get_file_info(struct file *filp)
 		break;
 	case -EREMOTE:
 		cifs_create_junction_fattr(&fattr, inode->i_sb);
-		rc = 0;
 		break;
 	case -EOPNOTSUPP:
 	case -EINVAL:
