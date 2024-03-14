@@ -5,8 +5,8 @@
  * Test for KVM_CAP_EXIT_ON_EMULATION_FAILURE.
  */
 #include "flds_emulation.h"
-
 #include "test_util.h"
+#include "ucall_common.h"
 
 #define MMIO_GPA	0x700000000
 #define MMIO_GVA	MMIO_GPA

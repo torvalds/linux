@@ -17,6 +17,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #define NR_VCPUS		4
 #define ST_GPA_BASE		(1 << 30)

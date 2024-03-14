@@ -17,8 +17,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "kvm_util.h"
 #include "test_util.h"
-#include "kvm_util_base.h"
 
 static void test_file_read_write(int fd)
 {

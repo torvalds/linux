@@ -26,6 +26,7 @@
 #include <sys/sysinfo.h>
 
 #include "timer_test.h"
+#include "ucall_common.h"
 
 struct test_args test_args = {
 	.nr_vcpus = NR_VCPUS_DEF,

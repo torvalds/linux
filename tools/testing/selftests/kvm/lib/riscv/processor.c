@@ -10,6 +10,7 @@
 
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #define DEFAULT_RISCV_GUEST_STACK_VADDR_MIN	0xac0000
 

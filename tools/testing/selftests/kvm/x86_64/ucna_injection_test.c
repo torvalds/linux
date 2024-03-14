@@ -22,7 +22,6 @@
 #include <string.h>
 #include <time.h>
 
-#include "kvm_util_base.h"
 #include "kvm_util.h"
 #include "mce.h"
 #include "processor.h"

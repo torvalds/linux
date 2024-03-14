@@ -18,6 +18,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "guest_modes.h"
+#include "ucall_common.h"
 
 #define TEST_MEM_SLOT_INDEX             1
 

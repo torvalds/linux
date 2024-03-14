@@ -18,7 +18,8 @@
 #include <linux/kvm_para.h>
 #include <linux/stringify.h>
 
-#include "../kvm_util.h"
+#include "kvm_util.h"
+#include "ucall_common.h"
 
 extern bool host_cpu_is_intel;
 extern bool host_cpu_is_amd;

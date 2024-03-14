@@ -8,6 +8,7 @@
 #include "kvm_util.h"
 #include "memstress.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 struct memstress_args memstress_args;
 

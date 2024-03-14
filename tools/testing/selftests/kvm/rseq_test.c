@@ -27,6 +27,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "test_util.h"
+#include "ucall_common.h"
 
 /*
  * Any bug related to task migration is likely to be timing-dependent; perform

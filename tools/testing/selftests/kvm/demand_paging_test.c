@@ -19,6 +19,7 @@
 #include "test_util.h"
 #include "memstress.h"
 #include "guest_modes.h"
+#include "ucall_common.h"
 #include "userfaultfd_util.h"
 
 #ifdef __NR_userfaultfd
