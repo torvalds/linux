@@ -1147,7 +1147,7 @@ static int cti_suspend(struct device *dev)
 	int rc = 0;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev);
 
-	if ((mem_sleep_current == PM_SUSPEND_MEM)
+	if (pm_suspend_via_firmware()
 		&& drvdata->config.hw_enabled) {
 		drvdata->config.hw_enabled_store = drvdata->config.hw_enabled;
 		rc = cti_disable(drvdata->csdev);
@@ -1160,7 +1160,7 @@ static int cti_resume(struct device *dev)
 	int rc = 0;
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev);
 
-	if ((mem_sleep_current == PM_SUSPEND_MEM)
+	if (pm_suspend_via_firmware()
 		&& drvdata->config.hw_enabled_store) {
 		rc = cti_enable(drvdata->csdev);
 		drvdata->config.hw_enabled_store = false;
