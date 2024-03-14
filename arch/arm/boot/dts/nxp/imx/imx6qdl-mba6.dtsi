@@ -298,6 +298,7 @@
 		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		vdd-supply = <&reg_mba6_3p3v>;
 
 		ethernet@1 {
 			compatible = "usb424,9e00";
