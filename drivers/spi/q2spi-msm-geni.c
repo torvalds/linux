@@ -962,6 +962,12 @@ struct q2spi_cr_packet *q2spi_prepare_cr_pkt(struct q2spi_geni *q2spi)
 	u8 *ptr;
 
 	q2spi_cr_hdr_event = &q2spi->q2spi_cr_hdr_event;
+	if (q2spi_cr_hdr_event->byte0_len > 4) {
+		Q2SPI_ERROR(q2spi, "%s Err num of valid crs:%d\n", __func__,
+			    q2spi_cr_hdr_event->byte0_len);
+		return NULL;
+	}
+
 	q2spi_cr_pkt = q2spi_kzalloc(q2spi, sizeof(struct q2spi_cr_packet), __LINE__);
 	if (!q2spi_cr_pkt) {
 		Q2SPI_ERROR(q2spi, "%s Err q2spi_cr_pkt alloc failed\n", __func__);
@@ -1011,6 +1017,7 @@ struct q2spi_cr_packet *q2spi_prepare_cr_pkt(struct q2spi_geni *q2spi)
 			q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr_3 >> 5) & 0x3;
 			q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr_3 >> 7) & 0x1;
 		}
+
 		Q2SPI_DEBUG(q2spi, "%s CR HDR[%d] cmd/opcode:%d C_flow:%d type:%d parity:%d\n",
 			    __func__, i, q2spi_cr_pkt->cr_hdr[i].cmd,
 			    q2spi_cr_pkt->cr_hdr[i].flow, q2spi_cr_pkt->cr_hdr[i].type,
@@ -1048,11 +1055,12 @@ struct q2spi_cr_packet *q2spi_prepare_cr_pkt(struct q2spi_geni *q2spi)
 				    q2spi_cr_pkt->var3_pkt[i].dw_len_part1,
 				    q2spi_cr_pkt->var3_pkt[i].dw_len_part2);
 		} else if (q2spi_cr_pkt->cr_hdr[i].cmd == CR_EXTENSION) {
+			complete_all(&q2spi->wait_for_ext_cr);
 			q2spi_cr_pkt->extension_pkt.cmd = q2spi_cr_pkt->ext_cr_hdr.cmd;
 			q2spi_cr_pkt->extension_pkt.dw_len = q2spi_cr_pkt->ext_cr_hdr.dw_len;
 			q2spi_cr_pkt->extension_pkt.parity = q2spi_cr_pkt->ext_cr_hdr.parity;
 			ptr += q2spi_cr_pkt->extension_pkt.dw_len * 4 + CR_EXTENSION_DATA_BYTES;
-			Q2SPI_DEBUG(q2spi, "%s Extension cmd:%d dwlen:%d parity:%d\n", __func__,
+			Q2SPI_DEBUG(q2spi, "%s Extension CR cmd:%d dwlen:%d parity:%d\n", __func__,
 				    q2spi_cr_pkt->extension_pkt.cmd,
 				    q2spi_cr_pkt->extension_pkt.dw_len,
 				    q2spi_cr_pkt->extension_pkt.parity);
@@ -3653,9 +3661,8 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 	bool sys_mem_access = false;
 	long timeout = 0;
 
-	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d q2spi:%p\n", __func__, current->pid, q2spi);
-	Q2SPI_DEBUG(q2spi, "%s PM get_sync count:%d\n", __func__,
-		    atomic_read(&q2spi->dev->power.usage_count));
+	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d q2spi:%p PM get_sync count:%d\n", __func__,
+		    current->pid, q2spi, atomic_read(&q2spi->dev->power.usage_count));
 	ret = pm_runtime_get_sync(q2spi->dev);
 	if (ret < 0) {
 		Q2SPI_ERROR(q2spi, "%s Err for PM get\n", __func__);
@@ -3669,14 +3676,14 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 	ret = check_gsi_transfer_completion_db_rx(q2spi);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "%s db rx completion timeout: %d\n", __func__, ret);
-		return;
+		goto exit_doorbell_work;
 	}
 
 	/* Extract cr hdr info from doorbell rx dma buffer */
 	q2spi_cr_pkt = q2spi_prepare_cr_pkt(q2spi);
 	if (!q2spi_cr_pkt) {
 		Q2SPI_DEBUG(q2spi, "Err q2spi_prepare_cr_pkt failed\n");
-		return;
+		goto exit_doorbell_work;
 	}
 
 	q2spi_unmap_doorbell_rx_buf(q2spi);
@@ -3728,8 +3735,7 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 				q2spi_complete_bulk_status(q2spi, q2spi_cr_pkt, i);
 			}
 		} else if (q2spi_cr_pkt->cr_hdr[i].cmd == CR_EXTENSION) {
-			Q2SPI_DEBUG(q2spi, "%s Extension CR from Client\n", __func__);
-			complete_all(&q2spi->wait_for_ext_cr);
+			Q2SPI_DEBUG(q2spi, "%s Extended CR from Client\n", __func__);
 		}
 
 		if (sys_mem_access) {
@@ -3740,7 +3746,7 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 			if (timeout <= 0) {
 				Q2SPI_DEBUG(q2spi, "%s Err wait interrupted ret:%d\n",
 						__func__, ret);
-				return;
+				goto exit_doorbell_work;
 			}
 		}
 	}
@@ -3749,11 +3755,10 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 	 * get one rx buffer from allocated pool and
 	 * map to gsi to ready for next doorbell.
 	 */
-	ret = q2spi_map_doorbell_rx_buf(q2spi);
-	if (ret) {
+	if (q2spi_map_doorbell_rx_buf(q2spi))
 		Q2SPI_DEBUG(q2spi, "Err failed to alloc RX DMA buf");
-		return;
-	}
+
+exit_doorbell_work:
 	pm_runtime_mark_last_busy(q2spi->dev);
 	Q2SPI_DEBUG(q2spi, "%s PM before put_autosuspend count:%d\n",
 		    __func__, atomic_read(&q2spi->dev->power.usage_count));
