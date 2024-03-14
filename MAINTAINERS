@@ -3389,11 +3389,15 @@ F:	drivers/base/auxiliary.c
 F:	include/linux/auxiliary_bus.h
 
 AUXILIARY DISPLAY DRIVERS
-M:	Miguel Ojeda <ojeda@kernel.org>
-S:	Maintained
+M:	Andy Shevchenko <andy@kernel.org>
+R:	Geert Uytterhoeven <geert@linux-m68k.org>
+S:	Odd Fixes
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-auxdisplay.git
 F:	Documentation/devicetree/bindings/auxdisplay/
 F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
+F:	include/uapi/linux/map_to_14segment.h
+F:	include/uapi/linux/map_to_7segment.h
 
 AVIA HX711 ANALOG DIGITAL CONVERTER IIO DRIVER
 M:	Andreas Klinger <ak@it-klinger.de>
