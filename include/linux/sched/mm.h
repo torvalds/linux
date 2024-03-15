@@ -236,15 +236,24 @@ static inline gfp_t current_gfp_context(gfp_t flags)
 {
 	unsigned int pflags = READ_ONCE(current->flags);
 
-	if (unlikely(pflags & (PF_MEMALLOC_NOIO | PF_MEMALLOC_NOFS | PF_MEMALLOC_PIN))) {
+	if (unlikely(pflags & (PF_MEMALLOC_NOIO |
+			       PF_MEMALLOC_NOFS |
+			       PF_MEMALLOC_NORECLAIM |
+			       PF_MEMALLOC_NOWARN |
+			       PF_MEMALLOC_PIN))) {
 		/*
-		 * NOIO implies both NOIO and NOFS and it is a weaker context
-		 * so always make sure it makes precedence
+		 * Stronger flags before weaker flags:
+		 * NORECLAIM implies NOIO, which in turn implies NOFS
 		 */
-		if (pflags & PF_MEMALLOC_NOIO)
+		if (pflags & PF_MEMALLOC_NORECLAIM)
+			flags &= ~__GFP_DIRECT_RECLAIM;
+		else if (pflags & PF_MEMALLOC_NOIO)
 			flags &= ~(__GFP_IO | __GFP_FS);
 		else if (pflags & PF_MEMALLOC_NOFS)
 			flags &= ~__GFP_FS;
+
+		if (pflags & PF_MEMALLOC_NOWARN)
+			flags |= __GFP_NOWARN;
 
 		if (pflags & PF_MEMALLOC_PIN)
 			flags &= ~__GFP_MOVABLE;
@@ -307,6 +316,24 @@ static inline void might_alloc(gfp_t gfp_mask)
 }
 
 /**
+ * memalloc_flags_save - Add a PF_* flag to current->flags, save old value
+ *
+ * This allows PF_* flags to be conveniently added, irrespective of current
+ * value, and then the old version restored with memalloc_flags_restore().
+ */
+static inline unsigned memalloc_flags_save(unsigned flags)
+{
+	unsigned oldflags = ~current->flags & flags;
+	current->flags |= flags;
+	return oldflags;
+}
+
+static inline void memalloc_flags_restore(unsigned flags)
+{
+	current->flags &= ~flags;
+}
+
+/**
  * memalloc_noio_save - Marks implicit GFP_NOIO allocation scope.
  *
  * This functions marks the beginning of the GFP_NOIO allocation scope.
@@ -320,9 +347,7 @@ static inline void might_alloc(gfp_t gfp_mask)
  */
 static inline unsigned int memalloc_noio_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC_NOIO;
-	current->flags |= PF_MEMALLOC_NOIO;
-	return flags;
+	return memalloc_flags_save(PF_MEMALLOC_NOIO);
 }
 
 /**
@@ -335,7 +360,7 @@ static inline unsigned int memalloc_noio_save(void)
  */
 static inline void memalloc_noio_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
+	memalloc_flags_restore(flags);
 }
 
 /**
@@ -352,9 +377,7 @@ static inline void memalloc_noio_restore(unsigned int flags)
  */
 static inline unsigned int memalloc_nofs_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC_NOFS;
-	current->flags |= PF_MEMALLOC_NOFS;
-	return flags;
+	return memalloc_flags_save(PF_MEMALLOC_NOFS);
 }
 
 /**
@@ -367,7 +390,7 @@ static inline unsigned int memalloc_nofs_save(void)
  */
 static inline void memalloc_nofs_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC_NOFS) | flags;
+	memalloc_flags_restore(flags);
 }
 
 /**
@@ -395,9 +418,7 @@ static inline void memalloc_nofs_restore(unsigned int flags)
  */
 static inline unsigned int memalloc_noreclaim_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC;
-	current->flags |= PF_MEMALLOC;
-	return flags;
+	return memalloc_flags_save(PF_MEMALLOC);
 }
 
 /**
@@ -410,7 +431,7 @@ static inline unsigned int memalloc_noreclaim_save(void)
  */
 static inline void memalloc_noreclaim_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC) | flags;
+	memalloc_flags_restore(flags);
 }
 
 /**
@@ -425,10 +446,7 @@ static inline void memalloc_noreclaim_restore(unsigned int flags)
  */
 static inline unsigned int memalloc_pin_save(void)
 {
-	unsigned int flags = current->flags & PF_MEMALLOC_PIN;
-
-	current->flags |= PF_MEMALLOC_PIN;
-	return flags;
+	return memalloc_flags_save(PF_MEMALLOC_PIN);
 }
 
 /**
@@ -441,7 +459,7 @@ static inline unsigned int memalloc_pin_save(void)
  */
 static inline void memalloc_pin_restore(unsigned int flags)
 {
-	current->flags = (current->flags & ~PF_MEMALLOC_PIN) | flags;
+	memalloc_flags_restore(flags);
 }
 
 #ifdef CONFIG_MEMCG

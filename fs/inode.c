@@ -2033,7 +2033,7 @@ static int __remove_privs(struct mnt_idmap *idmap,
 	return notify_change(idmap, dentry, &newattrs, NULL);
 }
 
-static int __file_remove_privs(struct file *file, unsigned int flags)
+int file_remove_privs_flags(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = file_inode(file);
@@ -2058,6 +2058,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 		inode_has_no_xattr(inode);
 	return error;
 }
+EXPORT_SYMBOL_GPL(file_remove_privs_flags);
 
 /**
  * file_remove_privs - remove special file privileges (suid, capabilities)
@@ -2070,7 +2071,7 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
  */
 int file_remove_privs(struct file *file)
 {
-	return __file_remove_privs(file, 0);
+	return file_remove_privs_flags(file, 0);
 }
 EXPORT_SYMBOL(file_remove_privs);
 
@@ -2163,7 +2164,7 @@ static int file_modified_flags(struct file *file, int flags)
 	 * Clear the security bits if the process is not being run by root.
 	 * This keeps people from modifying setuid and setgid binaries.
 	 */
-	ret = __file_remove_privs(file, flags);
+	ret = file_remove_privs_flags(file, flags);
 	if (ret)
 		return ret;
 

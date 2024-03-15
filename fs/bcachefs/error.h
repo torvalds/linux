@@ -30,7 +30,7 @@ struct work_struct;
 
 bool bch2_inconsistent_error(struct bch_fs *);
 
-void bch2_topology_error(struct bch_fs *);
+int bch2_topology_error(struct bch_fs *);
 
 #define bch2_fs_inconsistent(c, ...)					\
 ({									\

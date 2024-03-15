@@ -119,6 +119,8 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 
 int bch2_btree_split_leaf(struct btree_trans *, btree_path_idx_t, unsigned);
 
+int bch2_btree_increase_depth(struct btree_trans *, btree_path_idx_t, unsigned);
+
 int __bch2_foreground_maybe_merge(struct btree_trans *, btree_path_idx_t,
 				  unsigned, unsigned, enum btree_node_sibling);
 
