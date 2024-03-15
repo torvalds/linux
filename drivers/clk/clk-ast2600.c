@@ -19,7 +19,7 @@
  * This includes the gates (configured from aspeed_g6_gates), plus the
  * explicitly-configured clocks (ASPEED_CLK_HPLL and up).
  */
-#define ASPEED_G6_NUM_CLKS		72
+#define ASPEED_G6_NUM_CLKS		73
 
 #define ASPEED_G6_SILICON_REV		0x014
 #define CHIP_REVISION_ID			GENMASK(23, 16)
@@ -157,7 +157,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_UART11CLK]	= { 59,  -1, "uart11clk-gate",	"uartx", 0 },	/* UART11 */
 	[ASPEED_CLK_GATE_UART12CLK]	= { 60,  -1, "uart12clk-gate",	"uartx", 0 },	/* UART12 */
 	[ASPEED_CLK_GATE_UART13CLK]	= { 61,  -1, "uart13clk-gate",	"uartx", 0 },	/* UART13 */
-	[ASPEED_CLK_GATE_FSICLK]	= { 62,  59, "fsiclk-gate",	NULL,	 0 },	/* FSI */
+	[ASPEED_CLK_GATE_FSICLK]	= { 62,  59, "fsiclk-gate",	"fsiclk", 0 },	/* FSI */
 };
 
 static const struct clk_div_table ast2600_eclk_div_table[] = {
@@ -821,6 +821,9 @@ static void __init aspeed_g6_cc(struct regmap *map)
 
 	hw = clk_hw_register_fixed_factor(NULL, "i3cclk", "apll", 0, 1, 8);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_I3C] = hw;
+
+	hw = clk_hw_register_fixed_factor(NULL, "fsiclk", "apll", 0, 1, 4);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_FSI] = hw;
 };
 
 static void __init aspeed_g6_cc_init(struct device_node *np)
