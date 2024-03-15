@@ -55,7 +55,7 @@ void kasan_set_track(struct kasan_track *track, depot_stack_handle_t stack)
 	u64 ts_nsec = local_clock();
 
 	track->cpu = cpu;
-	track->timestamp = ts_nsec >> 3;
+	track->timestamp = ts_nsec >> 9;
 #endif /* CONFIG_KASAN_EXTRA_INFO */
 	track->pid = current->pid;
 	track->stack = stack;

@@ -258,7 +258,6 @@ extern long vread_iter(struct iov_iter *iter, const char *addr, size_t count);
 /*
  *	Internals.  Don't use..
  */
-extern struct list_head vmap_area_list;
 extern __init void vm_area_add_early(struct vm_struct *vm);
 extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
 

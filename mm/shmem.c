@@ -4298,6 +4298,24 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
 	mpol_put(mpol);
 	if (sbinfo->noswap)
 		seq_printf(seq, ",noswap");
+#ifdef CONFIG_TMPFS_QUOTA
+	if (sb_has_quota_active(root->d_sb, USRQUOTA))
+		seq_printf(seq, ",usrquota");
+	if (sb_has_quota_active(root->d_sb, GRPQUOTA))
+		seq_printf(seq, ",grpquota");
+	if (sbinfo->qlimits.usrquota_bhardlimit)
+		seq_printf(seq, ",usrquota_block_hardlimit=%lld",
+			   sbinfo->qlimits.usrquota_bhardlimit);
+	if (sbinfo->qlimits.grpquota_bhardlimit)
+		seq_printf(seq, ",grpquota_block_hardlimit=%lld",
+			   sbinfo->qlimits.grpquota_bhardlimit);
+	if (sbinfo->qlimits.usrquota_ihardlimit)
+		seq_printf(seq, ",usrquota_inode_hardlimit=%lld",
+			   sbinfo->qlimits.usrquota_ihardlimit);
+	if (sbinfo->qlimits.grpquota_ihardlimit)
+		seq_printf(seq, ",grpquota_inode_hardlimit=%lld",
+			   sbinfo->qlimits.grpquota_ihardlimit);
+#endif
 	return 0;
 }
 

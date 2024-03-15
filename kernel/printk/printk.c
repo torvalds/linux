@@ -34,7 +34,7 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
-#include <linux/crash_core.h>
+#include <linux/vmcore_info.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
 #include <linux/syslog.h>
@@ -957,7 +957,7 @@ const struct file_operations kmsg_fops = {
 	.release = devkmsg_release,
 };
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 /*
  * This appends the listed symbols to /proc/vmcore
  *

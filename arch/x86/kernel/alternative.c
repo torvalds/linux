@@ -1804,7 +1804,7 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	 * restoring the previous mm.
 	 */
 	if (this_cpu_read(cpu_tlbstate_shared.is_lazy))
-		leave_mm(smp_processor_id());
+		leave_mm();
 
 	temp_state.mm = this_cpu_read(cpu_tlbstate.loaded_mm);
 	switch_mm_irqs_off(NULL, mm, current);

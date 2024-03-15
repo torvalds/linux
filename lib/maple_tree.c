@@ -1307,8 +1307,8 @@ static inline void mas_free(struct ma_state *mas, struct maple_enode *used)
 }
 
 /*
- * mas_node_count() - Check if enough nodes are allocated and request more if
- * there is not enough nodes.
+ * mas_node_count_gfp() - Check if enough nodes are allocated and request more
+ * if there is not enough nodes.
  * @mas: The maple state
  * @count: The number of nodes needed
  * @gfp: the gfp flags
@@ -2271,8 +2271,6 @@ bool mast_spanning_rebalance(struct maple_subtree_state *mast)
 	struct ma_state l_tmp = *mast->orig_l;
 	unsigned char depth = 0;
 
-	r_tmp = *mast->orig_r;
-	l_tmp = *mast->orig_l;
 	do {
 		mas_ascend(mast->orig_r);
 		mas_ascend(mast->orig_l);

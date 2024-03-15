@@ -33,7 +33,7 @@ static int ident_pud_init(struct x86_mapping_info *info, pud_t *pud_page,
 			next = end;
 
 		/* if this is already a gbpage, this portion is already mapped */
-		if (pud_large(*pud))
+		if (pud_leaf(*pud))
 			continue;
 
 		/* Is using a gbpage allowed? */

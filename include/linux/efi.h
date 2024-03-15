@@ -694,6 +694,11 @@ extern struct efi {
 
 extern struct mm_struct efi_mm;
 
+static inline bool mm_is_efi(struct mm_struct *mm)
+{
+	return IS_ENABLED(CONFIG_EFI) && mm == &efi_mm;
+}
+
 static inline int
 efi_guidcmp (efi_guid_t left, efi_guid_t right)
 {
