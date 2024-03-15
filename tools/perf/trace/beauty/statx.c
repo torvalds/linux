@@ -8,7 +8,7 @@
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
 #include <sys/types.h>
-#include <uapi/linux/fcntl.h>
+#include <linux/fcntl.h>
 #include <uapi/linux/stat.h>
 
 size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg)
