@@ -5014,21 +5014,32 @@ static struct dlm_lkb *find_resend_waiter(struct dlm_ls *ls)
 	return lkb;
 }
 
-/* Deal with lookups and lkb's marked RESEND from _pre.  We may now be the
-   master or dir-node for r.  Processing the lkb may result in it being placed
-   back on waiters. */
-
-/* We do this after normal locking has been enabled and any saved messages
-   (in requestqueue) have been processed.  We should be confident that at
-   this point we won't get or process a reply to any of these waiting
-   operations.  But, new ops may be coming in on the rsbs/locks here from
-   userspace or remotely. */
-
-/* there may have been an overlap unlock/cancel prior to recovery or after
-   recovery.  if before, the lkb may still have a pos wait_count; if after, the
-   overlap flag would just have been set and nothing new sent.  we can be
-   confident here than any replies to either the initial op or overlap ops
-   prior to recovery have been received. */
+/*
+ * Forced state reset for locks that were in the middle of remote operations
+ * when recovery happened (i.e. lkbs that were on the waiters list, waiting
+ * for a reply from a remote operation.)  The lkbs remaining on the waiters
+ * list need to be reevaluated; some may need resending to a different node
+ * than previously, and some may now need local handling rather than remote.
+ *
+ * First, the lkb state for the voided remote operation is forcibly reset,
+ * equivalent to what remove_from_waiters() would normally do:
+ * . lkb removed from ls_waiters list
+ * . lkb wait_type cleared
+ * . lkb waiters_count cleared
+ * . lkb ref count decremented for each waiters_count (almost always 1,
+ *   but possibly 2 in case of cancel/unlock overlapping, which means
+ *   two remote replies were being expected for the lkb.)
+ *
+ * Second, the lkb is reprocessed like an original operation would be,
+ * by passing it to _request_lock or _convert_lock, which will either
+ * process the lkb operation locally, or send it to a remote node again
+ * and put the lkb back onto the waiters list.
+ *
+ * When reprocessing the lkb, we may find that it's flagged for an overlapping
+ * force-unlock or cancel, either from before recovery began, or after recovery
+ * finished.  If this is the case, the unlock/cancel is done directly, and the
+ * original operation is not initiated again (no _request_lock/_convert_lock.)
+ */
 
 int dlm_recover_waiters_post(struct dlm_ls *ls)
 {
@@ -5043,6 +5054,11 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 			break;
 		}
 
+		/* 
+		 * Find an lkb from the waiters list that's been affected by
+		 * recovery node changes, and needs to be reprocessed.  Does
+		 * hold_lkb(), adding a refcount.
+		 */
 		lkb = find_resend_waiter(ls);
 		if (!lkb)
 			break;
@@ -5051,6 +5067,11 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 		hold_rsb(r);
 		lock_rsb(r);
 
+		/*
+		 * If the lkb has been flagged for a force unlock or cancel,
+		 * then the reprocessing below will be replaced by just doing
+		 * the unlock/cancel directly.
+		 */
 		mstype = lkb->lkb_wait_type;
 		oc = test_and_clear_bit(DLM_IFL_OVERLAP_CANCEL_BIT,
 					&lkb->lkb_iflags);
@@ -5064,22 +5085,39 @@ int dlm_recover_waiters_post(struct dlm_ls *ls)
 			  r->res_nodeid, lkb->lkb_nodeid, lkb->lkb_wait_nodeid,
 			  dlm_dir_nodeid(r), oc, ou);
 
-		/* At this point we assume that we won't get a reply to any
-		   previous op or overlap op on this lock.  First, do a big
-		   remove_from_waiters() for all previous ops. */
+		/*
+		 * No reply to the pre-recovery operation will now be received,
+		 * so a forced equivalent of remove_from_waiters() is needed to
+		 * reset the waiters state that was in place before recovery.
+		 */
 
 		clear_bit(DLM_IFL_RESEND_BIT, &lkb->lkb_iflags);
+
+		/* Forcibly clear wait_type */
 		lkb->lkb_wait_type = 0;
-		/* drop all wait_count references we still
-		 * hold a reference for this iteration.
+
+		/*
+		 * Forcibly reset wait_count and associated refcount.  The
+		 * wait_count will almost always be 1, but in case of an
+		 * overlapping unlock/cancel it could be 2: see where
+		 * add_to_waiters() finds the lkb is already on the waiters
+		 * list and does lkb_wait_count++; hold_lkb().
 		 */
 		while (lkb->lkb_wait_count) {
 			lkb->lkb_wait_count--;
 			unhold_lkb(lkb);
 		}
+
+		/* Forcibly remove from waiters list */
 		mutex_lock(&ls->ls_waiters_mutex);
 		list_del_init(&lkb->lkb_wait_reply);
 		mutex_unlock(&ls->ls_waiters_mutex);
+
+		/*
+		 * The lkb is now clear of all prior waiters state and can be
+		 * processed locally, or sent to remote node again, or directly
+		 * cancelled/unlocked.
+		 */
 
 		if (oc || ou) {
 			/* do an unlock or cancel instead of resending */
