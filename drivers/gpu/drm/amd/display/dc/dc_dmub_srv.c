@@ -1201,6 +1201,20 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 	return true;
 }
 
+static int count_active_streams(const struct dc *dc)
+{
+	int i, count = 0;
+
+	for (i = 0; i < dc->current_state->stream_count; ++i) {
+		struct dc_stream_state *stream = dc->current_state->streams[i];
+
+		if (stream && !stream->dpms_off)
+			count += 1;
+	}
+
+	return count;
+}
+
 static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 {
 	volatile const struct dmub_shared_state_ips_fw *ips_fw;
@@ -1255,6 +1269,21 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			new_signals.bits.allow_pg = 1;
 			new_signals.bits.allow_ips1 = 1;
 			new_signals.bits.allow_ips2 = 1;
+		} else if (dc->config.disable_ips == DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF) {
+			/* TODO: Move this logic out to hwseq */
+			if (count_active_streams(dc) == 0) {
+				/* IPS2 - Display off */
+				new_signals.bits.allow_pg = 1;
+				new_signals.bits.allow_ips1 = 1;
+				new_signals.bits.allow_ips2 = 1;
+				new_signals.bits.allow_z10 = 1;
+			} else {
+				/* RCG only */
+				new_signals.bits.allow_pg = 0;
+				new_signals.bits.allow_ips1 = 1;
+				new_signals.bits.allow_ips2 = 0;
+				new_signals.bits.allow_z10 = 0;
+			}
 		}
 
 		ips_driver->signals = new_signals;
