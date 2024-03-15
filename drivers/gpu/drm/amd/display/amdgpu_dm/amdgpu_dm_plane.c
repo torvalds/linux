@@ -1197,8 +1197,8 @@ static int amdgpu_dm_plane_atomic_async_check(struct drm_plane *plane,
 	return 0;
 }
 
-static int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
-					       struct dc_cursor_position *position)
+int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+					struct dc_cursor_position *position)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int x, y;

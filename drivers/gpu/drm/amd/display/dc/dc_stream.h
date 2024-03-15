@@ -341,6 +341,9 @@ struct dc_stream_update {
 
 	struct test_pattern *pending_test_pattern;
 	struct dc_crtc_timing_adjust *crtc_timing_adjust;
+
+	struct dc_cursor_attributes *cursor_attributes;
+	struct dc_cursor_position *cursor_position;
 };
 
 bool dc_is_stream_unchanged(
@@ -480,6 +483,15 @@ struct dc_stream_status *dc_stream_get_status(
  * Cursor interfaces - To manages the cursor within a stream
  ******************************************************************************/
 /* TODO: Deprecated once we switch to dc_set_cursor_position */
+
+void program_cursor_attributes(
+	struct dc *dc,
+	struct dc_stream_state *stream);
+
+void program_cursor_position(
+	struct dc *dc,
+	struct dc_stream_state *stream);
+
 bool dc_stream_set_cursor_attributes(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes);

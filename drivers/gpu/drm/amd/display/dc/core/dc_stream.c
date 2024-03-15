@@ -219,10 +219,9 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
-static void program_cursor_attributes(
+void program_cursor_attributes(
 	struct dc *dc,
-	struct dc_stream_state *stream,
-	const struct dc_cursor_attributes *attributes)
+	struct dc_stream_state *stream)
 {
 	int i;
 	struct resource_context *res_ctx;
@@ -318,7 +317,7 @@ bool dc_stream_program_cursor_attributes(
 			reset_idle_optimizations = true;
 		}
 
-		program_cursor_attributes(dc, stream, attributes);
+		program_cursor_attributes(dc, stream);
 
 		/* re-enable idle optimizations if necessary */
 		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
@@ -330,10 +329,9 @@ bool dc_stream_program_cursor_attributes(
 	return false;
 }
 
-static void program_cursor_position(
+void program_cursor_position(
 	struct dc *dc,
-	struct dc_stream_state *stream,
-	const struct dc_cursor_position *position)
+	struct dc_stream_state *stream)
 {
 	int i;
 	struct resource_context *res_ctx;
@@ -410,7 +408,7 @@ bool dc_stream_program_cursor_position(
 			reset_idle_optimizations = true;
 		}
 
-		program_cursor_position(dc, stream, position);
+		program_cursor_position(dc, stream);
 		/* re-enable idle optimizations if necessary */
 		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
 			dc_allow_idle_optimizations(dc, true);
