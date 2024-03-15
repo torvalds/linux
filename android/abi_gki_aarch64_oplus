@@ -53,6 +53,8 @@
   mmc_wait_for_cmd
   __mod_lruvec_state
   __mod_zone_page_state
+  neigh_xmit
+  netif_receive_skb_core
   nf_ct_attach
   nf_ct_delete
   nf_register_net_hook
@@ -79,6 +81,7 @@
   root_mem_cgroup
   rtc_read_alarm
   rtc_set_alarm
+  __rtnl_link_register
   __rtnl_link_unregister
   sdio_memcpy_fromio
   sdio_memcpy_toio
