@@ -249,7 +249,7 @@ static bool dce110_enable_display_power_gating(
 		return false;
 }
 
-static void build_prescale_params(struct ipp_prescale_params *prescale_params,
+static void dce110_prescale_params(struct ipp_prescale_params *prescale_params,
 		const struct dc_plane_state *plane_state)
 {
 	prescale_params->mode = IPP_PRESCALE_MODE_FIXED_UNSIGNED;
@@ -291,7 +291,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 
 	tf = &plane_state->in_transfer_func;
 
-	build_prescale_params(&prescale_params, plane_state);
+	dce110_prescale_params(&prescale_params, plane_state);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
 	if (!plane_state->gamma_correction.is_identity &&
