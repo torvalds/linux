@@ -786,7 +786,7 @@ void gfs2_glock_remove_revoke(struct gfs2_glock *gl)
 {
 	if (atomic_dec_return(&gl->gl_revokes) == 0) {
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
-		gfs2_glock_queue_put(gl);
+		gfs2_glock_put_async(gl);
 	}
 }
 

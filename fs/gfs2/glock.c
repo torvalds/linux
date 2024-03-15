@@ -285,14 +285,6 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	sdp->sd_lockstruct.ls_ops->lm_put_lock(gl);
 }
 
-/*
- * Cause the glock to be put in work queue context.
- */
-void gfs2_glock_queue_put(struct gfs2_glock *gl)
-{
-	gfs2_glock_queue_work(gl, 0);
-}
-
 /**
  * gfs2_glock_put() - Decrement reference count on glock
  * @gl: The glock to put
@@ -305,6 +297,22 @@ void gfs2_glock_put(struct gfs2_glock *gl)
 		return;
 
 	__gfs2_glock_put(gl);
+}
+
+/*
+ * gfs2_glock_put_async - Decrement reference count without sleeping
+ * @gl: The glock to put
+ *
+ * Decrement the reference count on glock immediately unless it is the last
+ * reference.  Defer putting the last reference to work queue context.
+ */
+void gfs2_glock_put_async(struct gfs2_glock *gl)
+{
+	if (lockref_put_or_lock(&gl->gl_lockref))
+		return;
+
+	__gfs2_glock_queue_work(gl, 0);
+	spin_unlock(&gl->gl_lockref.lock);
 }
 
 /**
@@ -2529,8 +2537,7 @@ static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)
 	if (gl) {
 		if (n == 0)
 			return;
-		if (!lockref_put_not_zero(&gl->gl_lockref))
-			gfs2_glock_queue_put(gl);
+		gfs2_glock_put_async(gl);
 	}
 	for (;;) {
 		gl = rhashtable_walk_next(&gi->hti);
