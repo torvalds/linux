@@ -558,7 +558,7 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 			break;
 		fallthrough;	/* Missed the backend's CLOSING state */
 	case XenbusStateClosing: {
-		struct xencons_info *info = dev_get_drvdata(&dev->dev);;
+		struct xencons_info *info = dev_get_drvdata(&dev->dev);
 
 		/*
 		 * Don't tear down the evtchn and grant ref before the other
