@@ -192,7 +192,6 @@ static int set_is_seen(struct ctl_table_set *set)
 }
 
 static void ipc_set_ownership(struct ctl_table_header *head,
-			      struct ctl_table *table,
 			      kuid_t *uid, kgid_t *gid)
 {
 	struct ipc_namespace *ns =
@@ -224,7 +223,7 @@ static int ipc_permissions(struct ctl_table_header *head, struct ctl_table *tabl
 		kuid_t ns_root_uid;
 		kgid_t ns_root_gid;
 
-		ipc_set_ownership(head, table, &ns_root_uid, &ns_root_gid);
+		ipc_set_ownership(head, &ns_root_uid, &ns_root_gid);
 
 		if (uid_eq(current_euid(), ns_root_uid))
 			mode >>= 6;
