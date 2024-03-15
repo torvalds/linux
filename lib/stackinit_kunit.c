@@ -417,7 +417,7 @@ static noinline int leaf_switch_2_none(unsigned long sp, bool fill,
  * These are expected to fail for most configurations because neither
  * GCC nor Clang have a way to perform initialization of variables in
  * non-code areas (i.e. in a switch statement before the first "case").
- * https://bugs.llvm.org/show_bug.cgi?id=44916
+ * https://llvm.org/pr44916
  */
 DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR, ALWAYS_FAIL);
 DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR, ALWAYS_FAIL);

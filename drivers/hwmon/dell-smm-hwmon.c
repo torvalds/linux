@@ -108,7 +108,7 @@ struct dell_smm_cooling_data {
 	struct dell_smm_data *data;
 };
 
-MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
+MODULE_AUTHOR("Massimo Dal Zotto <dz@debian.org>");
 MODULE_AUTHOR("Pali Rohár <pali@kernel.org>");
 MODULE_DESCRIPTION("Dell laptop SMM BIOS hwmon driver");
 MODULE_LICENSE("GPL");

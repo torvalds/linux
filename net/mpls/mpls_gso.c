@@ -109,5 +109,5 @@ module_init(mpls_gso_init);
 module_exit(mpls_gso_exit);
 
 MODULE_DESCRIPTION("MPLS GSO support");
-MODULE_AUTHOR("Simon Horman (horms@verge.net.au)");
+MODULE_AUTHOR("Simon Horman <horms@verge.net.au>");
 MODULE_LICENSE("GPL");
