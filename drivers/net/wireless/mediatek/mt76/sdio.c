@@ -514,13 +514,14 @@ static void mt76s_tx_status_data(struct mt76_worker *worker)
 }
 
 static int
-mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76s_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
 		   enum mt76_txq_id qid, struct sk_buff *skb,
 		   struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
+	struct mt76_dev *dev = phy->dev;
 	int err, len = skb->len;
 	u16 idx = q->head;
 
