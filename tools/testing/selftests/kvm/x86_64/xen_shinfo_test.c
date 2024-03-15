@@ -125,7 +125,7 @@ struct compat_vcpu_runstate_info {
 	uint32_t state;
 	uint64_t state_entry_time;
 	uint64_t time[5];
-} __attribute__((__packed__));;
+} __attribute__((__packed__));
 
 struct arch_vcpu_info {
 	unsigned long cr2;
