@@ -484,15 +484,17 @@
 
 /* AST2700 support SGPIO slave to 272 pins. */
 /* SGPIO slave are defined in Chapter 4.1 of the AST1700 Design Guide_v01.docx. */
-/* line 0:SCM_GPI0, 1:SCM_GPO0, 2:SCM_GPI1, 3:SCM_GPO2, etc... */
-/* line 32:PFR_GPI0, 33:PFR_GPO0, 34:PFR_GPI1, 35:PFR_GPO2, etc... */
+/* line 0:SCM_GPI0, 1:SCM_GPO0, 2:SCM_GPI1, 3:SCM_GPO1, etc... */
+/* line 32:PFR_GPI0, 33:PFR_GPO0, 34:PFR_GPI1, 35:PFR_GPO1, etc... */
 /* line 80:BMC_GPI0, 81:BMC_GPO0, 82:BMC_GPI1, 83:BMC_GPO1, etc... */
+/* The designe guide only define SCM_GPO9(FP_PWR_BTN_PFR_N) for PFR output pin. */
+/* We use AST2700 SGPIOS line 18 (FP_PWR_BTN_PFR_N_BMC_IN) for x86-power-control power button input. */
 &sgpios {
 	status = "okay";
 	gpio-line-names =
 		/*00-07*/ "","","","","","","","",
 		/*08-15*/ "","","","","","","","",
-		/*16-23*/ "","","","","","","","",
+		/*16-23*/ "","","FP_PWR_BTN_PFR_N_BMC_IN","","","","","",
 		/*24-31*/ "","","","","","","","",
 		/*32-39*/ "","","","","","","","",
 		/*40-47*/ "","","","","","","","",
@@ -797,9 +799,9 @@
 &i2c12 {
 	/* SMB_TMP_BMC */
 	status = "okay";
-	lm75@4a {
+	lm75@4b {
 		compatible = "national,lm75";
-		reg = <0x4a>;
+		reg = <0x4b>;
 	};
 };
 
