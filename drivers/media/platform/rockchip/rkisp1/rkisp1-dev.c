@@ -510,6 +510,8 @@ static const struct rkisp1_info px30_isp_info = {
 	.features = RKISP1_FEATURE_MIPI_CSI2
 		  | RKISP1_FEATURE_SELF_PATH
 		  | RKISP1_FEATURE_DUAL_CROP,
+	.max_width = 3264,
+	.max_height = 2448,
 };
 
 static const char * const rk3399_isp_clks[] = {
@@ -531,6 +533,8 @@ static const struct rkisp1_info rk3399_isp_info = {
 	.features = RKISP1_FEATURE_MIPI_CSI2
 		  | RKISP1_FEATURE_SELF_PATH
 		  | RKISP1_FEATURE_DUAL_CROP,
+	.max_width = 4416,
+	.max_height = 3312,
 };
 
 static const char * const imx8mp_isp_clks[] = {
@@ -551,6 +555,8 @@ static const struct rkisp1_info imx8mp_isp_info = {
 	.isp_ver = RKISP1_V_IMX8MP,
 	.features = RKISP1_FEATURE_MAIN_STRIDE
 		  | RKISP1_FEATURE_DMA_34BIT,
+	.max_width = 4096,
+	.max_height = 3072,
 };
 
 static const struct of_device_id rkisp1_of_match[] = {

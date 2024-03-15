@@ -33,9 +33,10 @@ struct regmap;
 #define RKISP1_ISP_SD_SRC			BIT(0)
 #define RKISP1_ISP_SD_SINK			BIT(1)
 
-/* min and max values for the widths and heights of the entities */
-#define RKISP1_ISP_MAX_WIDTH			4032
-#define RKISP1_ISP_MAX_HEIGHT			3024
+/*
+ * Minimum values for the width and height of entities. The maximum values are
+ * model-specific and stored in the rkisp1_info structure.
+ */
 #define RKISP1_ISP_MIN_WIDTH			32
 #define RKISP1_ISP_MIN_HEIGHT			32
 
@@ -140,6 +141,8 @@ enum rkisp1_feature {
  * @isr_size: number of entries in the @isrs array
  * @isp_ver: ISP version
  * @features: bitmask of rkisp1_feature features implemented by the ISP
+ * @max_width: maximum input frame width
+ * @max_height: maximum input frame height
  *
  * This structure contains information about the ISP specific to a particular
  * ISP model, version, or integration in a particular SoC.
@@ -151,6 +154,8 @@ struct rkisp1_info {
 	unsigned int isr_size;
 	enum rkisp1_cif_isp_version isp_ver;
 	unsigned int features;
+	unsigned int max_width;
+	unsigned int max_height;
 };
 
 /*
