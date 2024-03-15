@@ -16,4 +16,20 @@ menuconfig ARM64_PLATFORM_DEVICES
 
 if ARM64_PLATFORM_DEVICES
 
+config EC_ACER_ASPIRE1
+	tristate "Acer Aspire 1 Embedded Controller driver"
+	depends on I2C
+	depends on DRM
+	depends on POWER_SUPPLY
+	depends on INPUT
+	help
+	  Say Y here to enable the EC driver for the (Snapdragon-based)
+	  Acer Aspire 1 laptop. The EC handles battery and charging
+	  monitoring as well as some misc functions like the lid sensor
+	  and USB Type-C DP HPD events.
+
+	  This driver provides battery and AC status support for the mentioned
+	  laptop where this information is not properly exposed via the
+	  standard ACPI devices.
+
 endif # ARM64_PLATFORM_DEVICES
