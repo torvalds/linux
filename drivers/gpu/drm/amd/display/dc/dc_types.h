@@ -422,7 +422,7 @@ struct dc_dwb_params {
 	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
 	struct scaling_taps 		scaler_taps;	/* Scaling taps */
 	enum dwb_subsample_position	subsample_position;
-	struct dc_transfer_func *out_transfer_func;
+	const struct dc_transfer_func *out_transfer_func;
 };
 
 /* audio*/

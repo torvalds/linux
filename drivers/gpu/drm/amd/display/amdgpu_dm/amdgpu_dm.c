@@ -5700,8 +5700,8 @@ static void fill_stream_properties_from_drm_display_mode(
 
 	timing_out->aspect_ratio = get_aspect_ratio(mode_in);
 
-	stream->out_transfer_func->type = TF_TYPE_PREDEFINED;
-	stream->out_transfer_func->tf = TRANSFER_FUNCTION_SRGB;
+	stream->out_transfer_func.type = TF_TYPE_PREDEFINED;
+	stream->out_transfer_func.tf = TRANSFER_FUNCTION_SRGB;
 	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
 		if (!adjust_colour_depth_from_display_info(timing_out, info) &&
 		    drm_mode_is_420_also(info, mode_in) &&
@@ -6319,7 +6319,7 @@ create_stream_for_sink(struct drm_connector *connector,
 			if (stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 				stream->use_vsc_sdp_for_colorimetry = true;
 		}
-		if (stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22)
+		if (stream->out_transfer_func.tf == TRANSFER_FUNCTION_GAMMA22)
 			tf = TRANSFER_FUNC_GAMMA_22;
 		mod_build_vsc_infopacket(stream, &stream->vsc_infopacket, stream->output_color_space, tf);
 		aconnector->psr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
@@ -8392,13 +8392,13 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed) {
-			bundle->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
-			bundle->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
+			bundle->surface_updates[planes_count].gamma = &dc_plane->gamma_correction;
+			bundle->surface_updates[planes_count].in_transfer_func = &dc_plane->in_transfer_func;
 			bundle->surface_updates[planes_count].gamut_remap_matrix = &dc_plane->gamut_remap_matrix;
 			bundle->surface_updates[planes_count].hdr_mult = dc_plane->hdr_mult;
-			bundle->surface_updates[planes_count].func_shaper = dc_plane->in_shaper_func;
-			bundle->surface_updates[planes_count].lut3d_func = dc_plane->lut3d_func;
-			bundle->surface_updates[planes_count].blend_tf = dc_plane->blend_tf;
+			bundle->surface_updates[planes_count].func_shaper = &dc_plane->in_shaper_func;
+			bundle->surface_updates[planes_count].lut3d_func = &dc_plane->lut3d_func;
+			bundle->surface_updates[planes_count].blend_tf = &dc_plane->blend_tf;
 		}
 
 		amdgpu_dm_plane_fill_dc_scaling_info(dm->adev, new_plane_state,
@@ -8611,7 +8611,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			bundle->stream_update.output_csc_transform =
 				&acrtc_state->stream->csc_color_matrix;
 			bundle->stream_update.out_transfer_func =
-				acrtc_state->stream->out_transfer_func;
+				&acrtc_state->stream->out_transfer_func;
 			bundle->stream_update.lut3d_func =
 				(struct dc_3dlut *) acrtc_state->stream->lut3d_func;
 			bundle->stream_update.func_shaper =

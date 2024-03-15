@@ -1212,6 +1212,8 @@ union surface_update_flags {
 	uint32_t raw;
 };
 
+#define DC_REMOVE_PLANE_POINTERS 1
+
 struct dc_plane_state {
 	struct dc_plane_address address;
 	struct dc_plane_flip_time time;
@@ -1226,8 +1228,8 @@ struct dc_plane_state {
 
 	struct dc_plane_dcc_param dcc;
 
-	struct dc_gamma *gamma_correction;
-	struct dc_transfer_func *in_transfer_func;
+	struct dc_gamma gamma_correction;
+	struct dc_transfer_func in_transfer_func;
 	struct dc_bias_and_scale *bias_and_scale;
 	struct dc_csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
@@ -1239,9 +1241,9 @@ struct dc_plane_state {
 
 	enum dc_color_space color_space;
 
-	struct dc_3dlut *lut3d_func;
-	struct dc_transfer_func *in_shaper_func;
-	struct dc_transfer_func *blend_tf;
+	struct dc_3dlut lut3d_func;
+	struct dc_transfer_func in_shaper_func;
+	struct dc_transfer_func blend_tf;
 
 	struct dc_transfer_func *gamcor_tf;
 	enum surface_pixel_format format;
@@ -1308,14 +1310,8 @@ struct dc_scratch_space {
 	 * a valid current state during dc update.
 	 */
 	struct dc_plane_state plane_states[MAX_SURFACE_NUM];
-	struct dc_gamma gamma_correction[MAX_SURFACE_NUM];
-	struct dc_transfer_func in_transfer_func[MAX_SURFACE_NUM];
-	struct dc_3dlut lut3d_func[MAX_SURFACE_NUM];
-	struct dc_transfer_func in_shaper_func[MAX_SURFACE_NUM];
-	struct dc_transfer_func blend_tf[MAX_SURFACE_NUM];
 
 	struct dc_stream_state stream_state;
-	struct dc_transfer_func out_transfer_func;
 };
 
 struct dc {
@@ -1384,6 +1380,7 @@ struct dc {
 		} update_bw_bounding_box;
 		struct dc_scratch_space current_state;
 		struct dc_scratch_space new_state;
+		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
@@ -2364,8 +2361,11 @@ bool dc_is_dmcu_initialized(struct dc *dc);
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
 
-bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
-				struct dc_cursor_attributes *cursor_attr);
+bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc,
+		unsigned int pitch,
+		unsigned int height,
+		enum surface_pixel_format format,
+		struct dc_cursor_attributes *cursor_attr);
 
 #define dc_allow_idle_optimizations(dc, allow) dc_allow_idle_optimizations_internal(dc, allow, __func__)
 #define dc_exit_ips_for_hw_access(dc) dc_exit_ips_for_hw_access_internal(dc, __func__)

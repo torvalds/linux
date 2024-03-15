@@ -289,16 +289,14 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	if (ipp == NULL)
 		return false;
 
-	if (plane_state->in_transfer_func)
-		tf = plane_state->in_transfer_func;
+	tf = &plane_state->in_transfer_func;
 
 	build_prescale_params(&prescale_params, plane_state);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
-	if (plane_state->gamma_correction &&
-			!plane_state->gamma_correction->is_identity &&
+	if (!plane_state->gamma_correction.is_identity &&
 			dce_use_lut(plane_state->format))
-		ipp->funcs->ipp_program_input_lut(ipp, plane_state->gamma_correction);
+		ipp->funcs->ipp_program_input_lut(ipp, &plane_state->gamma_correction);
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
@@ -614,11 +612,10 @@ dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->out_transfer_func &&
-	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
-	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB) {
+	if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func.tf == TRANSFER_FUNCTION_SRGB) {
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
-	} else if (dce110_translate_regamma_to_hw_format(stream->out_transfer_func,
+	} else if (dce110_translate_regamma_to_hw_format(&stream->out_transfer_func,
 							 &xfm->regamma_params)) {
 		xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);

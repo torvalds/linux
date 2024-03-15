@@ -736,7 +736,7 @@ bool dpp20_program_shaper(
 
 bool dpp20_program_3dlut(
 		struct dpp *dpp_base,
-		struct tetrahedral_params *params);
+		const struct tetrahedral_params *params);
 
 void dpp2_cnv_set_alpha_keyer(
 			struct dpp *dpp_base,

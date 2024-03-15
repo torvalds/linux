@@ -1114,15 +1114,15 @@ static void dpp20_select_3dlut_ram_mask(
 
 bool dpp20_program_3dlut(
 		struct dpp *dpp_base,
-		struct tetrahedral_params *params)
+		const struct tetrahedral_params *params)
 {
 	enum dc_lut_mode mode;
 	bool is_17x17x17;
 	bool is_12bits_color_channel;
-	struct dc_rgb *lut0;
-	struct dc_rgb *lut1;
-	struct dc_rgb *lut2;
-	struct dc_rgb *lut3;
+	const struct dc_rgb *lut0;
+	const struct dc_rgb *lut1;
+	const struct dc_rgb *lut2;
+	const struct dc_rgb *lut3;
 	int lut_size0;
 	int lut_size;
 

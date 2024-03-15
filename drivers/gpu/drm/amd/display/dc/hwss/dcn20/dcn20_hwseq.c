@@ -1011,7 +1011,7 @@ bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 {
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
-	struct pwl_params *params = NULL;
+	const struct pwl_params *params = NULL;
 	/*
 	 * program OGAM only for the top pipe
 	 * if there is a pipe split then fix diagnostic is required:
@@ -1022,19 +1022,19 @@ bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	if (mpc->funcs->power_on_mpc_mem_pwr)
 		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
 	if (pipe_ctx->top_pipe == NULL
-			&& mpc->funcs->set_output_gamma && stream->out_transfer_func) {
-		if (stream->out_transfer_func->type == TF_TYPE_HWPWL)
-			params = &stream->out_transfer_func->pwl;
-		else if (pipe_ctx->stream->out_transfer_func->type ==
+			&& mpc->funcs->set_output_gamma) {
+		if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
+			params = &stream->out_transfer_func.pwl;
+		else if (pipe_ctx->stream->out_transfer_func.type ==
 			TF_TYPE_DISTRIBUTED_POINTS &&
 			cm_helper_translate_curve_to_hw_format(dc->ctx,
-			stream->out_transfer_func,
+			&stream->out_transfer_func,
 			&mpc->blender_params, false))
 			params = &mpc->blender_params;
 		/*
 		 * there is no ROM
 		 */
-		if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
+		if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED)
 			BREAK_TO_DEBUGGER();
 	}
 	/*
@@ -1050,17 +1050,15 @@ bool dcn20_set_blend_lut(
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
-	struct pwl_params *blend_lut = NULL;
+	const struct pwl_params *blend_lut = NULL;
 
-	if (plane_state->blend_tf) {
-		if (plane_state->blend_tf->type == TF_TYPE_HWPWL)
-			blend_lut = &plane_state->blend_tf->pwl;
-		else if (plane_state->blend_tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-					plane_state->blend_tf,
-					&dpp_base->regamma_params, false);
-			blend_lut = &dpp_base->regamma_params;
-		}
+	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
+		blend_lut = &plane_state->blend_tf.pwl;
+	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
+		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
+				&plane_state->blend_tf,
+				&dpp_base->regamma_params, false);
+		blend_lut = &dpp_base->regamma_params;
 	}
 	result = dpp_base->funcs->dpp_program_blnd_lut(dpp_base, blend_lut);
 
@@ -1072,24 +1070,21 @@ bool dcn20_set_shaper_3dlut(
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	bool result = true;
-	struct pwl_params *shaper_lut = NULL;
+	const struct pwl_params *shaper_lut = NULL;
 
-	if (plane_state->in_shaper_func) {
-		if (plane_state->in_shaper_func->type == TF_TYPE_HWPWL)
-			shaper_lut = &plane_state->in_shaper_func->pwl;
-		else if (plane_state->in_shaper_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-					plane_state->in_shaper_func,
-					&dpp_base->shaper_params, true);
-			shaper_lut = &dpp_base->shaper_params;
-		}
+	if (plane_state->in_shaper_func.type == TF_TYPE_HWPWL)
+		shaper_lut = &plane_state->in_shaper_func.pwl;
+	else if (plane_state->in_shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
+				&plane_state->in_shaper_func,
+				&dpp_base->shaper_params, true);
+		shaper_lut = &dpp_base->shaper_params;
 	}
 
 	result = dpp_base->funcs->dpp_program_shaper_lut(dpp_base, shaper_lut);
-	if (plane_state->lut3d_func &&
-		plane_state->lut3d_func->state.bits.initialized == 1)
+	if (plane_state->lut3d_func.state.bits.initialized == 1)
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base,
-								&plane_state->lut3d_func->lut_3d);
+								&plane_state->lut3d_func.lut_3d);
 	else
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base, NULL);
 
@@ -1112,9 +1107,7 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 	hws->funcs.set_shaper_3dlut(pipe_ctx, plane_state);
 	hws->funcs.set_blend_lut(pipe_ctx, plane_state);
 
-	if (plane_state->in_transfer_func)
-		tf = plane_state->in_transfer_func;
-
+	tf = &plane_state->in_transfer_func;
 
 	if (tf == NULL) {
 		dpp_base->funcs->dpp_set_degamma(dpp_base,

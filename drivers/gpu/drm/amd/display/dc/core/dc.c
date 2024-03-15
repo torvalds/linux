@@ -2851,55 +2851,45 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->layer_index;
 	}
 
-	if (srf_update->gamma &&
-			(surface->gamma_correction !=
-					srf_update->gamma)) {
-		memcpy(&surface->gamma_correction->entries,
+	if (srf_update->gamma) {
+		memcpy(&surface->gamma_correction.entries,
 			&srf_update->gamma->entries,
 			sizeof(struct dc_gamma_entries));
-		surface->gamma_correction->is_identity =
+		surface->gamma_correction.is_identity =
 			srf_update->gamma->is_identity;
-		surface->gamma_correction->num_entries =
+		surface->gamma_correction.num_entries =
 			srf_update->gamma->num_entries;
-		surface->gamma_correction->type =
+		surface->gamma_correction.type =
 			srf_update->gamma->type;
 	}
 
-	if (srf_update->in_transfer_func &&
-			(surface->in_transfer_func !=
-				srf_update->in_transfer_func)) {
-		surface->in_transfer_func->sdr_ref_white_level =
+	if (srf_update->in_transfer_func) {
+		surface->in_transfer_func.sdr_ref_white_level =
 			srf_update->in_transfer_func->sdr_ref_white_level;
-		surface->in_transfer_func->tf =
+		surface->in_transfer_func.tf =
 			srf_update->in_transfer_func->tf;
-		surface->in_transfer_func->type =
+		surface->in_transfer_func.type =
 			srf_update->in_transfer_func->type;
-		memcpy(&surface->in_transfer_func->tf_pts,
+		memcpy(&surface->in_transfer_func.tf_pts,
 			&srf_update->in_transfer_func->tf_pts,
 			sizeof(struct dc_transfer_func_distributed_points));
 	}
 
-	if (srf_update->func_shaper &&
-			(surface->in_shaper_func !=
-			srf_update->func_shaper))
-		memcpy(surface->in_shaper_func, srf_update->func_shaper,
-		sizeof(*surface->in_shaper_func));
+	if (srf_update->func_shaper)
+		memcpy(&surface->in_shaper_func, srf_update->func_shaper,
+		sizeof(surface->in_shaper_func));
 
-	if (srf_update->lut3d_func &&
-			(surface->lut3d_func !=
-			srf_update->lut3d_func))
-		memcpy(surface->lut3d_func, srf_update->lut3d_func,
-		sizeof(*surface->lut3d_func));
+	if (srf_update->lut3d_func)
+		memcpy(&surface->lut3d_func, srf_update->lut3d_func,
+		sizeof(surface->lut3d_func));
 
 	if (srf_update->hdr_mult.value)
 		surface->hdr_mult =
 				srf_update->hdr_mult;
 
-	if (srf_update->blend_tf &&
-			(surface->blend_tf !=
-			srf_update->blend_tf))
-		memcpy(surface->blend_tf, srf_update->blend_tf,
-		sizeof(*surface->blend_tf));
+	if (srf_update->blend_tf)
+		memcpy(&surface->blend_tf, srf_update->blend_tf,
+		sizeof(surface->blend_tf));
 
 	if (srf_update->input_csc_color_matrix)
 		surface->input_csc_color_matrix =
@@ -2930,14 +2920,13 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->dst.height && update->dst.width)
 		stream->dst = update->dst;
 
-	if (update->out_transfer_func &&
-	    stream->out_transfer_func != update->out_transfer_func) {
-		stream->out_transfer_func->sdr_ref_white_level =
+	if (update->out_transfer_func) {
+		stream->out_transfer_func.sdr_ref_white_level =
 			update->out_transfer_func->sdr_ref_white_level;
-		stream->out_transfer_func->tf = update->out_transfer_func->tf;
-		stream->out_transfer_func->type =
+		stream->out_transfer_func.tf = update->out_transfer_func->tf;
+		stream->out_transfer_func.type =
 			update->out_transfer_func->type;
-		memcpy(&stream->out_transfer_func->tf_pts,
+		memcpy(&stream->out_transfer_func.tf_pts,
 		       &update->out_transfer_func->tf_pts,
 		       sizeof(struct dc_transfer_func_distributed_points));
 	}
@@ -3050,15 +3039,8 @@ static void backup_planes_and_stream_state(
 
 	for (i = 0; i < status->plane_count; i++) {
 		scratch->plane_states[i] = *status->plane_states[i];
-		scratch->gamma_correction[i] = *status->plane_states[i]->gamma_correction;
-		scratch->in_transfer_func[i] = *status->plane_states[i]->in_transfer_func;
-		scratch->lut3d_func[i] = *status->plane_states[i]->lut3d_func;
-		scratch->in_shaper_func[i] = *status->plane_states[i]->in_shaper_func;
-		scratch->blend_tf[i] = *status->plane_states[i]->blend_tf;
 	}
 	scratch->stream_state = *stream;
-	if (stream->out_transfer_func)
-		scratch->out_transfer_func = *stream->out_transfer_func;
 }
 
 static void restore_planes_and_stream_state(
@@ -3073,15 +3055,8 @@ static void restore_planes_and_stream_state(
 
 	for (i = 0; i < status->plane_count; i++) {
 		*status->plane_states[i] = scratch->plane_states[i];
-		*status->plane_states[i]->gamma_correction = scratch->gamma_correction[i];
-		*status->plane_states[i]->in_transfer_func = scratch->in_transfer_func[i];
-		*status->plane_states[i]->lut3d_func = scratch->lut3d_func[i];
-		*status->plane_states[i]->in_shaper_func = scratch->in_shaper_func[i];
-		*status->plane_states[i]->blend_tf = scratch->blend_tf[i];
 	}
 	*stream = scratch->stream_state;
-	if (stream->out_transfer_func)
-		*stream->out_transfer_func = scratch->out_transfer_func;
 }
 
 /**
@@ -5354,10 +5329,13 @@ void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable)
 	}
 	dc->clk_mgr->dc_mode_softmax_enabled = enable;
 }
-bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
+bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc,
+		unsigned int pitch,
+		unsigned int height,
+		enum surface_pixel_format format,
 		struct dc_cursor_attributes *cursor_attr)
 {
-	if (dc->hwss.does_plane_fit_in_mall && dc->hwss.does_plane_fit_in_mall(dc, plane, cursor_attr))
+	if (dc->hwss.does_plane_fit_in_mall && dc->hwss.does_plane_fit_in_mall(dc, pitch, height, format, cursor_attr))
 		return true;
 	return false;
 }

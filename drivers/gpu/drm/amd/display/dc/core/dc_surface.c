@@ -41,25 +41,15 @@ void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_sta
 {
 	plane_state->ctx = ctx;
 
-	plane_state->gamma_correction = dc_create_gamma();
-	if (plane_state->gamma_correction != NULL)
-		plane_state->gamma_correction->is_identity = true;
+	plane_state->gamma_correction.is_identity = true;
 
-	plane_state->in_transfer_func = dc_create_transfer_func();
-	if (plane_state->in_transfer_func != NULL) {
-		plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
-	}
-	plane_state->in_shaper_func = dc_create_transfer_func();
-	if (plane_state->in_shaper_func != NULL) {
-		plane_state->in_shaper_func->type = TF_TYPE_BYPASS;
-	}
+	plane_state->in_transfer_func.type = TF_TYPE_BYPASS;
 
-	plane_state->lut3d_func = dc_create_3dlut_func();
+	plane_state->in_shaper_func.type = TF_TYPE_BYPASS;
 
-	plane_state->blend_tf = dc_create_transfer_func();
-	if (plane_state->blend_tf != NULL) {
-		plane_state->blend_tf->type = TF_TYPE_BYPASS;
-	}
+	plane_state->lut3d_func.state.raw = 0;
+
+	plane_state->blend_tf.type = TF_TYPE_BYPASS;
 
 	plane_state->pre_multiplied_alpha = true;
 
@@ -67,30 +57,7 @@ void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_sta
 
 void dc_plane_destruct(struct dc_plane_state *plane_state)
 {
-	if (plane_state->gamma_correction != NULL) {
-		dc_gamma_release(&plane_state->gamma_correction);
-	}
-	if (plane_state->in_transfer_func != NULL) {
-		dc_transfer_func_release(
-				plane_state->in_transfer_func);
-		plane_state->in_transfer_func = NULL;
-	}
-	if (plane_state->in_shaper_func != NULL) {
-		dc_transfer_func_release(
-				plane_state->in_shaper_func);
-		plane_state->in_shaper_func = NULL;
-	}
-	if (plane_state->lut3d_func != NULL) {
-		dc_3dlut_func_release(
-				plane_state->lut3d_func);
-		plane_state->lut3d_func = NULL;
-	}
-	if (plane_state->blend_tf != NULL) {
-		dc_transfer_func_release(
-				plane_state->blend_tf);
-		plane_state->blend_tf = NULL;
-	}
-
+	// no more pointers to free within dc_plane_state
 }
 
 /*******************************************************************************

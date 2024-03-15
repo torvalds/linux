@@ -4041,7 +4041,7 @@ static void set_avi_info_frame(
 	}
 
 	if (pixel_encoding && color_space == COLOR_SPACE_2020_YCBCR &&
-			stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
+			stream->out_transfer_func.tf == TRANSFER_FUNCTION_GAMMA22) {
 		hdmi_info.bits.EC0_EC2 = 0;
 		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU709;
 	}
