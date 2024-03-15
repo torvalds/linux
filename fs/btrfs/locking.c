@@ -129,14 +129,14 @@ static void btrfs_set_eb_lock_owner(struct extent_buffer *eb, pid_t owner) { }
  */
 
 /*
- * __btrfs_tree_read_lock - lock extent buffer for read
+ * btrfs_tree_read_lock_nested - lock extent buffer for read
  * @eb:		the eb to be locked
  * @nest:	the nesting level to be used for lockdep
  *
  * This takes the read lock on the extent buffer, using the specified nesting
  * level for lockdep purposes.
  */
-void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
+void btrfs_tree_read_lock_nested(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 {
 	u64 start_ns = 0;
 
@@ -193,7 +193,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
  *
  * Returns with the eb->lock write locked.
  */
-void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
+void btrfs_tree_lock_nested(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 	__acquires(&eb->lock)
 {
 	u64 start_ns = 0;
