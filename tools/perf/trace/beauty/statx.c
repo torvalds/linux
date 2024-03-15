@@ -9,7 +9,17 @@
 #include <linux/kernel.h>
 #include <sys/types.h>
 #include <linux/fcntl.h>
-#include <uapi/linux/stat.h>
+#include <linux/stat.h>
+
+#ifndef STATX_MNT_ID
+#define STATX_MNT_ID		0x00001000U
+#endif
+#ifndef STATX_DIOALIGN
+#define STATX_DIOALIGN		0x00002000U
+#endif
+#ifndef STATX_MNT_ID_UNIQUE
+#define STATX_MNT_ID_UNIQUE	0x00004000U
+#endif
 
 size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg)
 {
