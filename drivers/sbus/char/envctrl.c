@@ -1097,7 +1097,7 @@ out_iounmap:
 	return err;
 }
 
-static int envctrl_remove(struct platform_device *op)
+static void envctrl_remove(struct platform_device *op)
 {
 	int index;
 
@@ -1108,8 +1108,6 @@ static int envctrl_remove(struct platform_device *op)
 
 	for (index = 0; index < ENVCTRL_MAX_CPU * 2; index++)
 		kfree(i2c_childlist[index].tables);
-
-	return 0;
 }
 
 static const struct of_device_id envctrl_match[] = {
@@ -1127,7 +1125,7 @@ static struct platform_driver envctrl_driver = {
 		.of_match_table = envctrl_match,
 	},
 	.probe		= envctrl_probe,
-	.remove		= envctrl_remove,
+	.remove_new	= envctrl_remove,
 };
 
 module_platform_driver(envctrl_driver);
