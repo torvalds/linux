@@ -10,17 +10,21 @@ __u64 user_tgid = 0;
 __u64 dev = 0;
 __u64 ino = 0;
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
-int handler(const void *ctx)
+static void get_pid_tgid(void)
 {
 	struct bpf_pidns_info nsdata;
 
 	if (bpf_get_ns_current_pid_tgid(dev, ino, &nsdata, sizeof(struct bpf_pidns_info)))
-		return 0;
+		return;
 
 	user_pid = nsdata.pid;
 	user_tgid = nsdata.tgid;
+}
 
+SEC("?tracepoint/syscalls/sys_enter_nanosleep")
+int tp_handler(const void *ctx)
+{
+	get_pid_tgid();
 	return 0;
 }
 
