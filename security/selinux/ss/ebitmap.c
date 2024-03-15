@@ -448,6 +448,10 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 			goto bad;
 		}
 		map = le64_to_cpu(mapbits);
+		if (!map) {
+			pr_err("SELinux: ebitmap: empty map\n");
+			goto bad;
+		}
 
 		index = (startbit - n->startbit) / EBITMAP_UNIT_SIZE;
 		while (map) {
@@ -455,6 +459,13 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 			map = EBITMAP_SHIFT_UNIT_SIZE(map);
 		}
 	}
+
+	if (n && n->startbit + EBITMAP_SIZE != e->highbit) {
+		pr_err("SELinux: ebitmap: high bit %d is not equal to the expected value %ld\n",
+		       e->highbit, n->startbit + EBITMAP_SIZE);
+		goto bad;
+	}
+
 ok:
 	rc = 0;
 out:
