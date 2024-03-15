@@ -2107,6 +2107,8 @@ extern struct workqueue_struct *cifsoplockd_wq;
 extern struct workqueue_struct *deferredclose_wq;
 extern __u32 cifs_lock_secret;
 
+extern mempool_t *cifs_sm_req_poolp;
+extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 /* Operations for different SMB versions */

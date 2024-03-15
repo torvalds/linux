@@ -52,9 +52,6 @@
 #include "fs_context.h"
 #include "cifs_swn.h"
 
-extern mempool_t *cifs_req_poolp;
-extern bool disable_legacy_dialects;
-
 /* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
 #define TLINK_IDLE_EXPIRE	(600 * HZ)
