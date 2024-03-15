@@ -40,8 +40,12 @@ KernelVersion:	v6.9
 Contact:	linux-cxl@vger.kernel.org
 Description:
 		(RO) Prints the CXL protocol error types made available by
-		the platform in the format "0x<error number>	<error type>".
+		the platform in the format:
+
+			0x<error number> <error type>
+
 		The possible error types are (as of ACPI v6.5):
+
 			0x1000	CXL.cache Protocol Correctable
 			0x2000	CXL.cache Protocol Uncorrectable non-fatal
 			0x4000	CXL.cache Protocol Uncorrectable fatal
