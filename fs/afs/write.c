@@ -29,43 +29,39 @@ static void afs_pages_written_back(struct afs_vnode *vnode, loff_t start, unsign
 
 /*
  * Find a key to use for the writeback.  We cached the keys used to author the
- * writes on the vnode.  *_wbk will contain the last writeback key used or NULL
- * and we need to start from there if it's set.
+ * writes on the vnode.  wreq->netfs_priv2 will contain the last writeback key
+ * record used or NULL and we need to start from there if it's set.
+ * wreq->netfs_priv will be set to the key itself or NULL.
  */
-static int afs_get_writeback_key(struct afs_vnode *vnode,
-				 struct afs_wb_key **_wbk)
+static void afs_get_writeback_key(struct netfs_io_request *wreq)
 {
-	struct afs_wb_key *wbk = NULL;
-	struct list_head *p;
-	int ret = -ENOKEY, ret2;
+	struct afs_wb_key *wbk, *old = wreq->netfs_priv2;
+	struct afs_vnode *vnode = AFS_FS_I(wreq->inode);
+
+	key_put(wreq->netfs_priv);
+	wreq->netfs_priv = NULL;
+	wreq->netfs_priv2 = NULL;
 
 	spin_lock(&vnode->wb_lock);
-	if (*_wbk)
-		p = (*_wbk)->vnode_link.next;
+	if (old)
+		wbk = list_next_entry(old, vnode_link);
 	else
-		p = vnode->wb_keys.next;
+		wbk = list_first_entry(&vnode->wb_keys, struct afs_wb_key, vnode_link);
 
-	while (p != &vnode->wb_keys) {
-		wbk = list_entry(p, struct afs_wb_key, vnode_link);
+	list_for_each_entry_from(wbk, &vnode->wb_keys, vnode_link) {
 		_debug("wbk %u", key_serial(wbk->key));
-		ret2 = key_validate(wbk->key);
-		if (ret2 == 0) {
+		if (key_validate(wbk->key) == 0) {
 			refcount_inc(&wbk->usage);
+			wreq->netfs_priv = key_get(wbk->key);
+			wreq->netfs_priv2 = wbk;
 			_debug("USE WB KEY %u", key_serial(wbk->key));
 			break;
 		}
-
-		wbk = NULL;
-		if (ret == -ENOKEY)
-			ret = ret2;
-		p = p->next;
 	}
 
 	spin_unlock(&vnode->wb_lock);
-	if (*_wbk)
-		afs_put_wb_key(*_wbk);
-	*_wbk = wbk;
-	return 0;
+
+	afs_put_wb_key(old);
 }
 
 static void afs_store_data_success(struct afs_operation *op)
@@ -88,84 +84,6 @@ static const struct afs_operation_ops afs_store_data_operation = {
 };
 
 /*
- * write to a file
- */
-static int afs_store_data(struct afs_vnode *vnode, struct iov_iter *iter, loff_t pos)
-{
-	struct afs_operation *op;
-	struct afs_wb_key *wbk = NULL;
-	loff_t size = iov_iter_count(iter);
-	int ret = -ENOKEY;
-
-	_enter("%s{%llx:%llu.%u},%llx,%llx",
-	       vnode->volume->name,
-	       vnode->fid.vid,
-	       vnode->fid.vnode,
-	       vnode->fid.unique,
-	       size, pos);
-
-	ret = afs_get_writeback_key(vnode, &wbk);
-	if (ret) {
-		_leave(" = %d [no keys]", ret);
-		return ret;
-	}
-
-	op = afs_alloc_operation(wbk->key, vnode->volume);
-	if (IS_ERR(op)) {
-		afs_put_wb_key(wbk);
-		return -ENOMEM;
-	}
-
-	afs_op_set_vnode(op, 0, vnode);
-	op->file[0].dv_delta = 1;
-	op->file[0].modification = true;
-	op->store.pos = pos;
-	op->store.size = size;
-	op->flags |= AFS_OPERATION_UNINTR;
-	op->ops = &afs_store_data_operation;
-
-try_next_key:
-	afs_begin_vnode_operation(op);
-
-	op->store.write_iter = iter;
-	op->store.i_size = max(pos + size, vnode->netfs.remote_i_size);
-	op->mtime = inode_get_mtime(&vnode->netfs.inode);
-
-	afs_wait_for_operation(op);
-
-	switch (afs_op_error(op)) {
-	case -EACCES:
-	case -EPERM:
-	case -ENOKEY:
-	case -EKEYEXPIRED:
-	case -EKEYREJECTED:
-	case -EKEYREVOKED:
-		_debug("next");
-
-		ret = afs_get_writeback_key(vnode, &wbk);
-		if (ret == 0) {
-			key_put(op->key);
-			op->key = key_get(wbk->key);
-			goto try_next_key;
-		}
-		break;
-	}
-
-	afs_put_wb_key(wbk);
-	_leave(" = %d", afs_op_error(op));
-	return afs_put_operation(op);
-}
-
-/*
- * Writeback calls this when it finds a folio that needs uploading.  This isn't
- * called if writeback only has copy-to-cache to deal with.
- */
-void afs_begin_writeback(struct netfs_io_request *wreq)
-{
-	wreq->io_streams[0].avail = true;
-}
-
-/*
  * Prepare a subrequest to write to the server.  This sets the max_len
  * parameter.
  */
@@ -183,11 +101,20 @@ void afs_prepare_write(struct netfs_io_subrequest *subreq)
 static void afs_issue_write_worker(struct work_struct *work)
 {
 	struct netfs_io_subrequest *subreq = container_of(work, struct netfs_io_subrequest, work);
-	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
-	ssize_t ret;
+	struct netfs_io_request *wreq = subreq->rreq;
+	struct afs_operation *op;
+	struct afs_vnode *vnode = AFS_FS_I(wreq->inode);
+	unsigned long long pos = subreq->start + subreq->transferred;
+	size_t len = subreq->len - subreq->transferred;
+	int ret = -ENOKEY;
 
-	_enter("%x[%x],%zx",
-	       subreq->rreq->debug_id, subreq->debug_index, subreq->io_iter.count);
+	_enter("R=%x[%x],%s{%llx:%llu.%u},%llx,%zx",
+	       wreq->debug_id, subreq->debug_index,
+	       vnode->volume->name,
+	       vnode->fid.vid,
+	       vnode->fid.vnode,
+	       vnode->fid.unique,
+	       pos, len);
 
 #if 0 // Error injection
 	if (subreq->debug_index == 3)
@@ -199,7 +126,41 @@ static void afs_issue_write_worker(struct work_struct *work)
 	}
 #endif
 
-	ret = afs_store_data(vnode, &subreq->io_iter, subreq->start);
+	op = afs_alloc_operation(wreq->netfs_priv, vnode->volume);
+	if (IS_ERR(op))
+		return netfs_write_subrequest_terminated(subreq, -EAGAIN, false);
+
+	afs_op_set_vnode(op, 0, vnode);
+	op->file[0].dv_delta	= 1;
+	op->file[0].modification = true;
+	op->store.pos		= pos;
+	op->store.size		= len;
+	op->flags		|= AFS_OPERATION_UNINTR;
+	op->ops			= &afs_store_data_operation;
+
+	afs_begin_vnode_operation(op);
+
+	op->store.write_iter	= &subreq->io_iter;
+	op->store.i_size	= umax(pos + len, vnode->netfs.remote_i_size);
+	op->mtime		= inode_get_mtime(&vnode->netfs.inode);
+
+	afs_wait_for_operation(op);
+	ret = afs_put_operation(op);
+	switch (ret) {
+	case -EACCES:
+	case -EPERM:
+	case -ENOKEY:
+	case -EKEYEXPIRED:
+	case -EKEYREJECTED:
+	case -EKEYREVOKED:
+		/* If there are more keys we can try, use the retry algorithm
+		 * to rotate the keys.
+		 */
+		if (wreq->netfs_priv2)
+			set_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
+		break;
+	}
+
 	netfs_write_subrequest_terminated(subreq, ret < 0 ? ret : subreq->len, false);
 }
 
@@ -208,6 +169,40 @@ void afs_issue_write(struct netfs_io_subrequest *subreq)
 	subreq->work.func = afs_issue_write_worker;
 	if (!queue_work(system_unbound_wq, &subreq->work))
 		WARN_ON_ONCE(1);
+}
+
+/*
+ * Writeback calls this when it finds a folio that needs uploading.  This isn't
+ * called if writeback only has copy-to-cache to deal with.
+ */
+void afs_begin_writeback(struct netfs_io_request *wreq)
+{
+	afs_get_writeback_key(wreq);
+	wreq->io_streams[0].avail = true;
+}
+
+/*
+ * Prepare to retry the writes in request.  Use this to try rotating the
+ * available writeback keys.
+ */
+void afs_retry_request(struct netfs_io_request *wreq, struct netfs_io_stream *stream)
+{
+	struct netfs_io_subrequest *subreq =
+		list_first_entry(&stream->subrequests,
+				 struct netfs_io_subrequest, rreq_link);
+
+	switch (subreq->error) {
+	case -EACCES:
+	case -EPERM:
+	case -ENOKEY:
+	case -EKEYEXPIRED:
+	case -EKEYREJECTED:
+	case -EKEYREVOKED:
+		afs_get_writeback_key(wreq);
+		if (!wreq->netfs_priv)
+			stream->failed = true;
+		break;
+	}
 }
 
 /*
