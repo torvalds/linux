@@ -1815,8 +1815,46 @@ int dcn32_populate_dml_pipes_from_context(
 	struct pipe_ctx *pipe = NULL;
 	bool subvp_in_use = false;
 	struct dc_crtc_timing *timing;
+	int subvp_main_pipe_index = -1;
+	enum mall_stream_type mall_type;
+	bool single_display_subvp = false;
+	struct dc_stream_state *stream = NULL;
+	int num_subvp_main = 0;
+	int num_subvp_phantom = 0;
+	int num_subvp_none = 0;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+
+	/* For single display subvp, look for subvp main so if we have phantom
+	 *  pipe, we can set odm policy to match main pipe
+	 */
+	for (i = 0; i < context->stream_count; i++) {
+		stream = context->streams[i];
+		mall_type = dc_state_get_stream_subvp_type(context, stream);
+		if (mall_type == SUBVP_MAIN)
+			num_subvp_main++;
+		else if (mall_type == SUBVP_PHANTOM)
+			num_subvp_phantom++;
+		else
+			num_subvp_none++;
+	}
+	if (num_subvp_main == 1 && num_subvp_phantom == 1 && num_subvp_none == 0)
+		single_display_subvp = true;
+
+	if (single_display_subvp) {
+		for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &res_ctx->pipe_ctx[i];
+			if (!res_ctx->pipe_ctx[i].stream)
+				continue;
+
+			mall_type = dc_state_get_pipe_subvp_type(context, pipe);
+			if (mall_type == SUBVP_MAIN) {
+				if (resource_is_pipe_type(pipe, OTG_MASTER))
+					subvp_main_pipe_index = pipe_cnt;
+			}
+			pipe_cnt++;
+		}
+	}
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 
@@ -1832,19 +1870,33 @@ int dcn32_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].pipe.dest.vfront_porch = timing->v_front_porch;
 		if (dc->config.enable_windowed_mpo_odm &&
 				dc->debug.enable_single_display_2to1_odm_policy) {
-			switch (resource_get_odm_slice_count(pipe)) {
-			case 2:
-				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-				break;
-			case 4:
-				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_4to1;
-				break;
-			default:
-				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+			/* For single display subvp, if pipe is phantom pipe,
+			 *  then copy odm policy from subvp main pipe
+			 */
+			mall_type = dc_state_get_pipe_subvp_type(context, pipe);
+			if (single_display_subvp && (mall_type == SUBVP_PHANTOM)) {
+				if (subvp_main_pipe_index < 0) {
+					ASSERT(0);
+				} else {
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy =
+						pipes[subvp_main_pipe_index].pipe.dest.odm_combine_policy;
+				}
+			} else {
+				switch (resource_get_odm_slice_count(pipe)) {
+				case 2:
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+					break;
+				case 4:
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_4to1;
+					break;
+				default:
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+				}
 			}
 		} else {
 			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
 		}
+
 		pipes[pipe_cnt].pipe.src.gpuvm_min_page_size_kbytes = 256; // according to spreadsheet
 		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 		pipes[pipe_cnt].pipe.scale_ratio_depth.lb_depth = dm_lb_19;
