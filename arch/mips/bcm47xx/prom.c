@@ -35,6 +35,7 @@
 #include <asm/bootinfo.h>
 #include <bcm47xx.h>
 #include <bcm47xx_board.h>
+#include "bcm47xx_private.h"
 
 static char bcm47xx_system_type[20] = "Broadcom BCM47XX";
 
