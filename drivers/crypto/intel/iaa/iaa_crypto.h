@@ -59,10 +59,8 @@ struct iaa_device_compression_mode {
 	const char			*name;
 
 	struct aecs_comp_table_record	*aecs_comp_table;
-	struct aecs_decomp_table_record	*aecs_decomp_table;
 
 	dma_addr_t			aecs_comp_table_dma_addr;
-	dma_addr_t			aecs_decomp_table_dma_addr;
 };
 
 /* Representation of IAA device with wqs, populated by probe */
@@ -107,23 +105,6 @@ struct aecs_comp_table_record {
 	u32 reserved_padding[2];
 } __packed;
 
-/* AECS for decompress */
-struct aecs_decomp_table_record {
-	u32 crc;
-	u32 xor_checksum;
-	u32 low_filter_param;
-	u32 high_filter_param;
-	u32 output_mod_idx;
-	u32 drop_init_decomp_out_bytes;
-	u32 reserved[36];
-	u32 output_accum_data[2];
-	u32 out_bits_valid;
-	u32 bit_off_indexing;
-	u32 input_accum_data[64];
-	u8  size_qw[32];
-	u32 decomp_state[1220];
-} __packed;
-
 int iaa_aecs_init_fixed(void);
 void iaa_aecs_cleanup_fixed(void);
 
@@ -136,9 +117,6 @@ struct iaa_compression_mode {
 	int			ll_table_size;
 	u32			*d_table;
 	int			d_table_size;
-	u32			*header_table;
-	int			header_table_size;
-	u16			gen_decomp_table_flags;
 	iaa_dev_comp_init_fn_t	init;
 	iaa_dev_comp_free_fn_t	free;
 };
@@ -148,9 +126,6 @@ int add_iaa_compression_mode(const char *name,
 			     int ll_table_size,
 			     const u32 *d_table,
 			     int d_table_size,
-			     const u8 *header_table,
-			     int header_table_size,
-			     u16 gen_decomp_table_flags,
 			     iaa_dev_comp_init_fn_t init,
 			     iaa_dev_comp_free_fn_t free);
 
