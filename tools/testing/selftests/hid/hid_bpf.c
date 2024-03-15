@@ -750,6 +750,52 @@ TEST_F(hid_bpf, test_hid_change_report)
 }
 
 /*
+ * Call hid_bpf_input_report against the given uhid device,
+ * check that the program is called and does the expected.
+ */
+TEST_F(hid_bpf, test_hid_user_input_report_call)
+{
+	struct hid_hw_request_syscall_args args = {
+		.retval = -1,
+		.size = 10,
+	};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
+			    .ctx_in = &args,
+			    .ctx_size_in = sizeof(args),
+	);
+	__u8 buf[10] = {0};
+	int err, prog_fd;
+
+	LOAD_BPF;
+
+	args.hid = self->hid_id;
+	args.data[0] = 1; /* report ID */
+	args.data[1] = 2; /* report ID */
+	args.data[2] = 42; /* report ID */
+
+	prog_fd = bpf_program__fd(self->skel->progs.hid_user_input_report);
+
+	/* check that there is no data to read from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, -1) TH_LOG("read_hidraw");
+
+	err = bpf_prog_test_run_opts(prog_fd, &tattrs);
+
+	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
+
+	ASSERT_EQ(args.retval, 0);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 2);
+	ASSERT_EQ(buf[2], 42);
+}
+
+/*
  * Call hid_bpf_hw_output_report against the given uhid device,
  * check that the program is called and does the expected.
  */
@@ -797,8 +843,7 @@ TEST_F(hid_bpf, test_hid_user_output_report_call)
 }
 
 /*
- * Attach hid_user_raw_request to the given uhid device,
- * call the bpf program from userspace
+ * Call hid_hw_raw_request against the given uhid device,
  * check that the program is called and does the expected.
  */
 TEST_F(hid_bpf, test_hid_user_raw_request_call)
