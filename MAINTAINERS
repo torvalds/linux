@@ -10158,7 +10158,6 @@ S:	Maintained
 W:	https://i2c.wiki.kernel.org/
 Q:	https://patchwork.ozlabs.org/project/linux-i2c/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux.git
-F:	Documentation/devicetree/bindings/i2c/i2c.txt
 F:	Documentation/i2c/
 F:	drivers/i2c/*
 F:	include/dt-bindings/i2c/i2c.h
@@ -16434,8 +16433,8 @@ S:	Supported
 F:	drivers/infiniband/ulp/opa_vnic
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
-M:	Rob Herring <robh+dt@kernel.org>
-M:	Frank Rowand <frowand.list@gmail.com>
+M:	Rob Herring <robh@kernel.org>
+M:	Saravana Kannan <saravanak@google.com>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 W:	http://www.devicetree.org/
@@ -16451,7 +16450,7 @@ K:	of_overlay_fdt_apply
 K:	of_overlay_remove
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
-M:	Rob Herring <robh+dt@kernel.org>
+M:	Rob Herring <robh@kernel.org>
 M:	Krzysztof Kozlowski <krzysztof.kozlowski+dt@linaro.org>
 M:	Conor Dooley <conor+dt@kernel.org>
 L:	devicetree@vger.kernel.org
@@ -24226,7 +24225,7 @@ XILINX SD-FEC IP CORES
 M:	Derek Kiernan <derek.kiernan@amd.com>
 M:	Dragan Cvetic <dragan.cvetic@amd.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/misc/xlnx,sd-fec.txt
+F:	Documentation/devicetree/bindings/misc/xlnx,sd-fec.yaml
 F:	Documentation/misc-devices/xilinx_sdfec.rst
 F:	drivers/misc/Kconfig
 F:	drivers/misc/Makefile

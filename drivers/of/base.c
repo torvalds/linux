@@ -1396,8 +1396,8 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 	char *pass_name = NULL;
 	struct device_node *cur, *new = NULL;
 	const __be32 *map, *mask, *pass;
-	static const __be32 dummy_mask[] = { [0 ... MAX_PHANDLE_ARGS] = ~0 };
-	static const __be32 dummy_pass[] = { [0 ... MAX_PHANDLE_ARGS] = 0 };
+	static const __be32 dummy_mask[] = { [0 ... MAX_PHANDLE_ARGS] = cpu_to_be32(~0) };
+	static const __be32 dummy_pass[] = { [0 ... MAX_PHANDLE_ARGS] = cpu_to_be32(0) };
 	__be32 initial_match_array[MAX_PHANDLE_ARGS];
 	const __be32 *match_array = initial_match_array;
 	int i, ret, map_len, match;

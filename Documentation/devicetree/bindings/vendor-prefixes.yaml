@@ -238,6 +238,8 @@ patternProperties:
     description: ByteDance Ltd.
   "^calamp,.*":
     description: CalAmp Corp.
+  "^calao,.*":
+    description: CALAO Systems SAS
   "^calaosystems,.*":
     description: CALAO Systems SAS
   "^calxeda,.*":
@@ -486,6 +488,9 @@ patternProperties:
     description: EZchip Semiconductor
   "^facebook,.*":
     description: Facebook
+  "^fairchild,.*":
+    description: Fairchild Semiconductor (deprecated, use 'onnn')
+    deprecated: true
   "^fairphone,.*":
     description: Fairphone B.V.
   "^faraday,.*":
@@ -552,6 +557,8 @@ patternProperties:
     description: Giantec Semiconductor, Inc.
   "^giantplus,.*":
     description: Giantplus Technology Co., Ltd.
+  "^glinet,.*":
+    description: GL Intelligence, Inc.
   "^globalscale,.*":
     description: Globalscale Technologies, Inc.
   "^globaltop,.*":
@@ -611,6 +618,8 @@ patternProperties:
     description: Honestar Technologies Co., Ltd.
   "^honeywell,.*":
     description: Honeywell
+  "^hoperf,.*":
+    description: Shenzhen Hope Microelectronics Co., Ltd.
   "^hoperun,.*":
     description: Jiangsu HopeRun Software Co., Ltd.
   "^hp,.*":
@@ -641,12 +650,16 @@ patternProperties:
     description: Hyundai Technology
   "^i2se,.*":
     description: I2SE GmbH
+  "^IBM,.*":
+    description: International Business Machines (IBM)
   "^ibm,.*":
     description: International Business Machines (IBM)
   "^icplus,.*":
     description: IC Plus Corp.
   "^idt,.*":
     description: Integrated Device Technologies, Inc.
+  "^iei,.*":
+    description: IEI Integration Corp.
   "^ifi,.*":
     description: Ingenieurburo Fur Ic-Technologie (I/F/I)
   "^ilitek,.*":
@@ -833,6 +846,8 @@ patternProperties:
     description: LSI Corp. (LSI Logic)
   "^lunzn,.*":
     description: Shenzhen Lunzn Technology Co., Ltd.
+  "^luxul,.*":
+    description: Lagrand | AV
   "^lwn,.*":
     description: Liebherr-Werk Nenzing GmbH
   "^lxa,.*":
@@ -911,6 +926,9 @@ patternProperties:
     description: Miniand Tech
   "^minix,.*":
     description: MINIX Technology Ltd.
+  "^mips,.*":
+    description: MIPS Technology (deprecated, use 'mti' or 'img')
+    deprecated: true
   "^miramems,.*":
     description: MiraMEMS Sensing Technology Co., Ltd.
   "^mitsubishi,.*":
@@ -1005,6 +1023,9 @@ patternProperties:
     description: Novatek
   "^novtech,.*":
     description: NovTech, Inc.
+  "^numonyx,.*":
+    description: Numonyx (deprecated, use micron)
+    deprecated: true
   "^nutsboard,.*":
     description: NutsBoard
   "^nuvoton,.*":
@@ -1309,6 +1330,8 @@ patternProperties:
     description: Skyworks Solutions, Inc.
   "^smartlabs,.*":
     description: SmartLabs LLC
+  "^smartrg,.*":
+    description: SmartRG, Inc.
   "^smi,.*":
     description: Silicon Motion Technology Corporation
   "^smsc,.*":
@@ -1550,8 +1573,12 @@ patternProperties:
     description: Voipac Technologies s.r.o.
   "^vot,.*":
     description: Vision Optical Technology Co., Ltd.
+  "^vscom,.*":
+    description: VS Visions Systems GmbH
   "^vxt,.*":
     description: VXT Ltd
+  "^wacom,.*":
+    description: Wacom
   "^wanchanglong,.*":
     description: Wanchanglong Electronics Technology（SHENZHEN）Co.，Ltd.
   "^wand,.*":

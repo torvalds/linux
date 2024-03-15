@@ -13,6 +13,7 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
@@ -134,6 +135,7 @@ static inline struct device_node *of_node_get(struct device_node *node)
 }
 static inline void of_node_put(struct device_node *node) { }
 #endif /* !CONFIG_OF_DYNAMIC */
+DEFINE_FREE(device_node, struct device_node *, if (_T) of_node_put(_T))
 
 /* Pointer for first entry in chain of all nodes. */
 extern struct device_node *of_root;
@@ -179,11 +181,6 @@ static inline bool is_of_node(const struct fwnode_handle *fwnode)
 		__of_fwnode_handle_node ?				\
 			&__of_fwnode_handle_node->fwnode : NULL;	\
 	})
-
-static inline bool of_have_populated_dt(void)
-{
-	return of_root != NULL;
-}
 
 static inline bool of_node_is_root(const struct device_node *node)
 {
@@ -363,9 +360,6 @@ extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
 extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
 extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
-
-#define for_each_property_of_node(dn, pp) \
-	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
@@ -556,11 +550,6 @@ static inline struct device_node *of_find_node_with_property(
 }
 
 #define of_fwnode_handle(node) NULL
-
-static inline bool of_have_populated_dt(void)
-{
-	return false;
-}
 
 static inline struct device_node *of_get_compatible_child(const struct device_node *parent,
 					const char *compatible)
@@ -899,6 +888,9 @@ static inline int of_prop_val_eq(struct property *p1, struct property *p2)
 	return p1->length == p2->length &&
 	       !memcmp(p1->value, p2->value, (size_t)p1->length);
 }
+
+#define for_each_property_of_node(dn, pp) \
+	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
 #if defined(CONFIG_OF) && defined(CONFIG_NUMA)
 extern int of_node_to_nid(struct device_node *np);
@@ -1436,12 +1428,25 @@ static inline int of_property_read_s32(const struct device_node *np,
 #define for_each_child_of_node(parent, child) \
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
+
+#define for_each_child_of_node_scoped(parent, child) \
+	for (struct device_node *child __free(device_node) =		\
+	     of_get_next_child(parent, NULL);				\
+	     child != NULL;						\
+	     child = of_get_next_child(parent, child))
+
 #define for_each_available_child_of_node(parent, child) \
 	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
 	     child = of_get_next_available_child(parent, child))
 #define for_each_reserved_child_of_node(parent, child)			\
 	for (child = of_get_next_reserved_child(parent, NULL); child != NULL; \
 	     child = of_get_next_reserved_child(parent, child))
+
+#define for_each_available_child_of_node_scoped(parent, child) \
+	for (struct device_node *child __free(device_node) =		\
+	     of_get_next_available_child(parent, NULL);			\
+	     child != NULL;						\
+	     child = of_get_next_available_child(parent, child))
 
 #define for_each_of_cpu_node(cpu) \
 	for (cpu = of_get_next_cpu_node(NULL); cpu != NULL; \
@@ -1643,6 +1648,21 @@ static inline int of_reconfig_get_state_change(unsigned long action,
 static inline bool of_device_is_system_power_controller(const struct device_node *np)
 {
 	return of_property_read_bool(np, "system-power-controller");
+}
+
+/**
+ * of_have_populated_dt() - Has DT been populated by bootloader
+ *
+ * Return: True if a DTB has been populated by the bootloader and it isn't the
+ * empty builtin one. False otherwise.
+ */
+static inline bool of_have_populated_dt(void)
+{
+#ifdef CONFIG_OF
+	return of_property_present(of_root, "compatible");
+#else
+	return false;
+#endif
 }
 
 /*

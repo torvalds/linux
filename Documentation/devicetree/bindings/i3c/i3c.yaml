@@ -71,7 +71,7 @@ patternProperties:
     description: |
       I2C child, should be named: <device-type>@<i2c-address>
 
-      All properties described in Documentation/devicetree/bindings/i2c/i2c.txt
+      All properties described in dtschema schemas/i2c/i2c-controller.yaml
       are valid here, except the reg property whose content is changed.
 
     properties:
