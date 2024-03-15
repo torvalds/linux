@@ -1296,7 +1296,7 @@
 				 * regulator coupling requirements.
 				 */
 				regulator-name = "ppvar_dvdd_vgpu";
-				regulator-min-microvolt = <600000>;
+				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <6250>;
 				regulator-enable-ramp-delay = <200>;
