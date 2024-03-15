@@ -16,30 +16,46 @@
 #define STACK_SIZE (1024 * 1024)
 static char child_stack[STACK_SIZE];
 
-static int test_current_pid_tgid(void *args)
+static int get_pid_tgid(pid_t *pid, pid_t *tgid,
+			struct test_ns_current_pid_tgid__bss *bss)
+{
+	struct stat st;
+	int err;
+
+	*pid = syscall(SYS_gettid);
+	*tgid = getpid();
+
+	err = stat("/proc/self/ns/pid", &st);
+	if (!ASSERT_OK(err, "stat /proc/self/ns/pid"))
+		return err;
+
+	bss->dev = st.st_dev;
+	bss->ino = st.st_ino;
+	bss->user_pid = 0;
+	bss->user_tgid = 0;
+	return 0;
+}
+
+static int test_current_pid_tgid_tp(void *args)
 {
 	struct test_ns_current_pid_tgid__bss  *bss;
 	struct test_ns_current_pid_tgid *skel;
 	int ret = -1, err;
 	pid_t tgid, pid;
-	struct stat st;
 
-	skel = test_ns_current_pid_tgid__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "test_ns_current_pid_tgid__open_and_load"))
-		goto out;
+	skel = test_ns_current_pid_tgid__open();
+	if (!ASSERT_OK_PTR(skel, "test_ns_current_pid_tgid__open"))
+		return ret;
 
-	pid = syscall(SYS_gettid);
-	tgid = getpid();
+	bpf_program__set_autoload(skel->progs.tp_handler, true);
 
-	err = stat("/proc/self/ns/pid", &st);
-	if (!ASSERT_OK(err, "stat /proc/self/ns/pid"))
+	err = test_ns_current_pid_tgid__load(skel);
+	if (!ASSERT_OK(err, "test_ns_current_pid_tgid__load"))
 		goto cleanup;
 
 	bss = skel->bss;
-	bss->dev = st.st_dev;
-	bss->ino = st.st_ino;
-	bss->user_pid = 0;
-	bss->user_tgid = 0;
+	if (get_pid_tgid(&pid, &tgid, bss))
+		goto cleanup;
 
 	err = test_ns_current_pid_tgid__attach(skel);
 	if (!ASSERT_OK(err, "test_ns_current_pid_tgid__attach"))
@@ -55,11 +71,10 @@ static int test_current_pid_tgid(void *args)
 
 cleanup:
 	test_ns_current_pid_tgid__destroy(skel);
-out:
 	return ret;
 }
 
-static void test_ns_current_pid_tgid_new_ns(void)
+static void test_ns_current_pid_tgid_new_ns(int (*fn)(void *), void *arg)
 {
 	int wstatus;
 	pid_t cpid;
@@ -67,8 +82,8 @@ static void test_ns_current_pid_tgid_new_ns(void)
 	/* Create a process in a new namespace, this process
 	 * will be the init process of this new namespace hence will be pid 1.
 	 */
-	cpid = clone(test_current_pid_tgid, child_stack + STACK_SIZE,
-		     CLONE_NEWPID | SIGCHLD, NULL);
+	cpid = clone(fn, child_stack + STACK_SIZE,
+		     CLONE_NEWPID | SIGCHLD, arg);
 
 	if (!ASSERT_NEQ(cpid, -1, "clone"))
 		return;
@@ -84,7 +99,7 @@ static void test_ns_current_pid_tgid_new_ns(void)
 void serial_test_ns_current_pid_tgid(void)
 {
 	if (test__start_subtest("root_ns_tp"))
-		test_current_pid_tgid(NULL);
+		test_current_pid_tgid_tp(NULL);
 	if (test__start_subtest("new_ns_tp"))
-		test_ns_current_pid_tgid_new_ns();
+		test_ns_current_pid_tgid_new_ns(test_current_pid_tgid_tp, NULL);
 }
