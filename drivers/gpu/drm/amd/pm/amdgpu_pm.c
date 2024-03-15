@@ -2379,7 +2379,15 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	}
 
 	/* setting should not be allowed from VF if not in one VF mode */
-	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev)) {
+	if (amdgpu_sriov_vf(adev) && (!amdgpu_sriov_is_pp_one_vf(adev) ||
+		DEVICE_ATTR_IS(pp_dpm_sclk) ||
+		DEVICE_ATTR_IS(pp_dpm_mclk) ||
+		DEVICE_ATTR_IS(pp_dpm_socclk) ||
+		DEVICE_ATTR_IS(pp_dpm_fclk) ||
+		DEVICE_ATTR_IS(pp_dpm_vclk) ||
+		DEVICE_ATTR_IS(pp_dpm_vclk1) ||
+		DEVICE_ATTR_IS(pp_dpm_dclk) ||
+		DEVICE_ATTR_IS(pp_dpm_dclk1))) {
 		dev_attr->attr.mode &= ~S_IWUGO;
 		dev_attr->store = NULL;
 	}
