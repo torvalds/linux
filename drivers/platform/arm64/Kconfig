@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# EC-like Drivers for aarch64 based devices.
+#
+
+menuconfig ARM64_PLATFORM_DEVICES
+	bool "ARM64 Platform-Specific Device Drivers"
+	depends on ARM64 || COMPILE_TEST
+	default y
+	help
+	  Say Y here to get to see options for platform-specific device drivers
+	  for arm64 based devices, primarily EC-like device drivers.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if ARM64_PLATFORM_DEVICES
+
+endif # ARM64_PLATFORM_DEVICES

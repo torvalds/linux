@@ -3051,6 +3051,16 @@ F:	drivers/mmc/host/sdhci-of-arasan.c
 N:	zynq
 N:	xilinx
 
+ARM64 PLATFORM DRIVERS
+M:	Hans de Goede <hdegoede@redhat.com>
+M:	Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+Q:	https://patchwork.kernel.org/project/platform-driver-x86/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pdx86/platform-drivers-x86.git
+F:	drivers/platform/arm64/
+
 ARM64 PORT (AARCH64 ARCHITECTURE)
 M:	Catalin Marinas <catalin.marinas@arm.com>
 M:	Will Deacon <will@kernel.org>
