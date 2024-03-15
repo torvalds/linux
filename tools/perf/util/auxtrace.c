@@ -1466,6 +1466,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 	char *endptr;
 	bool period_type_set = false;
 	bool period_set = false;
+	bool iy = false;
 
 	synth_opts->set = true;
 
@@ -1484,6 +1485,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 		switch (*p++) {
 		case 'i':
 		case 'y':
+			iy = true;
 			if (p[-1] == 'y')
 				synth_opts->cycles = true;
 			else
@@ -1649,7 +1651,7 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 		}
 	}
 out:
-	if (synth_opts->instructions || synth_opts->cycles) {
+	if (iy) {
 		if (!period_type_set)
 			synth_opts->period_type =
 					PERF_ITRACE_DEFAULT_PERIOD_TYPE;
