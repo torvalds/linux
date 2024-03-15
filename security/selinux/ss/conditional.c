@@ -169,6 +169,9 @@ int cond_init_bool_indexes(struct policydb *p)
 		p->p_bools.nprim, sizeof(*p->bool_val_to_struct), GFP_KERNEL);
 	if (!p->bool_val_to_struct)
 		return -ENOMEM;
+
+	avtab_hash_eval(&p->te_cond_avtab, "conditional_rules");
+
 	return 0;
 }
 
