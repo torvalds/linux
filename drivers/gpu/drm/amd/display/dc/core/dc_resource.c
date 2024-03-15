@@ -5052,7 +5052,9 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 	dml2_options->callbacks.update_pipes_for_stream_with_slice_count = &resource_update_pipes_for_stream_with_slice_count;
 	dml2_options->callbacks.update_pipes_for_plane_with_slice_count = &resource_update_pipes_for_plane_with_slice_count;
 	dml2_options->callbacks.get_mpc_slice_index = &resource_get_mpc_slice_index;
+	dml2_options->callbacks.get_mpc_slice_count = &resource_get_mpc_slice_count;
 	dml2_options->callbacks.get_odm_slice_index = &resource_get_odm_slice_index;
+	dml2_options->callbacks.get_odm_slice_count = &resource_get_odm_slice_count;
 	dml2_options->callbacks.get_opp_head = &resource_get_opp_head;
 	dml2_options->callbacks.get_otg_master_for_stream = &resource_get_otg_master_for_stream;
 	dml2_options->callbacks.get_opp_heads_for_otg_master = &resource_get_opp_heads_for_otg_master;

@@ -86,7 +86,9 @@ struct dml2_dc_callbacks {
 			const struct dc_plane_state *plane,
 			int slice_count);
 	int (*get_odm_slice_index)(const struct pipe_ctx *opp_head);
+	int (*get_odm_slice_count)(const struct pipe_ctx *opp_head);
 	int (*get_mpc_slice_index)(const struct pipe_ctx *dpp_pipe);
+	int (*get_mpc_slice_count)(const struct pipe_ctx *dpp_pipe);
 	struct pipe_ctx *(*get_opp_head)(const struct pipe_ctx *pipe_ctx);
 	struct pipe_ctx *(*get_otg_master_for_stream)(
 		struct resource_context *res_ctx,
