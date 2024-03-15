@@ -1327,7 +1327,7 @@ struct dc {
 	struct dc_phy_addr_space_config vm_pa_config;
 
 	uint8_t link_count;
-	struct dc_link *links[MAX_PIPES * 2];
+	struct dc_link *links[MAX_LINKS];
 	struct link_service *link_srv;
 
 	struct dc_state *current_state;

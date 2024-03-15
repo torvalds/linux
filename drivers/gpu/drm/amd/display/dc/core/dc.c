@@ -212,7 +212,8 @@ static bool create_links(
 		connectors_num,
 		num_virtual_links);
 
-	for (i = 0; i < connectors_num; i++) {
+	// condition loop on link_count to allow skipping invalid indices
+	for (i = 0; dc->link_count < connectors_num && i < MAX_LINKS; i++) {
 		struct link_init_data link_init_params = {0};
 		struct dc_link *link;
 
