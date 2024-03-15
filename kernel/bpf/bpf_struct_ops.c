@@ -728,8 +728,6 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			cur_image = image;
 			trampoline_start = 0;
 		}
-		if (err < 0)
-			goto reset_unlock;
 
 		*(void **)(kdata + moff) = image + trampoline_start + cfi_get_offset();
 
