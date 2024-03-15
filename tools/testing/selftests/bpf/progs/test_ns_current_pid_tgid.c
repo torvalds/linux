@@ -28,4 +28,11 @@ int tp_handler(const void *ctx)
 	return 0;
 }
 
+SEC("?cgroup/bind4")
+int cgroup_bind4(struct bpf_sock_addr *ctx)
+{
+	get_pid_tgid();
+	return 1;
+}
+
 char _license[] SEC("license") = "GPL";
