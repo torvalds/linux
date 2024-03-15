@@ -20,6 +20,7 @@
 #define UFS_MTK_SIP_GET_VCC_NUM           BIT(6)
 #define UFS_MTK_SIP_DEVICE_PWR_CTRL       BIT(7)
 #define UFS_MTK_SIP_MPHY_CTRL             BIT(8)
+#define UFS_MTK_SIP_MTCMOS_CTRL           BIT(9)
 
 /*
  * Multi-VCC by Numbering
@@ -86,5 +87,8 @@ static inline void _ufs_mtk_smc(struct ufs_mtk_smc_arg s)
 
 #define ufs_mtk_mphy_ctrl(op, res) \
 	ufs_mtk_smc(UFS_MTK_SIP_MPHY_CTRL, &(res), op)
+
+#define ufs_mtk_mtcmos_ctrl(op, res) \
+	ufs_mtk_smc(UFS_MTK_SIP_MTCMOS_CTRL, &(res), op)
 
 #endif /* !_UFS_MEDIATEK_SIP_H */
