@@ -1485,6 +1485,7 @@ static int i3c_hci_probe(struct platform_device *pdev)
 			"missing or invalid reset controller device tree entry");
 		return PTR_ERR(hci->rst);
 	}
+	reset_control_assert(hci->rst);
 	reset_control_deassert(hci->rst);
 
 	hci->clk = devm_clk_get(&pdev->dev, NULL);
