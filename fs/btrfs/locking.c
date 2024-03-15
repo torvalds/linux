@@ -147,11 +147,6 @@ void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting ne
 	trace_btrfs_tree_read_lock(eb, start_ns);
 }
 
-void btrfs_tree_read_lock(struct extent_buffer *eb)
-{
-	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL);
-}
-
 /*
  * Try-lock for read.
  *
@@ -209,11 +204,6 @@ void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 	down_write_nested(&eb->lock, nest);
 	btrfs_set_eb_lock_owner(eb, current->pid);
 	trace_btrfs_tree_lock(eb, start_ns);
-}
-
-void btrfs_tree_lock(struct extent_buffer *eb)
-{
-	__btrfs_tree_lock(eb, BTRFS_NESTING_NORMAL);
 }
 
 /*
