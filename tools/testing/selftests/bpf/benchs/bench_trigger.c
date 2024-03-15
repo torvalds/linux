@@ -1,15 +1,45 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
+#define _GNU_SOURCE
+#include <unistd.h>
 #include "bench.h"
 #include "trigger_bench.skel.h"
 #include "trace_helpers.h"
+
+/* adjust slot shift in inc_hits() if changing */
+#define MAX_BUCKETS 256
 
 /* BPF triggering benchmarks */
 static struct trigger_ctx {
 	struct trigger_bench *skel;
 } ctx;
 
-static struct counter base_hits;
+static struct counter base_hits[MAX_BUCKETS];
+
+static __always_inline void inc_counter(struct counter *counters)
+{
+	static __thread int tid = 0;
+	unsigned slot;
+
+	if (unlikely(tid == 0))
+		tid = gettid();
+
+	/* multiplicative hashing, it's fast */
+	slot = 2654435769U * tid;
+	slot >>= 24;
+
+	atomic_inc(&base_hits[slot].value); /* use highest byte as an index */
+}
+
+static long sum_and_reset_counters(struct counter *counters)
+{
+	int i;
+	long sum = 0;
+
+	for (i = 0; i < MAX_BUCKETS; i++)
+		sum += atomic_swap(&counters[i].value, 0);
+	return sum;
+}
 
 static void trigger_validate(void)
 {
@@ -23,14 +53,14 @@ static void *trigger_base_producer(void *input)
 {
 	while (true) {
 		(void)syscall(__NR_getpgid);
-		atomic_inc(&base_hits.value);
+		inc_counter(base_hits);
 	}
 	return NULL;
 }
 
 static void trigger_base_measure(struct bench_res *res)
 {
-	res->hits = atomic_swap(&base_hits.value, 0);
+	res->hits = sum_and_reset_counters(base_hits);
 }
 
 static void *trigger_producer(void *input)
@@ -42,7 +72,7 @@ static void *trigger_producer(void *input)
 
 static void trigger_measure(struct bench_res *res)
 {
-	res->hits = atomic_swap(&ctx.skel->bss->hits, 0);
+	res->hits = sum_and_reset_counters(ctx.skel->bss->hits);
 }
 
 static void setup_ctx(void)
@@ -164,7 +194,7 @@ static void *uprobe_base_producer(void *input)
 {
 	while (true) {
 		uprobe_target_nop();
-		atomic_inc(&base_hits.value);
+		inc_counter(base_hits);
 	}
 	return NULL;
 }
