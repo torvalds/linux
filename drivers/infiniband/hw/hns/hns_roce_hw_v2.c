@@ -443,10 +443,6 @@ static int fill_ud_av(struct hns_roce_v2_ud_send_wqe *ud_sq_wqe,
 	hr_reg_write(ud_sq_wqe, UD_SEND_WQE_HOPLIMIT, ah->av.hop_limit);
 	hr_reg_write(ud_sq_wqe, UD_SEND_WQE_TCLASS, ah->av.tclass);
 	hr_reg_write(ud_sq_wqe, UD_SEND_WQE_FLOW_LABEL, ah->av.flowlabel);
-
-	if (WARN_ON(ah->av.sl > MAX_SERVICE_LEVEL))
-		return -EINVAL;
-
 	hr_reg_write(ud_sq_wqe, UD_SEND_WQE_SL, ah->av.sl);
 
 	ud_sq_wqe->sgid_index = ah->av.gid_index;
@@ -4828,6 +4824,69 @@ static int fill_cong_field(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	return 0;
 }
 
+static int hns_roce_hw_v2_get_dscp(struct hns_roce_dev *hr_dev, u8 dscp,
+				   u8 *tc_mode, u8 *priority)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (!ops->get_dscp_prio)
+		return -EOPNOTSUPP;
+
+	return ops->get_dscp_prio(handle, dscp, tc_mode, priority);
+}
+
+bool check_sl_valid(struct hns_roce_dev *hr_dev, u8 sl)
+{
+	u32 max_sl;
+
+	max_sl = min_t(u32, MAX_SERVICE_LEVEL, hr_dev->caps.sl_num - 1);
+	if (unlikely(sl > max_sl)) {
+		ibdev_err_ratelimited(&hr_dev->ib_dev,
+				      "failed to set SL(%u). Shouldn't be larger than %u.\n",
+				      sl, max_sl);
+		return false;
+	}
+
+	return true;
+}
+
+static int hns_roce_set_sl(struct ib_qp *ibqp,
+			   const struct ib_qp_attr *attr,
+			   struct hns_roce_v2_qp_context *context,
+			   struct hns_roce_v2_qp_context *qpc_mask)
+{
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int ret;
+
+	ret = hns_roce_hw_v2_get_dscp(hr_dev, get_tclass(&attr->ah_attr.grh),
+				      &hr_qp->tc_mode, &hr_qp->priority);
+	if (ret && ret != -EOPNOTSUPP &&
+	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
+		ibdev_err_ratelimited(ibdev,
+				      "failed to get dscp, ret = %d.\n", ret);
+		return ret;
+	}
+
+	if (hr_qp->tc_mode == HNAE3_TC_MAP_MODE_DSCP &&
+	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
+		hr_qp->sl = hr_qp->priority;
+	else
+		hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
+
+	if (!check_sl_valid(hr_dev, hr_qp->sl))
+		return -EINVAL;
+
+	hr_reg_write(context, QPC_SL, hr_qp->sl);
+	hr_reg_clear(qpc_mask, QPC_SL);
+
+	return 0;
+}
+
 static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 				const struct ib_qp_attr *attr,
 				int attr_mask,
@@ -4843,18 +4902,9 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	int is_roce_protocol;
 	u16 vlan_id = 0xffff;
 	bool is_udp = false;
-	u32 max_sl;
 	u8 ib_port;
 	u8 hr_port;
 	int ret;
-
-	max_sl = min_t(u32, MAX_SERVICE_LEVEL, hr_dev->caps.sl_num - 1);
-	if (unlikely(sl > max_sl)) {
-		ibdev_err_ratelimited(ibdev,
-				      "failed to fill QPC, sl (%u) shouldn't be larger than %u.\n",
-				      sl, max_sl);
-		return -EINVAL;
-	}
 
 	/*
 	 * If free_mr_en of qp is set, it means that this qp comes from
@@ -4862,6 +4912,8 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	 * In the loopback scenario, only sl needs to be set.
 	 */
 	if (hr_qp->free_mr_en) {
+		if (!check_sl_valid(hr_dev, sl))
+			return -EINVAL;
 		hr_reg_write(context, QPC_SL, sl);
 		hr_reg_clear(qpc_mask, QPC_SL);
 		hr_qp->sl = sl;
@@ -4931,11 +4983,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	memcpy(context->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
 	memset(qpc_mask->dgid, 0, sizeof(grh->dgid.raw));
 
-	hr_qp->sl = sl;
-	hr_reg_write(context, QPC_SL, hr_qp->sl);
-	hr_reg_clear(qpc_mask, QPC_SL);
-
-	return 0;
+	return  hns_roce_set_sl(ibqp, attr, context, qpc_mask);
 }
 
 static bool check_qp_state(enum ib_qp_state cur_state,
@@ -6735,6 +6783,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.query_srqc = hns_roce_v2_query_srqc,
 	.query_sccc = hns_roce_v2_query_sccc,
 	.query_hw_counter = hns_roce_hw_v2_query_counter,
+	.get_dscp = hns_roce_hw_v2_get_dscp,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };
