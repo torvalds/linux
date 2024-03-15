@@ -639,6 +639,9 @@ static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 	if (of_property_read_bool(np, "mediatek,ufs-tx-skew-fix"))
 		host->caps |= UFS_MTK_CAP_TX_SKEW_FIX;
 
+	if (of_property_read_bool(np, "mediatek,ufs-disable-mcq"))
+		host->caps |= UFS_MTK_CAP_DISABLE_MCQ;
+
 	dev_info(hba->dev, "caps: 0x%x", host->caps);
 }
 
@@ -901,6 +904,9 @@ static void ufs_mtk_init_mcq_irq(struct ufs_hba *hba)
 
 	host->mcq_nr_intr = UFSHCD_MAX_Q_NR;
 	pdev = container_of(hba->dev, struct platform_device, dev);
+
+	if (host->caps & UFS_MTK_CAP_DISABLE_MCQ)
+		goto failed;
 
 	for (i = 0; i < host->mcq_nr_intr; i++) {
 		/* irq index 0 is legacy irq, sq/cq irq start from index 1 */
@@ -1617,6 +1623,12 @@ static int ufs_mtk_clk_scale_notify(struct ufs_hba *hba, bool scale_up,
 
 static int ufs_mtk_get_hba_mac(struct ufs_hba *hba)
 {
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	/* MCQ operation not permitted */
+	if (host->caps & UFS_MTK_CAP_DISABLE_MCQ)
+		return -EPERM;
+
 	return MAX_SUPP_MAC;
 }
 
