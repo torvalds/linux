@@ -246,10 +246,12 @@ if (print) { \
 
 /* cmds to perform by using dmaengine_slave_config() */
 enum msm_gpi_ctrl_cmd {
+	MSM_GPI_DEFAULT,
 	MSM_GPI_INIT,
 	MSM_GPI_CMD_UART_SW_STALE,
 	MSM_GPI_CMD_UART_RFR_READY,
 	MSM_GPI_CMD_UART_RFR_NOT_READY,
+	MSM_GPI_DEEP_SLEEP_INIT,
 };
 
 enum msm_gpi_cb_event {
