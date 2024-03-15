@@ -87,12 +87,14 @@ struct dev_pm_opp_config {
 
 /**
  * struct dev_pm_opp_data - The data to use to initialize an OPP.
+ * @turbo: Flag to indicate whether the OPP is to be marked turbo or not.
  * @level: The performance level for the OPP. Set level to OPP_LEVEL_UNSET if
  * level field isn't used.
  * @freq: The clock rate in Hz for the OPP.
  * @u_volt: The voltage in uV for the OPP.
  */
 struct dev_pm_opp_data {
+	bool turbo;
 	unsigned int level;
 	unsigned long freq;
 	unsigned long u_volt;
