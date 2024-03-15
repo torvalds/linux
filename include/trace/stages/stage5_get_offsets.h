@@ -9,6 +9,16 @@
 #undef __entry
 #define __entry entry
 
+#ifndef __STAGE5_STRING_SRC_H
+#define __STAGE5_STRING_SRC_H
+static inline const char *__string_src(const char *str)
+{
+       if (!str)
+	       return EVENT_NULL_STR;
+       return str;
+}
+#endif /* __STAGE5_STRING_SRC_H */
+
 /*
  * Fields should never declare an array: i.e. __field(int, arr[5])
  * If they do, it will cause issues in parsing and possibly corrupt the
@@ -47,7 +57,7 @@
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item,			\
-		    strlen((const char *)(src) ? : EVENT_NULL_STR) + 1)	\
+		    strlen(__string_src(src)) + 1)			\
 	__data_offsets->item##_ptr_ = src;
 
 #undef __string_len
@@ -70,7 +80,7 @@
 
 #undef __rel_string
 #define __rel_string(item, src) __rel_dynamic_array(char, item,		\
-		    strlen((const char *)(src) ? : EVENT_NULL_STR) + 1)	\
+		    strlen(__string_src(src)) + 1)			\
 	__data_offsets->item##_ptr_ = src;
 
 #undef __rel_string_len
