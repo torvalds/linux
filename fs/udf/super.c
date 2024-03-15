@@ -630,7 +630,7 @@ static int udf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			if (!uopt->nls_map) {
 				errorf(fc, "iocharset %s not found",
 					param->string);
-				return -EINVAL;;
+				return -EINVAL;
 			}
 		}
 		break;
