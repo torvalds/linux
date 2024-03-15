@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -745,6 +745,7 @@ static const struct freq_tbl ftbl_gcc_qupv3_wrap0_qspi_ref_clk_src[] = {
 	F(117964800, P_GCC_GPLL0_OUT_EVEN, 1, 6144, 15625),
 	F(120000000, P_GCC_GPLL0_OUT_MAIN, 5, 0, 0),
 	F(150000000, P_GCC_GPLL0_OUT_EVEN, 2, 0, 0),
+	F(200000000, P_GCC_GPLL0_OUT_MAIN, 3, 0, 0),
 	{ }
 };
 
@@ -1250,7 +1251,7 @@ static struct clk_rcg2 gcc_sdcc2_apps_clk_src = {
 		.name = "gcc_sdcc2_apps_clk_src",
 		.parent_data = gcc_parent_data_11,
 		.num_parents = ARRAY_SIZE(gcc_parent_data_11),
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 	.clkr.vdd_data = {
 		.vdd_classes = gcc_volcano_regulators,
@@ -1263,7 +1264,9 @@ static struct clk_rcg2 gcc_sdcc2_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_ufs_phy_axi_clk_src[] = {
+	F(25000000, P_GCC_GPLL0_OUT_EVEN, 12, 0, 0),
 	F(75000000, P_GCC_GPLL0_OUT_EVEN, 4, 0, 0),
+	F(100000000, P_GCC_GPLL0_OUT_EVEN, 3, 0, 0),
 	F(150000000, P_GCC_GPLL0_OUT_MAIN, 4, 0, 0),
 	F(300000000, P_GCC_GPLL0_OUT_MAIN, 2, 0, 0),
 	{ }
@@ -1354,12 +1357,19 @@ static struct clk_rcg2 gcc_ufs_phy_phy_aux_clk_src = {
 	},
 };
 
+static const struct freq_tbl ftbl_gcc_ufs_phy_unipro_core_clk_src[] = {
+	F(75000000, P_GCC_GPLL0_OUT_EVEN, 4, 0, 0),
+	F(150000000, P_GCC_GPLL0_OUT_MAIN, 4, 0, 0),
+	F(300000000, P_GCC_GPLL0_OUT_MAIN, 2, 0, 0),
+	{ }
+};
+
 static struct clk_rcg2 gcc_ufs_phy_unipro_core_clk_src = {
 	.cmd_rcgr = 0x77098,
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = gcc_parent_map_2,
-	.freq_tbl = ftbl_gcc_ufs_phy_axi_clk_src,
+	.freq_tbl = ftbl_gcc_ufs_phy_unipro_core_clk_src,
 	.enable_safe_config = true,
 	.flags = HW_CLK_CTRL_MODE,
 	.clkr.hw.init = &(const struct clk_init_data) {
