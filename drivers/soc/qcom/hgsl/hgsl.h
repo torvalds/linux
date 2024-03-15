@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __HGSL_H_
@@ -24,6 +24,8 @@
 /* Support upto 3 GVMs: 3 DBQs(Low/Medium/High priority) per GVM */
 #define MAX_DB_QUEUE 9
 #define HGSL_TCSR_NUM 4
+
+#define HGSL_CONTEXT_NUM 256
 
 struct qcom_hgsl;
 struct hgsl_hsync_timeline;
@@ -54,14 +56,23 @@ struct db_buffer {
 	void  *vaddr;
 };
 
+struct dbq_ibdesc_priv {
+	bool   buf_inuse;
+	uint32_t context_id;
+	uint32_t timestamp;
+};
+
 struct doorbell_queue {
 	struct dma_buf *dma;
 	struct iosys_map map;
 	void *vbase;
+	uint64_t  gmuaddr;
 	struct db_buffer data;
 	uint32_t state;
 	int tcsr_idx;
 	uint32_t dbq_idx;
+	struct dbq_ibdesc_priv ibdesc_priv;
+	uint32_t  ibdesc_max_size;
 	struct mutex lock;
 	atomic_t seq_num;
 };
@@ -123,6 +134,12 @@ struct qcom_hgsl {
 	spinlock_t isync_timeline_lock;
 	atomic64_t total_mem_size;
 	bool default_iocoherency;
+
+	/* Debug nodes */
+	struct kobject sysfs;
+	struct kobject *clients_sysfs;
+	struct dentry *debugfs;
+	struct dentry *clients_debugfs;
 };
 
 /**
@@ -140,8 +157,9 @@ struct hgsl_context {
 	bool dbq_assigned;
 	uint32_t dbq_info;
 	struct doorbell_queue *dbq;
-	struct hgsl_mem_node shadow_ts_node;
+	struct hgsl_mem_node *shadow_ts_node;
 	uint32_t shadow_ts_flags;
+	bool is_fe_shadow;
 	bool in_destroy;
 	bool destroyed;
 	struct kref kref;
@@ -166,6 +184,14 @@ struct hgsl_priv {
 	struct list_head mem_allocated;
 
 	atomic64_t total_mem_size;
+
+	/* sysfs stuff */
+	struct kobject kobj;
+	struct kobject sysfs_client;
+	struct kobject sysfs_mem_size;
+	struct dentry *debugfs_client;
+	struct dentry *debugfs_mem;
+	struct dentry *debugfs_memtype;
 };
 
 

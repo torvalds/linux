@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "linux/habmm.h"
@@ -67,7 +67,8 @@ enum _gsl_rpc_payload_type_t {
 	GSL_RPC_64BIT_DATA
 };
 
-struct  __packed gsl_rpc_header_t {
+#pragma pack(push, 1)
+struct gsl_rpc_header_t {
 	uint32_t magic;
 	uint32_t id;
 	uint32_t version;
@@ -75,9 +76,10 @@ struct  __packed gsl_rpc_header_t {
 	uint8_t  data;
 };
 
-struct  __packed gsl_rpc_footer_t {
+struct gsl_rpc_footer_t {
 	uint32_t checksum;
 };
+#pragma pack(pop)
 
 /* the actual header size is one byte less because
  * of the data pointer in the gsl_rpc_header_t

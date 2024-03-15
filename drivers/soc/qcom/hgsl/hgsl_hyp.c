@@ -4,6 +4,7 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include "hgsl.h"
 #include "hgsl_hyp.h"
 #include "hgsl_utils.h"
 #include <linux/delay.h>
@@ -983,7 +984,7 @@ int hgsl_hyp_get_shadowts_mem(struct hgsl_hab_channel_t *hab_channel,
 
 	*shadow_ts_flags = rpc_shadow.flags;
 	mem_node->memdesc.size64 = (uint64_t)rpc_shadow.sizebytes;
-
+	mem_node->fd = -1;
 
 	if (rpc_shadow.flags & GSL_FLAGS_INITIALIZED) {
 		aligned_size = (rpc_shadow.sizebytes + (0x1000-1)) & ~(0x1000-1);
@@ -2201,6 +2202,19 @@ int hgsl_hyp_get_dbq_info(struct hgsl_hyp_priv_t *priv, uint32_t dbq_idx,
 		LOGE("gsl_rpc_read_uint32_l failed, %d", ret);
 		goto out;
 	}
+	ret = gsl_rpc_read_uint64_l(recv_buf, &dbq_info->gmuaddr);
+	if (ret)
+		LOGW("gsl_rpc_read_uint64_l failed, %d", ret);
+	else {
+		ret = gsl_rpc_read_uint32_l(recv_buf,
+					&dbq_info->ibdesc_max_size);
+		if (ret)
+			LOGW("gsl_rpc_read_uint32_l failed, %d", ret);
+	}
+	if (ret) {
+		dbq_info->ibdesc_max_size = 0;
+		ret = 0;
+	}
 	dbq_info->size = (dbq_info->size + (0x1000 - 1)) & (~(0x1000 - 1));
 	ret = habmm_import(hab_channel->socket,
 		(void **)&dma_buf, dbq_info->size,
@@ -2319,6 +2333,7 @@ int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhand
 		LOGE("gsl_rpc_read_int32_l failed, %d", ret);
 		goto out;
 	}
+
 	if (rval != GSL_SUCCESS) {
 		LOGI("RPC_CONTEXT_QUERY_DBCQ failed, rval %d", rval);
 		ret = -EINVAL;
@@ -2423,3 +2438,304 @@ out:
 	RPC_TRACE_DONE();
 	return ret;
 }
+
+static int write_ctxt_shadowts_mem_fe(struct hgsl_hab_channel_t *hab_channel,
+				struct hgsl_context *ctxt,
+				struct hgsl_ioctl_ctxt_create_params *hgsl_params,
+				uint32_t dbq_off,
+				struct hgsl_mem_node *mem_node)
+{
+	struct context_create_params_v1_t rpc_params = { 0 };
+	struct context_create_params_t *ctxt_create_p =
+					&rpc_params.ctxt_create_param;
+	struct memory_map_ext_fd_params_t *shadow_map_p =
+					&rpc_params.shadow_map_param;
+	struct gsl_hab_payload *send_buf = &hab_channel->send_buf;
+	void  *hab_exp_handle = NULL;
+	uint32_t export_id = 0;
+	int ret = 0;
+
+	if (!mem_node->dma_buf) {
+		LOGE("dma_buf is invalid");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	rpc_params.size = sizeof(rpc_params);
+	ctxt_create_p->size = sizeof(*ctxt_create_p);
+	ctxt_create_p->devhandle = hgsl_params->devhandle;
+	ctxt_create_p->type = hgsl_params->type;
+	ctxt_create_p->flags = hgsl_params->flags;
+
+	hab_exp_handle = (void *)(mem_node->dma_buf);
+	ret = habmm_export(hab_channel->socket, hab_exp_handle, PAGE_SIZE,
+				&export_id, HABMM_EXPIMP_FLAGS_DMABUF);
+	if (ret) {
+		LOGE("habmm_export failed, %d", ret);
+		goto out;
+	}
+
+	mem_node->export_id = export_id;
+
+	shadow_map_p->size = sizeof(*shadow_map_p);
+	shadow_map_p->fd = mem_node->fd;
+	shadow_map_p->hostptr = 0;
+	shadow_map_p->len = PAGE_SIZE;
+	shadow_map_p->offset = 0;
+	shadow_map_p->memtype = mem_node->memtype;
+	shadow_map_p->flags = 0;
+
+	rpc_params.dbq_off = dbq_off;
+
+	ret = gsl_rpc_write(send_buf, &rpc_params, sizeof(rpc_params));
+	if (ret) {
+		LOGE("gsl_rpc_write failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_write_uint32(send_buf, export_id);
+	if (ret) {
+		LOGE("gsl_rpc_write failed, %d", ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static int read_shadowts_mem_fe(struct hgsl_hab_channel_t *hab_channel,
+				struct hgsl_context *ctxt,
+				struct hgsl_mem_node *mem_node)
+{
+	struct gsl_hab_payload *recv_buf = &hab_channel->recv_buf;
+	int ret = 0;
+	int rval = GSL_SUCCESS;
+
+	ret = gsl_rpc_read_int32_l(recv_buf, &rval);
+	if (ret) {
+		LOGE("gsl_rpc_read_int32_l failed, %d", ret);
+		goto out;
+	}
+
+	if (rval == GSL_SUCCESS) {
+		ret = gsl_rpc_read(recv_buf, &mem_node->memdesc,
+					sizeof(mem_node->memdesc));
+		if (ret) {
+			LOGE("gsl_rpc_read failed, %d", ret);
+			goto out;
+		}
+
+		if (!mem_node->dma_buf) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		dma_buf_begin_cpu_access(mem_node->dma_buf, DMA_FROM_DEVICE);
+		ret = dma_buf_vmap(mem_node->dma_buf, &ctxt->map);
+		if (ret) {
+			dma_buf_end_cpu_access(mem_node->dma_buf, DMA_FROM_DEVICE);
+			ret = -EFAULT;
+		} else {
+			ctxt->shadow_ts = (struct shadow_ts *)ctxt->map.vaddr;
+			ctxt->shadow_ts_node = mem_node;
+			ctxt->is_fe_shadow = true;
+			ctxt->shadow_ts_flags = GSL_FLAGS_INITIALIZED;
+		}
+	} else {
+		ret = -EINVAL;
+	}
+
+out:
+	return ret;
+}
+
+static int read_shadowts_mem_be(struct hgsl_hab_channel_t *hab_channel,
+				struct hgsl_context *ctxt)
+{
+	struct qcom_hgsl *hgsl = ctxt->priv->dev;
+	struct gsl_hab_payload *recv_buf = &hab_channel->recv_buf;
+	uint32_t export_id = 0;
+	struct hgsl_mem_node *mem_node = NULL;
+	struct shadowprop_t rpc_shadow = { 0 };
+	int ret = 0;
+
+	ret = gsl_rpc_read(recv_buf, &rpc_shadow, sizeof(rpc_shadow));
+	if (ret) {
+		LOGE("gsl_rpc_read failed, %d", ret);
+		goto out;
+	}
+	ret = gsl_rpc_read_uint32_l(recv_buf, &export_id);
+	if (ret) {
+		LOGE("gsl_rpc_read_uint32_l failed, %d", ret);
+		goto out;
+	}
+
+	if (rpc_shadow.flags & GSL_FLAGS_INITIALIZED) {
+		mem_node = hgsl_mem_node_zalloc(hgsl->default_iocoherency);
+		if (mem_node == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		mem_node->memdesc.size64 = (uint64_t)rpc_shadow.sizebytes;
+		mem_node->fd = -1;
+
+		ret = habmm_import(hab_channel->socket,
+			(void **)&mem_node->dma_buf,
+			PAGE_ALIGN(rpc_shadow.sizebytes), export_id, 0);
+		if (ret) {
+			LOGE("habmm_import failed, ret = %d", ret);
+			goto out;
+		}
+
+		mem_node->export_id = export_id;
+		dma_buf_begin_cpu_access(mem_node->dma_buf, DMA_FROM_DEVICE);
+		ret = dma_buf_vmap(mem_node->dma_buf, &ctxt->map);
+		if (ret) {
+			dma_buf_end_cpu_access(mem_node->dma_buf, DMA_FROM_DEVICE);
+			hgsl_hyp_put_shadowts_mem(hab_channel, mem_node);
+			habmm_unimport(hab_channel->socket,
+					export_id, mem_node->dma_buf, 0);
+			ret = -EFAULT;
+		} else {
+			ctxt->shadow_ts = (struct shadow_ts *)ctxt->map.vaddr;
+			ctxt->shadow_ts_node = mem_node;
+			ctxt->shadow_ts_flags = rpc_shadow.flags;
+		}
+	}
+
+out:
+	if (ret)
+		kfree(mem_node);
+
+	return ret;
+}
+
+int hgsl_hyp_ctxt_create_v1(struct device *dev,
+			struct hgsl_priv *priv,
+			struct hgsl_hab_channel_t *hab_channel,
+			struct hgsl_context *ctxt,
+			struct hgsl_ioctl_ctxt_create_params *hgsl_params,
+			int dbq_off, uint32_t *dbq_info)
+{
+	struct hgsl_mem_node *mem_node = NULL;
+	struct gsl_hab_payload *recv_buf = NULL;
+	struct qcom_hgsl *hgsl = priv->dev;
+	int ret = 0;
+	int rval = GSL_SUCCESS;
+
+	RPC_TRACE();
+	hgsl_params->ctxthandle = -1;
+
+	if (!hab_channel) {
+		LOGE("invalid hab_channel");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = hgsl_rpc_parcel_reset(hab_channel);
+	if (ret) {
+		LOGE("hgsl_rpc_parcel_reset failed %d", ret);
+		goto out;
+	}
+	recv_buf = &hab_channel->recv_buf;
+
+	mem_node = hgsl_mem_node_zalloc(hgsl->default_iocoherency);
+	if (mem_node == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	mem_node->fd = -1;
+	ret = hgsl_sharedmem_alloc(dev, PAGE_SIZE, 0, mem_node);
+	if (ret)
+		goto out;
+
+	ret = write_ctxt_shadowts_mem_fe(hab_channel, ctxt, hgsl_params,
+					dbq_off, mem_node);
+	if (ret)
+		goto out;
+
+	ret = gsl_rpc_transact_ext(RPC_CONTEXT_CREATE, 1, hab_channel, false);
+	if (ret) {
+		LOGE("gsl_rpc_transact_ext failed, %d", ret);
+		goto out;
+	}
+
+	ret = gsl_rpc_read_uint32_l(recv_buf, &hgsl_params->ctxthandle);
+	if (ret) {
+		LOGE("gsl_rpc_read_uint32_l failed, %d", ret);
+		goto out;
+	}
+
+	if (hgsl_params->ctxthandle >= HGSL_CONTEXT_NUM) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ctxt->context_id = hgsl_params->ctxthandle;
+	ctxt->devhandle = hgsl_params->devhandle;
+	ctxt->pid = priv->pid;
+	ctxt->priv = priv;
+	ctxt->flags = hgsl_params->flags;
+
+	ret = read_shadowts_mem_fe(hab_channel, ctxt, mem_node);
+	if (ret != 0) {
+		ret = read_shadowts_mem_be(hab_channel, ctxt);
+		if (ret) {
+			LOGE("failed to get shadow memory");
+			goto out;
+		}
+	}
+
+	if (dbq_off)
+		goto out;
+
+	ret = gsl_rpc_read_int32_l(recv_buf, &rval);
+	if (ret) {
+		LOGE("gsl_rpc_read_int32_l failed, %d", ret);
+		goto out;
+	}
+
+	if (rval == GSL_SUCCESS) {
+		ret = gsl_rpc_read_uint32_l(recv_buf, dbq_info);
+		if (ret) {
+			LOGE("gsl_rpc_read_uint32_l failed, %d", ret);
+			goto out;
+		}
+	}
+
+out:
+	if (ret) {
+		if (ctxt->shadow_ts) {
+			dma_buf_vunmap(ctxt->shadow_ts_node->dma_buf,
+					&ctxt->map);
+			dma_buf_end_cpu_access(ctxt->shadow_ts_node->dma_buf,
+						DMA_FROM_DEVICE);
+			ctxt->shadow_ts = NULL;
+		}
+
+		if (ctxt->shadow_ts_node && !ctxt->is_fe_shadow) {
+			hgsl_hyp_put_shadowts_mem(hab_channel,
+							ctxt->shadow_ts_node);
+			kfree(ctxt->shadow_ts_node);
+			ctxt->shadow_ts_node = NULL;
+		}
+
+		if (hgsl_params->ctxthandle < HGSL_CONTEXT_NUM) {
+			hgsl_hyp_ctxt_destroy(hab_channel,
+					hgsl_params->devhandle,
+					hgsl_params->ctxthandle, NULL, 0);
+			hgsl_params->ctxthandle = -1;
+		}
+	}
+
+	if (ret || !ctxt->is_fe_shadow) {
+		hgsl_hyp_mem_unmap_smmu(hab_channel, mem_node);
+		hgsl_sharedmem_free(mem_node);
+	}
+
+	RPC_TRACE_DONE();
+	return ret;
+}
+
