@@ -12677,6 +12677,11 @@ struct mlx5_ifc_modify_page_track_obj_in_bits {
 	struct mlx5_ifc_page_track_bits obj_context;
 };
 
+struct mlx5_ifc_query_page_track_obj_out_bits {
+	struct mlx5_ifc_general_obj_out_cmd_hdr_bits general_obj_out_cmd_hdr;
+	struct mlx5_ifc_page_track_bits obj_context;
+};
+
 struct mlx5_ifc_msecq_reg_bits {
 	u8         reserved_at_0[0x20];
 

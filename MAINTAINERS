@@ -23164,12 +23164,11 @@ L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/pci/mlx5/
 
-VFIO VIRTIO PCI DRIVER
-M:	Yishai Hadas <yishaih@nvidia.com>
+VFIO NVIDIA GRACE GPU DRIVER
+M:	Ankit Agrawal <ankita@nvidia.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.linux.dev
-S:	Maintained
-F:	drivers/vfio/pci/virtio
+S:	Supported
+F:	drivers/vfio/pci/nvgrace-gpu/
 
 VFIO PCI DEVICE SPECIFIC DRIVERS
 R:	Jason Gunthorpe <jgg@nvidia.com>
@@ -23193,6 +23192,13 @@ M:	Eric Auger <eric.auger@redhat.com>
 L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/platform/
+
+VFIO VIRTIO PCI DRIVER
+M:	Yishai Hadas <yishaih@nvidia.com>
+L:	kvm@vger.kernel.org
+L:	virtualization@lists.linux.dev
+S:	Maintained
+F:	drivers/vfio/pci/virtio
 
 VGA_SWITCHEROO
 R:	Lukas Wunner <lukas@wunner.de>
