@@ -14,15 +14,15 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			device_type = "cpu";
 			compatible = "mips,mips1004Kc";
 			reg = <0>;
+			device_type = "cpu";
 		};
 
 		cpu@1 {
-			device_type = "cpu";
 			compatible = "mips,mips1004Kc";
 			reg = <1>;
+			device_type = "cpu";
 		};
 	};
 
