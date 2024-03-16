@@ -263,18 +263,6 @@ bool vhost_vq_work_queue(struct vhost_virtqueue *vq, struct vhost_work *work)
 }
 EXPORT_SYMBOL_GPL(vhost_vq_work_queue);
 
-void vhost_vq_flush(struct vhost_virtqueue *vq)
-{
-	struct vhost_flush_struct flush;
-
-	init_completion(&flush.wait_event);
-	vhost_work_init(&flush.work, vhost_flush_work);
-
-	if (vhost_vq_work_queue(vq, &flush.work))
-		wait_for_completion(&flush.wait_event);
-}
-EXPORT_SYMBOL_GPL(vhost_vq_flush);
-
 /**
  * vhost_worker_flush - flush a worker
  * @worker: worker to flush
