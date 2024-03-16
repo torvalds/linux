@@ -27,10 +27,12 @@
 	};
 
 	cpuintc: cpuintc {
+		compatible = "mti,cpu-interrupt-controller";
+
 		#address-cells = <0>;
 		#interrupt-cells = <1>;
+
 		interrupt-controller;
-		compatible = "mti,cpu-interrupt-controller";
 	};
 
 	mmc_fixed_3v3: regulator-3v3 {
