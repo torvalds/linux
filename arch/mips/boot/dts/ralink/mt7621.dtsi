@@ -104,18 +104,19 @@
 			compatible = "mediatek,mt7621-i2c";
 			reg = <0x900 0x100>;
 
-			clocks = <&sysc MT7621_CLK_I2C>;
-			clock-names = "i2c";
-			resets = <&sysc MT7621_RST_I2C>;
-			reset-names = "i2c";
-
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			status = "disabled";
+			clocks = <&sysc MT7621_CLK_I2C>;
+			clock-names = "i2c";
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c_pins>;
+
+			resets = <&sysc MT7621_RST_I2C>;
+			reset-names = "i2c";
+
+			status = "disabled";
 		};
 
 		memc: memory-controller@5000 {
