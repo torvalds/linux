@@ -183,22 +183,22 @@
 		};
 
 		spi0: spi@b00 {
-			status = "disabled";
-
 			compatible = "ralink,mt7621-spi";
 			reg = <0xb00 0x100>;
-
-			clocks = <&sysc MT7621_CLK_SPI>;
-			clock-names = "spi";
-
-			resets = <&sysc MT7621_RST_SPI>;
-			reset-names = "spi";
 
 			#address-cells = <1>;
 			#size-cells = <0>;
 
+			clock-names = "spi";
+			clocks = <&sysc MT7621_CLK_SPI>;
+
 			pinctrl-names = "default";
 			pinctrl-0 = <&spi_pins>;
+
+			reset-names = "spi";
+			resets = <&sysc MT7621_RST_SPI>;
+
+			status = "disabled";
 		};
 	};
 
