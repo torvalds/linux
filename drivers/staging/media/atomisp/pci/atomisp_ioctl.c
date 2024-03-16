@@ -301,7 +301,7 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
-		.pixelformat = V4L2_PIX_FMT_RGB32,
+		.pixelformat = V4L2_PIX_FMT_RGBX32,
 		.depth = 32,
 		.mbus_code = V4L2_MBUS_FMT_CUSTOM_RGB32,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_RGBA888,

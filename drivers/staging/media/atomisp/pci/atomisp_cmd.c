@@ -1123,7 +1123,7 @@ v4l2_fmt_to_sh_fmt(u32 fmt)
 		return IA_CSS_FRAME_FORMAT_YUYV;
 	case V4L2_PIX_FMT_RGB24:
 		return IA_CSS_FRAME_FORMAT_PLANAR_RGB888;
-	case V4L2_PIX_FMT_RGB32:
+	case V4L2_PIX_FMT_RGBX32:
 		return IA_CSS_FRAME_FORMAT_RGBA888;
 	case V4L2_PIX_FMT_RGB565:
 		return IA_CSS_FRAME_FORMAT_RGB565;
@@ -1210,7 +1210,7 @@ u32 atomisp_get_pixel_depth(u32 pixelformat)
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_YUV444:
 		return 24;
-	case V4L2_PIX_FMT_RGB32:
+	case V4L2_PIX_FMT_RGBX32:
 		return 32;
 	case V4L2_PIX_FMT_JPEG:
 	case V4L2_PIX_FMT_CUSTOM_M10MO_RAW:
