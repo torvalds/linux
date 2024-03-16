@@ -3068,16 +3068,7 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	percpu_ref_kill(&ctx->refs);
 	xa_for_each(&ctx->personalities, index, creds)
 		io_unregister_personality(ctx, index);
-	if (ctx->rings)
-		io_poll_remove_all(ctx, NULL, true);
 	mutex_unlock(&ctx->uring_lock);
-
-	/*
-	 * If we failed setting up the ctx, we might not have any rings
-	 * and therefore did not submit any requests
-	 */
-	if (ctx->rings)
-		io_kill_timeouts(ctx, NULL, true);
 
 	flush_delayed_work(&ctx->fallback_work);
 
