@@ -401,15 +401,15 @@ static inline int debug_lockdep_rcu_enabled(void)
 		}							\
 	} while (0)
 
-#if defined(CONFIG_PROVE_RCU) && !defined(CONFIG_PREEMPT_RCU)
+#ifndef CONFIG_PREEMPT_RCU
 static inline void rcu_preempt_sleep_check(void)
 {
 	RCU_LOCKDEP_WARN(lock_is_held(&rcu_lock_map),
 			 "Illegal context switch in RCU read-side critical section");
 }
-#else /* #ifdef CONFIG_PROVE_RCU */
+#else // #ifndef CONFIG_PREEMPT_RCU
 static inline void rcu_preempt_sleep_check(void) { }
-#endif /* #else #ifdef CONFIG_PROVE_RCU */
+#endif // #else // #ifndef CONFIG_PREEMPT_RCU
 
 #define rcu_sleep_check()						\
 	do {								\
