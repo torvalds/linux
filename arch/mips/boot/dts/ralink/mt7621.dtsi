@@ -68,12 +68,15 @@
 		sysc: syscon@0 {
 			compatible = "mediatek,mt7621-sysc", "syscon";
 			reg = <0x0 0x100>;
+
 			#clock-cells = <1>;
 			#reset-cells = <1>;
-			ralink,memctl = <&memc>;
+
 			clock-output-names = "xtal", "cpu", "bus",
 					     "50m", "125m", "150m",
 					     "250m", "270m";
+
+			ralink,memctl = <&memc>;
 		};
 
 		wdt: watchdog@100 {
