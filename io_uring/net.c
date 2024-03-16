@@ -161,36 +161,6 @@ static inline struct io_async_msghdr *io_msg_alloc_async_prep(struct io_kiocb *r
 	return io_msg_alloc_async(req, 0);
 }
 
-static int io_setup_async_msg(struct io_kiocb *req,
-			      struct io_async_msghdr *kmsg,
-			      unsigned int issue_flags)
-{
-	struct io_async_msghdr *async_msg;
-
-	if (req_has_async_data(req))
-		return -EAGAIN;
-	async_msg = io_msg_alloc_async(req, issue_flags);
-	if (!async_msg) {
-		kfree(kmsg->free_iov);
-		return -ENOMEM;
-	}
-	req->flags |= REQ_F_NEED_CLEANUP;
-	memcpy(async_msg, kmsg, sizeof(*kmsg));
-	if (async_msg->msg.msg_name)
-		async_msg->msg.msg_name = &async_msg->addr;
-
-	if ((req->flags & REQ_F_BUFFER_SELECT) && !async_msg->msg.msg_iter.nr_segs)
-		return -EAGAIN;
-
-	/* if were using fast_iov, set it to the new one */
-	if (iter_is_iovec(&kmsg->msg.msg_iter) && !kmsg->free_iov) {
-		size_t fast_idx = iter_iov(&kmsg->msg.msg_iter) - kmsg->fast_iov;
-		async_msg->msg.msg_iter.__iov = &async_msg->fast_iov[fast_idx];
-	}
-
-	return -EAGAIN;
-}
-
 #ifdef CONFIG_COMPAT
 static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 				  struct io_async_msghdr *iomsg,
@@ -409,7 +379,7 @@ static void io_req_msg_cleanup(struct io_kiocb *req,
 int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	struct socket *sock;
 	unsigned flags;
 	int min_ret = 0;
@@ -423,15 +393,17 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 		kmsg = req->async_data;
 		kmsg->msg.msg_control_user = sr->msg_control;
 	} else {
-		ret = io_sendmsg_copy_hdr(req, &iomsg);
+		kmsg = io_msg_alloc_async(req, issue_flags);
+		if (unlikely(!kmsg))
+			return -ENOMEM;
+		ret = io_sendmsg_copy_hdr(req, kmsg);
 		if (ret)
 			return ret;
-		kmsg = &iomsg;
 	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg, issue_flags);
+		return -EAGAIN;
 
 	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -443,13 +415,13 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			kmsg->msg.msg_controllen = 0;
 			kmsg->msg.msg_control = NULL;
 			sr->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -465,7 +437,6 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 }
 
 static struct io_async_msghdr *io_send_setup(struct io_kiocb *req,
-					     struct io_async_msghdr *stack_msg,
 					     unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -475,8 +446,9 @@ static struct io_async_msghdr *io_send_setup(struct io_kiocb *req,
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
 	} else {
-		kmsg = stack_msg;
-		kmsg->free_iov = NULL;
+		kmsg = io_msg_alloc_async(req, issue_flags);
+		if (unlikely(!kmsg))
+			return ERR_PTR(-ENOMEM);
 		kmsg->msg.msg_name = NULL;
 		kmsg->msg.msg_namelen = 0;
 		kmsg->msg.msg_control = NULL;
@@ -500,7 +472,7 @@ static struct io_async_msghdr *io_send_setup(struct io_kiocb *req,
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return ERR_PTR(io_setup_async_msg(req, kmsg, issue_flags));
+		return ERR_PTR(-EAGAIN);
 
 	return kmsg;
 }
@@ -508,7 +480,7 @@ static struct io_async_msghdr *io_send_setup(struct io_kiocb *req,
 int io_send(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	size_t len = sr->len;
 	struct socket *sock;
 	unsigned flags;
@@ -519,7 +491,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	kmsg = io_send_setup(req, &iomsg, issue_flags);
+	kmsg = io_send_setup(req, issue_flags);
 	if (IS_ERR(kmsg))
 		return PTR_ERR(kmsg);
 
@@ -538,14 +510,14 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	ret = sock_sendmsg(sock, &kmsg->msg);
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->len -= ret;
 			sr->buf += ret;
 			sr->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -736,9 +708,10 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 			sr->nr_multishot_loops = 0;
 			mshot_retry_ret = IOU_REQUEUE;
 		}
-		*ret = io_setup_async_msg(req, kmsg, issue_flags);
-		if (*ret == -EAGAIN && issue_flags & IO_URING_F_MULTISHOT)
+		if (issue_flags & IO_URING_F_MULTISHOT)
 			*ret = mshot_retry_ret;
+		else
+			*ret = -EAGAIN;
 		return true;
 	}
 
@@ -840,7 +813,7 @@ static int io_recvmsg_multishot(struct socket *sock, struct io_sr_msg *io,
 int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -854,15 +827,17 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
 	} else {
-		ret = io_recvmsg_copy_hdr(req, &iomsg);
+		kmsg = io_msg_alloc_async(req, issue_flags);
+		if (unlikely(!kmsg))
+			return -ENOMEM;
+		ret = io_recvmsg_copy_hdr(req, kmsg);
 		if (ret)
 			return ret;
-		kmsg = &iomsg;
 	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg, issue_flags);
+		return -EAGAIN;
 
 	flags = sr->msg_flags;
 	if (force_nonblock)
@@ -904,17 +879,16 @@ retry_multishot:
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
-			ret = io_setup_async_msg(req, kmsg, issue_flags);
-			if (ret == -EAGAIN && (issue_flags & IO_URING_F_MULTISHOT)) {
+			if (issue_flags & IO_URING_F_MULTISHOT) {
 				io_kbuf_recycle(req, issue_flags);
 				return IOU_ISSUE_SKIP_COMPLETE;
 			}
-			return ret;
+			return -EAGAIN;
 		}
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -939,7 +913,7 @@ retry_multishot:
 int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -949,7 +923,9 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
 	} else {
-		kmsg = &iomsg;
+		kmsg = io_msg_alloc_async(req, issue_flags);
+		if (unlikely(!kmsg))
+			return -ENOMEM;
 		kmsg->free_iov = NULL;
 		kmsg->msg.msg_name = NULL;
 		kmsg->msg.msg_namelen = 0;
@@ -969,7 +945,7 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg, issue_flags);
+		return -EAGAIN;
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
@@ -1003,8 +979,7 @@ retry_multishot:
 	ret = sock_recvmsg(sock, &kmsg->msg, flags);
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
-			ret = io_setup_async_msg(req, kmsg, issue_flags);
-			if (ret == -EAGAIN && issue_flags & IO_URING_F_MULTISHOT) {
+			if (issue_flags & IO_URING_F_MULTISHOT) {
 				io_kbuf_recycle(req, issue_flags);
 				return IOU_ISSUE_SKIP_COMPLETE;
 			}
@@ -1016,7 +991,7 @@ retry_multishot:
 			sr->buf += ret;
 			sr->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -1212,7 +1187,7 @@ static int io_send_zc_import(struct io_kiocb *req, struct io_async_msghdr *kmsg)
 int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	struct socket *sock;
 	unsigned msg_flags;
 	int ret, min_ret = 0;
@@ -1223,7 +1198,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		return -EOPNOTSUPP;
 
-	kmsg = io_send_setup(req, &iomsg, issue_flags);
+	kmsg = io_send_setup(req, issue_flags);
 	if (IS_ERR(kmsg))
 		return PTR_ERR(kmsg);
 
@@ -1246,14 +1221,14 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 
 		if (ret > 0 && io_net_retry(sock, kmsg->msg.msg_flags)) {
 			zc->len -= ret;
 			zc->buf += ret;
 			zc->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
@@ -1281,7 +1256,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr iomsg, *kmsg;
+	struct io_async_msghdr *kmsg;
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -1298,15 +1273,17 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 		kmsg = req->async_data;
 		kmsg->msg.msg_control_user = sr->msg_control;
 	} else {
-		ret = io_sendmsg_copy_hdr(req, &iomsg);
+		kmsg = io_msg_alloc_async(req, issue_flags);
+		if (unlikely(!kmsg))
+			return -ENOMEM;
+		ret = io_sendmsg_copy_hdr(req, kmsg);
 		if (ret)
 			return ret;
-		kmsg = &iomsg;
 	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg, issue_flags);
+		return -EAGAIN;
 
 	flags = sr->msg_flags | MSG_ZEROCOPY;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -1320,12 +1297,12 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_BL_NO_RECYCLE;
-			return io_setup_async_msg(req, kmsg, issue_flags);
+			return -EAGAIN;
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
