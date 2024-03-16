@@ -178,6 +178,7 @@ obj-$(CONFIG_SM_GPUCC_CLIFFS) += gpucc-cliffs.o
 obj-$(CONFIG_SM_GPUCC_HOLI) += gpucc-holi.o
 obj-$(CONFIG_SM_GPUCC_PINEAPPLE) += gpucc-pineapple.o
 obj-$(CONFIG_SM_GPUCC_VOLCANO) += gpucc-volcano.o
+obj-$(CONFIG_SXR_GPUCC_ANORAK) += gpucc-anorak.o
 obj-$(CONFIG_SXR_GPUCC_NIOBE) += gpucc-niobe.o
 obj-$(CONFIG_SM_VIDEOCC_6150) += videocc-sm6150.o
 obj-$(CONFIG_SM_VIDEOCC_8150) += videocc-sm8150.o
