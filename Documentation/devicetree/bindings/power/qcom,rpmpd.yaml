@@ -47,6 +47,7 @@ properties:
           - qcom,sdx75-rpmhpd
           - qcom,sm6115-rpmpd
           - qcom,sm6125-rpmpd
+          - qcom,sm6225-rpmpd
           - qcom,sm6350-rpmhpd
           - qcom,sm6375-rpmpd
           - qcom,sm7150-rpmhpd

@@ -89,6 +89,7 @@ properties:
           - qcom,sdm660-rpm-proc
           - qcom,sm6115-rpm-proc
           - qcom,sm6125-rpm-proc
+          - qcom,sm6225-rpm-proc
           - qcom,sm6375-rpm-proc
       - const: qcom,rpm-proc
 

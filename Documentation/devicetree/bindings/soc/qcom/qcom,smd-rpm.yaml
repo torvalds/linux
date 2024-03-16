@@ -54,6 +54,7 @@ properties:
       - qcom,rpm-sdm660
       - qcom,rpm-sm6115
       - qcom,rpm-sm6125
+      - qcom,rpm-sm6225
       - qcom,rpm-sm6375
 
   clock-controller:

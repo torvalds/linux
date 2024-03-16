@@ -385,6 +385,16 @@
 #define SM6125_VDDMX_AO		4
 #define SM6125_VDDMX_VFL	5
 
+/* SM6225 Power Domains */
+#define SM6225_VDDCX		0
+#define SM6225_VDDCX_AO		1
+#define SM6225_VDDCX_VFL	2
+#define SM6225_VDDMX		3
+#define SM6225_VDDMX_AO		4
+#define SM6225_VDDMX_VFL	5
+#define SM6225_VDD_LPI_CX	6
+#define SM6225_VDD_LPI_MX	7
+
 /* QCM2290 Power Domains */
 #define QCM2290_VDDCX		0
 #define QCM2290_VDDCX_AO	1

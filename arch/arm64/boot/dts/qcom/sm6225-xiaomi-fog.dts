@@ -20,7 +20,7 @@
 	chassis-type = "handset";
 
 	chosen {
-		bootargs = "earlycon=tty0 console=tty0 clk_ignore_unused pd_ignore_unused";
+		bootargs = "earlycon=tty0 console=tty0 PMOS_NOSPLASH clk_ignore_unused pd_ignore_unused";
 
 		#address-cells = <2>;
 		#size-cells = <2>;
