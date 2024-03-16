@@ -1540,12 +1540,6 @@ static int it66121_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	if (!of_device_is_available(ep)) {
-		of_node_put(ep);
-		dev_err(ctx->dev, "The remote device is disabled\n");
-		return -ENODEV;
-	}
-
 	ctx->next_bridge = of_drm_find_bridge(ep);
 	of_node_put(ep);
 	if (!ctx->next_bridge) {
