@@ -1821,13 +1821,6 @@ struct nfs_rpc_ops {
 };
 
 /*
- * 	NFS_CALL(getattr, inode, (fattr));
- * into
- *	NFS_PROTO(inode)->getattr(fattr);
- */
-#define NFS_CALL(op, inode, args)	NFS_PROTO(inode)->op args
-
-/*
  * Function vectors etc. for the NFS client
  */
 extern const struct nfs_rpc_ops	nfs_v2_clientops;
