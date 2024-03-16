@@ -33,6 +33,20 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
+void bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
+{
+	u64 b = BIT_ULL(btree);
+
+	if (!(c->sb.btrees_lost_data & b)) {
+		bch_err(c, "flagging btree %s lost data", bch2_btree_id_str(btree));
+
+		mutex_lock(&c->sb_lock);
+		bch2_sb_field_get(c->disk_sb.sb, ext)->btrees_lost_data |= cpu_to_le64(b);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+}
+
 static bool btree_id_is_alloc(enum btree_id id)
 {
 	switch (id) {
@@ -470,6 +484,7 @@ static int read_btree_roots(struct bch_fs *c)
 			}
 
 			ret = 0;
+			bch2_btree_lost_data(c, i);
 		}
 	}
 
@@ -845,6 +860,14 @@ use_clean:
 	if (!test_bit(BCH_FS_error, &c->flags) &&
 	    !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent))) {
 		memset(ext->errors_silent, 0, sizeof(ext->errors_silent));
+		write_sb = true;
+	}
+
+	if (c->opts.fsck &&
+	    !test_bit(BCH_FS_error, &c->flags) &&
+	    c->recovery_pass_done == BCH_RECOVERY_PASS_NR - 1 &&
+	    ext->btrees_lost_data) {
+		ext->btrees_lost_data = 0;
 		write_sb = true;
 	}
 

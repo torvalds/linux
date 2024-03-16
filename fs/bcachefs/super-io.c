@@ -527,9 +527,11 @@ static void bch2_sb_update(struct bch_fs *c)
 	memset(c->sb.errors_silent, 0, sizeof(c->sb.errors_silent));
 
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(src, ext);
-	if (ext)
+	if (ext) {
 		le_bitvector_to_cpu(c->sb.errors_silent, (void *) ext->errors_silent,
 				    sizeof(c->sb.errors_silent) * 8);
+		c->sb.btrees_lost_data = le64_to_cpu(ext->btrees_lost_data);
+	}
 
 	for_each_member_device(c, ca) {
 		struct bch_member m = bch2_sb_member_get(src, ca->dev_idx);
@@ -1162,6 +1164,11 @@ static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
 
 		kfree(errors_silent);
 	}
+
+	prt_printf(out, "Btrees with missing data:");
+	prt_tab(out);
+	prt_bitflags(out, __bch2_btree_ids, le64_to_cpu(e->btrees_lost_data));
+	prt_newline(out);
 }
 
 static const struct bch_sb_field_ops bch_sb_field_ops_ext = {

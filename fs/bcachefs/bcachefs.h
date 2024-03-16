@@ -797,6 +797,7 @@ struct bch_fs {
 		u64		features;
 		u64		compat;
 		unsigned long	errors_silent[BITS_TO_LONGS(BCH_SB_ERR_MAX)];
+		u64		btrees_lost_data;
 	}			sb;
 
 
