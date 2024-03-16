@@ -273,7 +273,11 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	vm_flags_set(vma, VM_IO);
+#ifdef CONFIG_MACH_ASPEED_G7
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#else
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
 
 	if (io_remap_pfn_range(vma, vma->vm_start,
 			       ((u32)vma->vm_pgoff), size,

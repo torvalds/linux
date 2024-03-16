@@ -176,13 +176,13 @@ struct FetchOperation {
 	u8 byRLETripletCode;
 	u8 byRLERepeatCode;
 	u8 byVGATextAlignment; //0-8bytes, 1-16bytes.
+	u8 rsvd[3];
 };
 
 struct FetchVideoTilesArg {
 	struct VideoGeometry vg;
 	u32 dwTotalOutputSize;
 	u32 cfo;
-	u8 rsvd[12];
 	struct FetchOperation pfo[4];
 };
 
@@ -199,7 +199,6 @@ struct FetchVideoSlicesArg {
 	u8 rsvd[3];
 	u8 abyBitIndexes[24];
 	u32 cfr;
-	u8 rsvd2[4];
 	struct FetchRegion pfr[4];
 };
 
