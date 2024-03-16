@@ -167,18 +167,3 @@ void mark_rodata_ro(void)
 	set_memory_ro((unsigned long)_stext, numpages);
 }
 #endif
-
-#if defined(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) && defined(CONFIG_DEBUG_PAGEALLOC)
-void __kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	unsigned long addr = (unsigned long)page_address(page);
-
-	if (PageHighMem(page))
-		return;
-
-	if (enable)
-		set_memory_p(addr, numpages);
-	else
-		set_memory_np(addr, numpages);
-}
-#endif /* CONFIG_DEBUG_PAGEALLOC */

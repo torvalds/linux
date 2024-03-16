@@ -180,3 +180,5 @@ static inline bool debug_pagealloc_enabled_or_kfence(void)
 int create_section_mapping(unsigned long start, unsigned long end,
 			   int nid, pgprot_t prot);
 #endif
+
+int hash__kernel_map_pages(struct page *page, int numpages, int enable);

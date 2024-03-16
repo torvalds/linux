@@ -219,18 +219,6 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # often slow when they are implemented at all
 KBUILD_CFLAGS		+= $(call cc-option,-mno-string)
 
-cpu-as-$(CONFIG_ALTIVEC)	+= $(call as-option,-Wa$(comma)-maltivec)
-
-# When using '-many -mpower4' gas will first try and find a matching power4
-# mnemonic and failing that it will allow any valid mnemonic that GAS knows
-# about. GCC will pass -many to GAS when assembling, clang does not.
-# LLVM IAS doesn't understand either flag: https://github.com/ClangBuiltLinux/linux/issues/675
-# but LLVM IAS only supports ISA >= 2.06 for Book3S 64 anyway...
-cpu-as-$(CONFIG_PPC_BOOK3S_64)	+= $(call as-option,-Wa$(comma)-mpower4) $(call as-option,-Wa$(comma)-many)
-
-KBUILD_AFLAGS += $(cpu-as-y)
-KBUILD_CFLAGS += $(cpu-as-y)
-
 KBUILD_AFLAGS += $(aflags-y)
 KBUILD_CFLAGS += $(cflags-y)
 
@@ -312,6 +300,26 @@ mpc86xx_smp_defconfig:
 generated_configs += ppc32_allmodconfig
 ppc32_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/book3s_32.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc40x_allmodconfig
+ppc40x_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/40x.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc44x_allmodconfig
+ppc44x_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/44x.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc8xx_allmodconfig
+ppc8xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/8xx.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc85xx_allmodconfig
+ppc85xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/85xx-32bit.config \
 		-f $(srctree)/Makefile allmodconfig
 
 generated_configs += ppc_defconfig
