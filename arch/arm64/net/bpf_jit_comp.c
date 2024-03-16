@@ -2180,10 +2180,6 @@ void arch_protect_bpf_trampoline(void *image, unsigned int size)
 {
 }
 
-void arch_unprotect_bpf_trampoline(void *image, unsigned int size)
-{
-}
-
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *ro_image,
 				void *ro_image_end, const struct btf_func_model *m,
 				u32 flags, struct bpf_tramp_links *tlinks,

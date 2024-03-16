@@ -1078,13 +1078,6 @@ void __weak arch_protect_bpf_trampoline(void *image, unsigned int size)
 	set_memory_rox((long)image, 1);
 }
 
-void __weak arch_unprotect_bpf_trampoline(void *image, unsigned int size)
-{
-	WARN_ON_ONCE(size > PAGE_SIZE);
-	set_memory_nx((long)image, 1);
-	set_memory_rw((long)image, 1);
-}
-
 int __weak arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 				    struct bpf_tramp_links *tlinks, void *func_addr)
 {
