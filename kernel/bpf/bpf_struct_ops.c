@@ -740,8 +740,12 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		if (err)
 			goto reset_unlock;
 	}
-	for (i = 0; i < st_map->image_pages_cnt; i++)
-		arch_protect_bpf_trampoline(st_map->image_pages[i], PAGE_SIZE);
+	for (i = 0; i < st_map->image_pages_cnt; i++) {
+		err = arch_protect_bpf_trampoline(st_map->image_pages[i],
+						  PAGE_SIZE);
+		if (err)
+			goto reset_unlock;
+	}
 
 	if (st_map->map.map_flags & BPF_F_LINK) {
 		err = 0;
