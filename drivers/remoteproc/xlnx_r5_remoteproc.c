@@ -486,6 +486,7 @@ static int add_mem_regions_carveout(struct rproc *rproc)
 		}
 
 		rproc_add_carveout(rproc, rproc_mem);
+		rproc_coredump_add_segment(rproc, rmem->base, rmem->size);
 
 		dev_dbg(&rproc->dev, "reserved mem carveout %s addr=%llx, size=0x%llx",
 			it.node->name, rmem->base, rmem->size);
@@ -597,6 +598,7 @@ static int add_tcm_carveout_split_mode(struct rproc *rproc)
 		}
 
 		rproc_add_carveout(rproc, rproc_mem);
+		rproc_coredump_add_segment(rproc, da, bank_size);
 	}
 
 	return 0;
@@ -676,6 +678,7 @@ static int add_tcm_carveout_lockstep_mode(struct rproc *rproc)
 
 		/* If registration is success, add carveouts */
 		rproc_add_carveout(rproc, rproc_mem);
+		rproc_coredump_add_segment(rproc, da, bank_size);
 
 		dev_dbg(dev, "TCM carveout lockstep mode %s addr=0x%llx, da=0x%x, size=0x%lx",
 			bank_name, bank_addr, da, bank_size);
@@ -852,6 +855,8 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 		dev_err(cdev, "failed to allocate memory for rproc instance\n");
 		return ERR_PTR(-ENOMEM);
 	}
+
+	rproc_coredump_set_elf_info(r5_rproc, ELFCLASS32, EM_ARM);
 
 	r5_rproc->auto_boot = false;
 	r5_core = r5_rproc->priv;
