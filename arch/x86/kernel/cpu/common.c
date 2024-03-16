@@ -1053,18 +1053,9 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 void get_cpu_address_sizes(struct cpuinfo_x86 *c)
 {
 	u32 eax, ebx, ecx, edx;
-	bool vp_bits_from_cpuid = true;
 
 	if (!cpu_has(c, X86_FEATURE_CPUID) ||
-	    (c->extended_cpuid_level < 0x80000008))
-		vp_bits_from_cpuid = false;
-
-	if (vp_bits_from_cpuid) {
-		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
-
-		c->x86_virt_bits = (eax >> 8) & 0xff;
-		c->x86_phys_bits = eax & 0xff;
-	} else {
+	    (c->extended_cpuid_level < 0x80000008)) {
 		if (IS_ENABLED(CONFIG_X86_64)) {
 			c->x86_clflush_size = 64;
 			c->x86_phys_bits = 36;
@@ -1078,7 +1069,13 @@ void get_cpu_address_sizes(struct cpuinfo_x86 *c)
 			    cpu_has(c, X86_FEATURE_PSE36))
 				c->x86_phys_bits = 36;
 		}
+	} else {
+		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
+
+		c->x86_virt_bits = (eax >> 8) & 0xff;
+		c->x86_phys_bits = eax & 0xff;
 	}
+
 	c->x86_cache_bits = c->x86_phys_bits;
 	c->x86_cache_alignment = c->x86_clflush_size;
 }
