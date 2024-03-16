@@ -2022,8 +2022,10 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	int ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
-	if (ret)
+	if (ret < 0)
 		return ret;
+	if (ret)
+		return 0;
 
 	i = walk_inode(trans, inode, k);
 	ret = PTR_ERR_OR_ZERO(i);
