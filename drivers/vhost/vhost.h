@@ -28,12 +28,14 @@ struct vhost_work {
 
 struct vhost_worker {
 	struct vhost_task	*vtsk;
+	struct vhost_dev	*dev;
 	/* Used to serialize device wide flushing with worker swapping. */
 	struct mutex		mutex;
 	struct llist_head	work_list;
 	u64			kcov_handle;
 	u32			id;
 	int			attachment_cnt;
+	bool			killed;
 };
 
 /* Poll a file (eventfd or socket) */
