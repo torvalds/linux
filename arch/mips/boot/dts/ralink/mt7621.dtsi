@@ -5,9 +5,10 @@
 #include <dt-bindings/reset/mt7621-reset.h>
 
 / {
+	compatible = "mediatek,mt7621-soc";
+
 	#address-cells = <1>;
 	#size-cells = <1>;
-	compatible = "mediatek,mt7621-soc";
 
 	cpus {
 		#address-cells = <1>;
