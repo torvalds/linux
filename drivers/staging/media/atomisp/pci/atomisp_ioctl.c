@@ -301,18 +301,23 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.sh_fmt = IA_CSS_FRAME_FORMAT_RAW,
 		.description = "Bayer 12"
 	}, {
-		.pixelformat = V4L2_PIX_FMT_RGBX32,
-		.depth = 32,
-		.mbus_code = V4L2_MBUS_FMT_CUSTOM_RGB32,
-		.sh_fmt = IA_CSS_FRAME_FORMAT_RGBA888,
-		.description = "32 RGB 8-8-8-8"
-	}, {
 		.pixelformat = V4L2_PIX_FMT_RGB565,
 		.depth = 16,
 		.mbus_code = MEDIA_BUS_FMT_BGR565_2X8_LE,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_RGB565,
 		.description = "16 RGB 5-6-5"
 #if 0
+	}, {
+		/*
+		 * Broken, showing vertical columns with random data.
+		 * For each 128 pixels in a row the last 28 (32?) or so pixels
+		 * contain random data.
+		 */
+		.pixelformat = V4L2_PIX_FMT_RGBX32,
+		.depth = 32,
+		.mbus_code = V4L2_MBUS_FMT_CUSTOM_RGB32,
+		.sh_fmt = IA_CSS_FRAME_FORMAT_RGBA888,
+		.description = "32 RGB 8-8-8-8"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_JPEG,
 		.depth = 8,
