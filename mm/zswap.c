@@ -1618,8 +1618,7 @@ put_pool:
 freepage:
 	zswap_entry_cache_free(entry);
 reject:
-	if (objcg)
-		obj_cgroup_put(objcg);
+	obj_cgroup_put(objcg);
 check_old:
 	/*
 	 * If the zswap store fails or zswap is disabled, we must invalidate the
