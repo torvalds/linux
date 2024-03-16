@@ -222,12 +222,6 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.mbus_code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.sh_fmt = IA_CSS_FRAME_FORMAT_UYVY,
 		.description = "UYVY, interleaved"
-	}, { /* This one is for parallel sensors! DO NOT USE! */
-		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.depth = 16,
-		.mbus_code = MEDIA_BUS_FMT_UYVY8_2X8,
-		.sh_fmt = IA_CSS_FRAME_FORMAT_UYVY,
-		.description = "UYVY, interleaved"
 	}, {
 		.pixelformat = V4L2_PIX_FMT_SBGGR16,
 		.depth = 16,
