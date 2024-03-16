@@ -8,17 +8,18 @@
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
 	union {
-		struct iovec		fast_iov[UIO_FASTIOV];
+		struct iovec			fast_iov;
 		struct {
-			struct iovec	fast_iov_one;
-			__kernel_size_t	controllen;
-			int		namelen;
-			__kernel_size_t	payloadlen;
+			struct io_cache_entry	cache;
+			/* entry size of ->free_iov, if valid */
+			int			free_iov_nr;
 		};
-		struct io_cache_entry	cache;
 	};
 	/* points to an allocated iov, if NULL we use fast_iov instead */
 	struct iovec			*free_iov;
+	__kernel_size_t			controllen;
+	__kernel_size_t			payloadlen;
+	int				namelen;
 	struct sockaddr __user		*uaddr;
 	struct msghdr			msg;
 	struct sockaddr_storage		addr;
