@@ -37,20 +37,24 @@
 
 	mmc_fixed_3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "mmc_power";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
+
 		enable-active-high;
+
 		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "mmc_power";
 	};
 
 	mmc_fixed_1v8_io: regulator-1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "mmc_io";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+
 		enable-active-high;
+
 		regulator-always-on;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "mmc_io";
 	};
 
 	palmbus: palmbus@1e000000 {
