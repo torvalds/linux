@@ -289,29 +289,33 @@
 	};
 
 	mmc: mmc@1e130000 {
-		status = "disabled";
-
 		compatible = "mediatek,mt7620-mmc";
 		reg = <0x1e130000 0x4000>;
 
 		bus-width = <4>;
-		max-frequency = <48000000>;
-		cap-sd-highspeed;
-		cap-mmc-highspeed;
-		vmmc-supply = <&mmc_fixed_3v3>;
-		vqmmc-supply = <&mmc_fixed_1v8_io>;
-		disable-wp;
 
-		pinctrl-names = "default", "state_uhs";
-		pinctrl-0 = <&sdhci_pins>;
-		pinctrl-1 = <&sdhci_pins>;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
 
 		clocks = <&sysc MT7621_CLK_SHXC>,
 			 <&sysc MT7621_CLK_50M>;
 		clock-names = "source", "hclk";
 
+		disable-wp;
+
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SHARED 20 IRQ_TYPE_LEVEL_HIGH>;
+
+		max-frequency = <48000000>;
+
+		pinctrl-names = "default", "state_uhs";
+		pinctrl-0 = <&sdhci_pins>;
+		pinctrl-1 = <&sdhci_pins>;
+
+		vmmc-supply = <&mmc_fixed_3v3>;
+		vqmmc-supply = <&mmc_fixed_1v8_io>;
+
+		status = "disabled";
 	};
 
 	usb: usb@1e1c0000 {
