@@ -550,10 +550,12 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 	BUILD_BUG_ON(ARRAY_SIZE(engine_names) != NUM_JOB_SLOTS);
 
 	for (i = 0; i < NUM_JOB_SLOTS - 1; i++) {
-		drm_printf(p, "drm-engine-%s:\t%llu ns\n",
-			   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
-		drm_printf(p, "drm-cycles-%s:\t%llu\n",
-			   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+		if (pfdev->profile_mode) {
+			drm_printf(p, "drm-engine-%s:\t%llu ns\n",
+				   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
+			drm_printf(p, "drm-cycles-%s:\t%llu\n",
+				   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+		}
 		drm_printf(p, "drm-maxfreq-%s:\t%lu Hz\n",
 			   engine_names[i], pfdev->pfdevfreq.fast_rate);
 		drm_printf(p, "drm-curfreq-%s:\t%lu Hz\n",
