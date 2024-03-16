@@ -1309,7 +1309,8 @@ static void vhost_scsi_tmf_flush_work(struct work_struct *work)
 	 * send our response.
 	 */
 	vhost_dev_flush(vq->dev);
-	vhost_vq_work_queue(vq, &tmf->vwork);
+	if (!vhost_vq_work_queue(vq, &tmf->vwork))
+		vhost_scsi_release_tmf_res(tmf);
 }
 
 static void
