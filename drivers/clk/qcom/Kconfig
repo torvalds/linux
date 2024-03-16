@@ -907,6 +907,15 @@ config SM_GCC_6125
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_GCC_6225
+	tristate "SM6225 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SM6225 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SM_GCC_6350
 	tristate "SM6350 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST

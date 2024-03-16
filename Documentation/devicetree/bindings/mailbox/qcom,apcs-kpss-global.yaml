@@ -40,6 +40,7 @@ properties:
               - qcom,sm4250-apcs-hmss-global
               - qcom,sm6115-apcs-hmss-global
               - qcom,sm6125-apcs-hmss-global
+              - qcom,sm6225-apcs-hmss-global
           - const: qcom,msm8994-apcs-kpss-global
       - items:
           - enum:

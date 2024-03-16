@@ -4,8 +4,8 @@
  * Copyright (c) 2024, Statzar <azurestatzar@gmail.com>
  */
 
-#ifndef _DT_BINDINGS_CLK_QCOM_GCC_KHAJE_H
-#define _DT_BINDINGS_CLK_QCOM_GCC_KHAJE_H
+#ifndef _DT_BINDINGS_CLK_QCOM_GCC_SM6225_H
+#define _DT_BINDINGS_CLK_QCOM_GCC_SM6225_H
 
 /* GCC clocks */
 #define GPLL0						0
@@ -187,5 +187,16 @@
 #define GCC_VENUS_BCR					10
 #define GCC_VIDEO_INTERFACE_BCR				11
 #define GCC_USB3_DP_PHY_PRIM_BCR			12
+
+/* Indexes for GDSCs */
+#define GCC_CAMSS_TOP_GDSC			0
+#define GCC_UFS_PHY_GDSC			1
+#define GCC_USB30_PRIM_GDSC			2
+#define GCC_VCODEC0_GDSC			3
+#define GCC_VENUS_GDSC				4
+#define HLOS1_VOTE_TURING_MMU_TBU1_GDSC		5
+#define HLOS1_VOTE_TURING_MMU_TBU0_GDSC		6
+#define HLOS1_VOTE_MM_SNOC_MMU_TBU_RT_GDSC	7
+#define HLOS1_VOTE_MM_SNOC_MMU_TBU_NRT_GDSC	8
 
 #endif
