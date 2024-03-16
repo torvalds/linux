@@ -210,6 +210,7 @@ struct vhost_scsi {
 
 struct vhost_scsi_tmf {
 	struct vhost_work vwork;
+	struct work_struct flush_work;
 	struct vhost_scsi *vhost;
 	struct vhost_scsi_virtqueue *svq;
 
@@ -373,9 +374,8 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB) {
 		struct vhost_scsi_tmf *tmf = container_of(se_cmd,
 					struct vhost_scsi_tmf, se_cmd);
-		struct vhost_virtqueue *vq = &tmf->svq->vq;
 
-		vhost_vq_work_queue(vq, &tmf->vwork);
+		schedule_work(&tmf->flush_work);
 	} else {
 		struct vhost_scsi_cmd *cmd = container_of(se_cmd,
 					struct vhost_scsi_cmd, tvc_se_cmd);
@@ -1287,31 +1287,29 @@ static void vhost_scsi_tmf_resp_work(struct vhost_work *work)
 {
 	struct vhost_scsi_tmf *tmf = container_of(work, struct vhost_scsi_tmf,
 						  vwork);
-	struct vhost_virtqueue *ctl_vq, *vq;
-	int resp_code, i;
+	int resp_code;
 
-	if (tmf->scsi_resp == TMR_FUNCTION_COMPLETE) {
-		/*
-		 * Flush IO vqs that don't share a worker with the ctl to make
-		 * sure they have sent their responses before us.
-		 */
-		ctl_vq = &tmf->vhost->vqs[VHOST_SCSI_VQ_CTL].vq;
-		for (i = VHOST_SCSI_VQ_IO; i < tmf->vhost->dev.nvqs; i++) {
-			vq = &tmf->vhost->vqs[i].vq;
-
-			if (vhost_vq_is_setup(vq) &&
-			    vq->worker != ctl_vq->worker)
-				vhost_vq_flush(vq);
-		}
-
+	if (tmf->scsi_resp == TMR_FUNCTION_COMPLETE)
 		resp_code = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
-	} else {
+	else
 		resp_code = VIRTIO_SCSI_S_FUNCTION_REJECTED;
-	}
 
 	vhost_scsi_send_tmf_resp(tmf->vhost, &tmf->svq->vq, tmf->in_iovs,
 				 tmf->vq_desc, &tmf->resp_iov, resp_code);
 	vhost_scsi_release_tmf_res(tmf);
+}
+
+static void vhost_scsi_tmf_flush_work(struct work_struct *work)
+{
+	struct vhost_scsi_tmf *tmf = container_of(work, struct vhost_scsi_tmf,
+						 flush_work);
+	struct vhost_virtqueue *vq = &tmf->svq->vq;
+	/*
+	 * Make sure we have sent responses for other commands before we
+	 * send our response.
+	 */
+	vhost_dev_flush(vq->dev);
+	vhost_vq_work_queue(vq, &tmf->vwork);
 }
 
 static void
@@ -1337,6 +1335,7 @@ vhost_scsi_handle_tmf(struct vhost_scsi *vs, struct vhost_scsi_tpg *tpg,
 	if (!tmf)
 		goto send_reject;
 
+	INIT_WORK(&tmf->flush_work, vhost_scsi_tmf_flush_work);
 	vhost_work_init(&tmf->vwork, vhost_scsi_tmf_resp_work);
 	tmf->vhost = vs;
 	tmf->svq = svq;
