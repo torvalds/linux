@@ -358,6 +358,16 @@ static void vhost_scsi_release_tmf_res(struct vhost_scsi_tmf *tmf)
 	vhost_scsi_put_inflight(inflight);
 }
 
+static void vhost_scsi_drop_cmds(struct vhost_scsi_virtqueue *svq)
+{
+	struct vhost_scsi_cmd *cmd, *t;
+	struct llist_node *llnode;
+
+	llnode = llist_del_all(&svq->completion_list);
+	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list)
+		vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
+}
+
 static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 {
 	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB) {
@@ -373,7 +383,8 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
 					struct vhost_scsi_virtqueue, vq);
 
 		llist_add(&cmd->tvc_completion_list, &svq->completion_list);
-		vhost_vq_work_queue(&svq->vq, &svq->completion_work);
+		if (!vhost_vq_work_queue(&svq->vq, &svq->completion_work))
+			vhost_scsi_drop_cmds(svq);
 	}
 }
 
