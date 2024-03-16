@@ -915,3 +915,4 @@ struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state
 
 	return stream;
 }
+

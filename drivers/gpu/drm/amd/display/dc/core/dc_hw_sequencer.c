@@ -560,7 +560,8 @@ void hwss_build_fast_sequence(struct dc *dc,
 		struct block_sequence block_sequence[],
 		unsigned int *num_steps,
 		struct pipe_ctx *pipe_ctx,
-		struct dc_stream_status *stream_status)
+		struct dc_stream_status *stream_status,
+		struct dc_state *context)
 {
 	struct dc_plane_state *plane = pipe_ctx->plane_state;
 	struct dc_stream_state *stream = pipe_ctx->stream;

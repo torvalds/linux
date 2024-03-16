@@ -956,7 +956,7 @@ void dcn32_init_hw(struct dc *dc)
 		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
 
 		if (dc->ctx->dmub_srv->dmub->fw_version <
-		    DMUB_FW_VERSION(7, 0, 35)) {
+				DMUB_FW_VERSION(7, 0, 35)) {
 			dc->debug.force_disable_subvp = true;
 			dc->debug.disable_fpo_optimizations = true;
 		}

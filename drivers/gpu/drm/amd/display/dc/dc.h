@@ -44,6 +44,8 @@
 
 #include "dml2/dml2_wrapper.h"
 
+#include "dmub/inc/dmub_cmd.h"
+
 struct abm_save_restore;
 
 /* forward declaration */
@@ -219,6 +221,7 @@ struct dc_dmub_caps {
 	bool mclk_sw;
 	bool subvp_psr;
 	bool gecc_enable;
+	uint8_t fams_ver;
 };
 
 struct dc_caps {

@@ -35,6 +35,7 @@ struct pipe_ctx;
 struct dc_crtc_timing_adjust;
 struct dc_crtc_timing;
 struct dc_state;
+struct dc_surface_update;
 
 struct dc_reg_helper_state {
 	bool gather_in_progress;

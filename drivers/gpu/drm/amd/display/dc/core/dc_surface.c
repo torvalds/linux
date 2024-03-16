@@ -60,6 +60,26 @@ void dc_plane_destruct(struct dc_plane_state *plane_state)
 	// no more pointers to free within dc_plane_state
 }
 
+
+/* dc_state is passed in separately since it may differ from the current dc state accessible from plane_state e.g.
+ * if the driver is doing an update from an old context to a new one and the caller wants the pipe mask for the new
+ * context rather than the existing one
+ */
+uint8_t  dc_plane_get_pipe_mask(struct dc_state *dc_state, const struct dc_plane_state *plane_state)
+{
+	uint8_t pipe_mask = 0;
+	int i;
+
+	for (i = 0; i < plane_state->ctx->dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc_state->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->plane_state == plane_state && pipe_ctx->plane_res.hubp)
+			pipe_mask |= 1 << pipe_ctx->plane_res.hubp->inst;
+	}
+
+	return pipe_mask;
+}
+
 /*******************************************************************************
  * Public functions
  ******************************************************************************/

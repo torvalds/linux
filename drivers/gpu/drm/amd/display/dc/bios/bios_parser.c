@@ -44,8 +44,6 @@
 
 #include "bios_parser_common.h"
 
-#include "dc.h"
-
 #define THREE_PERCENT_OF_10000 300
 
 #define LAST_RECORD_TYPE 0xff

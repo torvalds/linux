@@ -35,6 +35,7 @@
 #include "resource.h"
 #include "clk_mgr.h"
 #include "dc_state_priv.h"
+#include "dc_plane_priv.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -1593,3 +1594,4 @@ bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_com
 
 	return result;
 }
+
