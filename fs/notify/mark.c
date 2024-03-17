@@ -97,6 +97,21 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 	refcount_inc(&mark->refcnt);
 }
 
+static fsnotify_connp_t *fsnotify_object_connp(void *obj,
+				enum fsnotify_obj_type obj_type)
+{
+	switch (obj_type) {
+	case FSNOTIFY_OBJ_TYPE_INODE:
+		return &((struct inode *)obj)->i_fsnotify_marks;
+	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
+		return &real_mount(obj)->mnt_fsnotify_marks;
+	case FSNOTIFY_OBJ_TYPE_SB:
+		return &((struct super_block *)obj)->s_fsnotify_marks;
+	default:
+		return NULL;
+	}
+}
+
 static __u32 *fsnotify_conn_mask_p(struct fsnotify_mark_connector *conn)
 {
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)

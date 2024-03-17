@@ -27,6 +27,21 @@ static inline struct super_block *fsnotify_conn_sb(
 	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
 }
 
+static inline struct super_block *fsnotify_object_sb(void *obj,
+			enum fsnotify_obj_type obj_type)
+{
+	switch (obj_type) {
+	case FSNOTIFY_OBJ_TYPE_INODE:
+		return ((struct inode *)obj)->i_sb;
+	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
+		return ((struct vfsmount *)obj)->mnt_sb;
+	case FSNOTIFY_OBJ_TYPE_SB:
+		return (struct super_block *)obj;
+	default:
+		return NULL;
+	}
+}
+
 static inline struct super_block *fsnotify_connector_sb(
 				struct fsnotify_mark_connector *conn)
 {
