@@ -343,9 +343,16 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	if (!try_module_get(chip->owner))
 		return -ENODEV;
 
+	if (!get_device(&chip->dev)) {
+		err = -ENODEV;
+		goto err_get_device;
+	}
+
 	if (ops->request) {
 		err = ops->request(chip, pwm);
 		if (err) {
+			put_device(&chip->dev);
+err_get_device:
 			module_put(chip->owner);
 			return err;
 		}
@@ -463,7 +470,7 @@ struct pwm_export {
 
 static inline struct pwm_chip *pwmchip_from_dev(struct device *pwmchip_dev)
 {
-	return dev_get_drvdata(pwmchip_dev);
+	return container_of(pwmchip_dev, struct pwm_chip, dev);
 }
 
 static inline struct pwm_export *pwmexport_from_dev(struct device *pwm_dev)
@@ -941,46 +948,16 @@ static struct class pwm_class = {
 	.pm = pm_sleep_ptr(&pwm_class_pm_ops),
 };
 
-static int pwmchip_sysfs_match(struct device *pwmchip_dev, const void *data)
-{
-	return pwmchip_from_dev(pwmchip_dev) == data;
-}
-
-static void pwmchip_sysfs_export(struct pwm_chip *chip)
-{
-	struct device *pwmchip_dev;
-
-	/*
-	 * If device_create() fails the pwm_chip is still usable by
-	 * the kernel it's just not exported.
-	 */
-	pwmchip_dev = device_create(&pwm_class, pwmchip_parent(chip), MKDEV(0, 0), chip,
-			       "pwmchip%d", chip->id);
-	if (IS_ERR(pwmchip_dev)) {
-		dev_warn(pwmchip_parent(chip),
-			 "device_create failed for pwm_chip sysfs export\n");
-	}
-}
-
 static void pwmchip_sysfs_unexport(struct pwm_chip *chip)
 {
-	struct device *pwmchip_dev;
 	unsigned int i;
-
-	pwmchip_dev = class_find_device(&pwm_class, NULL, chip,
-					pwmchip_sysfs_match);
-	if (!pwmchip_dev)
-		return;
 
 	for (i = 0; i < chip->npwm; i++) {
 		struct pwm_device *pwm = &chip->pwms[i];
 
 		if (test_bit(PWMF_EXPORTED, &pwm->flags))
-			pwm_unexport_child(pwmchip_dev, pwm);
+			pwm_unexport_child(&chip->dev, pwm);
 	}
-
-	put_device(pwmchip_dev);
-	device_unregister(pwmchip_dev);
 }
 
 #define PWMCHIP_ALIGN ARCH_DMA_MINALIGN
@@ -993,13 +970,21 @@ static void *pwmchip_priv(struct pwm_chip *chip)
 /* This is the counterpart to pwmchip_alloc() */
 void pwmchip_put(struct pwm_chip *chip)
 {
-	kfree(chip);
+	put_device(&chip->dev);
 }
 EXPORT_SYMBOL_GPL(pwmchip_put);
+
+static void pwmchip_release(struct device *pwmchip_dev)
+{
+	struct pwm_chip *chip = pwmchip_from_dev(pwmchip_dev);
+
+	kfree(chip);
+}
 
 struct pwm_chip *pwmchip_alloc(struct device *parent, unsigned int npwm, size_t sizeof_priv)
 {
 	struct pwm_chip *chip;
+	struct device *pwmchip_dev;
 	size_t alloc_size;
 	unsigned int i;
 
@@ -1010,9 +995,14 @@ struct pwm_chip *pwmchip_alloc(struct device *parent, unsigned int npwm, size_t 
 	if (!chip)
 		return ERR_PTR(-ENOMEM);
 
-	chip->dev = parent;
 	chip->npwm = npwm;
 	chip->uses_pwmchip_alloc = true;
+
+	pwmchip_dev = &chip->dev;
+	device_initialize(pwmchip_dev);
+	pwmchip_dev->class = &pwm_class;
+	pwmchip_dev->parent = parent;
+	pwmchip_dev->release = pwmchip_release;
 
 	pwmchip_set_drvdata(chip, pwmchip_priv(chip));
 
@@ -1115,21 +1105,34 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 	mutex_lock(&pwm_lock);
 
 	ret = idr_alloc(&pwm_chips, chip, 0, 0, GFP_KERNEL);
-	if (ret < 0) {
-		mutex_unlock(&pwm_lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto err_idr_alloc;
 
 	chip->id = ret;
 
-	mutex_unlock(&pwm_lock);
+	dev_set_name(&chip->dev, "pwmchip%u", chip->id);
 
 	if (IS_ENABLED(CONFIG_OF))
 		of_pwmchip_add(chip);
 
-	pwmchip_sysfs_export(chip);
+	ret = device_add(&chip->dev);
+	if (ret)
+		goto err_device_add;
+
+	mutex_unlock(&pwm_lock);
 
 	return 0;
+
+err_device_add:
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_remove(chip);
+
+	idr_remove(&pwm_chips, chip->id);
+err_idr_alloc:
+
+	mutex_unlock(&pwm_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__pwmchip_add);
 
@@ -1151,6 +1154,8 @@ void pwmchip_remove(struct pwm_chip *chip)
 	idr_remove(&pwm_chips, chip->id);
 
 	mutex_unlock(&pwm_lock);
+
+	device_del(&chip->dev);
 }
 EXPORT_SYMBOL_GPL(pwmchip_remove);
 
@@ -1520,6 +1525,8 @@ EXPORT_SYMBOL_GPL(pwm_get);
  */
 void pwm_put(struct pwm_device *pwm)
 {
+	struct pwm_chip *chip = pwm->chip;
+
 	if (!pwm)
 		return;
 
@@ -1530,12 +1537,14 @@ void pwm_put(struct pwm_device *pwm)
 		goto out;
 	}
 
-	if (pwm->chip->ops->free)
+	if (chip->ops->free)
 		pwm->chip->ops->free(pwm->chip, pwm);
 
 	pwm->label = NULL;
 
-	module_put(pwm->chip->owner);
+	put_device(&chip->dev);
+
+	module_put(chip->owner);
 out:
 	mutex_unlock(&pwm_lock);
 }
