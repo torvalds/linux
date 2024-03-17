@@ -32,7 +32,7 @@
 		};
 	};
 
-	ext_osc32k: ext_osc32k_clk {
+	ext_osc32k: ext-osc32k-clk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
