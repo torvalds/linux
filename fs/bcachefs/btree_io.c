@@ -1338,7 +1338,7 @@ start:
 	if (saw_error && !btree_node_read_error(b)) {
 		printbuf_reset(&buf);
 		bch2_bpos_to_text(&buf, b->key.k.p);
-		bch_info(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
+		bch_err_ratelimited(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
 			 __func__, bch2_btree_id_str(b->c.btree_id), b->c.level, buf.buf);
 
 		bch2_btree_node_rewrite_async(c, b);
