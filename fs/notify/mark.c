@@ -106,7 +106,7 @@ static fsnotify_connp_t *fsnotify_object_connp(void *obj,
 	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
 		return &real_mount(obj)->mnt_fsnotify_marks;
 	case FSNOTIFY_OBJ_TYPE_SB:
-		return &((struct super_block *)obj)->s_fsnotify_marks;
+		return fsnotify_sb_marks(obj);
 	default:
 		return NULL;
 	}
@@ -569,6 +569,26 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 	return -1;
 }
 
+static int fsnotify_attach_info_to_sb(struct super_block *sb)
+{
+	struct fsnotify_sb_info *sbinfo;
+
+	/* sb info is freed on fsnotify_sb_delete() */
+	sbinfo = kzalloc(sizeof(*sbinfo), GFP_KERNEL);
+	if (!sbinfo)
+		return -ENOMEM;
+
+	/*
+	 * cmpxchg() provides the barrier so that callers of fsnotify_sb_info()
+	 * will observe an initialized structure
+	 */
+	if (cmpxchg(&sb->s_fsnotify_info, NULL, sbinfo)) {
+		/* Someone else created sbinfo for us */
+		kfree(sbinfo);
+	}
+	return 0;
+}
+
 static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 					       void *obj, unsigned int obj_type)
 {
@@ -639,6 +659,16 @@ static int fsnotify_add_mark_list(struct fsnotify_mark *mark, void *obj,
 
 	if (WARN_ON(!fsnotify_valid_obj_type(obj_type)))
 		return -EINVAL;
+
+	/*
+	 * Attach the sb info before attaching a connector to any object on sb.
+	 * The sb info will remain attached as long as sb lives.
+	 */
+	if (!fsnotify_sb_info(sb)) {
+		err = fsnotify_attach_info_to_sb(sb);
+		if (err)
+			return err;
+	}
 
 	connp = fsnotify_object_connp(obj, obj_type);
 restart:
