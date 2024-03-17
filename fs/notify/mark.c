@@ -161,13 +161,36 @@ static void fsnotify_put_inode_ref(struct inode *inode)
 static void fsnotify_update_sb_watchers(struct super_block *sb,
 					struct fsnotify_mark_connector *conn)
 {
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
 	bool is_watched = conn->flags & FSNOTIFY_CONN_FLAG_IS_WATCHED;
-	bool has_marks = conn->obj && !hlist_empty(&conn->list);
+	struct fsnotify_mark *first_mark = NULL;
+	unsigned int highest_prio = 0;
 
-	if (has_marks && !is_watched) {
+	if (conn->obj)
+		first_mark = hlist_entry_safe(conn->list.first,
+					      struct fsnotify_mark, obj_list);
+	if (first_mark)
+		highest_prio = first_mark->group->priority;
+	if (WARN_ON(highest_prio >= __FSNOTIFY_PRIO_NUM))
+		highest_prio = 0;
+
+	/*
+	 * If the highest priority of group watching this object is prio,
+	 * then watched object has a reference on counters [0..prio].
+	 * Update priority >= 1 watched objects counters.
+	 */
+	for (unsigned int p = conn->prio + 1; p <= highest_prio; p++)
+		atomic_long_inc(&sbinfo->watched_objects[p]);
+	for (unsigned int p = conn->prio; p > highest_prio; p--)
+		atomic_long_dec(&sbinfo->watched_objects[p]);
+	conn->prio = highest_prio;
+
+	/* Update priority >= 0 (a.k.a total) watched objects counter */
+	BUILD_BUG_ON(FSNOTIFY_PRIO_NORMAL != 0);
+	if (first_mark && !is_watched) {
 		conn->flags |= FSNOTIFY_CONN_FLAG_IS_WATCHED;
 		fsnotify_get_sb_watched_objects(sb);
-	} else if (!has_marks && is_watched) {
+	} else if (!first_mark && is_watched) {
 		conn->flags &= ~FSNOTIFY_CONN_FLAG_IS_WATCHED;
 		fsnotify_put_sb_watched_objects(sb);
 	}
@@ -600,6 +623,7 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	spin_lock_init(&conn->lock);
 	INIT_HLIST_HEAD(&conn->list);
 	conn->flags = 0;
+	conn->prio = 0;
 	conn->type = obj_type;
 	conn->obj = obj;
 

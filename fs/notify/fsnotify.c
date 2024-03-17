@@ -100,6 +100,9 @@ void fsnotify_sb_delete(struct super_block *sb)
 	/* Wait for outstanding object references from connectors */
 	wait_var_event(fsnotify_sb_watched_objects(sb),
 		       !atomic_long_read(fsnotify_sb_watched_objects(sb)));
+	WARN_ON(fsnotify_sb_has_priority_watchers(sb, FSNOTIFY_PRIO_CONTENT));
+	WARN_ON(fsnotify_sb_has_priority_watchers(sb,
+						  FSNOTIFY_PRIO_PRE_CONTENT));
 	kfree(sbinfo);
 }
 

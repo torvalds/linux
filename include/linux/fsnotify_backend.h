@@ -468,7 +468,8 @@ FSNOTIFY_ITER_FUNCS(sb, SB)
  */
 struct fsnotify_mark_connector {
 	spinlock_t lock;
-	unsigned short type;	/* Type of object [lock] */
+	unsigned char type;	/* Type of object [lock] */
+	unsigned char prio;	/* Highest priority group */
 #define FSNOTIFY_CONN_FLAG_IS_WATCHED	0x01
 #define FSNOTIFY_CONN_FLAG_HAS_IREF	0x02
 	unsigned short flags;	/* flags [lock] */
@@ -490,8 +491,12 @@ struct fsnotify_sb_info {
 	/*
 	 * Number of inode/mount/sb objects that are being watched in this sb.
 	 * Note that inodes objects are currently double-accounted.
+	 *
+	 * The value in watched_objects[prio] is the number of objects that are
+	 * watched by groups of priority >= prio, so watched_objects[0] is the
+	 * total number of watched objects in this sb.
 	 */
-	atomic_long_t watched_objects;
+	atomic_long_t watched_objects[__FSNOTIFY_PRIO_NUM];
 };
 
 static inline struct fsnotify_sb_info *fsnotify_sb_info(struct super_block *sb)
@@ -505,7 +510,7 @@ static inline struct fsnotify_sb_info *fsnotify_sb_info(struct super_block *sb)
 
 static inline atomic_long_t *fsnotify_sb_watched_objects(struct super_block *sb)
 {
-	return &fsnotify_sb_info(sb)->watched_objects;
+	return &fsnotify_sb_info(sb)->watched_objects[0];
 }
 
 /*
