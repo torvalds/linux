@@ -825,6 +825,10 @@ enum dmub_cmd_vbios_type {
 	 */
 	DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT  = 26,
 	/**
+	 * Control PHY FSM
+	 */
+	DMUB_CMD__VBIOS_TRANSMITTER_SET_PHY_FSM  = 29,
+	/**
 	 * Controls domain power gating
 	 */
 	DMUB_CMD__VBIOS_DOMAIN_CONTROL = 28,
@@ -2345,6 +2349,7 @@ enum dmub_phy_fsm_state {
 	DMUB_PHY_FSM_POWER_DOWN,
 	DMUB_PHY_FSM_PLL_EN,
 	DMUB_PHY_FSM_TX_EN,
+	DMUB_PHY_FSM_TX_EN_TEST_MODE,
 	DMUB_PHY_FSM_FAST_LP,
 	DMUB_PHY_FSM_P2_PLL_OFF_CPM,
 	DMUB_PHY_FSM_P2_PLL_OFF_PG,
@@ -3494,7 +3499,7 @@ enum hw_lock_client {
 	/**
 	 * Replay is the client of HW Lock Manager.
 	 */
-	HW_LOCK_CLIENT_REPLAY           = 4,
+	HW_LOCK_CLIENT_REPLAY		= 4,
 	/**
 	 * Invalid client.
 	 */
@@ -4188,6 +4193,34 @@ struct dmub_rb_cmd_transmitter_query_dp_alt {
 	struct dmub_rb_cmd_transmitter_query_dp_alt_data data; /**< payload */
 };
 
+struct phy_test_mode {
+	uint8_t mode;
+	uint8_t pat0;
+	uint8_t pad[2];
+};
+
+/**
+ * Data passed in/out in a DMUB_CMD__VBIOS_TRANSMITTER_SET_PHY_FSM command.
+ */
+struct dmub_rb_cmd_transmitter_set_phy_fsm_data {
+	uint8_t phy_id; /**< 0=UNIPHYA, 1=UNIPHYB, 2=UNIPHYC, 3=UNIPHYD, 4=UNIPHYE, 5=UNIPHYF */
+	uint8_t mode; /**< HDMI/DP/DP2 etc */
+	uint8_t lane_num; /**< Number of lanes */
+	uint32_t symclk_100Hz; /**< PLL symclock in 100hz */
+	struct phy_test_mode test_mode;
+	enum dmub_phy_fsm_state state;
+	uint32_t status;
+	uint8_t pad;
+};
+
+/**
+ * Definition of a DMUB_CMD__VBIOS_TRANSMITTER_SET_PHY_FSM command.
+ */
+struct dmub_rb_cmd_transmitter_set_phy_fsm {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_rb_cmd_transmitter_set_phy_fsm_data data; /**< payload */
+};
+
 /**
  * Maximum number of bytes a chunk sent to DMUB for parsing
  */
@@ -4558,6 +4591,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT command.
 	 */
 	struct dmub_rb_cmd_transmitter_query_dp_alt query_dp_alt;
+	/**
+	 * Definition of a DMUB_CMD__VBIOS_TRANSMITTER_SET_PHY_FSM command.
+	 */
+	struct dmub_rb_cmd_transmitter_set_phy_fsm set_phy_fsm;
 	/**
 	 * Definition of a DMUB_CMD__DPIA_DIG1_CONTROL command.
 	 */
