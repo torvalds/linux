@@ -92,8 +92,8 @@ void fsnotify_sb_delete(struct super_block *sb)
 	fsnotify_unmount_inodes(sb);
 	fsnotify_clear_marks_by_sb(sb);
 	/* Wait for outstanding object references from connectors */
-	wait_var_event(&sb->s_fsnotify_connectors,
-		       !atomic_long_read(&sb->s_fsnotify_connectors));
+	wait_var_event(fsnotify_sb_watched_objects(sb),
+		       !atomic_long_read(fsnotify_sb_watched_objects(sb)));
 }
 
 /*

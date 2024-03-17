@@ -483,6 +483,11 @@ struct fsnotify_mark_connector {
 	struct hlist_head list;
 };
 
+static inline atomic_long_t *fsnotify_sb_watched_objects(struct super_block *sb)
+{
+	return &sb->s_fsnotify_connectors;
+}
+
 /*
  * A mark is simply an object attached to an in core inode which allows an
  * fsnotify listener to indicate they are either no longer interested in events

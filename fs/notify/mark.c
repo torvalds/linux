@@ -116,10 +116,43 @@ __u32 fsnotify_conn_mask(struct fsnotify_mark_connector *conn)
 	return *fsnotify_conn_mask_p(conn);
 }
 
+static void fsnotify_get_sb_watched_objects(struct super_block *sb)
+{
+	atomic_long_inc(fsnotify_sb_watched_objects(sb));
+}
+
+static void fsnotify_put_sb_watched_objects(struct super_block *sb)
+{
+	if (atomic_long_dec_and_test(fsnotify_sb_watched_objects(sb)))
+		wake_up_var(fsnotify_sb_watched_objects(sb));
+}
+
 static void fsnotify_get_inode_ref(struct inode *inode)
 {
 	ihold(inode);
-	atomic_long_inc(&inode->i_sb->s_fsnotify_connectors);
+	fsnotify_get_sb_watched_objects(inode->i_sb);
+}
+
+static void fsnotify_put_inode_ref(struct inode *inode)
+{
+	fsnotify_put_sb_watched_objects(inode->i_sb);
+	iput(inode);
+}
+
+static void fsnotify_get_sb_watchers(struct fsnotify_mark_connector *conn)
+{
+	struct super_block *sb = fsnotify_connector_sb(conn);
+
+	if (sb)
+		fsnotify_get_sb_watched_objects(sb);
+}
+
+static void fsnotify_put_sb_watchers(struct fsnotify_mark_connector *conn)
+{
+	struct super_block *sb = fsnotify_connector_sb(conn);
+
+	if (sb)
+		fsnotify_put_sb_watched_objects(sb);
 }
 
 /*
@@ -213,31 +246,6 @@ static void fsnotify_connector_destroy_workfn(struct work_struct *work)
 	}
 }
 
-static void fsnotify_put_inode_ref(struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-
-	iput(inode);
-	if (atomic_long_dec_and_test(&sb->s_fsnotify_connectors))
-		wake_up_var(&sb->s_fsnotify_connectors);
-}
-
-static void fsnotify_get_sb_connectors(struct fsnotify_mark_connector *conn)
-{
-	struct super_block *sb = fsnotify_connector_sb(conn);
-
-	if (sb)
-		atomic_long_inc(&sb->s_fsnotify_connectors);
-}
-
-static void fsnotify_put_sb_connectors(struct fsnotify_mark_connector *conn)
-{
-	struct super_block *sb = fsnotify_connector_sb(conn);
-
-	if (sb && atomic_long_dec_and_test(&sb->s_fsnotify_connectors))
-		wake_up_var(&sb->s_fsnotify_connectors);
-}
-
 static void *fsnotify_detach_connector_from_object(
 					struct fsnotify_mark_connector *conn,
 					unsigned int *type)
@@ -261,7 +269,7 @@ static void *fsnotify_detach_connector_from_object(
 		fsnotify_conn_sb(conn)->s_fsnotify_mask = 0;
 	}
 
-	fsnotify_put_sb_connectors(conn);
+	fsnotify_put_sb_watchers(conn);
 	rcu_assign_pointer(*(conn->obj), NULL);
 	conn->obj = NULL;
 	conn->type = FSNOTIFY_OBJ_TYPE_DETACHED;
@@ -549,8 +557,6 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	conn->flags = 0;
 	conn->type = obj_type;
 	conn->obj = connp;
-	conn->flags = 0;
-	fsnotify_get_sb_connectors(conn);
 
 	/*
 	 * cmpxchg() provides the barrier so that readers of *connp can see
@@ -558,10 +564,11 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	 */
 	if (cmpxchg(connp, NULL, conn)) {
 		/* Someone else created list structure for us */
-		fsnotify_put_sb_connectors(conn);
 		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
+		return 0;
 	}
 
+	fsnotify_get_sb_watchers(conn);
 	return 0;
 }
 

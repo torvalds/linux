@@ -20,7 +20,7 @@
 /* Are there any inode/mount/sb objects that are being watched at all? */
 static inline bool fsnotify_sb_has_watchers(struct super_block *sb)
 {
-	return atomic_long_read(&sb->s_fsnotify_connectors);
+	return atomic_long_read(fsnotify_sb_watched_objects(sb));
 }
 
 /*
