@@ -284,7 +284,7 @@
 
 		domain-idle-states {
 			CLUSTER_CL4: cluster-sleep-0 {
-				compatible = "arm,idle-state";
+				compatible = "domain-idle-state";
 				idle-state-name = "l2-ret";
 				arm,psci-suspend-param = <0x01000044>;
 				entry-latency-us = <350>;
@@ -293,7 +293,7 @@
 			};
 
 			CLUSTER_CL5: cluster-sleep-1 {
-				compatible = "arm,idle-state";
+				compatible = "domain-idle-state";
 				idle-state-name = "ret-pll-off";
 				arm,psci-suspend-param = <0x01000054>;
 				entry-latency-us = <2200>;
