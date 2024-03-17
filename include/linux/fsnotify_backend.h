@@ -789,6 +789,13 @@ static inline int fsnotify_add_inode_mark_locked(struct fsnotify_mark *mark,
 					FSNOTIFY_OBJ_TYPE_INODE, add_flags);
 }
 
+static inline struct fsnotify_mark *fsnotify_find_inode_mark(
+						struct inode *inode,
+						struct fsnotify_group *group)
+{
+	return fsnotify_find_mark(&inode->i_fsnotify_marks, group);
+}
+
 /* given a group and a mark, flag mark to be freed when all references are dropped */
 extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 				  struct fsnotify_group *group);

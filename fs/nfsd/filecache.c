@@ -159,8 +159,8 @@ nfsd_file_mark_find_or_create(struct nfsd_file *nf, struct inode *inode)
 
 	do {
 		fsnotify_group_lock(nfsd_file_fsnotify_group);
-		mark = fsnotify_find_mark(&inode->i_fsnotify_marks,
-					  nfsd_file_fsnotify_group);
+		mark = fsnotify_find_inode_mark(inode,
+						nfsd_file_fsnotify_group);
 		if (mark) {
 			nfm = nfsd_file_mark_get(container_of(mark,
 						 struct nfsd_file_mark,
