@@ -483,6 +483,11 @@ struct fsnotify_mark_connector {
  */
 struct fsnotify_sb_info {
 	struct fsnotify_mark_connector __rcu *sb_marks;
+	/*
+	 * Number of inode/mount/sb objects that are being watched in this sb.
+	 * Note that inodes objects are currently double-accounted.
+	 */
+	atomic_long_t watched_objects;
 };
 
 static inline struct fsnotify_sb_info *fsnotify_sb_info(struct super_block *sb)
@@ -496,7 +501,7 @@ static inline struct fsnotify_sb_info *fsnotify_sb_info(struct super_block *sb)
 
 static inline atomic_long_t *fsnotify_sb_watched_objects(struct super_block *sb)
 {
-	return &sb->s_fsnotify_connectors;
+	return &fsnotify_sb_info(sb)->watched_objects;
 }
 
 /*
