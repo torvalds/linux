@@ -1516,13 +1516,13 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
 	switch (class) {
 	case FAN_CLASS_NOTIF:
-		group->priority = FS_PRIO_0;
+		group->priority = FSNOTIFY_PRIO_NORMAL;
 		break;
 	case FAN_CLASS_CONTENT:
-		group->priority = FS_PRIO_1;
+		group->priority = FSNOTIFY_PRIO_CONTENT;
 		break;
 	case FAN_CLASS_PRE_CONTENT:
-		group->priority = FS_PRIO_2;
+		group->priority = FSNOTIFY_PRIO_PRE_CONTENT;
 		break;
 	default:
 		fd = -EINVAL;
@@ -1774,12 +1774,11 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 
 	/*
-	 * group->priority == FS_PRIO_0 == FAN_CLASS_NOTIF.  These are not
-	 * allowed to set permissions events.
+	 * Permission events require minimum priority FAN_CLASS_CONTENT.
 	 */
 	ret = -EINVAL;
 	if (mask & FANOTIFY_PERM_EVENTS &&
-	    group->priority == FS_PRIO_0)
+	    group->priority < FSNOTIFY_PRIO_CONTENT)
 		goto fput_and_out;
 
 	if (mask & FAN_FS_ERROR &&

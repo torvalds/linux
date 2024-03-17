@@ -177,6 +177,17 @@ struct fsnotify_event {
 };
 
 /*
+ * fsnotify group priorities.
+ * Events are sent in order from highest priority to lowest priority.
+ */
+enum fsnotify_group_prio {
+	FSNOTIFY_PRIO_NORMAL = 0,	/* normal notifiers, no permissions */
+	FSNOTIFY_PRIO_CONTENT,		/* fanotify permission events */
+	FSNOTIFY_PRIO_PRE_CONTENT,	/* fanotify pre-content events */
+	__FSNOTIFY_PRIO_NUM
+};
+
+/*
  * A group is a "thing" that wants to receive notification about filesystem
  * events.  The mask holds the subset of event types this group cares about.
  * refcnt on a group is up to the implementor and at any moment if it goes 0
@@ -201,14 +212,7 @@ struct fsnotify_group {
 	wait_queue_head_t notification_waitq;	/* read() on the notification file blocks on this waitq */
 	unsigned int q_len;			/* events on the queue */
 	unsigned int max_events;		/* maximum events allowed on the list */
-	/*
-	 * Valid fsnotify group priorities.  Events are send in order from highest
-	 * priority to lowest priority.  We default to the lowest priority.
-	 */
-	#define FS_PRIO_0	0 /* normal notifiers, no permissions */
-	#define FS_PRIO_1	1 /* fanotify content based access control */
-	#define FS_PRIO_2	2 /* fanotify pre-content access */
-	unsigned int priority;
+	enum fsnotify_group_prio priority;	/* priority for sending events */
 	bool shutdown;		/* group is being shut down, don't queue more events */
 
 #define FSNOTIFY_GROUP_USER	0x01 /* user allocated group */
