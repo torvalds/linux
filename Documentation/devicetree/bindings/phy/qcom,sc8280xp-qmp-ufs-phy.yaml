@@ -25,6 +25,7 @@ properties:
       - qcom,sdm845-qmp-ufs-phy
       - qcom,sm6115-qmp-ufs-phy
       - qcom,sm6125-qmp-ufs-phy
+      - qcom,sm6225-qmp-ufs-phy
       - qcom,sm6350-qmp-ufs-phy
       - qcom,sm7150-qmp-ufs-phy
       - qcom,sm8150-qmp-ufs-phy
@@ -107,6 +108,7 @@ allOf:
               - qcom,sdm845-qmp-ufs-phy
               - qcom,sm6115-qmp-ufs-phy
               - qcom,sm6125-qmp-ufs-phy
+              - qcom,sm6225-qmp-ufs-phy
               - qcom,sm6350-qmp-ufs-phy
               - qcom,sm7150-qmp-ufs-phy
               - qcom,sm8150-qmp-ufs-phy
