@@ -351,8 +351,9 @@ static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 	regmap_set_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE);
 
 	/* Calculate the duty cycles */
-	dty = prd * duty_ns;
-	do_div(dty, period_ns);
+	dty = (unsigned long long)clk_get_rate(priv->clk) * duty_ns;
+	do_div(dty, prescaler + 1);
+	do_div(dty, NSEC_PER_SEC);
 
 	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
 
