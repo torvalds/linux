@@ -309,16 +309,18 @@ unlock:
 }
 
 static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
-			    int duty_ns, int period_ns)
+			    u64 duty_ns, u64 period_ns)
 {
 	unsigned long long prd, div, dty;
 	unsigned int prescaler = 0;
 	u32 ccmr, mask, shift;
 
-	/* Period and prescaler values depends on clock rate */
-	div = (unsigned long long)clk_get_rate(priv->clk) * period_ns;
-
-	do_div(div, NSEC_PER_SEC);
+	/*
+	 * .probe() asserted that clk_get_rate() is not bigger than 1 GHz, so
+	 * this won't overflow.
+	 */
+	div = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
+				  NSEC_PER_SEC);
 	prd = div;
 
 	while (div > priv->max_arr) {
@@ -351,9 +353,8 @@ static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 	regmap_set_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE);
 
 	/* Calculate the duty cycles */
-	dty = (unsigned long long)clk_get_rate(priv->clk) * duty_ns;
-	do_div(dty, prescaler + 1);
-	do_div(dty, NSEC_PER_SEC);
+	dty = mul_u64_u64_div_u64(duty_ns, clk_get_rate(priv->clk),
+				  (u64)NSEC_PER_SEC * (prescaler + 1));
 
 	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
 
@@ -658,6 +659,17 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 				     "Failed to configure breakinputs\n");
 
 	stm32_pwm_detect_complementary(priv);
+
+	ret = devm_clk_rate_exclusive_get(dev, priv->clk);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to lock clock\n");
+
+	/*
+	 * With the clk running with not more than 1 GHz the calculations in
+	 * .apply() won't overflow.
+	 */
+	if (clk_get_rate(priv->clk) > 1000000000)
+		return dev_err_probe(dev, -EINVAL, "Failed to lock clock\n");
 
 	chip->ops = &stm32pwm_ops;
 
