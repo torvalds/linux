@@ -36,8 +36,6 @@
 
 #include "gc/gc_12_0_0_offset.h"
 #include "gc/gc_12_0_0_sh_mask.h"
-#include "smuio/smuio_14_0_2_offset.h"
-#include "smuio/smuio_14_0_2_sh_mask.h"
 #include "soc24_enum.h"
 #include "ivsrcid/gfx/irqsrcs_gfx_11_0_0.h"
 
@@ -3467,14 +3465,14 @@ static int gfx_v12_0_wait_for_idle(void *handle)
 
 static uint64_t gfx_v12_0_get_gpu_clock_counter(struct amdgpu_device *adev)
 {
-	uint64_t clock;
+	uint64_t clock = 0;
 
-	amdgpu_gfx_off_ctrl(adev, false);
-	mutex_lock(&adev->gfx.gpu_clock_mutex);
-	clock = (uint64_t)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_LOWER) |
-		((uint64_t)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_UPPER) << 32ULL);
-	mutex_unlock(&adev->gfx.gpu_clock_mutex);
-	amdgpu_gfx_off_ctrl(adev, true);
+	if (adev->smuio.funcs &&
+	    adev->smuio.funcs->get_gpu_clock_counter)
+		clock = adev->smuio.funcs->get_gpu_clock_counter(adev);
+	else
+		dev_warn(adev->dev, "query gpu clock counter is not supported\n");
+
 	return clock;
 }
 
