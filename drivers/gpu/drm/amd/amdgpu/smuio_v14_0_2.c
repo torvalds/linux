@@ -24,6 +24,7 @@
 #include "smuio_v14_0_2.h"
 #include "smuio/smuio_14_0_2_offset.h"
 #include "smuio/smuio_14_0_2_sh_mask.h"
+#include <linux/preempt.h>
 
 static u32 smuio_v14_0_2_get_rom_index_offset(struct amdgpu_device *adev)
 {
@@ -35,7 +36,27 @@ static u32 smuio_v14_0_2_get_rom_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(SMUIO, 0, regROM_DATA);
 }
 
+static u64 smuio_v14_0_2_get_gpu_clock_counter(struct amdgpu_device *adev)
+{
+	u64 clock;
+	u64 clock_counter_lo, clock_counter_hi_pre, clock_counter_hi_after;
+
+	preempt_disable();
+	clock_counter_hi_pre = (u64)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_UPPER);
+	clock_counter_lo = (u64)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_LOWER);
+	/* the clock counter may be udpated during polling the counters */
+	clock_counter_hi_after = (u64)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_UPPER);
+	if (clock_counter_hi_pre != clock_counter_hi_after)
+		clock_counter_lo = (u64)RREG32_SOC15(SMUIO, 0, regGOLDEN_TSC_COUNT_LOWER);
+	preempt_enable();
+
+	clock = clock_counter_lo | (clock_counter_hi_after << 32ULL);
+
+	return clock;
+}
+
 const struct amdgpu_smuio_funcs smuio_v14_0_2_funcs = {
 	.get_rom_index_offset = smuio_v14_0_2_get_rom_index_offset,
 	.get_rom_data_offset = smuio_v14_0_2_get_rom_data_offset,
+	.get_gpu_clock_counter = smuio_v14_0_2_get_gpu_clock_counter,
 };
