@@ -1,8 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
 #include <linux/module.h>
 #include <linux/of.h>
