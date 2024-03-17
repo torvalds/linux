@@ -97,6 +97,7 @@
 #include "smuio_v13_0.h"
 #include "smuio_v13_0_3.h"
 #include "smuio_v13_0_6.h"
+#include "smuio_v14_0_2.h"
 #include "vcn_v5_0_0.h"
 #include "jpeg_v5_0_0.h"
 
@@ -2683,6 +2684,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 		adev->smuio.funcs = &smuio_v13_0_6_funcs;
+		break;
+	case IP_VERSION(14, 0, 2):
+		adev->smuio.funcs = &smuio_v14_0_2_funcs;
 		break;
 	default:
 		break;
