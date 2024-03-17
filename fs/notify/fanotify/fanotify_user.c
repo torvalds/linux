@@ -1412,18 +1412,6 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 				   struct inode *inode, __u32 mask,
 				   unsigned int flags, struct fan_fsid *fsid)
 {
-	pr_debug("%s: group=%p inode=%p\n", __func__, group, inode);
-
-	/*
-	 * If some other task has this inode open for write we should not add
-	 * an ignore mask, unless that ignore mask is supposed to survive
-	 * modification changes anyway.
-	 */
-	if ((flags & FANOTIFY_MARK_IGNORE_BITS) &&
-	    !(flags & FAN_MARK_IGNORED_SURV_MODIFY) &&
-	    inode_is_open_for_write(inode))
-		return 0;
-
 	return fanotify_add_mark(group, &inode->i_fsnotify_marks,
 				 FSNOTIFY_OBJ_TYPE_INODE, mask, flags, fsid);
 }
@@ -1913,12 +1901,23 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	else
 		mnt = path.mnt;
 
-	ret = mnt ? -EINVAL : -EISDIR;
-	/* FAN_MARK_IGNORE requires SURV_MODIFY for sb/mount/dir marks */
-	if (mark_cmd == FAN_MARK_ADD && ignore == FAN_MARK_IGNORE &&
-	    (mnt || S_ISDIR(inode->i_mode)) &&
-	    !(flags & FAN_MARK_IGNORED_SURV_MODIFY))
-		goto path_put_and_out;
+	/*
+	 * If some other task has this inode open for write we should not add
+	 * an ignore mask, unless that ignore mask is supposed to survive
+	 * modification changes anyway.
+	 */
+	if (mark_cmd == FAN_MARK_ADD && (flags & FANOTIFY_MARK_IGNORE_BITS) &&
+	    !(flags & FAN_MARK_IGNORED_SURV_MODIFY)) {
+		ret = mnt ? -EINVAL : -EISDIR;
+		/* FAN_MARK_IGNORE requires SURV_MODIFY for sb/mount/dir marks */
+		if (ignore == FAN_MARK_IGNORE &&
+		    (mnt || S_ISDIR(inode->i_mode)))
+			goto path_put_and_out;
+
+		ret = 0;
+		if (inode && inode_is_open_for_write(inode))
+			goto path_put_and_out;
+	}
 
 	/* Mask out FAN_EVENT_ON_CHILD flag for sb/mount/non-dir marks */
 	if (mnt || !S_ISDIR(inode->i_mode)) {
