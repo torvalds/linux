@@ -290,7 +290,7 @@ struct pwm_chip {
 	/* only used internally by the PWM framework */
 	bool uses_pwmchip_alloc;
 	void *driver_data;
-	struct pwm_device *pwms;
+	struct pwm_device pwms[] __counted_by(npwm);
 };
 
 static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
