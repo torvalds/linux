@@ -4,7 +4,7 @@
 /*
  * Don't allow the cache to grow beyond this size.
  */
-#define IO_ALLOC_CACHE_MAX	512
+#define IO_ALLOC_CACHE_MAX	128
 
 struct io_cache_entry {
 	struct io_wq_work_node node;
