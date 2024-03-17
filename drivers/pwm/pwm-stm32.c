@@ -311,28 +311,32 @@ unlock:
 static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 			    u64 duty_ns, u64 period_ns)
 {
-	unsigned long long prd, div, dty;
-	unsigned int prescaler = 0;
+	unsigned long long prd, dty;
+	unsigned long long prescaler;
 	u32 ccmr, mask, shift;
 
 	/*
 	 * .probe() asserted that clk_get_rate() is not bigger than 1 GHz, so
-	 * this won't overflow.
+	 * the calculations here won't overflow.
+	 * First we need to find the minimal value for prescaler such that
+	 *
+	 *        period_ns * clkrate
+	 *   ------------------------------
+	 *   NSEC_PER_SEC * (prescaler + 1)
+	 *
+	 * isn't bigger than max_arr.
 	 */
-	div = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
-				  NSEC_PER_SEC);
-	prd = div;
 
-	while (div > priv->max_arr) {
-		prescaler++;
-		div = prd;
-		do_div(div, prescaler + 1);
-	}
-
-	prd = div;
+	prescaler = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
+					(u64)NSEC_PER_SEC * priv->max_arr);
+	if (prescaler > 0)
+		prescaler -= 1;
 
 	if (prescaler > MAX_TIM_PSC)
 		return -EINVAL;
+
+	prd = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
+				  (u64)NSEC_PER_SEC * (prescaler + 1));
 
 	/*
 	 * All channels share the same prescaler and counter so when two
