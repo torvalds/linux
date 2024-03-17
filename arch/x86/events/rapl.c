@@ -675,10 +675,8 @@ static const struct attribute_group *rapl_attr_update[] = {
 static int __init init_rapl_pmus(void)
 {
 	int maxdie = topology_max_packages() * topology_max_dies_per_package();
-	size_t size;
 
-	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);
-	rapl_pmus = kzalloc(size, GFP_KERNEL);
+	rapl_pmus = kzalloc(struct_size(rapl_pmus, pmus, maxdie), GFP_KERNEL);
 	if (!rapl_pmus)
 		return -ENOMEM;
 
