@@ -954,9 +954,9 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_lock_irqsave(&isp->lock, irqflags);
 	asd->streaming = true;
 	spin_unlock_irqrestore(&isp->lock, irqflags);
-	atomic_set(&asd->sof_count, -1);
-	atomic_set(&asd->sequence, -1);
-	atomic_set(&asd->sequence_temp, -1);
+	atomic_set(&asd->sof_count, 0);
+	atomic_set(&asd->sequence, 0);
+	atomic_set(&asd->sequence_temp, 0);
 
 	asd->params.dis_proj_data_valid = false;
 	asd->latest_preview_exp_id = 0;
