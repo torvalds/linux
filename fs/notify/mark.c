@@ -265,6 +265,7 @@ static void *fsnotify_detach_connector_from_object(
 					struct fsnotify_mark_connector *conn,
 					unsigned int *type)
 {
+	fsnotify_connp_t *connp = fsnotify_object_connp(conn->obj, conn->type);
 	struct inode *inode = NULL;
 
 	*type = conn->type;
@@ -285,7 +286,7 @@ static void *fsnotify_detach_connector_from_object(
 	}
 
 	fsnotify_put_sb_watchers(conn);
-	rcu_assign_pointer(*(conn->obj), NULL);
+	rcu_assign_pointer(*connp, NULL);
 	conn->obj = NULL;
 	conn->type = FSNOTIFY_OBJ_TYPE_DETACHED;
 
@@ -560,7 +561,7 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 }
 
 static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
-					       unsigned int obj_type)
+					       void *obj, unsigned int obj_type)
 {
 	struct fsnotify_mark_connector *conn;
 
@@ -571,7 +572,7 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	INIT_HLIST_HEAD(&conn->list);
 	conn->flags = 0;
 	conn->type = obj_type;
-	conn->obj = connp;
+	conn->obj = obj;
 
 	/*
 	 * cmpxchg() provides the barrier so that readers of *connp can see
@@ -620,24 +621,25 @@ out:
  * to which group and for which inodes. These marks are ordered according to
  * priority, highest number first, and then by the group's location in memory.
  */
-static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
-				  fsnotify_connp_t *connp,
+static int fsnotify_add_mark_list(struct fsnotify_mark *mark, void *obj,
 				  unsigned int obj_type, int add_flags)
 {
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
+	fsnotify_connp_t *connp;
 	int cmp;
 	int err = 0;
 
 	if (WARN_ON(!fsnotify_valid_obj_type(obj_type)))
 		return -EINVAL;
 
+	connp = fsnotify_object_connp(obj, obj_type);
 restart:
 	spin_lock(&mark->lock);
 	conn = fsnotify_grab_connector(connp);
 	if (!conn) {
 		spin_unlock(&mark->lock);
-		err = fsnotify_attach_connector_to_object(connp, obj_type);
+		err = fsnotify_attach_connector_to_object(connp, obj, obj_type);
 		if (err)
 			return err;
 		goto restart;
@@ -689,7 +691,7 @@ out_err:
  * event types should be delivered to which group.
  */
 int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-			     fsnotify_connp_t *connp, unsigned int obj_type,
+			     void *obj, unsigned int obj_type,
 			     int add_flags)
 {
 	struct fsnotify_group *group = mark->group;
@@ -710,7 +712,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	fsnotify_get_mark(mark); /* for g_list */
 	spin_unlock(&mark->lock);
 
-	ret = fsnotify_add_mark_list(mark, connp, obj_type, add_flags);
+	ret = fsnotify_add_mark_list(mark, obj, obj_type, add_flags);
 	if (ret)
 		goto err;
 
@@ -728,14 +730,14 @@ err:
 	return ret;
 }
 
-int fsnotify_add_mark(struct fsnotify_mark *mark, fsnotify_connp_t *connp,
+int fsnotify_add_mark(struct fsnotify_mark *mark, void *obj,
 		      unsigned int obj_type, int add_flags)
 {
 	int ret;
 	struct fsnotify_group *group = mark->group;
 
 	fsnotify_group_lock(group);
-	ret = fsnotify_add_mark_locked(mark, connp, obj_type, add_flags);
+	ret = fsnotify_add_mark_locked(mark, obj, obj_type, add_flags);
 	fsnotify_group_unlock(group);
 	return ret;
 }
@@ -745,11 +747,15 @@ EXPORT_SYMBOL_GPL(fsnotify_add_mark);
  * Given a list of marks, find the mark associated with given group. If found
  * take a reference to that mark and return it, else return NULL.
  */
-struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
+struct fsnotify_mark *fsnotify_find_mark(void *obj, unsigned int obj_type,
 					 struct fsnotify_group *group)
 {
+	fsnotify_connp_t *connp = fsnotify_object_connp(obj, obj_type);
 	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark;
+
+	if (!connp)
+		return NULL;
 
 	conn = fsnotify_grab_connector(connp);
 	if (!conn)

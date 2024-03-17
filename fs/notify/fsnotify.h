@@ -9,22 +9,28 @@
 
 #include "../mount.h"
 
+/*
+ * fsnotify_connp_t is what we embed in objects which connector can be attached
+ * to.
+ */
+typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
+
 static inline struct inode *fsnotify_conn_inode(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct inode, i_fsnotify_marks);
+	return conn->obj;
 }
 
 static inline struct mount *fsnotify_conn_mount(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct mount, mnt_fsnotify_marks);
+	return real_mount(conn->obj);
 }
 
 static inline struct super_block *fsnotify_conn_sb(
 				struct fsnotify_mark_connector *conn)
 {
-	return container_of(conn->obj, struct super_block, s_fsnotify_marks);
+	return conn->obj;
 }
 
 static inline struct super_block *fsnotify_object_sb(void *obj,
@@ -45,16 +51,7 @@ static inline struct super_block *fsnotify_object_sb(void *obj,
 static inline struct super_block *fsnotify_connector_sb(
 				struct fsnotify_mark_connector *conn)
 {
-	switch (conn->type) {
-	case FSNOTIFY_OBJ_TYPE_INODE:
-		return fsnotify_conn_inode(conn)->i_sb;
-	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
-		return fsnotify_conn_mount(conn)->mnt.mnt_sb;
-	case FSNOTIFY_OBJ_TYPE_SB:
-		return fsnotify_conn_sb(conn);
-	default:
-		return NULL;
-	}
+	return fsnotify_object_sb(conn->obj, conn->type);
 }
 
 /* destroy all events sitting in this groups notification queue */
