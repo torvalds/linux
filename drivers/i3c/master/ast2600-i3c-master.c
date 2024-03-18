@@ -81,6 +81,10 @@
 #define INTR_SIGNAL_EN				0x44
 #define   INTR_IBI_THLD_STAT			BIT(2)
 
+#define PRESENT_STATE				0x54
+#define   SDA_LINE_SIGNAL_LEVEL			BIT(1)
+#define   SCL_LINE_SIGNAL_LEVEL			BIT(0)
+
 struct ast2600_i3c_swdat_group {
 	u32 dat[NUM_OF_SWDATS_IN_GROUP];
 	u32 free_pos;
@@ -233,6 +237,37 @@ static void ast2600_i3c_gen_internal_stop(struct dw_i3c_master *dw)
 			  SCL_IN_SW_MODE_VAL, SCL_IN_SW_MODE_VAL);
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
+}
+
+static int aspeed_i3c_bus_recovery(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+	int i, ret = -1;
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
+
+	for (i = 0; i < 19; i++) {
+		regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_VAL, 0);
+		regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		if (readl(dw->regs + PRESENT_STATE) & SDA_LINE_SIGNAL_LEVEL) {
+			ret = 0;
+			break;
+		}
+	}
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_OUT_SW_MODE_EN, 0);
+	if (ret)
+		dev_err(&dw->base.dev, "Failed to recover the bus\n");
+
+	return ret;
 }
 
 static void ast2600_i3c_gen_target_reset_pattern(struct dw_i3c_master *dw)
@@ -626,6 +661,7 @@ static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.toggle_scl_in = ast2600_i3c_toggle_scl_in,
 	.gen_internal_stop = ast2600_i3c_gen_internal_stop,
 	.gen_target_reset_pattern = ast2600_i3c_gen_target_reset_pattern,
+	.bus_recovery = aspeed_i3c_bus_recovery,
 	.set_ibi_mdb = ast2600_i3c_set_ibi_mdb,
 	.reattach_i3c_dev = ast2600_i3c_reattach_i3c_dev,
 	.attach_i3c_dev = ast2600_i3c_attach_i3c_dev,

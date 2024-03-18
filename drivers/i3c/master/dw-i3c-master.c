@@ -204,6 +204,8 @@
 #define     CM_TFR_STS_MASTER_SERV_IBI	0xe
 #define     CM_TFR_STS_MASTER_HALT	0xf
 #define     CM_TFR_STS_SLAVE_HALT	0x6
+#define   SDA_LINE_SIGNAL_LEVEL		BIT(1)
+#define   SCL_LINE_SIGNAL_LEVEL		BIT(0)
 
 #define CCC_DEVICE_STATUS		0x58
 #define DEVICE_ADDR_TABLE_POINTER	0x5c
@@ -1043,6 +1045,7 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 {
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int ret, pos = 0;
 
 	if (ccc->id & I3C_CCC_DIRECT) {
@@ -1074,10 +1077,19 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 	if (ccc->id == I3C_CCC_SETHID || ccc->id == I3C_CCC_DEVCTRL)
 		cmd->cmd_lo |= COMMAND_PORT_SPEED(SPEED_I3C_I2C_FM);
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(&master->base.dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			master->platform_ops->bus_recovery(master);
+		}
 		dw_i3c_master_exit_halt(master);
 	}
 
@@ -1094,6 +1106,7 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 {
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int ret, pos;
 
 	pos = master->platform_ops->get_addr_pos(master, ccc->dests[0].addr);
@@ -1120,10 +1133,19 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(&master->base.dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			master->platform_ops->bus_recovery(master);
+		}
 		dw_i3c_master_exit_halt(master);
 	}
 
@@ -1157,7 +1179,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
-	u32 olddevs, newdevs;
+	u32 olddevs, newdevs, sda_lvl_pre, sda_lvl_post;
 	u8 p, last_addr = 0;
 	int ret, pos;
 
@@ -1200,10 +1222,19 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(&master->base.dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			master->platform_ops->bus_recovery(master);
+		}
 		dw_i3c_master_exit_halt(master);
 	}
 
@@ -1239,6 +1270,7 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int i, ret = 0;
 
 	if (!i3c_nxfers)
@@ -1291,10 +1323,19 @@ static int dw_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 			cmd->cmd_lo |= COMMAND_PORT_TOC;
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(&master->base.dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			master->platform_ops->bus_recovery(master);
+		}
 		dw_i3c_master_exit_halt(master);
 	}
 
@@ -1577,6 +1618,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct dw_i3c_xfer *xfer;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int i, ret = 0;
 
 	if (!i2c_nxfers)
@@ -1631,10 +1673,19 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 			cmd->cmd_lo |= COMMAND_PORT_TOC;
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	dw_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		dw_i3c_master_enter_halt(master, true);
 		dw_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(&master->base.dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			master->platform_ops->bus_recovery(master);
+		}
 		dw_i3c_master_exit_halt(master);
 	}
 
