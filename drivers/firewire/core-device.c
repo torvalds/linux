@@ -322,6 +322,7 @@ static ssize_t show_immediate(struct device *dev,
 	if (value < 0)
 		return -ENOENT;
 
+	// Note that this function is also called by init_fw_attribute_group() with NULL pointer.
 	return buf ? sysfs_emit(buf, "0x%06x\n", value) : 0;
 }
 
@@ -357,6 +358,7 @@ static ssize_t show_text_leaf(struct device *dev,
 		}
 	}
 
+	// Note that this function is also called by init_fw_attribute_group() with NULL pointer.
 	if (buf) {
 		bufsize = PAGE_SIZE - 1;
 	} else {
