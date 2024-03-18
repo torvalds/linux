@@ -2584,7 +2584,7 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	    WARN_ON(!q->ops->buf_queue))
 		return -EINVAL;
 
-	if (WARN_ON(q->max_num_buffers > MAX_BUFFER_INDEX) ||
+	if (WARN_ON(q->max_num_buffers < VB2_MAX_FRAME) ||
 	    WARN_ON(q->min_queued_buffers > q->max_num_buffers))
 		return -EINVAL;
 
@@ -2855,6 +2855,12 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 	ret = vb2_core_reqbufs(q, fileio->memory, 0, &fileio->count);
 	if (ret)
 		goto err_kfree;
+	/* vb2_fileio_data supports max VB2_MAX_FRAME buffers */
+	if (fileio->count > VB2_MAX_FRAME) {
+		dprintk(q, 1, "fileio: more than VB2_MAX_FRAME buffers requested\n");
+		ret = -ENOSPC;
+		goto err_reqbufs;
+	}
 
 	/*
 	 * Userspace can never add or delete buffers later, so there
