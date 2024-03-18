@@ -1138,12 +1138,12 @@ Git clone of Linus' mainline repository. There is nothing more to say about
 that -- but there are two alternatives ways to retrieve the sources that might
 work better for you:
 
- * If you have an unreliable internet connection, consider
-   :ref:`using a 'Git bundle'<sources_bundle_bisref>`.
+* If you have an unreliable internet connection, consider
+  :ref:`using a 'Git bundle'<sources_bundle_bisref>`.
 
- * If downloading the complete repository would take too long or requires too
-   much storage space, consider :ref:`using a 'shallow
-   clone'<sources_shallow_bisref>`.
+* If downloading the complete repository would take too long or requires too
+  much storage space, consider :ref:`using a 'shallow
+  clone'<sources_shallow_bisref>`.
 
 .. _sources_bundle_bisref:
 
@@ -1195,23 +1195,23 @@ branches as explained in the step-by-step guide.
 
 Note, shallow clones have a few peculiar characteristics:
 
- * For bisections the history needs to be deepened a few mainline versions
-   farther than it seems necessary, as explained above already. That's because
-   Git otherwise will be unable to revert or describe most of the commits within
-   a range (say 6.1..6.2), as they are internally based on earlier kernels
-   releases (like 6.0-rc2 or 5.19-rc3).
+* For bisections the history needs to be deepened a few mainline versions
+  farther than it seems necessary, as explained above already. That's because
+  Git otherwise will be unable to revert or describe most of the commits within
+  a range (say 6.1..6.2), as they are internally based on earlier kernels
+  releases (like 6.0-rc2 or 5.19-rc3).
 
- * This document in most places uses ``git fetch`` with ``--shallow-exclude=``
-   to specify the earliest version you care about (or to be precise: its git
-   tag). You alternatively can use the parameter ``--shallow-since=`` to specify
-   an absolute (say ``'2023-07-15'``) or relative (``'12 months'``) date to
-   define the depth of the history you want to download. When using them while
-   bisecting mainline, ensure to deepen the history to at least 7 months before
-   the release of the mainline release your 'good' kernel is based on.
+* This document in most places uses ``git fetch`` with ``--shallow-exclude=``
+  to specify the earliest version you care about (or to be precise: its git
+  tag). You alternatively can use the parameter ``--shallow-since=`` to specify
+  an absolute (say ``'2023-07-15'``) or relative (``'12 months'``) date to
+  define the depth of the history you want to download. When using them while
+  bisecting mainline, ensure to deepen the history to at least 7 months before
+  the release of the mainline release your 'good' kernel is based on.
 
- * Be warned, when deepening your clone you might encounter an error like
-   'fatal: error in object: unshallow cafecaca0c0dacafecaca0c0dacafecaca0c0da'.
-   In that case run ``git repack -d`` and try again.
+* Be warned, when deepening your clone you might encounter an error like
+  'fatal: error in object: unshallow cafecaca0c0dacafecaca0c0dacafecaca0c0da'.
+  In that case run ``git repack -d`` and try again.
 
 [:ref:`back to step-by-step guide <sources_bissbs>`]
 [:ref:`back to section intro <sources_bisref>`]
@@ -1235,23 +1235,23 @@ locate the right build configuration.*
 
 Two things can easily go wrong when creating a .config file as advised:
 
- * The oldconfig target will use a .config file from your build directory, if
-   one is already present there (e.g. '~/linux/.config'). That's totally fine if
-   that's what you intend (see next step), but in all other cases you want to
-   delete it. This for example is important in case you followed this guide
-   further, but due to problems come back here to redo the configuration from
-   scratch.
+* The oldconfig target will use a .config file from your build directory, if
+  one is already present there (e.g. '~/linux/.config'). That's totally fine if
+  that's what you intend (see next step), but in all other cases you want to
+  delete it. This for example is important in case you followed this guide
+  further, but due to problems come back here to redo the configuration from
+  scratch.
 
- * Sometimes olddefconfig is unable to locate the .config file for your running
-   kernel and will use defaults, as briefly outlined in the guide. In that case
-   check if your distribution ships the configuration somewhere and manually put
-   it in the right place (e.g. '~/linux/.config') if it does. On distributions
-   where /proc/config.gz exists this can be achieved using this command::
+* Sometimes olddefconfig is unable to locate the .config file for your running
+  kernel and will use defaults, as briefly outlined in the guide. In that case
+  check if your distribution ships the configuration somewhere and manually put
+  it in the right place (e.g. '~/linux/.config') if it does. On distributions
+  where /proc/config.gz exists this can be achieved using this command::
 
-     zcat /proc/config.gz > .config
+    zcat /proc/config.gz > .config
 
-   Once you put it there, run ``make olddefconfig`` again to adjust it to the
-   needs of the kernel about to be built.
+  Once you put it there, run ``make olddefconfig`` again to adjust it to the
+  needs of the kernel about to be built.
 
 Note, the olddefconfig target will set any undefined build options to their
 default value. If you prefer to set such configuration options manually, use
@@ -1393,16 +1393,16 @@ when following this guide on a few commodity distributions.
 
 **Debian:**
 
- * Remove a stale reference to a certificate file that would cause your build to
-   fail::
+* Remove a stale reference to a certificate file that would cause your build to
+  fail::
 
-    ./scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
+   ./scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
 
-   Alternatively, download the needed certificate and make that configuration
-   option point to it, as `the Debian handbook explains in more detail
-   <https://debian-handbook.info/browse/stable/sect.kernel-compilation.html>`_
-   -- or generate your own, as explained in
-   Documentation/admin-guide/module-signing.rst.
+  Alternatively, download the needed certificate and make that configuration
+  option point to it, as `the Debian handbook explains in more detail
+  <https://debian-handbook.info/browse/stable/sect.kernel-compilation.html>`_
+  -- or generate your own, as explained in
+  Documentation/admin-guide/module-signing.rst.
 
 [:ref:`back to step-by-step guide <configmods_bissbs>`]
 
@@ -1563,11 +1563,11 @@ The step-by-step guide uses the default make targets (e.g. 'bzImage' and
 steps of the guide then install. You instead can also directly build everything
 and directly package it up by using one of the following targets:
 
- * ``make -j $(nproc --all) bindeb-pkg`` to generate a deb package
+* ``make -j $(nproc --all) bindeb-pkg`` to generate a deb package
 
- * ``make -j $(nproc --all) binrpm-pkg`` to generate a rpm package
+* ``make -j $(nproc --all) binrpm-pkg`` to generate a rpm package
 
- * ``make -j $(nproc --all) tarbz2-pkg`` to generate a bz2 compressed tarball
+* ``make -j $(nproc --all) tarbz2-pkg`` to generate a bz2 compressed tarball
 
 This is just a selection of available make targets for this purpose, see
 ``make help`` for others. You can also use these targets after running
@@ -1599,20 +1599,20 @@ If installkernel is found, the kernel's build system will delegate the actual
 installation of your kernel image to this executable, which then performs some
 or all of these tasks:
 
- * On almost all Linux distributions installkernel will store your kernel's
-   image in /boot/, usually as '/boot/vmlinuz-<kernelrelease_id>'; often it will
-   put a 'System.map-<kernelrelease_id>' alongside it.
+* On almost all Linux distributions installkernel will store your kernel's
+  image in /boot/, usually as '/boot/vmlinuz-<kernelrelease_id>'; often it will
+  put a 'System.map-<kernelrelease_id>' alongside it.
 
- * On most distributions installkernel will then generate an 'initramfs'
-   (sometimes also called 'initrd'), which usually are stored as
-   '/boot/initramfs-<kernelrelease_id>.img' or
-   '/boot/initrd-<kernelrelease_id>'. Commodity distributions rely on this file
-   for booting, hence ensure to execute the make target 'modules_install' first,
-   as your distribution's initramfs generator otherwise will be unable to find
-   the modules that go into the image.
+* On most distributions installkernel will then generate an 'initramfs'
+  (sometimes also called 'initrd'), which usually are stored as
+  '/boot/initramfs-<kernelrelease_id>.img' or
+  '/boot/initrd-<kernelrelease_id>'. Commodity distributions rely on this file
+  for booting, hence ensure to execute the make target 'modules_install' first,
+  as your distribution's initramfs generator otherwise will be unable to find
+  the modules that go into the image.
 
- * On some distributions installkernel will then add an entry for your kernel
-   to your bootloader's configuration.
+* On some distributions installkernel will then add an entry for your kernel
+  to your bootloader's configuration.
 
 You have to take care of some or all of the tasks yourself, if your
 distribution lacks a installkernel script or does only handle part of them.
