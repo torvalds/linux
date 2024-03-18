@@ -329,7 +329,7 @@ int mt7915_set_channel(struct mt7915_phy *phy)
 
 	mt76_set_channel(phy->mt76);
 
-	if (dev->flash_mode) {
+	if (dev->cal) {
 		ret = mt7915_mcu_apply_tx_dpd(phy);
 		if (ret)
 			goto out;

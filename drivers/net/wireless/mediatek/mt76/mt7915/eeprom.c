@@ -28,7 +28,15 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 	if (!ret)
 		return ret;
 
-	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
+	ret = mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
+	if (!ret)
+		return ret;
+
+	dev_warn(mdev->dev, "missing precal data, size=%d\n", size);
+	devm_kfree(mdev->dev, dev->cal);
+	dev->cal = NULL;
+
+	return ret;
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
@@ -254,10 +262,7 @@ int mt7915_eeprom_init(struct mt7915_dev *dev)
 			return ret;
 	}
 
-	ret = mt7915_eeprom_load_precal(dev);
-	if (ret)
-		return ret;
-
+	mt7915_eeprom_load_precal(dev);
 	mt7915_eeprom_parse_hw_cap(dev, &dev->phy);
 	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
