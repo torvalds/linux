@@ -2161,7 +2161,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
 	}
 
-	queue_work(c->btree_interior_update_worker, &a->work);
+	queue_work(c->btree_node_rewrite_worker, &a->work);
 }
 
 void bch2_do_pending_node_rewrites(struct bch_fs *c)
@@ -2173,7 +2173,7 @@ void bch2_do_pending_node_rewrites(struct bch_fs *c)
 		list_del(&a->list);
 
 		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
-		queue_work(c->btree_interior_update_worker, &a->work);
+		queue_work(c->btree_node_rewrite_worker, &a->work);
 	}
 	mutex_unlock(&c->pending_node_rewrites_lock);
 }
@@ -2510,6 +2510,8 @@ bch2_btree_roots_to_journal_entries(struct bch_fs *c,
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *c)
 {
+	if (c->btree_node_rewrite_worker)
+		destroy_workqueue(c->btree_node_rewrite_worker);
 	if (c->btree_interior_update_worker)
 		destroy_workqueue(c->btree_interior_update_worker);
 	mempool_exit(&c->btree_interior_update_pool);
@@ -2532,6 +2534,11 @@ int bch2_fs_btree_interior_update_init(struct bch_fs *c)
 	c->btree_interior_update_worker =
 		alloc_workqueue("btree_update", WQ_UNBOUND|WQ_MEM_RECLAIM, 8);
 	if (!c->btree_interior_update_worker)
+		return -BCH_ERR_ENOMEM_btree_interior_update_worker_init;
+
+	c->btree_node_rewrite_worker =
+		alloc_ordered_workqueue("btree_node_rewrite", WQ_UNBOUND);
+	if (!c->btree_node_rewrite_worker)
 		return -BCH_ERR_ENOMEM_btree_interior_update_worker_init;
 
 	if (mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
