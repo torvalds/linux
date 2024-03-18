@@ -2246,8 +2246,7 @@ next_page:
 	submit_write_bio(&bio_ctrl, found_error ? ret : 0);
 }
 
-int extent_writepages(struct address_space *mapping,
-		      struct writeback_control *wbc)
+int btrfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	int ret = 0;

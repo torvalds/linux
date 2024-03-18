@@ -7923,12 +7923,6 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return ret;
 }
 
-static int btrfs_writepages(struct address_space *mapping,
-			    struct writeback_control *wbc)
-{
-	return extent_writepages(mapping, wbc);
-}
-
 /*
  * For release_folio() and invalidate_folio() we have a race window where
  * folio_end_writeback() is called but the subpage spinlock is not yet released.
