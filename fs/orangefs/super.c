@@ -527,7 +527,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
 	if (!ORANGEFS_SB(sb)) {
 		d = ERR_PTR(-ENOMEM);
-		goto free_sb_and_op;
+		goto free_op;
 	}
 
 	ret = orangefs_fill_sb(sb,
@@ -644,7 +644,7 @@ int orangefs_inode_cache_initialize(void)
 					"orangefs_inode_cache",
 					sizeof(struct orangefs_inode_s),
 					0,
-					ORANGEFS_CACHE_CREATE_FLAGS,
+					0,
 					offsetof(struct orangefs_inode_s,
 						link_target),
 					sizeof_field(struct orangefs_inode_s,
