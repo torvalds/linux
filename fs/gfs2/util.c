@@ -206,9 +206,9 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * on other nodes to be successful, otherwise we remain the owner of
 	 * the glock as far as dlm is concerned.
 	 */
-	if (i_gl->gl_ops->go_free) {
-		set_bit(GLF_FREEING, &i_gl->gl_flags);
-		wait_on_bit(&i_gl->gl_flags, GLF_FREEING, TASK_UNINTERRUPTIBLE);
+	if (i_gl->gl_ops->go_unlocked) {
+		set_bit(GLF_UNLOCKED, &i_gl->gl_flags);
+		wait_on_bit(&i_gl->gl_flags, GLF_UNLOCKED, TASK_UNINTERRUPTIBLE);
 	}
 
 	/*
