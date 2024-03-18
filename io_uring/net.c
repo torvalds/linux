@@ -290,48 +290,54 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 	return ret;
 }
 
-int io_sendrecv_prep_async(struct io_kiocb *req)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *io;
-	int ret;
-
-	if (req_has_async_data(req))
-		return 0;
-	sr->done_io = 0;
-	if (!sr->addr)
-		return 0;
-	io = io_msg_alloc_async_prep(req);
-	if (!io)
-		return -ENOMEM;
-	memset(&io->msg, 0, sizeof(io->msg));
-	ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len, &io->msg.msg_iter);
-	if (unlikely(ret))
-		return ret;
-	io->msg.msg_name = &io->addr;
-	io->msg.msg_namelen = sr->addr_len;
-	return move_addr_to_kernel(sr->addr, sr->addr_len, &io->addr);
-}
-
-int io_sendmsg_prep_async(struct io_kiocb *req)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	int ret;
-
-	sr->done_io = 0;
-	if (!io_msg_alloc_async_prep(req))
-		return -ENOMEM;
-	ret = io_sendmsg_copy_hdr(req, req->async_data);
-	if (!ret)
-		req->flags |= REQ_F_NEED_CLEANUP;
-	return ret;
-}
-
 void io_sendmsg_recvmsg_cleanup(struct io_kiocb *req)
 {
 	struct io_async_msghdr *io = req->async_data;
 
 	kfree(io->free_iov);
+}
+
+static int io_send_setup(struct io_kiocb *req)
+{
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_async_msghdr *kmsg = req->async_data;
+	int ret;
+
+	kmsg->msg.msg_name = NULL;
+	kmsg->msg.msg_namelen = 0;
+	kmsg->msg.msg_control = NULL;
+	kmsg->msg.msg_controllen = 0;
+	kmsg->msg.msg_ubuf = NULL;
+
+	if (sr->addr) {
+		ret = move_addr_to_kernel(sr->addr, sr->addr_len, &kmsg->addr);
+		if (unlikely(ret < 0))
+			return ret;
+		kmsg->msg.msg_name = &kmsg->addr;
+		kmsg->msg.msg_namelen = sr->addr_len;
+	}
+	ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len, &kmsg->msg.msg_iter);
+	if (unlikely(ret < 0))
+		return ret;
+
+	return 0;
+}
+
+static int io_sendmsg_prep_setup(struct io_kiocb *req, int is_msg)
+{
+	struct io_async_msghdr *kmsg;
+	int ret;
+
+	/* always locked for prep */
+	kmsg = io_msg_alloc_async(req, 0);
+	if (unlikely(!kmsg))
+		return -ENOMEM;
+	if (!is_msg)
+		return io_send_setup(req);
+	ret = io_sendmsg_copy_hdr(req, kmsg);
+	if (!ret)
+		req->flags |= REQ_F_NEED_CLEANUP;
+	return ret;
 }
 
 int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -362,7 +368,7 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->ctx->compat)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-	return 0;
+	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG);
 }
 
 static void io_req_msg_cleanup(struct io_kiocb *req,
@@ -379,7 +385,7 @@ static void io_req_msg_cleanup(struct io_kiocb *req,
 int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg;
+	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
 	unsigned flags;
 	int min_ret = 0;
@@ -388,17 +394,6 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
 		return -ENOTSOCK;
-
-	if (req_has_async_data(req)) {
-		kmsg = req->async_data;
-	} else {
-		kmsg = io_msg_alloc_async(req, issue_flags);
-		if (unlikely(!kmsg))
-			return -ENOMEM;
-		ret = io_sendmsg_copy_hdr(req, kmsg);
-		if (ret)
-			return ret;
-	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
@@ -437,52 +432,10 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-static struct io_async_msghdr *io_send_setup(struct io_kiocb *req,
-					     unsigned int issue_flags)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg;
-	int ret;
-
-	if (req_has_async_data(req)) {
-		kmsg = req->async_data;
-	} else {
-		kmsg = io_msg_alloc_async(req, issue_flags);
-		if (unlikely(!kmsg))
-			return ERR_PTR(-ENOMEM);
-		kmsg->msg.msg_name = NULL;
-		kmsg->msg.msg_namelen = 0;
-		kmsg->msg.msg_control = NULL;
-		kmsg->msg.msg_controllen = 0;
-		kmsg->msg.msg_ubuf = NULL;
-
-		if (sr->addr) {
-			ret = move_addr_to_kernel(sr->addr, sr->addr_len,
-						  &kmsg->addr);
-			if (unlikely(ret < 0))
-				return ERR_PTR(ret);
-			kmsg->msg.msg_name = &kmsg->addr;
-			kmsg->msg.msg_namelen = sr->addr_len;
-		}
-
-		ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
-				  &kmsg->msg.msg_iter);
-		if (unlikely(ret))
-			return ERR_PTR(ret);
-	}
-
-	if (!(req->flags & REQ_F_POLLED) &&
-	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return ERR_PTR(-EAGAIN);
-
-	return kmsg;
-}
-
 int io_send(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg;
-	size_t len = sr->len;
+	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
 	unsigned flags;
 	int min_ret = 0;
@@ -492,13 +445,9 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	kmsg = io_send_setup(req, issue_flags);
-	if (IS_ERR(kmsg))
-		return PTR_ERR(kmsg);
-
-	ret = import_ubuf(ITER_SOURCE, sr->buf, len, &kmsg->msg.msg_iter);
-	if (unlikely(ret))
-		return ret;
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
+		return -EAGAIN;
 
 	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -1084,7 +1033,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->ctx->compat)
 		zc->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-	return 0;
+	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG_ZC);
 }
 
 static int io_sg_from_iter_iovec(struct sock *sk, struct sk_buff *skb,
@@ -1173,7 +1122,7 @@ static int io_send_zc_import(struct io_kiocb *req, struct io_async_msghdr *kmsg)
 int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg;
+	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
 	unsigned msg_flags;
 	int ret, min_ret = 0;
@@ -1184,9 +1133,9 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		return -EOPNOTSUPP;
 
-	kmsg = io_send_setup(req, issue_flags);
-	if (IS_ERR(kmsg))
-		return PTR_ERR(kmsg);
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
+		return -EAGAIN;
 
 	if (!zc->done_io) {
 		ret = io_send_zc_import(req, kmsg);
@@ -1242,7 +1191,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg;
+	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
@@ -1254,17 +1203,6 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 		return -ENOTSOCK;
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		return -EOPNOTSUPP;
-
-	if (req_has_async_data(req)) {
-		kmsg = req->async_data;
-	} else {
-		kmsg = io_msg_alloc_async(req, issue_flags);
-		if (unlikely(!kmsg))
-			return -ENOMEM;
-		ret = io_sendmsg_copy_hdr(req, kmsg);
-		if (ret)
-			return ret;
-	}
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
