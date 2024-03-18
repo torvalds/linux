@@ -322,7 +322,7 @@ static ssize_t show_immediate(struct device *dev,
 	if (value < 0)
 		return -ENOENT;
 
-	return sysfs_emit(buf, "0x%06x\n", value);
+	return buf ? sysfs_emit(buf, "0x%06x\n", value) : 0;
 }
 
 #define IMMEDIATE_ATTR(name, key)				\
@@ -334,6 +334,8 @@ static ssize_t show_text_leaf(struct device *dev,
 	struct config_rom_attribute *attr =
 		container_of(dattr, struct config_rom_attribute, attr);
 	const u32 *directories[] = {NULL, NULL};
+	size_t bufsize;
+	char dummy_buf[2];
 	int i, ret = -ENOENT;
 
 	down_read(&fw_device_rwsem);
@@ -355,9 +357,15 @@ static ssize_t show_text_leaf(struct device *dev,
 		}
 	}
 
+	if (buf) {
+		bufsize = PAGE_SIZE - 1;
+	} else {
+		buf = dummy_buf;
+		bufsize = 1;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(directories) && !!directories[i]; ++i) {
-		int result = fw_csr_string(directories[i], attr->key, buf,
-					   PAGE_SIZE - 1);
+		int result = fw_csr_string(directories[i], attr->key, buf, bufsize);
 		// Detected.
 		if (result >= 0) {
 			ret = result;
@@ -366,7 +374,7 @@ static ssize_t show_text_leaf(struct device *dev,
 			// in the root directory follows to the directory entry for vendor ID
 			// instead of the immediate value for vendor ID.
 			result = fw_csr_string(directories[i], CSR_DIRECTORY | attr->key, buf,
-					       PAGE_SIZE - 1);
+					       bufsize);
 			if (result >= 0)
 				ret = result;
 		}
