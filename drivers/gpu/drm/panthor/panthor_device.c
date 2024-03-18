@@ -87,6 +87,10 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	pm_runtime_dont_use_autosuspend(ptdev->base.dev);
 	pm_runtime_put_sync_suspend(ptdev->base.dev);
 
+	/* If PM is disabled, we need to call the suspend handler manually. */
+	if (!IS_ENABLED(CONFIG_PM))
+		panthor_device_suspend(ptdev->base.dev);
+
 	/* Report the unplug operation as done to unblock concurrent
 	 * panthor_device_unplug() callers.
 	 */
@@ -217,6 +221,13 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = pm_runtime_resume_and_get(ptdev->base.dev);
 	if (ret)
 		return ret;
+
+	/* If PM is disabled, we need to call panthor_device_resume() manually. */
+	if (!IS_ENABLED(CONFIG_PM)) {
+		ret = panthor_device_resume(ptdev->base.dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = panthor_gpu_init(ptdev);
 	if (ret)
@@ -402,7 +413,6 @@ int panthor_device_mmap_io(struct panthor_device *ptdev, struct vm_area_struct *
 	return 0;
 }
 
-#ifdef CONFIG_PM
 int panthor_device_resume(struct device *dev)
 {
 	struct panthor_device *ptdev = dev_get_drvdata(dev);
@@ -547,4 +557,3 @@ err_set_active:
 	mutex_unlock(&ptdev->pm.mmio_lock);
 	return ret;
 }
-#endif

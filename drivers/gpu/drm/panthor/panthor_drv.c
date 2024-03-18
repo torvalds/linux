@@ -1417,7 +1417,7 @@ static struct platform_driver panthor_driver = {
 	.remove_new = panthor_remove,
 	.driver = {
 		.name = "panthor",
-		.pm = &panthor_pm_ops,
+		.pm = pm_ptr(&panthor_pm_ops),
 		.of_match_table = dt_match,
 	},
 };
