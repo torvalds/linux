@@ -136,7 +136,6 @@ struct aspeed_pwm_tach_data {
 	struct clk *clk;
 	struct reset_control *reset;
 	unsigned long clk_rate;
-	struct pwm_chip chip;
 	bool tach_present[TACH_ASPEED_NR_TACHS];
 	u32 tach_divisor;
 };
@@ -144,7 +143,7 @@ struct aspeed_pwm_tach_data {
 static inline struct aspeed_pwm_tach_data *
 aspeed_pwm_chip_to_data(struct pwm_chip *chip)
 {
-	return container_of(chip, struct aspeed_pwm_tach_data, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static int aspeed_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -459,6 +458,7 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	int ret;
 	struct device_node *child;
 	struct aspeed_pwm_tach_data *priv;
+	struct pwm_chip *chip;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -487,11 +487,14 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	priv->chip.dev = dev;
-	priv->chip.ops = &aspeed_pwm_ops;
-	priv->chip.npwm = PWM_ASPEED_NR_PWMS;
+	chip = devm_pwmchip_alloc(dev, PWM_ASPEED_NR_PWMS, 0);
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
-	ret = devm_pwmchip_add(dev, &priv->chip);
+	pwmchip_set_drvdata(chip, priv);
+	chip->ops = &aspeed_pwm_ops;
+
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add PWM chip\n");
 
