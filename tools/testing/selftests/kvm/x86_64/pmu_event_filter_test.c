@@ -866,7 +866,7 @@ static void __test_fixed_counter_bitmap(struct kvm_vcpu *vcpu, uint8_t idx,
 	 * userspace doesn't set any pmu filter.
 	 */
 	count = run_vcpu_to_sync(vcpu);
-	TEST_ASSERT(count, "Unexpected count value: %ld\n", count);
+	TEST_ASSERT(count, "Unexpected count value: %ld", count);
 
 	for (i = 0; i < BIT(nr_fixed_counters); i++) {
 		bitmap = BIT(i);

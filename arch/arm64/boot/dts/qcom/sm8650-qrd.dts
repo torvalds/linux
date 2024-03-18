@@ -659,7 +659,7 @@
 
 &tlmm {
 	/* Reserved I/Os for NFC */
-	gpio-reserved-ranges = <32 8>;
+	gpio-reserved-ranges = <32 8>, <74 1>;
 
 	bt_default: bt-default-state {
 		bt-en-pins {

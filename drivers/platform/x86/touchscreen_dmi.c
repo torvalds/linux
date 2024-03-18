@@ -81,7 +81,7 @@ static const struct property_entry chuwi_hi8_air_props[] = {
 };
 
 static const struct ts_dmi_data chuwi_hi8_air_data = {
-	.acpi_name	= "MSSL1680:00",
+	.acpi_name	= "MSSL1680",
 	.properties	= chuwi_hi8_air_props,
 };
 
@@ -415,18 +415,13 @@ static const struct property_entry gdix1001_upside_down_props[] = {
 	{ }
 };
 
-static const struct ts_dmi_data gdix1001_00_upside_down_data = {
-	.acpi_name	= "GDIX1001:00",
+static const struct ts_dmi_data gdix1001_upside_down_data = {
+	.acpi_name	= "GDIX1001",
 	.properties	= gdix1001_upside_down_props,
 };
 
-static const struct ts_dmi_data gdix1001_01_upside_down_data = {
-	.acpi_name	= "GDIX1001:01",
-	.properties	= gdix1001_upside_down_props,
-};
-
-static const struct ts_dmi_data gdix1002_00_upside_down_data = {
-	.acpi_name	= "GDIX1002:00",
+static const struct ts_dmi_data gdix1002_upside_down_data = {
+	.acpi_name	= "GDIX1002",
 	.properties	= gdix1001_upside_down_props,
 };
 
@@ -1412,7 +1407,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* Juno Tablet */
-		.driver_data = (void *)&gdix1002_00_upside_down_data,
+		.driver_data = (void *)&gdix1002_upside_down_data,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
 			/* Both product- and board-name being "Default string" is somewhat rare */
@@ -1658,7 +1653,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* Teclast X89 (Android version / BIOS) */
-		.driver_data = (void *)&gdix1001_00_upside_down_data,
+		.driver_data = (void *)&gdix1001_upside_down_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "WISKY"),
 			DMI_MATCH(DMI_BOARD_NAME, "3G062i"),
@@ -1666,7 +1661,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* Teclast X89 (Windows version / BIOS) */
-		.driver_data = (void *)&gdix1001_01_upside_down_data,
+		.driver_data = (void *)&gdix1001_upside_down_data,
 		.matches = {
 			/* tPAD is too generic, also match on bios date */
 			DMI_MATCH(DMI_BOARD_VENDOR, "TECLAST"),
@@ -1684,7 +1679,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* Teclast X98 Pro */
-		.driver_data = (void *)&gdix1001_00_upside_down_data,
+		.driver_data = (void *)&gdix1001_upside_down_data,
 		.matches = {
 			/*
 			 * Only match BIOS date, because the manufacturers
@@ -1788,7 +1783,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* "WinBook TW100" */
-		.driver_data = (void *)&gdix1001_00_upside_down_data,
+		.driver_data = (void *)&gdix1001_upside_down_data,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TW100")
@@ -1796,7 +1791,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* WinBook TW700 */
-		.driver_data = (void *)&gdix1001_00_upside_down_data,
+		.driver_data = (void *)&gdix1001_upside_down_data,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "WinBook"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TW700")
@@ -1821,7 +1816,7 @@ static void ts_dmi_add_props(struct i2c_client *client)
 	int error;
 
 	if (has_acpi_companion(dev) &&
-	    !strncmp(ts_data->acpi_name, client->name, I2C_NAME_SIZE)) {
+	    strstarts(client->name, ts_data->acpi_name)) {
 		error = device_create_managed_software_node(dev, ts_data->properties, NULL);
 		if (error)
 			dev_err(dev, "failed to add properties: %d\n", error);

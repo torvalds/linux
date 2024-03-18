@@ -20,8 +20,8 @@
 
 struct xe_pt_dir {
 	struct xe_pt pt;
-	/** @dir: Directory structure for the xe_pt_walk functionality */
-	struct xe_ptw_dir dir;
+	/** @children: Array of page-table child nodes */
+	struct xe_ptw *children[XE_PDES];
 };
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG_VM)
@@ -44,7 +44,7 @@ static struct xe_pt_dir *as_xe_pt_dir(struct xe_pt *pt)
 
 static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 {
-	return container_of(pt_dir->dir.entries[index], struct xe_pt, base);
+	return container_of(pt_dir->children[index], struct xe_pt, base);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -63,6 +63,14 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 
 	return vm->pt_ops->pte_encode_addr(xe, 0, pat_index, level, IS_DGFX(xe), 0) |
 		XE_PTE_NULL;
+}
+
+static void xe_pt_free(struct xe_pt *pt)
+{
+	if (pt->level)
+		kfree(as_xe_pt_dir(pt));
+	else
+		kfree(pt);
 }
 
 /**
@@ -85,15 +93,19 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 {
 	struct xe_pt *pt;
 	struct xe_bo *bo;
-	size_t size;
 	int err;
 
-	size = !level ?  sizeof(struct xe_pt) : sizeof(struct xe_pt_dir) +
-		XE_PDES * sizeof(struct xe_ptw *);
-	pt = kzalloc(size, GFP_KERNEL);
+	if (level) {
+		struct xe_pt_dir *dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+
+		pt = (dir) ? &dir->pt : NULL;
+	} else {
+		pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+	}
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
 
+	pt->level = level;
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm, SZ_4K,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
@@ -106,8 +118,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 		goto err_kfree;
 	}
 	pt->bo = bo;
-	pt->level = level;
-	pt->base.dir = level ? &as_xe_pt_dir(pt)->dir : NULL;
+	pt->base.children = level ? as_xe_pt_dir(pt)->children : NULL;
 
 	if (vm->xef)
 		xe_drm_client_add_bo(vm->xef->client, pt->bo);
@@ -116,7 +127,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	return pt;
 
 err_kfree:
-	kfree(pt);
+	xe_pt_free(pt);
 	return ERR_PTR(err);
 }
 
@@ -193,7 +204,7 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 					      deferred);
 		}
 	}
-	kfree(pt);
+	xe_pt_free(pt);
 }
 
 /**
@@ -358,7 +369,7 @@ xe_pt_insert_entry(struct xe_pt_stage_bind_walk *xe_walk, struct xe_pt *parent,
 		struct iosys_map *map = &parent->bo->vmap;
 
 		if (unlikely(xe_child))
-			parent->base.dir->entries[offset] = &xe_child->base;
+			parent->base.children[offset] = &xe_child->base;
 
 		xe_pt_write(xe_walk->vm->xe, map, offset, pte);
 		parent->num_live++;
@@ -488,10 +499,12 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		 * this device *requires* 64K PTE size for VRAM, fail.
 		 */
 		if (level == 0 && !xe_parent->is_compact) {
-			if (xe_pt_is_pte_ps64K(addr, next, xe_walk))
+			if (xe_pt_is_pte_ps64K(addr, next, xe_walk)) {
+				xe_walk->vma->gpuva.flags |= XE_VMA_PTE_64K;
 				pte |= XE_PTE_PS64;
-			else if (XE_WARN_ON(xe_walk->needs_64K))
+			} else if (XE_WARN_ON(xe_walk->needs_64K)) {
 				return -EINVAL;
+			}
 		}
 
 		ret = xe_pt_insert_entry(xe_walk, xe_parent, offset, NULL, pte);
@@ -534,13 +547,16 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		*child = &xe_child->base;
 
 		/*
-		 * Prefer the compact pagetable layout for L0 if possible.
+		 * Prefer the compact pagetable layout for L0 if possible. Only
+		 * possible if VMA covers entire 2MB region as compact 64k and
+		 * 4k pages cannot be mixed within a 2MB region.
 		 * TODO: Suballocate the pt bo to avoid wasting a lot of
 		 * memory.
 		 */
 		if (GRAPHICS_VERx100(tile_to_xe(xe_walk->tile)) >= 1250 && level == 1 &&
 		    covers && xe_pt_scan_64K(addr, next, xe_walk)) {
 			walk->shifts = xe_compact_pt_shifts;
+			xe_walk->vma->gpuva.flags |= XE_VMA_PTE_COMPACT;
 			flags |= XE_PDE_64K;
 			xe_child->is_compact = true;
 		}
@@ -853,7 +869,7 @@ static void xe_pt_commit_bind(struct xe_vma *vma,
 				xe_pt_destroy(xe_pt_entry(pt_dir, j_),
 					      xe_vma_vm(vma)->flags, deferred);
 
-			pt_dir->dir.entries[j_] = &newpte->base;
+			pt_dir->children[j_] = &newpte->base;
 		}
 		kfree(entries[i].pt_entries);
 	}
@@ -1507,7 +1523,7 @@ xe_pt_commit_unbind(struct xe_vma *vma,
 					xe_pt_destroy(xe_pt_entry(pt_dir, i),
 						      xe_vma_vm(vma)->flags, deferred);
 
-				pt_dir->dir.entries[i] = NULL;
+				pt_dir->children[i] = NULL;
 			}
 		}
 	}

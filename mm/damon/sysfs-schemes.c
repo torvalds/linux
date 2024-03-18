@@ -1905,6 +1905,10 @@ void damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 	damon_for_each_scheme(scheme, ctx) {
 		struct damon_sysfs_scheme *sysfs_scheme;
 
+		/* user could have removed the scheme sysfs dir */
+		if (i >= sysfs_schemes->nr)
+			break;
+
 		sysfs_scheme = sysfs_schemes->schemes_arr[i];
 		damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
 				&scheme->quota);
@@ -2194,7 +2198,7 @@ static void damos_tried_regions_init_upd_status(
 		sysfs_regions->upd_timeout_jiffies = jiffies +
 			2 * usecs_to_jiffies(scheme->apply_interval_us ?
 					scheme->apply_interval_us :
-					ctx->attrs.sample_interval);
+					ctx->attrs.aggr_interval);
 	}
 }
 

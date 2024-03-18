@@ -148,8 +148,7 @@ static void cs42l43_set_cs(struct spi_device *spi, bool is_high)
 {
 	struct cs42l43_spi *priv = spi_controller_get_devdata(spi->controller);
 
-	if (spi_get_chipselect(spi, 0) == 0)
-		regmap_write(priv->regmap, CS42L43_SPI_CONFIG2, !is_high);
+	regmap_write(priv->regmap, CS42L43_SPI_CONFIG2, !is_high);
 }
 
 static int cs42l43_prepare_message(struct spi_controller *ctlr, struct spi_message *msg)

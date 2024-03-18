@@ -261,7 +261,7 @@ static void mlx5_dpll_netdev_dpll_pin_set(struct mlx5_dpll *mdpll,
 {
 	if (mdpll->tracking_netdev)
 		return;
-	netdev_dpll_pin_set(netdev, mdpll->dpll_pin);
+	dpll_netdev_pin_set(netdev, mdpll->dpll_pin);
 	mdpll->tracking_netdev = netdev;
 }
 
@@ -269,7 +269,7 @@ static void mlx5_dpll_netdev_dpll_pin_clear(struct mlx5_dpll *mdpll)
 {
 	if (!mdpll->tracking_netdev)
 		return;
-	netdev_dpll_pin_clear(mdpll->tracking_netdev);
+	dpll_netdev_pin_clear(mdpll->tracking_netdev);
 	mdpll->tracking_netdev = NULL;
 }
 
@@ -389,7 +389,7 @@ static void mlx5_dpll_remove(struct auxiliary_device *adev)
 	struct mlx5_dpll *mdpll = auxiliary_get_drvdata(adev);
 	struct mlx5_core_dev *mdev = mdpll->mdev;
 
-	cancel_delayed_work(&mdpll->work);
+	cancel_delayed_work_sync(&mdpll->work);
 	mlx5_dpll_mdev_netdev_untrack(mdpll, mdev);
 	destroy_workqueue(mdpll->wq);
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,

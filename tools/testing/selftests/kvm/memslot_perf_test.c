@@ -175,11 +175,11 @@ static void wait_for_vcpu(void)
 	struct timespec ts;
 
 	TEST_ASSERT(!clock_gettime(CLOCK_REALTIME, &ts),
-		    "clock_gettime() failed: %d\n", errno);
+		    "clock_gettime() failed: %d", errno);
 
 	ts.tv_sec += 2;
 	TEST_ASSERT(!sem_timedwait(&vcpu_ready, &ts),
-		    "sem_timedwait() failed: %d\n", errno);
+		    "sem_timedwait() failed: %d", errno);
 }
 
 static void *vm_gpa2hva(struct vm_data *data, uint64_t gpa, uint64_t *rempages)
@@ -336,7 +336,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 
 		gpa = vm_phy_pages_alloc(data->vm, npages, guest_addr, slot);
 		TEST_ASSERT(gpa == guest_addr,
-			    "vm_phy_pages_alloc() failed\n");
+			    "vm_phy_pages_alloc() failed");
 
 		data->hva_slots[slot - 1] = addr_gpa2hva(data->vm, guest_addr);
 		memset(data->hva_slots[slot - 1], 0, npages * guest_page_size);

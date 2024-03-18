@@ -255,7 +255,7 @@
 				  <&clk IMX8MP_AUDIO_PLL2_OUT>;
 		assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL2_OUT>;
 		assigned-clock-rates = <13000000>, <13000000>, <156000000>;
-		reset-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio4 1 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
 
 		ports {
