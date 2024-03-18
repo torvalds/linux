@@ -4275,6 +4275,13 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 	struct folio_iter fi;
 	u32 bio_offset = 0;
 
+	/*
+	 * If the extent buffer is marked UPTODATE before the read operation
+	 * completes, other calls to read_extent_buffer_pages() will return
+	 * early without waiting for the read to finish, causing data races.
+	 */
+	WARN_ON(test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags));
+
 	eb->read_mirror = bbio->mirror_num;
 
 	if (uptodate &&
