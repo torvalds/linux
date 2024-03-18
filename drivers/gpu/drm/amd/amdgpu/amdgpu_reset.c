@@ -211,7 +211,8 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	struct drm_printer p;
 	struct amdgpu_coredump_info *coredump = data;
 	struct drm_print_iterator iter;
-	int i;
+	struct amdgpu_vm_fault_info *fault_info;
+	int i, ver;
 
 	iter.data = buffer;
 	iter.offset = 0;
@@ -233,26 +234,22 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 			   coredump->reset_task_info.pid);
 
 	/* GPU IP's information of the SOC */
-	if (coredump->adev) {
-		drm_printf(&p, "\nIP Information\n");
-		drm_printf(&p, "SOC Family: %d\n", coredump->adev->family);
-		drm_printf(&p, "SOC Revision id: %d\n", coredump->adev->rev_id);
-		drm_printf(&p, "SOC External Revision id: %d\n",
-			   coredump->adev->external_rev_id);
+	drm_printf(&p, "\nIP Information\n");
+	drm_printf(&p, "SOC Family: %d\n", coredump->adev->family);
+	drm_printf(&p, "SOC Revision id: %d\n", coredump->adev->rev_id);
+	drm_printf(&p, "SOC External Revision id: %d\n", coredump->adev->external_rev_id);
 
-		for (int i = 1; i < MAX_HWIP; i++) {
-			for (int j = 0; j < HWIP_MAX_INSTANCE; j++) {
-				int ver = coredump->adev->ip_versions[i][j];
-
-				if (ver)
-					drm_printf(&p, "HWIP: %s[%d][%d]: v%d.%d.%d.%d.%d\n",
-						   hw_ip_names[i], i, j,
-						   IP_VERSION_MAJ(ver),
-						   IP_VERSION_MIN(ver),
-						   IP_VERSION_REV(ver),
-						   IP_VERSION_VARIANT(ver),
-						   IP_VERSION_SUBREV(ver));
-			}
+	for (int i = 1; i < MAX_HWIP; i++) {
+		for (int j = 0; j < HWIP_MAX_INSTANCE; j++) {
+			ver = coredump->adev->ip_versions[i][j];
+			if (ver)
+				drm_printf(&p, "HWIP: %s[%d][%d]: v%d.%d.%d.%d.%d\n",
+					   hw_ip_names[i], i, j,
+					   IP_VERSION_MAJ(ver),
+					   IP_VERSION_MIN(ver),
+					   IP_VERSION_REV(ver),
+					   IP_VERSION_VARIANT(ver),
+					   IP_VERSION_SUBREV(ver));
 		}
 	}
 
@@ -263,18 +260,14 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 			   coredump->ring->name);
 	}
 
-	if (coredump->adev) {
-		struct amdgpu_vm_fault_info *fault_info =
-			&coredump->adev->vm_manager.fault_info;
+	/* Add page fault information */
+	fault_info = &coredump->adev->vm_manager.fault_info;
+	drm_printf(&p, "\n[%s] Page fault observed\n",
+		   fault_info->vmhub ? "mmhub" : "gfxhub");
+	drm_printf(&p, "Faulty page starting at address: 0x%016llx\n", fault_info->addr);
+	drm_printf(&p, "Protection fault status register: 0x%x\n\n", fault_info->status);
 
-		drm_printf(&p, "\n[%s] Page fault observed\n",
-			   fault_info->vmhub ? "mmhub" : "gfxhub");
-		drm_printf(&p, "Faulty page starting at address: 0x%016llx\n",
-			   fault_info->addr);
-		drm_printf(&p, "Protection fault status register: 0x%x\n\n",
-			   fault_info->status);
-	}
-
+	/* Add ring buffer information */
 	drm_printf(&p, "Ring buffer information\n");
 	for (int i = 0; i < coredump->adev->num_rings; i++) {
 		int j = 0;
