@@ -2267,7 +2267,7 @@ int extent_writepages(struct address_space *mapping,
 	return ret;
 }
 
-void extent_readahead(struct readahead_control *rac)
+void btrfs_readahead(struct readahead_control *rac)
 {
 	struct btrfs_bio_ctrl bio_ctrl = { .opf = REQ_OP_READ | REQ_RAHEAD };
 	struct page *pagepool[16];

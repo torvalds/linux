@@ -7929,11 +7929,6 @@ static int btrfs_writepages(struct address_space *mapping,
 	return extent_writepages(mapping, wbc);
 }
 
-static void btrfs_readahead(struct readahead_control *rac)
-{
-	extent_readahead(rac);
-}
-
 /*
  * For release_folio() and invalidate_folio() we have a race window where
  * folio_end_writeback() is called but the subpage spinlock is not yet released.
