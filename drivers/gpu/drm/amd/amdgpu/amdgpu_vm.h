@@ -257,9 +257,9 @@ struct amdgpu_vm_update_params {
 	unsigned int num_dw_left;
 
 	/**
-	 * @table_freed: return true if page table is freed when updating
+	 * @needs_flush: true whenever we need to invalidate the TLB
 	 */
-	bool table_freed;
+	bool needs_flush;
 
 	/**
 	 * @allow_override: true for memory that is not uncached: allows MTYPE
@@ -342,6 +342,7 @@ struct amdgpu_vm {
 	atomic64_t		tlb_seq;
 	struct dma_fence	*last_tlb_flush;
 	atomic64_t		kfd_last_flushed_seq;
+	uint64_t		tlb_fence_context;
 
 	/* How many times we had to re-generate the page tables */
 	uint64_t		generation;
@@ -611,5 +612,8 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 				  uint64_t addr,
 				  uint32_t status,
 				  unsigned int vmhub);
+void amdgpu_vm_tlb_fence_create(struct amdgpu_device *adev,
+				 struct amdgpu_vm *vm,
+				 struct dma_fence **fence);
 
 #endif
