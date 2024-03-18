@@ -234,28 +234,6 @@ static int analogix_dp_training_pattern_dis(struct analogix_dp_device *dp)
 	return ret < 0 ? ret : 0;
 }
 
-static void
-analogix_dp_set_lane_lane_pre_emphasis(struct analogix_dp_device *dp,
-				       int pre_emphasis, int lane)
-{
-	switch (lane) {
-	case 0:
-		analogix_dp_set_lane0_pre_emphasis(dp, pre_emphasis);
-		break;
-	case 1:
-		analogix_dp_set_lane1_pre_emphasis(dp, pre_emphasis);
-		break;
-
-	case 2:
-		analogix_dp_set_lane2_pre_emphasis(dp, pre_emphasis);
-		break;
-
-	case 3:
-		analogix_dp_set_lane3_pre_emphasis(dp, pre_emphasis);
-		break;
-	}
-}
-
 static int analogix_dp_link_start(struct analogix_dp_device *dp)
 {
 	u8 buf[4];
@@ -286,10 +264,12 @@ static int analogix_dp_link_start(struct analogix_dp_device *dp)
 		return retval;
 	}
 
-	/* Set TX pre-emphasis to minimum */
+	/* Set TX voltage-swing and pre-emphasis to minimum */
 	for (lane = 0; lane < lane_count; lane++)
-		analogix_dp_set_lane_lane_pre_emphasis(dp,
-			PRE_EMPHASIS_LEVEL_0, lane);
+		dp->link_train.training_lane[lane] =
+					DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
+					DP_TRAIN_PRE_EMPH_LEVEL_0;
+	analogix_dp_set_lane_link_training(dp);
 
 	/* Wait for PLL lock */
 	pll_tries = 0;
@@ -384,54 +364,6 @@ static unsigned char analogix_dp_get_adjust_request_pre_emphasis(
 	return ((link_value >> shift) & 0xc) >> 2;
 }
 
-static void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp,
-					       u8 training_lane_set, int lane)
-{
-	switch (lane) {
-	case 0:
-		analogix_dp_set_lane0_link_training(dp, training_lane_set);
-		break;
-	case 1:
-		analogix_dp_set_lane1_link_training(dp, training_lane_set);
-		break;
-
-	case 2:
-		analogix_dp_set_lane2_link_training(dp, training_lane_set);
-		break;
-
-	case 3:
-		analogix_dp_set_lane3_link_training(dp, training_lane_set);
-		break;
-	}
-}
-
-static unsigned int
-analogix_dp_get_lane_link_training(struct analogix_dp_device *dp,
-				   int lane)
-{
-	u32 reg;
-
-	switch (lane) {
-	case 0:
-		reg = analogix_dp_get_lane0_link_training(dp);
-		break;
-	case 1:
-		reg = analogix_dp_get_lane1_link_training(dp);
-		break;
-	case 2:
-		reg = analogix_dp_get_lane2_link_training(dp);
-		break;
-	case 3:
-		reg = analogix_dp_get_lane3_link_training(dp);
-		break;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-
-	return reg;
-}
-
 static void analogix_dp_reduce_link_rate(struct analogix_dp_device *dp)
 {
 	analogix_dp_training_pattern_dis(dp);
@@ -523,10 +455,7 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	}
 
 	analogix_dp_get_adjust_training_lane(dp, adjust_request);
-
-	for (lane = 0; lane < lane_count; lane++)
-		analogix_dp_set_lane_link_training(dp,
-			dp->link_train.training_lane[lane], lane);
+	analogix_dp_set_lane_link_training(dp);
 
 	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
 				   dp->link_train.training_lane, lane_count);
@@ -538,7 +467,7 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 
 static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 {
-	int lane, lane_count, retval;
+	int lane_count, retval;
 	u32 reg;
 	u8 link_align, link_status[2], adjust_request[2];
 
@@ -598,9 +527,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 		return -EIO;
 	}
 
-	for (lane = 0; lane < lane_count; lane++)
-		analogix_dp_set_lane_link_training(dp,
-			dp->link_train.training_lane[lane], lane);
+	analogix_dp_set_lane_link_training(dp);
 
 	retval = drm_dp_dpcd_write(&dp->aux, DP_TRAINING_LANE0_SET,
 				   dp->link_train.training_lane, lane_count);
@@ -712,7 +639,7 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 
 static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 {
-	int i, ret;
+	int ret;
 	u8 link_align, link_status[2];
 	enum pll_status status;
 
@@ -720,11 +647,7 @@ static int analogix_dp_fast_link_train(struct analogix_dp_device *dp)
 
 	analogix_dp_set_link_bandwidth(dp, dp->link_train.link_rate);
 	analogix_dp_set_lane_count(dp, dp->link_train.lane_count);
-
-	for (i = 0; i < dp->link_train.lane_count; i++) {
-		analogix_dp_set_lane_link_training(dp,
-			dp->link_train.training_lane[i], i);
-	}
+	analogix_dp_set_lane_link_training(dp);
 
 	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
 				 status != PLL_UNLOCKED, 120,
