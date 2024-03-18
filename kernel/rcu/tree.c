@@ -508,17 +508,10 @@ static struct rcu_node *rcu_get_root(void)
 /*
  * Send along grace-period-related data for rcutorture diagnostics.
  */
-void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
-			    unsigned long *gp_seq)
+void rcutorture_get_gp_data(int *flags, unsigned long *gp_seq)
 {
-	switch (test_type) {
-	case RCU_FLAVOR:
-		*flags = READ_ONCE(rcu_state.gp_flags);
-		*gp_seq = rcu_seq_current(&rcu_state.gp_seq);
-		break;
-	default:
-		break;
-	}
+	*flags = READ_ONCE(rcu_state.gp_flags);
+	*gp_seq = rcu_seq_current(&rcu_state.gp_seq);
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 

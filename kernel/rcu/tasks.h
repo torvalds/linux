@@ -1178,6 +1178,13 @@ struct task_struct *get_rcu_tasks_gp_kthread(void)
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_gp_kthread);
 
+void rcu_tasks_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_get_gp_data);
+
 /*
  * Protect against tasklist scan blind spot while the task is exiting and
  * may be removed from the tasklist.  Do this by adding the task to yet
@@ -1357,6 +1364,13 @@ struct task_struct *get_rcu_tasks_rude_gp_kthread(void)
 	return rcu_tasks_rude.kthread_ptr;
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_rude_gp_kthread);
+
+void rcu_tasks_rude_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks_rude.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_rude_get_gp_data);
 
 #endif /* #ifdef CONFIG_TASKS_RUDE_RCU */
 
@@ -2009,6 +2023,13 @@ struct task_struct *get_rcu_tasks_trace_gp_kthread(void)
 	return rcu_tasks_trace.kthread_ptr;
 }
 EXPORT_SYMBOL_GPL(get_rcu_tasks_trace_gp_kthread);
+
+void rcu_tasks_trace_get_gp_data(int *flags, unsigned long *gp_seq)
+{
+	*flags = 0;
+	*gp_seq = rcu_seq_current(&rcu_tasks_trace.tasks_gp_seq);
+}
+EXPORT_SYMBOL_GPL(rcu_tasks_trace_get_gp_data);
 
 #else /* #ifdef CONFIG_TASKS_TRACE_RCU */
 static void exit_tasks_rcu_finish_trace(struct task_struct *t) { }
