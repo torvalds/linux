@@ -962,9 +962,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		cflags = io_put_kbuf(req, issue_flags);
 		rw->len = 0; /* similarly to above, reset len to 0 */
 
-		if (io_fill_cqe_req_aux(req,
-					issue_flags & IO_URING_F_COMPLETE_DEFER,
-					ret, cflags | IORING_CQE_F_MORE)) {
+		if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
 			if (issue_flags & IO_URING_F_MULTISHOT) {
 				/*
 				 * Force retry, as we might have more data to
