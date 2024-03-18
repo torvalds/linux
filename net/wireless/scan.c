@@ -2140,11 +2140,15 @@ static bool cfg80211_6ghz_power_type_valid(const u8 *ie, size_t ielen,
 		switch (u8_get_bits(he_6ghz_oper->control,
 				    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
 		case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+		case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
 			return true;
 		case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+		case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
 			return !(flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT);
 		case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
 			return !(flags & IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT);
+		default:
+			return false;
 		}
 	}
 	return false;
