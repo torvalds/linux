@@ -1185,8 +1185,9 @@ struct llist_node *io_handle_tw_list(struct llist_node *node,
 		if (req->ctx != ctx) {
 			ctx_flush_and_put(ctx, &ts);
 			ctx = req->ctx;
-			/* if not contended, grab and improve batching */
-			ts.locked = mutex_trylock(&ctx->uring_lock);
+
+			ts.locked = true;
+			mutex_lock(&ctx->uring_lock);
 			percpu_ref_get(&ctx->refs);
 		}
 		INDIRECT_CALL_2(req->io_task_work.func,
@@ -1447,11 +1448,9 @@ again:
 
 	if (io_run_local_work_continue(ctx, ret, min_events))
 		goto again;
-	if (ts->locked) {
-		io_submit_flush_completions(ctx);
-		if (io_run_local_work_continue(ctx, ret, min_events))
-			goto again;
-	}
+	io_submit_flush_completions(ctx);
+	if (io_run_local_work_continue(ctx, ret, min_events))
+		goto again;
 
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
@@ -1475,14 +1474,12 @@ static inline int io_run_local_work_locked(struct io_ring_ctx *ctx,
 
 static int io_run_local_work(struct io_ring_ctx *ctx, int min_events)
 {
-	struct io_tw_state ts = {};
+	struct io_tw_state ts = { .locked = true };
 	int ret;
 
-	ts.locked = mutex_trylock(&ctx->uring_lock);
+	mutex_lock(&ctx->uring_lock);
 	ret = __io_run_local_work(ctx, &ts, min_events);
-	if (ts.locked)
-		mutex_unlock(&ctx->uring_lock);
-
+	mutex_unlock(&ctx->uring_lock);
 	return ret;
 }
 
