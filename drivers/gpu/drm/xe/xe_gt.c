@@ -722,6 +722,7 @@ int xe_gt_suspend(struct xe_gt *gt)
 {
 	int err;
 
+	xe_gt_dbg(gt, "suspending\n");
 	xe_gt_sanitize(gt);
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
@@ -733,7 +734,7 @@ int xe_gt_suspend(struct xe_gt *gt)
 		goto err_force_wake;
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-	xe_gt_info(gt, "suspended\n");
+	xe_gt_dbg(gt, "suspended\n");
 
 	return 0;
 
@@ -749,6 +750,7 @@ int xe_gt_resume(struct xe_gt *gt)
 {
 	int err;
 
+	xe_gt_dbg(gt, "resuming\n");
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (err)
 		goto err_msg;
@@ -758,7 +760,7 @@ int xe_gt_resume(struct xe_gt *gt)
 		goto err_force_wake;
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
-	xe_gt_info(gt, "resumed\n");
+	xe_gt_dbg(gt, "resumed\n");
 
 	return 0;
 
