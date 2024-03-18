@@ -4387,8 +4387,10 @@ static bool commit_minimal_transition_based_on_current_context(struct dc *dc,
  * on current or new context
  *
  * @dc: DC structure, used to get the current state
- * @context: New context
+ * @new_context: New context
  * @stream: Stream getting the update for the flip
+ * @srf_updates: Surface updates
+ * @surface_count: Number of surfaces
  *
  * The function takes in current state and new state and determine a minimal
  * transition state as the intermediate step which could make the transition
