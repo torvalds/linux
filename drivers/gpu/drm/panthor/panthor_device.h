@@ -160,7 +160,7 @@ struct panthor_device {
 		 * Used to replace the real LATEST_FLUSH page when the GPU
 		 * is suspended.
 		 */
-		u32 *dummy_latest_flush;
+		struct page *dummy_latest_flush;
 	} pm;
 };
 
