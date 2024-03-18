@@ -646,7 +646,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	bch2_trans_unlock(trans);
 
 	bch2_fs_fatal_err_on(ret && !bch2_journal_error(&c->journal), c,
-			     "%s(): error %s", __func__, bch2_err_str(ret));
+			     "%s", bch2_err_str(ret));
 err:
 	if (as->b) {
 
@@ -1193,7 +1193,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 err:
 	bch2_btree_update_free(as, trans);
 	if (!bch2_err_matches(ret, ENOSPC) &&
-	    !bch2_err_matches(ret, EROFS))
+	    !bch2_err_matches(ret, EROFS) &&
+	    ret != -BCH_ERR_journal_reclaim_would_deadlock)
 		bch_err_fn_ratelimited(c, ret);
 	return ERR_PTR(ret);
 }

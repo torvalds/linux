@@ -990,8 +990,8 @@ static int __trigger_extent(struct btree_trans *trans,
 				ret = !gc
 					? bch2_update_cached_sectors_list(trans, p.ptr.dev, disk_sectors)
 					: update_cached_sectors(c, k, p.ptr.dev, disk_sectors, 0, true);
-				bch2_fs_fatal_err_on(ret && gc, c, "%s(): no replicas entry while updating cached sectors",
-						     __func__);
+				bch2_fs_fatal_err_on(ret && gc, c, "%s: no replicas entry while updating cached sectors",
+						     bch2_err_str(ret));
 				if (ret)
 					return ret;
 			}
@@ -1020,7 +1020,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			bch2_fs_fatal_error(c, ": no replicas entry for %s", buf.buf);
 			printbuf_exit(&buf);
 		}
 		if (ret)

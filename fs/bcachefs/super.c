@@ -87,6 +87,7 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
+__printf(2, 0)
 static void bch2_print_maybe_redirect(struct stdio_redirect *stdio, const char *fmt, va_list args)
 {
 #ifdef __KERNEL__

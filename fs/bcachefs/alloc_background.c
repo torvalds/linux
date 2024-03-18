@@ -853,7 +853,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 					bucket_journal_seq);
 			if (ret) {
 				bch2_fs_fatal_error(c,
-					"error setting bucket_needs_journal_commit: %i", ret);
+					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret));
 				return ret;
 			}
 		}

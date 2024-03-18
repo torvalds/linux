@@ -170,7 +170,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		bch2_fs_fatal_error(c, "btree node verify failed for : %s\n", buf.buf);
+		bch2_fs_fatal_error(c, ": btree node verify failed for: %s\n", buf.buf);
 		printbuf_exit(&buf);
 	}
 out:
