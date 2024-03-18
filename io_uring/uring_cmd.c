@@ -87,13 +87,9 @@ EXPORT_SYMBOL_GPL(io_uring_cmd_mark_cancelable);
 static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	unsigned issue_flags = IO_URING_F_UNLOCKED;
 
-	/* locked task_work executor checks the deffered list completion */
-	if (ts->locked)
-		issue_flags = IO_URING_F_COMPLETE_DEFER;
-
-	ioucmd->task_work_cb(ioucmd, issue_flags);
+	/* task_work executor checks the deffered list completion */
+	ioucmd->task_work_cb(ioucmd, IO_URING_F_COMPLETE_DEFER);
 }
 
 void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,

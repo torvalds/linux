@@ -305,11 +305,9 @@ void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 
 	io_req_io_end(req);
 
-	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
-		unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
+	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING))
+		req->cqe.flags |= io_put_kbuf(req, 0);
 
-		req->cqe.flags |= io_put_kbuf(req, issue_flags);
-	}
 	io_req_task_complete(req, ts);
 }
 

@@ -351,10 +351,7 @@ static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
 
 static inline void io_tw_lock(struct io_ring_ctx *ctx, struct io_tw_state *ts)
 {
-	if (!ts->locked) {
-		mutex_lock(&ctx->uring_lock);
-		ts->locked = true;
-	}
+	lockdep_assert_held(&ctx->uring_lock);
 }
 
 /*
