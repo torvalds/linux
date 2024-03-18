@@ -64,6 +64,7 @@ struct netfs_inode {
 #if IS_ENABLED(CONFIG_FSCACHE)
 	struct fscache_cookie	*cache;
 #endif
+	struct mutex		wb_lock;	/* Writeback serialisation */
 	loff_t			remote_i_size;	/* Size of the remote file */
 	loff_t			zero_point;	/* Size after which we assume there's no data
 						 * on the server */
@@ -71,7 +72,6 @@ struct netfs_inode {
 #define NETFS_ICTX_ODIRECT	0		/* The file has DIO in progress */
 #define NETFS_ICTX_UNBUFFERED	1		/* I/O should not use the pagecache */
 #define NETFS_ICTX_WRITETHROUGH	2		/* Write-through caching */
-#define NETFS_ICTX_NO_WRITE_STREAMING	3	/* Don't engage in write-streaming */
 #define NETFS_ICTX_USE_PGPRIV2	31		/* [DEPRECATED] Use PG_private_2 to mark
 						 * write to cache on read */
 };
@@ -127,6 +127,33 @@ static inline struct netfs_group *netfs_folio_group(struct folio *folio)
 }
 
 /*
+ * Stream of I/O subrequests going to a particular destination, such as the
+ * server or the local cache.  This is mainly intended for writing where we may
+ * have to write to multiple destinations concurrently.
+ */
+struct netfs_io_stream {
+	/* Submission tracking */
+	struct netfs_io_subrequest *construct;	/* Op being constructed */
+	unsigned int		submit_off;	/* Folio offset we're submitting from */
+	unsigned int		submit_len;	/* Amount of data left to submit */
+	unsigned int		submit_max_len;	/* Amount I/O can be rounded up to */
+	void (*prepare_write)(struct netfs_io_subrequest *subreq);
+	void (*issue_write)(struct netfs_io_subrequest *subreq);
+	/* Collection tracking */
+	struct list_head	subrequests;	/* Contributory I/O operations */
+	struct netfs_io_subrequest *front;	/* Op being collected */
+	unsigned long long	collected_to;	/* Position we've collected results to */
+	size_t			transferred;	/* The amount transferred from this stream */
+	enum netfs_io_source	source;		/* Where to read from/write to */
+	unsigned short		error;		/* Aggregate error for the stream */
+	unsigned char		stream_nr;	/* Index of stream in parent table */
+	bool			avail;		/* T if stream is available */
+	bool			active;		/* T if stream is active */
+	bool			need_retry;	/* T if this stream needs retrying */
+	bool			failed;		/* T if this stream failed */
+};
+
+/*
  * Resources required to do operations on a cache.
  */
 struct netfs_cache_resources {
@@ -150,13 +177,16 @@ struct netfs_io_subrequest {
 	struct list_head	rreq_link;	/* Link in rreq->subrequests */
 	struct iov_iter		io_iter;	/* Iterator for this subrequest */
 	unsigned long long	start;		/* Where to start the I/O */
+	size_t			max_len;	/* Maximum size of the I/O */
 	size_t			len;		/* Size of the I/O */
 	size_t			transferred;	/* Amount of data transferred */
 	refcount_t		ref;
 	short			error;		/* 0 or error that occurred */
 	unsigned short		debug_index;	/* Index in list (for debugging output) */
+	unsigned int		nr_segs;	/* Number of segs in io_iter */
 	unsigned int		max_nr_segs;	/* 0 or max number of segments in an iterator */
 	enum netfs_io_source	source;		/* Where to read from/write to */
+	unsigned char		stream_nr;	/* I/O stream this belongs to */
 	unsigned long		flags;
 #define NETFS_SREQ_COPY_TO_CACHE	0	/* Set if should copy the data to the cache */
 #define NETFS_SREQ_CLEAR_TAIL		1	/* Set if the rest of the read should be cleared */
@@ -164,6 +194,11 @@ struct netfs_io_subrequest {
 #define NETFS_SREQ_SEEK_DATA_READ	3	/* Set if ->read() should SEEK_DATA first */
 #define NETFS_SREQ_NO_PROGRESS		4	/* Set if we didn't manage to read any data */
 #define NETFS_SREQ_ONDEMAND		5	/* Set if it's from on-demand read mode */
+#define NETFS_SREQ_BOUNDARY		6	/* Set if ends on hard boundary (eg. ceph object) */
+#define NETFS_SREQ_IN_PROGRESS		8	/* Unlocked when the subrequest completes */
+#define NETFS_SREQ_NEED_RETRY		9	/* Set if the filesystem requests a retry */
+#define NETFS_SREQ_RETRYING		10	/* Set if we're retrying */
+#define NETFS_SREQ_FAILED		11	/* Set if the subreq failed unretryably */
 };
 
 enum netfs_io_origin {
@@ -194,6 +229,9 @@ struct netfs_io_request {
 	struct netfs_cache_resources cache_resources;
 	struct list_head	proc_link;	/* Link in netfs_iorequests */
 	struct list_head	subrequests;	/* Contributory I/O operations */
+	struct netfs_io_stream	io_streams[2];	/* Streams of parallel I/O operations */
+#define NR_IO_STREAMS 2 //wreq->nr_io_streams
+	struct netfs_group	*group;		/* Writeback group being written back */
 	struct iov_iter		iter;		/* Unencrypted-side iterator */
 	struct iov_iter		io_iter;	/* I/O (Encrypted-side) iterator */
 	void			*netfs_priv;	/* Private data for the netfs */
@@ -203,6 +241,8 @@ struct netfs_io_request {
 	unsigned int		rsize;		/* Maximum read size (0 for none) */
 	unsigned int		wsize;		/* Maximum write size (0 for none) */
 	atomic_t		subreq_counter;	/* Next subreq->debug_index */
+	unsigned int		nr_group_rel;	/* Number of refs to release on ->group */
+	spinlock_t		lock;		/* Lock for queuing subreqs */
 	atomic_t		nr_outstanding;	/* Number of ops in progress */
 	atomic_t		nr_copy_ops;	/* Number of copy-to-cache ops in progress */
 	size_t			upper_len;	/* Length can be extended to here */
@@ -214,6 +254,10 @@ struct netfs_io_request {
 	bool			direct_bv_unpin; /* T if direct_bv[] must be unpinned */
 	unsigned long long	i_size;		/* Size of the file */
 	unsigned long long	start;		/* Start position */
+	atomic64_t		issued_to;	/* Write issuer folio cursor */
+	unsigned long long	contiguity;	/* Tracking for gaps in the writeback sequence */
+	unsigned long long	collected_to;	/* Point we've collected to */
+	unsigned long long	cleaned_to;	/* Position we've cleaned folios to */
 	pgoff_t			no_unlock_folio; /* Don't unlock this folio after read */
 	refcount_t		ref;
 	unsigned long		flags;
@@ -227,6 +271,9 @@ struct netfs_io_request {
 #define NETFS_RREQ_UPLOAD_TO_SERVER	8	/* Need to write to the server */
 #define NETFS_RREQ_NONBLOCK		9	/* Don't block if possible (O_NONBLOCK) */
 #define NETFS_RREQ_BLOCKED		10	/* We blocked */
+#define NETFS_RREQ_PAUSE		11	/* Pause subrequest generation */
+#define NETFS_RREQ_USE_IO_ITER		12	/* Use ->io_iter rather than ->i_pages */
+#define NETFS_RREQ_ALL_QUEUED		13	/* All subreqs are now queued */
 #define NETFS_RREQ_USE_PGPRIV2		31	/* [DEPRECATED] Use PG_private_2 to mark
 						 * write to cache on read */
 	const struct netfs_request_ops *netfs_ops;
@@ -258,6 +305,9 @@ struct netfs_request_ops {
 	/* Write request handling */
 	void (*create_write_requests)(struct netfs_io_request *wreq,
 				      loff_t start, size_t len);
+	void (*begin_writeback)(struct netfs_io_request *wreq);
+	void (*prepare_write)(struct netfs_io_subrequest *subreq);
+	void (*issue_write)(struct netfs_io_subrequest *subreq);
 	void (*invalidate_cache)(struct netfs_io_request *wreq);
 };
 
@@ -292,6 +342,9 @@ struct netfs_cache_ops {
 		     netfs_io_terminated_t term_func,
 		     void *term_func_priv);
 
+	/* Write data to the cache from a netfs subrequest. */
+	void (*issue_write)(struct netfs_io_subrequest *subreq);
+
 	/* Expand readahead request */
 	void (*expand_readahead)(struct netfs_cache_resources *cres,
 				 unsigned long long *_start,
@@ -303,6 +356,13 @@ struct netfs_cache_ops {
 	 */
 	enum netfs_io_source (*prepare_read)(struct netfs_io_subrequest *subreq,
 					     unsigned long long i_size);
+
+	/* Prepare a write subrequest, working out if we're allowed to do it
+	 * and finding out the maximum amount of data to gather before
+	 * attempting to submit.  If we're not permitted to do it, the
+	 * subrequest should be marked failed.
+	 */
+	void (*prepare_write_subreq)(struct netfs_io_subrequest *subreq);
 
 	/* Prepare a write operation, working out what part of the write we can
 	 * actually do.
@@ -349,6 +409,8 @@ int netfs_write_begin(struct netfs_inode *, struct file *,
 		      struct folio **, void **fsdata);
 int netfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
+int new_netfs_writepages(struct address_space *mapping,
+			struct writeback_control *wbc);
 bool netfs_dirty_folio(struct address_space *mapping, struct folio *folio);
 int netfs_unpin_writeback(struct inode *inode, struct writeback_control *wbc);
 void netfs_clear_inode_writeback(struct inode *inode, const void *aux);
@@ -372,8 +434,11 @@ size_t netfs_limit_iter(const struct iov_iter *iter, size_t start_offset,
 struct netfs_io_subrequest *netfs_create_write_request(
 	struct netfs_io_request *wreq, enum netfs_io_source dest,
 	loff_t start, size_t len, work_func_t worker);
+void netfs_prepare_write_failed(struct netfs_io_subrequest *subreq);
 void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 				       bool was_async);
+void new_netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
+					   bool was_async);
 void netfs_queue_write_request(struct netfs_io_subrequest *subreq);
 
 int netfs_start_io_read(struct inode *inode);
@@ -415,6 +480,7 @@ static inline void netfs_inode_init(struct netfs_inode *ctx,
 #if IS_ENABLED(CONFIG_FSCACHE)
 	ctx->cache = NULL;
 #endif
+	mutex_init(&ctx->wb_lock);
 	/* ->releasepage() drives zero_point */
 	if (use_zero_point) {
 		ctx->zero_point = ctx->remote_i_size;
