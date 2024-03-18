@@ -2274,9 +2274,8 @@
 			interrupt-map-mask = <0 0 0 0x7>;
 			#interrupt-cells = <1>;
 
-			/* Entries are reversed due to the unusual ITS DeviceID encoding */
-			msi-map = <0x0 &gic_its 0x1401 0x1>,
-				  <0x100 &gic_its 0x1400 0x1>;
+			msi-map = <0x0 &gic_its 0x1400 0x1>,
+				  <0x100 &gic_its 0x1401 0x1>;
 			msi-map-mask = <0xff00>;
 
 			linux,pci-domain = <0>;
@@ -2402,9 +2401,8 @@
 			interrupt-map-mask = <0 0 0 0x7>;
 			#interrupt-cells = <1>;
 
-			/* Entries are reversed due to the unusual ITS DeviceID encoding */
-			msi-map = <0x0 &gic_its 0x1481 0x1>,
-				  <0x100 &gic_its 0x1480 0x1>;
+			msi-map = <0x0 &gic_its 0x1480 0x1>,
+				  <0x100 &gic_its 0x1481 0x1>;
 			msi-map-mask = <0xff00>;
 
 			linux,pci-domain = <1>;
