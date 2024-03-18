@@ -125,6 +125,7 @@ int ocfs2_fileattr_set(struct mnt_idmap *idmap,
 
 	ocfs2_inode->ip_attr = flags;
 	ocfs2_set_inode_flags(inode);
+	inode_set_ctime_current(inode);
 
 	status = ocfs2_mark_inode_dirty(handle, inode, bh);
 	if (status < 0)
