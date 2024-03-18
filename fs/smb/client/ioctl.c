@@ -345,6 +345,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	xid = get_xid();
 
 	cifs_dbg(FYI, "cifs ioctl 0x%x\n", command);
+	if (pSMBFile == NULL)
+		trace_smb3_ioctl(xid, 0, command);
+	else
+		trace_smb3_ioctl(xid, pSMBFile->fid.persistent_fid, command);
+
 	switch (command) {
 		case FS_IOC_GETFLAGS:
 			if (pSMBFile == NULL)

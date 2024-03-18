@@ -13,8 +13,10 @@
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <asm/guarded_storage.h>
 #include <asm/pfault.h>
 #include <asm/cio.h>
+#include <asm/fpu.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>
@@ -26,7 +28,6 @@
 #include <asm/os_info.h>
 #include <asm/set_memory.h>
 #include <asm/stacktrace.h>
-#include <asm/switch_to.h>
 #include <asm/nmi.h>
 #include <asm/sclp.h>
 

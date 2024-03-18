@@ -837,6 +837,8 @@ enum nix_af_status {
 	NIX_AF_ERR_CQ_CTX_WRITE_ERR  = -429,
 	NIX_AF_ERR_AQ_CTX_RETRY_WRITE  = -430,
 	NIX_AF_ERR_LINK_CREDITS  = -431,
+	NIX_AF_ERR_INVALID_BPID         = -434,
+	NIX_AF_ERR_INVALID_BPID_REQ     = -435,
 	NIX_AF_ERR_INVALID_MCAST_GRP	= -436,
 	NIX_AF_ERR_INVALID_MCAST_DEL_REQ = -437,
 	NIX_AF_ERR_NON_CONTIG_MCE_LIST = -438,
@@ -1114,6 +1116,7 @@ struct nix_rss_flowkey_cfg {
 #define NIX_FLOW_KEY_TYPE_INNR_UDP      BIT(15)
 #define NIX_FLOW_KEY_TYPE_INNR_SCTP     BIT(16)
 #define NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC BIT(17)
+#define NIX_FLOW_KEY_TYPE_CUSTOM0	BIT(19)
 #define NIX_FLOW_KEY_TYPE_VLAN		BIT(20)
 #define NIX_FLOW_KEY_TYPE_IPV4_PROTO	BIT(21)
 #define NIX_FLOW_KEY_TYPE_AH		BIT(22)
@@ -1553,6 +1556,7 @@ struct flow_msg {
 	u32 mpls_lse[4];
 	u8 icmp_type;
 	u8 icmp_code;
+	__be16 tcp_flags;
 };
 
 struct npc_install_flow_req {

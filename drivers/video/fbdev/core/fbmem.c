@@ -645,7 +645,6 @@ int fb_new_modelist(struct fb_info *info)
 	return 0;
 }
 
-#if defined(CONFIG_VIDEO_NOMODESET)
 bool fb_modesetting_disabled(const char *drvname)
 {
 	bool fwonly = video_firmware_drivers_only();
@@ -657,6 +656,5 @@ bool fb_modesetting_disabled(const char *drvname)
 	return fwonly;
 }
 EXPORT_SYMBOL(fb_modesetting_disabled);
-#endif
 
 MODULE_LICENSE("GPL");

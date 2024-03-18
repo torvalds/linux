@@ -148,14 +148,16 @@ static int register_stop_handler(void)
 
 static void native_stop_other_cpus(int wait)
 {
-	unsigned int cpu = smp_processor_id();
+	unsigned int old_cpu, this_cpu;
 	unsigned long flags, timeout;
 
 	if (reboot_force)
 		return;
 
 	/* Only proceed if this is the first CPU to reach this code */
-	if (atomic_cmpxchg(&stopping_cpu, -1, cpu) != -1)
+	old_cpu = -1;
+	this_cpu = smp_processor_id();
+	if (!atomic_try_cmpxchg(&stopping_cpu, &old_cpu, this_cpu))
 		return;
 
 	/* For kexec, ensure that offline CPUs are out of MWAIT and in HLT */
@@ -186,7 +188,7 @@ static void native_stop_other_cpus(int wait)
 	 * NMIs.
 	 */
 	cpumask_copy(&cpus_stop_mask, cpu_online_mask);
-	cpumask_clear_cpu(cpu, &cpus_stop_mask);
+	cpumask_clear_cpu(this_cpu, &cpus_stop_mask);
 
 	if (!cpumask_empty(&cpus_stop_mask)) {
 		apic_send_IPI_allbutself(REBOOT_VECTOR);
@@ -210,6 +212,8 @@ static void native_stop_other_cpus(int wait)
 		 * CPUs to stop.
 		 */
 		if (!smp_no_nmi_ipi && !register_stop_handler()) {
+			unsigned int cpu;
+
 			pr_emerg("Shutting down cpus with NMI\n");
 
 			for_each_cpu(cpu, &cpus_stop_mask)

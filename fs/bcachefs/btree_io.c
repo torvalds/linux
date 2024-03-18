@@ -103,7 +103,7 @@ static void btree_bounce_free(struct bch_fs *c, size_t size,
 	if (used_mempool)
 		mempool_free(p, &c->btree_bounce_pool);
 	else
-		vpfree(p, size);
+		kvfree(p);
 }
 
 static void *btree_bounce_alloc(struct bch_fs *c, size_t size,
@@ -115,7 +115,7 @@ static void *btree_bounce_alloc(struct bch_fs *c, size_t size,
 	BUG_ON(size > c->opts.btree_node_size);
 
 	*used_mempool = false;
-	p = vpmalloc(size, __GFP_NOWARN|GFP_NOWAIT);
+	p = kvmalloc(size, __GFP_NOWARN|GFP_NOWAIT);
 	if (!p) {
 		*used_mempool = true;
 		p = mempool_alloc(&c->btree_bounce_pool, GFP_NOFS);
@@ -581,8 +581,7 @@ static int __btree_err(int ret,
 		break;
 	case -BCH_ERR_btree_node_read_err_bad_node:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
-		bch2_topology_error(c);
-		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?: -EIO;
+		ret = bch2_topology_error(c);
 		break;
 	case -BCH_ERR_btree_node_read_err_incompatible:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
@@ -840,6 +839,9 @@ static bool __bkey_valid(struct bch_fs *c, struct btree *b,
 	if (k->format > KEY_FORMAT_CURRENT)
 		return false;
 
+	if (k->u64s < bkeyp_key_u64s(&b->format, k))
+		return false;
+
 	struct printbuf buf = PRINTBUF;
 	struct bkey tmp;
 	struct bkey_s u = __bkey_disassemble(b, k, &tmp);
@@ -881,7 +883,13 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 "invalid bkey format %u", k->format))
 			goto drop_this_key;
 
-		/* XXX: validate k->u64s */
+		if (btree_err_on(k->u64s < bkeyp_key_u64s(&b->format, k),
+				 -BCH_ERR_btree_node_read_err_fixable,
+				 c, NULL, b, i,
+				 btree_node_bkey_bad_u64s,
+				 "k->u64s too small (%u < %u)", k->u64s, bkeyp_key_u64s(&b->format, k)))
+			goto drop_this_key;
+
 		if (!write)
 			bch2_bkey_compat(b->c.level, b->c.btree_id, version,
 				    BSET_BIG_ENDIAN(i), write,
@@ -1737,7 +1745,7 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 		list_move(&b->list, &c->btree_cache.freeable);
 		mutex_unlock(&c->btree_cache.lock);
 
-		ret = -EIO;
+		ret = -BCH_ERR_btree_node_read_error;
 		goto err;
 	}
 
@@ -1841,7 +1849,7 @@ static void btree_node_write_work(struct work_struct *work)
 		bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev));
 
 	if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(&wbio->key))) {
-		ret = -BCH_ERR_btree_write_all_failed;
+		ret = -BCH_ERR_btree_node_write_all_failed;
 		goto err;
 	}
 

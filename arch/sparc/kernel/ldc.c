@@ -1854,7 +1854,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 			 * This seems the best behavior because this allows
 			 * a user of the LDC layer to start with a small
 			 * RX buffer for ldc_read() calls and use -EMSGSIZE
-			 * as a cue to enlarge it's read buffer.
+			 * as a cue to enlarge its read buffer.
 			 */
 			err = -EMSGSIZE;
 			break;

@@ -34,6 +34,8 @@
 #include <asm/kvm_para.h>		/* kvm_handle_async_pf		*/
 #include <asm/vdso.h>			/* fixup_vdso_exception()	*/
 #include <asm/irq_stack.h>
+#include <asm/fred.h>
+#include <asm/sev.h>			/* snp_dump_hva_rmpentry()	*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -547,6 +549,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 		 !(error_code & X86_PF_PROT) ? "not-present page" :
 		 (error_code & X86_PF_RSVD)  ? "reserved bit violation" :
 		 (error_code & X86_PF_PK)    ? "protection keys violation" :
+		 (error_code & X86_PF_RMP)   ? "RMP violation" :
 					       "permissions violation");
 
 	if (!(error_code & X86_PF_USER) && user_mode(regs)) {
@@ -579,6 +582,9 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code, unsigned long ad
 	}
 
 	dump_pagetable(address);
+
+	if (error_code & X86_PF_RMP)
+		snp_dump_hva_rmpentry(address);
 }
 
 static noinline void
@@ -1293,20 +1299,13 @@ void do_user_addr_fault(struct pt_regs *regs,
 		return;
 	}
 
-	/*
-	 * It's safe to allow irq's after cr2 has been saved and the
-	 * vmalloc fault has been handled.
-	 *
-	 * User-mode registers count as a user access even for any
-	 * potential system fault or CPU buglet:
-	 */
-	if (user_mode(regs)) {
-		local_irq_enable();
-		flags |= FAULT_FLAG_USER;
-	} else {
-		if (regs->flags & X86_EFLAGS_IF)
-			local_irq_enable();
+	/* Legacy check - remove this after verifying that it doesn't trigger */
+	if (WARN_ON_ONCE(!(regs->flags & X86_EFLAGS_IF))) {
+		bad_area_nosemaphore(regs, error_code, address);
+		return;
 	}
+
+	local_irq_enable();
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
@@ -1322,6 +1321,14 @@ void do_user_addr_fault(struct pt_regs *regs,
 		flags |= FAULT_FLAG_WRITE;
 	if (error_code & X86_PF_INSTR)
 		flags |= FAULT_FLAG_INSTRUCTION;
+
+	/*
+	 * We set FAULT_FLAG_USER based on the register state, not
+	 * based on X86_PF_USER. User space accesses that cause
+	 * system page faults are still user accesses.
+	 */
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 
 #ifdef CONFIG_X86_64
 	/*
@@ -1509,8 +1516,10 @@ handle_page_fault(struct pt_regs *regs, unsigned long error_code,
 
 DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 {
-	unsigned long address = read_cr2();
 	irqentry_state_t state;
+	unsigned long address;
+
+	address = cpu_feature_enabled(X86_FEATURE_FRED) ? fred_event_data(regs) : read_cr2();
 
 	prefetchw(&current->mm->mmap_lock);
 

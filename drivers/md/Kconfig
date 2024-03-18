@@ -634,4 +634,6 @@ config DM_AUDIT
 	  Enables audit logging of several security relevant events in the
 	  particular device-mapper targets, especially the integrity target.
 
+source "drivers/md/dm-vdo/Kconfig"
+
 endif # MD

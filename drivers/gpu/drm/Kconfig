@@ -19,8 +19,7 @@ menuconfig DRM
 # gallium uses SYS_kcmp for os_same_file_description() to de-duplicate
 # device and dmabuf fd. Let's make sure that is available for our userspace.
 	select KCMP
-	select VIDEO_CMDLINE
-	select VIDEO_NOMODESET
+	select VIDEO
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select
@@ -42,7 +41,7 @@ config DRM_MIPI_DSI
 config DRM_DEBUG_MM
 	bool "Insert extra checks and debug info into the DRM range managers"
 	default n
-	depends on DRM=y
+	depends on DRM
 	depends on STACKTRACE_SUPPORT
 	select STACKDEPOT
 	help
@@ -290,19 +289,7 @@ config DRM_VGEM
 	  as used by Mesa's software renderer for enhanced performance.
 	  If M is selected the module will be called vgem.
 
-config DRM_VKMS
-	tristate "Virtual KMS (EXPERIMENTAL)"
-	depends on DRM && MMU
-	select DRM_KMS_HELPER
-	select DRM_GEM_SHMEM_HELPER
-	select CRC32
-	default n
-	help
-	  Virtual Kernel Mode-Setting (VKMS) is used for testing or for
-	  running GPU in a headless machines. Choose this option to get
-	  a VKMS.
-
-	  If M is selected the module will be called vkms.
+source "drivers/gpu/drm/vkms/Kconfig"
 
 source "drivers/gpu/drm/exynos/Kconfig"
 

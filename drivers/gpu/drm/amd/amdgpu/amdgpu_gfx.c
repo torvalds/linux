@@ -304,11 +304,11 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 	return -EINVAL;
 }
 
-int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
-			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq, int xcc_id)
+int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
+	struct amdgpu_irq_src *irq = &kiq->irq;
+	struct amdgpu_ring *ring = &kiq->ring;
 	int r = 0;
 
 	spin_lock_init(&kiq->ring_lock);
@@ -329,7 +329,8 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	ring->no_scheduler = true;
-	sprintf(ring->name, "kiq_%d.%d.%d.%d", xcc_id, ring->me, ring->pipe, ring->queue);
+	snprintf(ring->name, sizeof(ring->name), "kiq_%d.%d.%d.%d",
+		 xcc_id, ring->me, ring->pipe, ring->queue);
 	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
 			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
@@ -642,8 +643,8 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		j = i + xcc_id * adev->gfx.num_compute_rings;
-			kiq->pmf->kiq_map_queues(kiq_ring,
-						 &adev->gfx.compute_ring[j]);
+		kiq->pmf->kiq_map_queues(kiq_ring,
+					 &adev->gfx.compute_ring[j]);
 	}
 
 	r = amdgpu_ring_test_helper(kiq_ring);

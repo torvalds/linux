@@ -1777,8 +1777,8 @@ static int disp_cc_sm8650_probe(struct platform_device *pdev)
 	/* Enable clock gating for MDP clocks */
 	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
 
-	/* Keep clocks always enabled */
-	regmap_update_bits(regmap, 0xe054, BIT(0), BIT(0)); /* disp_cc_xo_clk */
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0xe054); /* DISP_CC_XO_CLK */
 
 	ret = qcom_cc_really_probe(pdev, &disp_cc_sm8650_desc, regmap);
 	if (ret)
@@ -1802,17 +1802,7 @@ static struct platform_driver disp_cc_sm8650_driver = {
 	},
 };
 
-static int __init disp_cc_sm8650_init(void)
-{
-	return platform_driver_register(&disp_cc_sm8650_driver);
-}
-subsys_initcall(disp_cc_sm8650_init);
-
-static void __exit disp_cc_sm8650_exit(void)
-{
-	platform_driver_unregister(&disp_cc_sm8650_driver);
-}
-module_exit(disp_cc_sm8650_exit);
+module_platform_driver(disp_cc_sm8650_driver);
 
 MODULE_DESCRIPTION("QTI DISPCC SM8650 Driver");
 MODULE_LICENSE("GPL");

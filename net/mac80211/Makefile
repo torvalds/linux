@@ -29,7 +29,7 @@ mac80211-y := \
 	spectmgmt.o \
 	tx.o \
 	key.o \
-	util.o \
+	util.o parse.o \
 	wme.o \
 	chan.o \
 	trace.o mlme.o \

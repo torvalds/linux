@@ -294,10 +294,11 @@ static void lkdtm_SPINLOCKUP(void)
 	__release(&lock_me_up);
 }
 
-static void lkdtm_HUNG_TASK(void)
+static void __noreturn lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
+	BUG();
 }
 
 static volatile unsigned int huge = INT_MAX - 2;

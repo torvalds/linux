@@ -2521,21 +2521,19 @@ static const struct hc_driver isp1760_hc_driver = {
 int __init isp1760_init_kmem_once(void)
 {
 	urb_listitem_cachep = kmem_cache_create("isp1760_urb_listitem",
-			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY |
-			SLAB_MEM_SPREAD, NULL);
+			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY, NULL);
 
 	if (!urb_listitem_cachep)
 		return -ENOMEM;
 
 	qtd_cachep = kmem_cache_create("isp1760_qtd",
-			sizeof(struct isp1760_qtd), 0, SLAB_TEMPORARY |
-			SLAB_MEM_SPREAD, NULL);
+			sizeof(struct isp1760_qtd), 0, SLAB_TEMPORARY, NULL);
 
 	if (!qtd_cachep)
 		goto destroy_urb_listitem;
 
 	qh_cachep = kmem_cache_create("isp1760_qh", sizeof(struct isp1760_qh),
-			0, SLAB_TEMPORARY | SLAB_MEM_SPREAD, NULL);
+			0, SLAB_TEMPORARY, NULL);
 
 	if (!qh_cachep)
 		goto destroy_qtd;

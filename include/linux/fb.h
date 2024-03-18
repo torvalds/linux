@@ -2,28 +2,30 @@
 #ifndef _LINUX_FB_H
 #define _LINUX_FB_H
 
-#include <linux/refcount.h>
-#include <linux/kgdb.h>
 #include <uapi/linux/fb.h>
 
 #define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor_user)
 
-#include <linux/fs.h>
-#include <linux/init.h>
+#include <linux/mutex.h>
+#include <linux/printk.h>
+#include <linux/refcount.h>
+#include <linux/types.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
-#include <linux/list.h>
-#include <linux/backlight.h>
-#include <linux/slab.h>
 
 #include <asm/fb.h>
 
-struct vm_area_struct;
-struct fb_info;
+struct backlight_device;
 struct device;
-struct file;
-struct videomode;
 struct device_node;
+struct fb_info;
+struct file;
+struct i2c_adapter;
+struct inode;
+struct module;
+struct notifier_block;
+struct page;
+struct videomode;
+struct vm_area_struct;
 
 /* Definitions below are used in the parsed monitor specs */
 #define FB_DPMS_ACTIVE_OFF	1
@@ -840,14 +842,7 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 			const struct fb_videomode *default_mode,
 			unsigned int default_bpp);
 
-#if defined(CONFIG_VIDEO_NOMODESET)
 bool fb_modesetting_disabled(const char *drvname);
-#else
-static inline bool fb_modesetting_disabled(const char *drvname)
-{
-	return false;
-}
-#endif
 
 /*
  * Convenience logging macros

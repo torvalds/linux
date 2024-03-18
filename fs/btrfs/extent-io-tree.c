@@ -6,7 +6,6 @@
 #include "ctree.h"
 #include "extent-io-tree.h"
 #include "btrfs_inode.h"
-#include "misc.h"
 
 static struct kmem_cache *extent_state_cache;
 
@@ -48,6 +47,7 @@ static inline void btrfs_extent_state_leak_debug_check(void)
 		       extent_state_in_tree(state),
 		       refcount_read(&state->refs));
 		list_del(&state->leak_list);
+		WARN_ON_ONCE(1);
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
@@ -1883,8 +1883,8 @@ void __cold extent_state_free_cachep(void)
 int __init extent_state_init_cachep(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
-			sizeof(struct extent_state), 0,
-			SLAB_MEM_SPREAD, NULL);
+					       sizeof(struct extent_state), 0, 0,
+					       NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
 

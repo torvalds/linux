@@ -30,21 +30,23 @@ enum xe_exec_queue_sched_prop {
 	XE_EXEC_QUEUE_SCHED_PROP_MAX = 3,
 };
 
-static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
-						    struct xe_vm *vm,
-						    u32 logical_mask,
-						    u16 width, struct xe_hw_engine *hwe,
-						    u32 flags)
+static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue *q,
+				      u64 extensions, int ext_number, bool create);
+
+static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
+						   struct xe_vm *vm,
+						   u32 logical_mask,
+						   u16 width, struct xe_hw_engine *hwe,
+						   u32 flags, u64 extensions)
 {
 	struct xe_exec_queue *q;
 	struct xe_gt *gt = hwe->gt;
 	int err;
-	int i;
 
 	/* only kernel queues can be permanent */
 	XE_WARN_ON((flags & EXEC_QUEUE_FLAG_PERMANENT) && !(flags & EXEC_QUEUE_FLAG_KERNEL));
 
-	q = kzalloc(sizeof(*q) + sizeof(struct xe_lrc) * width, GFP_KERNEL);
+	q = kzalloc(struct_size(q, lrc, width), GFP_KERNEL);
 	if (!q)
 		return ERR_PTR(-ENOMEM);
 
@@ -52,8 +54,6 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	q->flags = flags;
 	q->hwe = hwe;
 	q->gt = gt;
-	if (vm)
-		q->vm = xe_vm_get(vm);
 	q->class = hwe->class;
 	q->width = width;
 	q->logical_mask = logical_mask;
@@ -66,23 +66,51 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
 	q->sched_props.preempt_timeout_us =
 				hwe->eclass->sched_props.preempt_timeout_us;
+	q->sched_props.job_timeout_ms =
+				hwe->eclass->sched_props.job_timeout_ms;
 	if (q->flags & EXEC_QUEUE_FLAG_KERNEL &&
 	    q->flags & EXEC_QUEUE_FLAG_HIGH_PRIORITY)
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 	else
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
 
+	if (extensions) {
+		/*
+		 * may set q->usm, must come before xe_lrc_init(),
+		 * may overwrite q->sched_props, must come before q->ops->init()
+		 */
+		err = exec_queue_user_extensions(xe, q, extensions, 0, true);
+		if (err) {
+			kfree(q);
+			return ERR_PTR(err);
+		}
+	}
+
+	if (vm)
+		q->vm = xe_vm_get(vm);
+
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
 		q->parallel.composite_fence_seqno = XE_FENCE_INITIAL_SEQNO;
 	}
-	if (q->flags & EXEC_QUEUE_FLAG_VM) {
-		q->bind.fence_ctx = dma_fence_context_alloc(1);
-		q->bind.fence_seqno = XE_FENCE_INITIAL_SEQNO;
-	}
 
-	for (i = 0; i < width; ++i) {
-		err = xe_lrc_init(q->lrc + i, hwe, q, vm, SZ_16K);
+	return q;
+}
+
+static void __xe_exec_queue_free(struct xe_exec_queue *q)
+{
+	if (q->vm)
+		xe_vm_put(q->vm);
+	kfree(q);
+}
+
+static int __xe_exec_queue_init(struct xe_exec_queue *q)
+{
+	struct xe_device *xe = gt_to_xe(q->gt);
+	int i, err;
+
+	for (i = 0; i < q->width; ++i) {
+		err = xe_lrc_init(q->lrc + i, q->hwe, q, q->vm, SZ_16K);
 		if (err)
 			goto err_lrc;
 	}
@@ -99,35 +127,47 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	 * can perform GuC CT actions when needed. Caller is expected to have
 	 * already grabbed the rpm ref outside any sensitive locks.
 	 */
-	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !vm))
+	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
 		drm_WARN_ON(&xe->drm, !xe_device_mem_access_get_if_ongoing(xe));
 
-	return q;
+	return 0;
 
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
 		xe_lrc_finish(q->lrc + i);
-	kfree(q);
-	return ERR_PTR(err);
+	return err;
 }
 
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
 					   u32 logical_mask, u16 width,
-					   struct xe_hw_engine *hwe, u32 flags)
+					   struct xe_hw_engine *hwe, u32 flags,
+					   u64 extensions)
 {
 	struct xe_exec_queue *q;
 	int err;
 
+	q = __xe_exec_queue_alloc(xe, vm, logical_mask, width, hwe, flags,
+				  extensions);
+	if (IS_ERR(q))
+		return q;
+
 	if (vm) {
 		err = xe_vm_lock(vm, true);
 		if (err)
-			return ERR_PTR(err);
+			goto err_post_alloc;
 	}
-	q = __xe_exec_queue_create(xe, vm, logical_mask, width, hwe, flags);
+
+	err = __xe_exec_queue_init(q);
 	if (vm)
 		xe_vm_unlock(vm);
+	if (err)
+		goto err_post_alloc;
 
 	return q;
+
+err_post_alloc:
+	__xe_exec_queue_free(q);
+	return ERR_PTR(err);
 }
 
 struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe_gt *gt,
@@ -152,7 +192,7 @@ struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe
 	if (!logical_mask)
 		return ERR_PTR(-ENODEV);
 
-	return xe_exec_queue_create(xe, vm, logical_mask, 1, hwe0, flags);
+	return xe_exec_queue_create(xe, vm, logical_mask, 1, hwe0, flags, 0);
 }
 
 void xe_exec_queue_destroy(struct kref *ref)
@@ -178,10 +218,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 		xe_lrc_finish(q->lrc + i);
 	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
 		xe_device_mem_access_put(gt_to_xe(q->gt));
-	if (q->vm)
-		xe_vm_put(q->vm);
-
-	kfree(q);
+	__xe_exec_queue_free(q);
 }
 
 void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
@@ -239,7 +276,11 @@ static int exec_queue_set_priority(struct xe_device *xe, struct xe_exec_queue *q
 	if (XE_IOCTL_DBG(xe, value > xe_exec_queue_device_get_max_priority(xe)))
 		return -EPERM;
 
-	return q->ops->set_priority(q, value);
+	if (!create)
+		return q->ops->set_priority(q, value);
+
+	q->sched_props.priority = value;
+	return 0;
 }
 
 static bool xe_exec_queue_enforce_schedule_limit(void)
@@ -306,7 +347,11 @@ static int exec_queue_set_timeslice(struct xe_device *xe, struct xe_exec_queue *
 	    !xe_hw_engine_timeout_in_range(value, min, max))
 		return -EINVAL;
 
-	return q->ops->set_timeslice(q, value);
+	if (!create)
+		return q->ops->set_timeslice(q, value);
+
+	q->sched_props.timeslice_us = value;
+	return 0;
 }
 
 typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
@@ -535,6 +580,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 	if (eci[0].engine_class == DRM_XE_ENGINE_CLASS_VM_BIND) {
 		for_each_gt(gt, xe, id) {
 			struct xe_exec_queue *new;
+			u32 flags;
 
 			if (xe_gt_is_media_type(gt))
 				continue;
@@ -553,14 +599,12 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			/* The migration vm doesn't hold rpm ref */
 			xe_device_mem_access_get(xe);
 
+			flags = EXEC_QUEUE_FLAG_VM | (id ? EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD : 0);
+
 			migrate_vm = xe_migrate_get_vm(gt_to_tile(gt)->migrate);
 			new = xe_exec_queue_create(xe, migrate_vm, logical_mask,
-						   args->width, hwe,
-						   EXEC_QUEUE_FLAG_PERSISTENT |
-						   EXEC_QUEUE_FLAG_VM |
-						   (id ?
-						    EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD :
-						    0));
+						   args->width, hwe, flags,
+						   args->extensions);
 
 			xe_device_mem_access_put(xe); /* now held by engine */
 
@@ -606,7 +650,8 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		}
 
 		q = xe_exec_queue_create(xe, vm, logical_mask,
-					 args->width, hwe, 0);
+					 args->width, hwe, 0,
+					 args->extensions);
 		up_read(&vm->lock);
 		xe_vm_put(vm);
 		if (IS_ERR(q))
@@ -620,12 +665,6 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			if (XE_IOCTL_DBG(xe, err))
 				goto put_exec_queue;
 		}
-	}
-
-	if (args->extensions) {
-		err = exec_queue_user_extensions(xe, q, args->extensions, 0, true);
-		if (XE_IOCTL_DBG(xe, err))
-			goto kill_exec_queue;
 	}
 
 	mutex_lock(&xef->exec_queue.lock);

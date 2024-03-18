@@ -504,7 +504,7 @@ static void ec_stripe_buf_exit(struct ec_stripe_buf *buf)
 		unsigned i;
 
 		for (i = 0; i < s->v.nr_blocks; i++) {
-			kvpfree(buf->data[i], buf->size << 9);
+			kvfree(buf->data[i]);
 			buf->data[i] = NULL;
 		}
 	}
@@ -531,7 +531,7 @@ static int ec_stripe_buf_init(struct ec_stripe_buf *buf,
 	memset(buf->valid, 0xFF, sizeof(buf->valid));
 
 	for (i = 0; i < v->nr_blocks; i++) {
-		buf->data[i] = kvpmalloc(buf->size << 9, GFP_KERNEL);
+		buf->data[i] = kvmalloc(buf->size << 9, GFP_KERNEL);
 		if (!buf->data[i])
 			goto err;
 	}

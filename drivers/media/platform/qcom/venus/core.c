@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mem2mem.h>
@@ -114,7 +115,8 @@ static void venus_sys_error_handler(struct work_struct *work)
 	pm_runtime_put_sync(core->dev);
 
 	for (i = 0; i < max_attempts; i++) {
-		if (!core->pmdomains[0] || !pm_runtime_active(core->pmdomains[0]))
+		if (!core->pmdomains ||
+		    !pm_runtime_active(core->pmdomains->pd_devs[0]))
 			break;
 		usleep_range(1000, 1500);
 	}
@@ -705,7 +707,7 @@ static const struct venus_resources sdm845_res_v2 = {
 	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
 	.vcodec1_clks = { "vcodec1_core", "vcodec1_bus" },
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0", "vcodec1" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0", "vcodec1" },
 	.vcodec_pmdomains_num = 3,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 2,
@@ -754,7 +756,7 @@ static const struct venus_resources sc7180_res = {
 	.clks_num = 3,
 	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 1,
@@ -811,7 +813,7 @@ static const struct venus_resources sm8250_res = {
 	.resets_num = 2,
 	.vcodec0_clks = { "vcodec0_core" },
 	.vcodec_clks_num = 1,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "mx", NULL },
 	.vcodec_num = 1,
@@ -870,7 +872,7 @@ static const struct venus_resources sc7280_res = {
 	.clks_num = 3,
 	.vcodec0_clks = {"vcodec_core", "vcodec_bus"},
 	.vcodec_clks_num = 2,
-	.vcodec_pmdomains = { "venus", "vcodec0" },
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
 	.vcodec_pmdomains_num = 2,
 	.opp_pmdomain = (const char *[]) { "cx", NULL },
 	.vcodec_num = 1,

@@ -35,7 +35,6 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_util.h>
 
@@ -44,6 +43,7 @@
 
 struct nvkm_i2c_port;
 struct dcb_output;
+struct edid;
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 struct nouveau_backlight {

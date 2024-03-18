@@ -22,7 +22,7 @@
 #include "xusb.h"
 
 static struct phy *tegra_xusb_pad_of_xlate(struct device *dev,
-					   struct of_phandle_args *args)
+					   const struct of_phandle_args *args)
 {
 	struct tegra_xusb_pad *pad = dev_get_drvdata(dev);
 	struct phy *phy = NULL;

@@ -1507,12 +1507,12 @@ static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
  * That one should not be called, macio isn't really a hotswap device,
  * we don't expect one of those serial ports to go away...
  */
-static int pmz_detach(struct macio_dev *mdev)
+static void pmz_detach(struct macio_dev *mdev)
 {
 	struct uart_pmac_port	*uap = dev_get_drvdata(&mdev->ofdev.dev);
 	
 	if (!uap)
-		return -ENODEV;
+		return;
 
 	uart_remove_one_port(&pmz_uart_reg, &uap->port);
 
@@ -1523,10 +1523,7 @@ static int pmz_detach(struct macio_dev *mdev)
 	dev_set_drvdata(&mdev->ofdev.dev, NULL);
 	uap->dev = NULL;
 	uap->port.dev = NULL;
-	
-	return 0;
 }
-
 
 static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 {

@@ -579,13 +579,18 @@ EXPORT_SYMBOL_GPL(mt76_unregister_phy);
 
 int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
 {
+	bool is_qrx = mt76_queue_is_rx(dev, q);
 	struct page_pool_params pp_params = {
 		.order = 0,
 		.flags = 0,
 		.nid = NUMA_NO_NODE,
 		.dev = dev->dma_dev,
 	};
-	int idx = q - dev->q_rx;
+	int idx = is_qrx ? q - dev->q_rx : -1;
+
+	/* Allocate page_pools just for rx/wed_tx_free queues */
+	if (!is_qrx && !mt76_queue_is_wed_tx_free(q))
+		return 0;
 
 	switch (idx) {
 	case MT_RXQ_MAIN:
@@ -604,6 +609,9 @@ int mt76_create_page_pool(struct mt76_dev *dev, struct mt76_queue *q)
 		pp_params.dma_dir = DMA_FROM_DEVICE;
 		pp_params.max_len = PAGE_SIZE;
 		pp_params.offset = 0;
+		/* NAPI is available just for rx queues */
+		if (idx >= 0 && idx < ARRAY_SIZE(dev->napi))
+			pp_params.napi = &dev->napi[idx];
 	}
 
 	q->page_pool = page_pool_create(&pp_params);
@@ -1613,8 +1621,8 @@ EXPORT_SYMBOL_GPL(mt76_get_sar_power);
 static void
 __mt76_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	if (vif->bss_conf.csa_active && ieee80211_beacon_cntdwn_is_complete(vif))
-		ieee80211_csa_finish(vif);
+	if (vif->bss_conf.csa_active && ieee80211_beacon_cntdwn_is_complete(vif, 0))
+		ieee80211_csa_finish(vif, 0);
 }
 
 void mt76_csa_finish(struct mt76_dev *dev)
@@ -1638,7 +1646,7 @@ __mt76_csa_check(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!vif->bss_conf.csa_active)
 		return;
 
-	dev->csa_complete |= ieee80211_beacon_cntdwn_is_complete(vif);
+	dev->csa_complete |= ieee80211_beacon_cntdwn_is_complete(vif, 0);
 }
 
 void mt76_csa_check(struct mt76_dev *dev)
@@ -1854,19 +1862,3 @@ enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy)
 	return MT_DFS_STATE_ACTIVE;
 }
 EXPORT_SYMBOL_GPL(mt76_phy_dfs_state);
-
-#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-int mt76_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct net_device *netdev, enum tc_setup_type type,
-		      void *type_data)
-{
-	struct mt76_phy *phy = hw->priv;
-	struct mtk_wed_device *wed = &phy->dev->mmio.wed;
-
-	if (!mtk_wed_device_active(wed))
-		return -EOPNOTSUPP;
-
-	return mtk_wed_device_setup_tc(wed, netdev, type, type_data);
-}
-EXPORT_SYMBOL_GPL(mt76_net_setup_tc);
-#endif /* CONFIG_NET_MEDIATEK_SOC_WED */

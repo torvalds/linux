@@ -486,6 +486,52 @@ extern int scsi_is_sdev_device(const struct device *);
 extern int scsi_is_target_device(const struct device *);
 extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 
+/*
+ * scsi_execute_cmd users can set scsi_failure.result to have
+ * scsi_check_passthrough fail/retry a command. scsi_failure.result can be a
+ * specific host byte or message code, or SCMD_FAILURE_RESULT_ANY can be used
+ * to match any host or message code.
+ */
+#define SCMD_FAILURE_RESULT_ANY	0x7fffffff
+/*
+ * Set scsi_failure.result to SCMD_FAILURE_STAT_ANY to fail/retry any failure
+ * scsi_status_is_good returns false for.
+ */
+#define SCMD_FAILURE_STAT_ANY	0xff
+/*
+ * The following can be set to the scsi_failure sense, asc and ascq fields to
+ * match on any sense, ASC, or ASCQ value.
+ */
+#define SCMD_FAILURE_SENSE_ANY	0xff
+#define SCMD_FAILURE_ASC_ANY	0xff
+#define SCMD_FAILURE_ASCQ_ANY	0xff
+/* Always retry a matching failure. */
+#define SCMD_FAILURE_NO_LIMIT	-1
+
+struct scsi_failure {
+	int result;
+	u8 sense;
+	u8 asc;
+	u8 ascq;
+	/*
+	 * Number of times scsi_execute_cmd will retry the failure. It does
+	 * not count for the total_allowed.
+	 */
+	s8 allowed;
+	/* Number of times the failure has been retried. */
+	s8 retries;
+};
+
+struct scsi_failures {
+	/*
+	 * If a scsi_failure does not have a retry limit setup this limit will
+	 * be used.
+	 */
+	int total_allowed;
+	int total_retries;
+	struct scsi_failure *failure_definitions;
+};
+
 /* Optional arguments to scsi_execute_cmd */
 struct scsi_exec_args {
 	unsigned char *sense;		/* sense buffer */
@@ -494,12 +540,14 @@ struct scsi_exec_args {
 	blk_mq_req_flags_t req_flags;	/* BLK_MQ_REQ flags */
 	int scmd_flags;			/* SCMD flags */
 	int *resid;			/* residual length */
+	struct scsi_failures *failures;	/* failures to retry */
 };
 
 int scsi_execute_cmd(struct scsi_device *sdev, const unsigned char *cmd,
 		     blk_opf_t opf, void *buffer, unsigned int bufflen,
 		     int timeout, int retries,
 		     const struct scsi_exec_args *args);
+void scsi_failures_reset_retries(struct scsi_failures *failures);
 
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);

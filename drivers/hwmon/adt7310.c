@@ -124,7 +124,7 @@ static int adt7310_reg_write(void *context, unsigned int reg, unsigned int val)
 static const struct regmap_config adt7310_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = adt7310_regmap_is_volatile,
 	.reg_read = adt7310_reg_read,
 	.reg_write = adt7310_reg_write,

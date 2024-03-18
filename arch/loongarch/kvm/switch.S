@@ -213,12 +213,6 @@ SYM_FUNC_START(kvm_enter_guest)
 	/* Save host GPRs */
 	kvm_save_host_gpr a2
 
-	/* Save host CRMD, PRMD to stack */
-	csrrd	a3, LOONGARCH_CSR_CRMD
-	st.d	a3, a2, PT_CRMD
-	csrrd	a3, LOONGARCH_CSR_PRMD
-	st.d	a3, a2, PT_PRMD
-
 	addi.d	a2, a1, KVM_VCPU_ARCH
 	st.d	sp, a2, KVM_ARCH_HSP
 	st.d	tp, a2, KVM_ARCH_HTP

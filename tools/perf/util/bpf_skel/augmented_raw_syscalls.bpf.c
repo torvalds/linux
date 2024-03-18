@@ -6,7 +6,7 @@
  * payload expected by the 'perf trace' beautifiers.
  */
 
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <linux/limits.h>
 
@@ -21,19 +21,6 @@
 #define is_power_of_2(n) (n != 0 && ((n & (n - 1)) == 0))
 
 #define MAX_CPUS  4096
-
-// FIXME: These should come from system headers
-#ifndef bool
-typedef char bool;
-#endif
-typedef int pid_t;
-typedef long long int __s64;
-typedef __s64 time64_t;
-
-struct timespec64 {
-	time64_t	tv_sec;
-	long int	tv_nsec;
-};
 
 /* bpf-output associated map */
 struct __augmented_syscalls__ {

@@ -27,7 +27,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_BEC_POLL_FREQ (jiffies + msecs_to_jiffies(200))
 #define KVASER_PCIEFD_MAX_ERR_REP 256U
 #define KVASER_PCIEFD_CAN_TX_MAX_COUNT 17U
-#define KVASER_PCIEFD_MAX_CAN_CHANNELS 4UL
+#define KVASER_PCIEFD_MAX_CAN_CHANNELS 8UL
 #define KVASER_PCIEFD_DMA_COUNT 2U
 
 #define KVASER_PCIEFD_DMA_SIZE (4U * 1024U)
@@ -47,11 +47,18 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_MINIPCIE_2CAN_V3_DEVICE_ID 0x0015
 #define KVASER_PCIEFD_MINIPCIE_1CAN_V3_DEVICE_ID 0x0016
 
+/* Xilinx based devices */
+#define KVASER_PCIEFD_M2_4CAN_DEVICE_ID 0x0017
+#define KVASER_PCIEFD_8CAN_DEVICE_ID 0x0019
+
 /* Altera SerDes Enable 64-bit DMA address translation */
 #define KVASER_PCIEFD_ALTERA_DMA_64BIT BIT(0)
 
 /* SmartFusion2 SerDes LSB address translation mask */
 #define KVASER_PCIEFD_SF2_DMA_LSB_MASK GENMASK(31, 12)
+
+/* Xilinx SerDes LSB address translation mask */
+#define KVASER_PCIEFD_XILINX_DMA_LSB_MASK GENMASK(31, 12)
 
 /* Kvaser KCAN CAN controller registers */
 #define KVASER_PCIEFD_KCAN_FIFO_REG 0x100
@@ -281,6 +288,8 @@ static void kvaser_pciefd_write_dma_map_altera(struct kvaser_pciefd *pcie,
 					       dma_addr_t addr, int index);
 static void kvaser_pciefd_write_dma_map_sf2(struct kvaser_pciefd *pcie,
 					    dma_addr_t addr, int index);
+static void kvaser_pciefd_write_dma_map_xilinx(struct kvaser_pciefd *pcie,
+					       dma_addr_t addr, int index);
 
 struct kvaser_pciefd_address_offset {
 	u32 serdes;
@@ -335,6 +344,18 @@ static const struct kvaser_pciefd_address_offset kvaser_pciefd_sf2_address_offse
 	.kcan_ch1 = 0x142000,
 };
 
+static const struct kvaser_pciefd_address_offset kvaser_pciefd_xilinx_address_offset = {
+	.serdes = 0x00208,
+	.pci_ien = 0x102004,
+	.pci_irq = 0x102008,
+	.sysid = 0x100000,
+	.loopback = 0x103000,
+	.kcan_srb_fifo = 0x120000,
+	.kcan_srb = 0x121000,
+	.kcan_ch0 = 0x140000,
+	.kcan_ch1 = 0x142000,
+};
+
 static const struct kvaser_pciefd_irq_mask kvaser_pciefd_altera_irq_mask = {
 	.kcan_rx0 = BIT(4),
 	.kcan_tx = { BIT(0), BIT(1), BIT(2), BIT(3) },
@@ -342,6 +363,12 @@ static const struct kvaser_pciefd_irq_mask kvaser_pciefd_altera_irq_mask = {
 };
 
 static const struct kvaser_pciefd_irq_mask kvaser_pciefd_sf2_irq_mask = {
+	.kcan_rx0 = BIT(4),
+	.kcan_tx = { BIT(16), BIT(17), BIT(18), BIT(19) },
+	.all = GENMASK(19, 16) | BIT(4),
+};
+
+static const struct kvaser_pciefd_irq_mask kvaser_pciefd_xilinx_irq_mask = {
 	.kcan_rx0 = BIT(4),
 	.kcan_tx = { BIT(16), BIT(17), BIT(18), BIT(19) },
 	.all = GENMASK(19, 16) | BIT(4),
@@ -355,6 +382,10 @@ static const struct kvaser_pciefd_dev_ops kvaser_pciefd_sf2_dev_ops = {
 	.kvaser_pciefd_write_dma_map = kvaser_pciefd_write_dma_map_sf2,
 };
 
+static const struct kvaser_pciefd_dev_ops kvaser_pciefd_xilinx_dev_ops = {
+	.kvaser_pciefd_write_dma_map = kvaser_pciefd_write_dma_map_xilinx,
+};
+
 static const struct kvaser_pciefd_driver_data kvaser_pciefd_altera_driver_data = {
 	.address_offset = &kvaser_pciefd_altera_address_offset,
 	.irq_mask = &kvaser_pciefd_altera_irq_mask,
@@ -365,6 +396,12 @@ static const struct kvaser_pciefd_driver_data kvaser_pciefd_sf2_driver_data = {
 	.address_offset = &kvaser_pciefd_sf2_address_offset,
 	.irq_mask = &kvaser_pciefd_sf2_irq_mask,
 	.ops = &kvaser_pciefd_sf2_dev_ops,
+};
+
+static const struct kvaser_pciefd_driver_data kvaser_pciefd_xilinx_driver_data = {
+	.address_offset = &kvaser_pciefd_xilinx_address_offset,
+	.irq_mask = &kvaser_pciefd_xilinx_irq_mask,
+	.ops = &kvaser_pciefd_xilinx_dev_ops,
 };
 
 struct kvaser_pciefd_can {
@@ -455,6 +492,14 @@ static struct pci_device_id kvaser_pciefd_id_table[] = {
 	{
 		PCI_DEVICE(KVASER_PCIEFD_VENDOR, KVASER_PCIEFD_MINIPCIE_1CAN_V3_DEVICE_ID),
 		.driver_data = (kernel_ulong_t)&kvaser_pciefd_sf2_driver_data,
+	},
+	{
+		PCI_DEVICE(KVASER_PCIEFD_VENDOR, KVASER_PCIEFD_M2_4CAN_DEVICE_ID),
+		.driver_data = (kernel_ulong_t)&kvaser_pciefd_xilinx_driver_data,
+	},
+	{
+		PCI_DEVICE(KVASER_PCIEFD_VENDOR, KVASER_PCIEFD_8CAN_DEVICE_ID),
+		.driver_data = (kernel_ulong_t)&kvaser_pciefd_xilinx_driver_data,
 	},
 	{
 		0,
@@ -1033,6 +1078,21 @@ static void kvaser_pciefd_write_dma_map_sf2(struct kvaser_pciefd *pcie,
 	serdes_base = KVASER_PCIEFD_SERDES_ADDR(pcie) + 0x10 * index;
 	iowrite32(lsb, serdes_base);
 	iowrite32(msb, serdes_base + 0x4);
+}
+
+static void kvaser_pciefd_write_dma_map_xilinx(struct kvaser_pciefd *pcie,
+					       dma_addr_t addr, int index)
+{
+	void __iomem *serdes_base;
+	u32 lsb = addr & KVASER_PCIEFD_XILINX_DMA_LSB_MASK;
+	u32 msb = 0x0;
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	msb = addr >> 32;
+#endif
+	serdes_base = KVASER_PCIEFD_SERDES_ADDR(pcie) + 0x8 * index;
+	iowrite32(msb, serdes_base);
+	iowrite32(lsb, serdes_base + 0x4);
 }
 
 static int kvaser_pciefd_setup_dma(struct kvaser_pciefd *pcie)

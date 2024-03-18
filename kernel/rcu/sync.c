@@ -24,22 +24,6 @@ void rcu_sync_init(struct rcu_sync *rsp)
 	init_waitqueue_head(&rsp->gp_wait);
 }
 
-/**
- * rcu_sync_enter_start - Force readers onto slow path for multiple updates
- * @rsp: Pointer to rcu_sync structure to use for synchronization
- *
- * Must be called after rcu_sync_init() and before first use.
- *
- * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
- * pairs turn into NO-OPs.
- */
-void rcu_sync_enter_start(struct rcu_sync *rsp)
-{
-	rsp->gp_count++;
-	rsp->gp_state = GP_PASSED;
-}
-
-
 static void rcu_sync_func(struct rcu_head *rhp);
 
 static void rcu_sync_call(struct rcu_sync *rsp)

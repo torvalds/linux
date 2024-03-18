@@ -78,6 +78,36 @@ enum sev_cmd {
 	SEV_CMD_DBG_DECRYPT		= 0x060,
 	SEV_CMD_DBG_ENCRYPT		= 0x061,
 
+	/* SNP specific commands */
+	SEV_CMD_SNP_INIT		= 0x081,
+	SEV_CMD_SNP_SHUTDOWN		= 0x082,
+	SEV_CMD_SNP_PLATFORM_STATUS	= 0x083,
+	SEV_CMD_SNP_DF_FLUSH		= 0x084,
+	SEV_CMD_SNP_INIT_EX		= 0x085,
+	SEV_CMD_SNP_SHUTDOWN_EX		= 0x086,
+	SEV_CMD_SNP_DECOMMISSION	= 0x090,
+	SEV_CMD_SNP_ACTIVATE		= 0x091,
+	SEV_CMD_SNP_GUEST_STATUS	= 0x092,
+	SEV_CMD_SNP_GCTX_CREATE		= 0x093,
+	SEV_CMD_SNP_GUEST_REQUEST	= 0x094,
+	SEV_CMD_SNP_ACTIVATE_EX		= 0x095,
+	SEV_CMD_SNP_LAUNCH_START	= 0x0A0,
+	SEV_CMD_SNP_LAUNCH_UPDATE	= 0x0A1,
+	SEV_CMD_SNP_LAUNCH_FINISH	= 0x0A2,
+	SEV_CMD_SNP_DBG_DECRYPT		= 0x0B0,
+	SEV_CMD_SNP_DBG_ENCRYPT		= 0x0B1,
+	SEV_CMD_SNP_PAGE_SWAP_OUT	= 0x0C0,
+	SEV_CMD_SNP_PAGE_SWAP_IN	= 0x0C1,
+	SEV_CMD_SNP_PAGE_MOVE		= 0x0C2,
+	SEV_CMD_SNP_PAGE_MD_INIT	= 0x0C3,
+	SEV_CMD_SNP_PAGE_SET_STATE	= 0x0C6,
+	SEV_CMD_SNP_PAGE_RECLAIM	= 0x0C7,
+	SEV_CMD_SNP_PAGE_UNSMASH	= 0x0C8,
+	SEV_CMD_SNP_CONFIG		= 0x0C9,
+	SEV_CMD_SNP_DOWNLOAD_FIRMWARE_EX = 0x0CA,
+	SEV_CMD_SNP_COMMIT		= 0x0CB,
+	SEV_CMD_SNP_VLEK_LOAD		= 0x0CD,
+
 	SEV_CMD_MAX,
 };
 
@@ -523,12 +553,269 @@ struct sev_data_attestation_report {
 	u32 len;				/* In/Out */
 } __packed;
 
+/**
+ * struct sev_data_snp_download_firmware - SNP_DOWNLOAD_FIRMWARE command params
+ *
+ * @address: physical address of firmware image
+ * @len: length of the firmware image
+ */
+struct sev_data_snp_download_firmware {
+	u64 address;				/* In */
+	u32 len;				/* In */
+} __packed;
+
+/**
+ * struct sev_data_snp_activate - SNP_ACTIVATE command params
+ *
+ * @gctx_paddr: system physical address guest context page
+ * @asid: ASID to bind to the guest
+ */
+struct sev_data_snp_activate {
+	u64 gctx_paddr;				/* In */
+	u32 asid;				/* In */
+} __packed;
+
+/**
+ * struct sev_data_snp_addr - generic SNP command params
+ *
+ * @address: physical address of generic data param
+ */
+struct sev_data_snp_addr {
+	u64 address;				/* In/Out */
+} __packed;
+
+/**
+ * struct sev_data_snp_launch_start - SNP_LAUNCH_START command params
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @policy: guest policy
+ * @ma_gctx_paddr: system physical address of migration agent
+ * @ma_en: the guest is associated with a migration agent
+ * @imi_en: launch flow is launching an IMI (Incoming Migration Image) for the
+ *          purpose of guest-assisted migration.
+ * @rsvd: reserved
+ * @gosvw: guest OS-visible workarounds, as defined by hypervisor
+ */
+struct sev_data_snp_launch_start {
+	u64 gctx_paddr;				/* In */
+	u64 policy;				/* In */
+	u64 ma_gctx_paddr;			/* In */
+	u32 ma_en:1;				/* In */
+	u32 imi_en:1;				/* In */
+	u32 rsvd:30;
+	u8 gosvw[16];				/* In */
+} __packed;
+
+/* SNP support page type */
+enum {
+	SNP_PAGE_TYPE_NORMAL		= 0x1,
+	SNP_PAGE_TYPE_VMSA		= 0x2,
+	SNP_PAGE_TYPE_ZERO		= 0x3,
+	SNP_PAGE_TYPE_UNMEASURED	= 0x4,
+	SNP_PAGE_TYPE_SECRET		= 0x5,
+	SNP_PAGE_TYPE_CPUID		= 0x6,
+
+	SNP_PAGE_TYPE_MAX
+};
+
+/**
+ * struct sev_data_snp_launch_update - SNP_LAUNCH_UPDATE command params
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @page_size: page size 0 indicates 4K and 1 indicates 2MB page
+ * @page_type: encoded page type
+ * @imi_page: indicates that this page is part of the IMI (Incoming Migration
+ *            Image) of the guest
+ * @rsvd: reserved
+ * @rsvd2: reserved
+ * @address: system physical address of destination page to encrypt
+ * @rsvd3: reserved
+ * @vmpl1_perms: VMPL permission mask for VMPL1
+ * @vmpl2_perms: VMPL permission mask for VMPL2
+ * @vmpl3_perms: VMPL permission mask for VMPL3
+ * @rsvd4: reserved
+ */
+struct sev_data_snp_launch_update {
+	u64 gctx_paddr;				/* In */
+	u32 page_size:1;			/* In */
+	u32 page_type:3;			/* In */
+	u32 imi_page:1;				/* In */
+	u32 rsvd:27;
+	u32 rsvd2;
+	u64 address;				/* In */
+	u32 rsvd3:8;
+	u32 vmpl1_perms:8;			/* In */
+	u32 vmpl2_perms:8;			/* In */
+	u32 vmpl3_perms:8;			/* In */
+	u32 rsvd4;
+} __packed;
+
+/**
+ * struct sev_data_snp_launch_finish - SNP_LAUNCH_FINISH command params
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @id_block_paddr: system physical address of ID block
+ * @id_auth_paddr: system physical address of ID block authentication structure
+ * @id_block_en: indicates whether ID block is present
+ * @auth_key_en: indicates whether author key is present in authentication structure
+ * @rsvd: reserved
+ * @host_data: host-supplied data for guest, not interpreted by firmware
+ */
+struct sev_data_snp_launch_finish {
+	u64 gctx_paddr;
+	u64 id_block_paddr;
+	u64 id_auth_paddr;
+	u8 id_block_en:1;
+	u8 auth_key_en:1;
+	u64 rsvd:62;
+	u8 host_data[32];
+} __packed;
+
+/**
+ * struct sev_data_snp_guest_status - SNP_GUEST_STATUS command params
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @address: system physical address of guest status page
+ */
+struct sev_data_snp_guest_status {
+	u64 gctx_paddr;
+	u64 address;
+} __packed;
+
+/**
+ * struct sev_data_snp_page_reclaim - SNP_PAGE_RECLAIM command params
+ *
+ * @paddr: system physical address of page to be claimed. The 0th bit in the
+ *         address indicates the page size. 0h indicates 4KB and 1h indicates
+ *         2MB page.
+ */
+struct sev_data_snp_page_reclaim {
+	u64 paddr;
+} __packed;
+
+/**
+ * struct sev_data_snp_page_unsmash - SNP_PAGE_UNSMASH command params
+ *
+ * @paddr: system physical address of page to be unsmashed. The 0th bit in the
+ *         address indicates the page size. 0h indicates 4 KB and 1h indicates
+ *         2 MB page.
+ */
+struct sev_data_snp_page_unsmash {
+	u64 paddr;
+} __packed;
+
+/**
+ * struct sev_data_snp_dbg - DBG_ENCRYPT/DBG_DECRYPT command parameters
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @src_addr: source address of data to operate on
+ * @dst_addr: destination address of data to operate on
+ */
+struct sev_data_snp_dbg {
+	u64 gctx_paddr;				/* In */
+	u64 src_addr;				/* In */
+	u64 dst_addr;				/* In */
+} __packed;
+
+/**
+ * struct sev_data_snp_guest_request - SNP_GUEST_REQUEST command params
+ *
+ * @gctx_paddr: system physical address of guest context page
+ * @req_paddr: system physical address of request page
+ * @res_paddr: system physical address of response page
+ */
+struct sev_data_snp_guest_request {
+	u64 gctx_paddr;				/* In */
+	u64 req_paddr;				/* In */
+	u64 res_paddr;				/* In */
+} __packed;
+
+/**
+ * struct sev_data_snp_init_ex - SNP_INIT_EX structure
+ *
+ * @init_rmp: indicate that the RMP should be initialized.
+ * @list_paddr_en: indicate that list_paddr is valid
+ * @rsvd: reserved
+ * @rsvd1: reserved
+ * @list_paddr: system physical address of range list
+ * @rsvd2: reserved
+ */
+struct sev_data_snp_init_ex {
+	u32 init_rmp:1;
+	u32 list_paddr_en:1;
+	u32 rsvd:30;
+	u32 rsvd1;
+	u64 list_paddr;
+	u8  rsvd2[48];
+} __packed;
+
+/**
+ * struct sev_data_range - RANGE structure
+ *
+ * @base: system physical address of first byte of range
+ * @page_count: number of 4KB pages in this range
+ * @rsvd: reserved
+ */
+struct sev_data_range {
+	u64 base;
+	u32 page_count;
+	u32 rsvd;
+} __packed;
+
+/**
+ * struct sev_data_range_list - RANGE_LIST structure
+ *
+ * @num_elements: number of elements in RANGE_ARRAY
+ * @rsvd: reserved
+ * @ranges: array of num_elements of type RANGE
+ */
+struct sev_data_range_list {
+	u32 num_elements;
+	u32 rsvd;
+	struct sev_data_range ranges[];
+} __packed;
+
+/**
+ * struct sev_data_snp_shutdown_ex - SNP_SHUTDOWN_EX structure
+ *
+ * @len: length of the command buffer read by the PSP
+ * @iommu_snp_shutdown: Disable enforcement of SNP in the IOMMU
+ * @rsvd1: reserved
+ */
+struct sev_data_snp_shutdown_ex {
+	u32 len;
+	u32 iommu_snp_shutdown:1;
+	u32 rsvd1:31;
+} __packed;
+
+/**
+ * struct sev_platform_init_args
+ *
+ * @error: SEV firmware error code
+ * @probe: True if this is being called as part of CCP module probe, which
+ *  will defer SEV_INIT/SEV_INIT_EX firmware initialization until needed
+ *  unless psp_init_on_probe module param is set
+ */
+struct sev_platform_init_args {
+	int error;
+	bool probe;
+};
+
+/**
+ * struct sev_data_snp_commit - SNP_COMMIT structure
+ *
+ * @len: length of the command buffer read by the PSP
+ */
+struct sev_data_snp_commit {
+	u32 len;
+} __packed;
+
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 
 /**
  * sev_platform_init - perform SEV INIT command
  *
- * @error: SEV command return code
+ * @args: struct sev_platform_init_args to pass in arguments
  *
  * Returns:
  * 0 if the SEV successfully processed the command
@@ -537,7 +824,7 @@ struct sev_data_attestation_report {
  * -%ETIMEDOUT if the SEV command timed out
  * -%EIO       if the SEV returned a non-zero return code
  */
-int sev_platform_init(int *error);
+int sev_platform_init(struct sev_platform_init_args *args);
 
 /**
  * sev_platform_status - perform SEV PLATFORM_STATUS command
@@ -637,20 +924,41 @@ int sev_guest_df_flush(int *error);
  */
 int sev_guest_decommission(struct sev_data_decommission *data, int *error);
 
+/**
+ * sev_do_cmd - issue an SEV or an SEV-SNP command
+ *
+ * @cmd: SEV or SEV-SNP firmware command to issue
+ * @data: arguments for firmware command
+ * @psp_ret: SEV command return code
+ *
+ * Returns:
+ * 0 if the SEV device successfully processed the command
+ * -%ENODEV    if the PSP device is not available
+ * -%ENOTSUPP  if PSP device does not support SEV
+ * -%ETIMEDOUT if the SEV command timed out
+ * -%EIO       if PSP device returned a non-zero return code
+ */
+int sev_do_cmd(int cmd, void *data, int *psp_ret);
+
 void *psp_copy_user_blob(u64 uaddr, u32 len);
+void *snp_alloc_firmware_page(gfp_t mask);
+void snp_free_firmware_page(void *addr);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 
 static inline int
 sev_platform_status(struct sev_user_data_status *status, int *error) { return -ENODEV; }
 
-static inline int sev_platform_init(int *error) { return -ENODEV; }
+static inline int sev_platform_init(struct sev_platform_init_args *args) { return -ENODEV; }
 
 static inline int
 sev_guest_deactivate(struct sev_data_deactivate *data, int *error) { return -ENODEV; }
 
 static inline int
 sev_guest_decommission(struct sev_data_decommission *data, int *error) { return -ENODEV; }
+
+static inline int
+sev_do_cmd(int cmd, void *data, int *psp_ret) { return -ENODEV; }
 
 static inline int
 sev_guest_activate(struct sev_data_activate *data, int *error) { return -ENODEV; }
@@ -661,6 +969,13 @@ static inline int
 sev_issue_cmd_external_user(struct file *filep, unsigned int id, void *data, int *error) { return -ENODEV; }
 
 static inline void *psp_copy_user_blob(u64 __user uaddr, u32 len) { return ERR_PTR(-EINVAL); }
+
+static inline void *snp_alloc_firmware_page(gfp_t mask)
+{
+	return NULL;
+}
+
+static inline void snp_free_firmware_page(void *addr) { }
 
 #endif	/* CONFIG_CRYPTO_DEV_SP_PSP */
 

@@ -51,7 +51,7 @@ struct xbitmap;
 struct xagb_bitmap;
 struct xfsb_bitmap;
 
-int xrep_fix_freelist(struct xfs_scrub *sc, bool can_shrink);
+int xrep_fix_freelist(struct xfs_scrub *sc, int alloc_flags);
 
 struct xrep_find_ag_btree {
 	/* in: rmap owner of the btree we're looking for */
@@ -72,6 +72,8 @@ int xrep_find_ag_btree_roots(struct xfs_scrub *sc, struct xfs_buf *agf_bp,
 		struct xrep_find_ag_btree *btree_info, struct xfs_buf *agfl_bp);
 
 #ifdef CONFIG_XFS_QUOTA
+void xrep_update_qflags(struct xfs_scrub *sc, unsigned int clear_flags,
+		unsigned int set_flags);
 void xrep_force_quotacheck(struct xfs_scrub *sc, xfs_dqtype_t type);
 int xrep_ino_dqattach(struct xfs_scrub *sc);
 #else
@@ -79,11 +81,15 @@ int xrep_ino_dqattach(struct xfs_scrub *sc);
 # define xrep_ino_dqattach(sc)			(0)
 #endif /* CONFIG_XFS_QUOTA */
 
+int xrep_setup_xfbtree(struct xfs_scrub *sc, const char *descr);
+
 int xrep_ino_ensure_extent_count(struct xfs_scrub *sc, int whichfork,
 		xfs_extnum_t nextents);
 int xrep_reset_perag_resv(struct xfs_scrub *sc);
 int xrep_bmap(struct xfs_scrub *sc, int whichfork, bool allow_unwritten);
 int xrep_metadata_inode_forks(struct xfs_scrub *sc);
+int xrep_setup_ag_rmapbt(struct xfs_scrub *sc);
+int xrep_setup_ag_refcountbt(struct xfs_scrub *sc);
 
 /* Repair setup functions */
 int xrep_setup_ag_allocbt(struct xfs_scrub *sc);
@@ -109,11 +115,14 @@ int xrep_agfl(struct xfs_scrub *sc);
 int xrep_agi(struct xfs_scrub *sc);
 int xrep_allocbt(struct xfs_scrub *sc);
 int xrep_iallocbt(struct xfs_scrub *sc);
+int xrep_rmapbt(struct xfs_scrub *sc);
 int xrep_refcountbt(struct xfs_scrub *sc);
 int xrep_inode(struct xfs_scrub *sc);
 int xrep_bmap_data(struct xfs_scrub *sc);
 int xrep_bmap_attr(struct xfs_scrub *sc);
 int xrep_bmap_cow(struct xfs_scrub *sc);
+int xrep_nlinks(struct xfs_scrub *sc);
+int xrep_fscounters(struct xfs_scrub *sc);
 
 #ifdef CONFIG_XFS_RT
 int xrep_rtbitmap(struct xfs_scrub *sc);
@@ -123,12 +132,18 @@ int xrep_rtbitmap(struct xfs_scrub *sc);
 
 #ifdef CONFIG_XFS_QUOTA
 int xrep_quota(struct xfs_scrub *sc);
+int xrep_quotacheck(struct xfs_scrub *sc);
 #else
 # define xrep_quota			xrep_notsupported
+# define xrep_quotacheck		xrep_notsupported
 #endif /* CONFIG_XFS_QUOTA */
 
 int xrep_reinit_pagf(struct xfs_scrub *sc);
 int xrep_reinit_pagi(struct xfs_scrub *sc);
+
+int xrep_trans_alloc_hook_dummy(struct xfs_mount *mp, void **cookiep,
+		struct xfs_trans **tpp);
+void xrep_trans_cancel_hook_dummy(void **cookiep, struct xfs_trans *tp);
 
 #else
 
@@ -171,6 +186,8 @@ xrep_setup_nothing(
 	return 0;
 }
 #define xrep_setup_ag_allocbt		xrep_setup_nothing
+#define xrep_setup_ag_rmapbt		xrep_setup_nothing
+#define xrep_setup_ag_refcountbt	xrep_setup_nothing
 
 #define xrep_setup_inode(sc, imap)	((void)0)
 
@@ -184,6 +201,7 @@ xrep_setup_nothing(
 #define xrep_agi			xrep_notsupported
 #define xrep_allocbt			xrep_notsupported
 #define xrep_iallocbt			xrep_notsupported
+#define xrep_rmapbt			xrep_notsupported
 #define xrep_refcountbt			xrep_notsupported
 #define xrep_inode			xrep_notsupported
 #define xrep_bmap_data			xrep_notsupported
@@ -191,6 +209,9 @@ xrep_setup_nothing(
 #define xrep_bmap_cow			xrep_notsupported
 #define xrep_rtbitmap			xrep_notsupported
 #define xrep_quota			xrep_notsupported
+#define xrep_quotacheck			xrep_notsupported
+#define xrep_nlinks			xrep_notsupported
+#define xrep_fscounters			xrep_notsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 

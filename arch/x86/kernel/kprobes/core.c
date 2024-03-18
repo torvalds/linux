@@ -137,14 +137,14 @@ NOKPROBE_SYMBOL(synthesize_relcall);
  * Returns non-zero if INSN is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
-int can_boost(struct insn *insn, void *addr)
+bool can_boost(struct insn *insn, void *addr)
 {
 	kprobe_opcode_t opcode;
 	insn_byte_t prefix;
 	int i;
 
 	if (search_exception_tables((unsigned long)addr))
-		return 0;	/* Page fault may occur on this address. */
+		return false;	/* Page fault may occur on this address. */
 
 	/* 2nd-byte opcode */
 	if (insn->opcode.nbytes == 2)
@@ -152,7 +152,7 @@ int can_boost(struct insn *insn, void *addr)
 				(unsigned long *)twobyte_is_boostable);
 
 	if (insn->opcode.nbytes != 1)
-		return 0;
+		return false;
 
 	for_each_insn_prefix(insn, i, prefix) {
 		insn_attr_t attr;
@@ -160,7 +160,7 @@ int can_boost(struct insn *insn, void *addr)
 		attr = inat_get_opcode_attribute(prefix);
 		/* Can't boost Address-size override prefix and CS override prefix */
 		if (prefix == 0x2e || inat_is_address_size_prefix(attr))
-			return 0;
+			return false;
 	}
 
 	opcode = insn->opcode.bytes[0];
@@ -169,24 +169,35 @@ int can_boost(struct insn *insn, void *addr)
 	case 0x62:		/* bound */
 	case 0x70 ... 0x7f:	/* Conditional jumps */
 	case 0x9a:		/* Call far */
-	case 0xc0 ... 0xc1:	/* Grp2 */
 	case 0xcc ... 0xce:	/* software exceptions */
-	case 0xd0 ... 0xd3:	/* Grp2 */
 	case 0xd6:		/* (UD) */
 	case 0xd8 ... 0xdf:	/* ESC */
 	case 0xe0 ... 0xe3:	/* LOOP*, JCXZ */
 	case 0xe8 ... 0xe9:	/* near Call, JMP */
 	case 0xeb:		/* Short JMP */
 	case 0xf0 ... 0xf4:	/* LOCK/REP, HLT */
-	case 0xf6 ... 0xf7:	/* Grp3 */
-	case 0xfe:		/* Grp4 */
 		/* ... are not boostable */
-		return 0;
+		return false;
+	case 0xc0 ... 0xc1:	/* Grp2 */
+	case 0xd0 ... 0xd3:	/* Grp2 */
+		/*
+		 * AMD uses nnn == 110 as SHL/SAL, but Intel makes it reserved.
+		 */
+		return X86_MODRM_REG(insn->modrm.bytes[0]) != 0b110;
+	case 0xf6 ... 0xf7:	/* Grp3 */
+		/* AMD uses nnn == 001 as TEST, but Intel makes it reserved. */
+		return X86_MODRM_REG(insn->modrm.bytes[0]) != 0b001;
+	case 0xfe:		/* Grp4 */
+		/* Only INC and DEC are boostable */
+		return X86_MODRM_REG(insn->modrm.bytes[0]) == 0b000 ||
+		       X86_MODRM_REG(insn->modrm.bytes[0]) == 0b001;
 	case 0xff:		/* Grp5 */
-		/* Only indirect jmp is boostable */
-		return X86_MODRM_REG(insn->modrm.bytes[0]) == 4;
+		/* Only INC, DEC, and indirect JMP are boostable */
+		return X86_MODRM_REG(insn->modrm.bytes[0]) == 0b000 ||
+		       X86_MODRM_REG(insn->modrm.bytes[0]) == 0b001 ||
+		       X86_MODRM_REG(insn->modrm.bytes[0]) == 0b100;
 	default:
-		return 1;
+		return true;
 	}
 }
 
@@ -252,21 +263,40 @@ unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long add
 	return __recover_probed_insn(buf, addr);
 }
 
-/* Check if paddr is at an instruction boundary */
-static int can_probe(unsigned long paddr)
+/* Check if insn is INT or UD */
+static inline bool is_exception_insn(struct insn *insn)
+{
+	/* UD uses 0f escape */
+	if (insn->opcode.bytes[0] == 0x0f) {
+		/* UD0 / UD1 / UD2 */
+		return insn->opcode.bytes[1] == 0xff ||
+		       insn->opcode.bytes[1] == 0xb9 ||
+		       insn->opcode.bytes[1] == 0x0b;
+	}
+
+	/* INT3 / INT n / INTO / INT1 */
+	return insn->opcode.bytes[0] == 0xcc ||
+	       insn->opcode.bytes[0] == 0xcd ||
+	       insn->opcode.bytes[0] == 0xce ||
+	       insn->opcode.bytes[0] == 0xf1;
+}
+
+/*
+ * Check if paddr is at an instruction boundary and that instruction can
+ * be probed
+ */
+static bool can_probe(unsigned long paddr)
 {
 	unsigned long addr, __addr, offset = 0;
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
 
 	if (!kallsyms_lookup_size_offset(paddr, NULL, &offset))
-		return 0;
+		return false;
 
 	/* Decode instructions */
 	addr = paddr - offset;
 	while (addr < paddr) {
-		int ret;
-
 		/*
 		 * Check if the instruction has been modified by another
 		 * kprobe, in which case we replace the breakpoint by the
@@ -277,11 +307,10 @@ static int can_probe(unsigned long paddr)
 		 */
 		__addr = recover_probed_instruction(buf, addr);
 		if (!__addr)
-			return 0;
+			return false;
 
-		ret = insn_decode_kernel(&insn, (void *)__addr);
-		if (ret < 0)
-			return 0;
+		if (insn_decode_kernel(&insn, (void *)__addr) < 0)
+			return false;
 
 #ifdef CONFIG_KGDB
 		/*
@@ -290,10 +319,26 @@ static int can_probe(unsigned long paddr)
 		 */
 		if (insn.opcode.bytes[0] == INT3_INSN_OPCODE &&
 		    kgdb_has_hit_break(addr))
-			return 0;
+			return false;
 #endif
 		addr += insn.length;
 	}
+
+	/* Check if paddr is at an instruction boundary */
+	if (addr != paddr)
+		return false;
+
+	__addr = recover_probed_instruction(buf, addr);
+	if (!__addr)
+		return false;
+
+	if (insn_decode_kernel(&insn, (void *)__addr) < 0)
+		return false;
+
+	/* INT and UD are special and should not be kprobed */
+	if (is_exception_insn(&insn))
+		return false;
+
 	if (IS_ENABLED(CONFIG_CFI_CLANG)) {
 		/*
 		 * The compiler generates the following instruction sequence
@@ -308,13 +353,6 @@ static int can_probe(unsigned long paddr)
 		 * Also, these movl and addl are used for showing expected
 		 * type. So those must not be touched.
 		 */
-		__addr = recover_probed_instruction(buf, addr);
-		if (!__addr)
-			return 0;
-
-		if (insn_decode_kernel(&insn, (void *)__addr) < 0)
-			return 0;
-
 		if (insn.opcode.value == 0xBA)
 			offset = 12;
 		else if (insn.opcode.value == 0x3)
@@ -324,11 +362,11 @@ static int can_probe(unsigned long paddr)
 
 		/* This movl/addl is used for decoding CFI. */
 		if (is_cfi_trap(addr + offset))
-			return 0;
+			return false;
 	}
 
 out:
-	return (addr == paddr);
+	return true;
 }
 
 /* If x86 supports IBT (ENDBR) it must be skipped. */

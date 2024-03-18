@@ -76,7 +76,7 @@ static void mmc_host_classdev_release(struct device *dev)
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	wakeup_source_unregister(host->ws);
 	if (of_alias_get_id(host->parent->of_node, "mmc") < 0)
-		ida_simple_remove(&mmc_host_ida, host->index);
+		ida_free(&mmc_host_ida, host->index);
 	kfree(host);
 }
 
@@ -88,7 +88,7 @@ static int mmc_host_classdev_shutdown(struct device *dev)
 	return 0;
 }
 
-static struct class mmc_host_class = {
+static const struct class mmc_host_class = {
 	.name		= "mmc_host",
 	.dev_release	= mmc_host_classdev_release,
 	.shutdown_pre	= mmc_host_classdev_shutdown,
@@ -234,10 +234,8 @@ static void mmc_of_parse_timing_phase(struct device *dev, const char *prop,
 }
 
 void
-mmc_of_parse_clk_phase(struct mmc_host *host, struct mmc_clk_phase_map *map)
+mmc_of_parse_clk_phase(struct device *dev, struct mmc_clk_phase_map *map)
 {
-	struct device *dev = host->parent;
-
 	mmc_of_parse_timing_phase(dev, "clk-phase-legacy",
 				  &map->phase[MMC_TIMING_LEGACY]);
 	mmc_of_parse_timing_phase(dev, "clk-phase-mmc-hs",
@@ -538,7 +536,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		min_idx = mmc_first_nonreserved_index();
 		max_idx = 0;
 
-		index = ida_simple_get(&mmc_host_ida, min_idx, max_idx, GFP_KERNEL);
+		index = ida_alloc_range(&mmc_host_ida, min_idx, max_idx - 1,
+					GFP_KERNEL);
 		if (index < 0) {
 			kfree(host);
 			return NULL;

@@ -970,10 +970,8 @@ void __init setup_arch(char **cmdline_p)
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
-	/*
-	 * Find and reserve possible boot-time SMP configuration:
-	 */
-	find_smp_config();
+	/* Find and reserve MPTABLE area */
+	x86_init.mpparse.find_mptable();
 
 	early_alloc_pgt_buf();
 
@@ -1090,7 +1088,9 @@ void __init setup_arch(char **cmdline_p)
 
 	early_platform_quirks();
 
+	/* Some platforms need the APIC registered for NUMA configuration */
 	early_acpi_boot_init();
+	x86_init.mpparse.early_parse_smp_cfg();
 
 	x86_flattree_get_config();
 
@@ -1131,24 +1131,19 @@ void __init setup_arch(char **cmdline_p)
 
 	early_quirks();
 
+	topology_apply_cmdline_limits_early();
+
 	/*
-	 * Read APIC and some other early information from ACPI tables.
+	 * Parse SMP configuration. Try ACPI first and then the platform
+	 * specific parser.
 	 */
 	acpi_boot_init();
-	x86_dtb_init();
+	x86_init.mpparse.parse_smp_cfg();
 
-	/*
-	 * get boot-time SMP configuration:
-	 */
-	get_smp_config();
-
-	/*
-	 * Systems w/o ACPI and mptables might not have it mapped the local
-	 * APIC yet, but prefill_possible_map() might need to access it.
-	 */
+	/* Last opportunity to detect and map the local APIC */
 	init_apic_mappings();
 
-	prefill_possible_map();
+	topology_init_possible_cpus();
 
 	init_cpu_to_node();
 	init_gi_nodes();
@@ -1210,6 +1205,16 @@ void __init i386_reserve_resources(void)
 }
 
 #endif /* CONFIG_X86_32 */
+
+#ifndef CONFIG_SMP
+void __init smp_prepare_boot_cpu(void)
+{
+	struct cpuinfo_x86 *c = &cpu_data(0);
+
+	*c = boot_cpu_data;
+	c->initialized = true;
+}
+#endif
 
 static struct notifier_block kernel_offset_notifier = {
 	.notifier_call = dump_kernel_offset

@@ -748,6 +748,7 @@ skip_dsp:
 
 static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 {
+	const struct sof_intel_dsp_desc *chip;
 	int ret;
 
 	/* display codec must be powered before link reset */
@@ -779,6 +780,10 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 		hda_dsp_ctrl_ppcap_enable(sdev, true);
 		hda_dsp_ctrl_ppcap_int_enable(sdev, true);
 	}
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->hw_ip_version >= SOF_INTEL_ACE_2_0)
+		hda_sdw_int_enable(sdev, true);
 
 cleanup:
 	/* display codec can powered off after controller init */

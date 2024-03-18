@@ -2,59 +2,16 @@
 
 .. include:: <isonum.txt>
 
+.. _media-ccs-driver:
+
 MIPI CCS camera sensor driver
 =============================
 
 The MIPI CCS camera sensor driver is a generic driver for `MIPI CCS
 <https://www.mipi.org/specifications/camera-command-set>`_ compliant
-camera sensors. It exposes three sub-devices representing the pixel array,
-the binner and the scaler.
+camera sensors.
 
-As the capabilities of individual devices vary, the driver exposes
-interfaces based on the capabilities that exist in hardware.
-
-Pixel Array sub-device
-----------------------
-
-The pixel array sub-device represents the camera sensor's pixel matrix, as well
-as analogue crop functionality present in many compliant devices. The analogue
-crop is configured using the ``V4L2_SEL_TGT_CROP`` on the source pad (0) of the
-entity. The size of the pixel matrix can be obtained by getting the
-``V4L2_SEL_TGT_NATIVE_SIZE`` target.
-
-Binner
-------
-
-The binner sub-device represents the binning functionality on the sensor. For
-that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
-sink pad (0).
-
-Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) exposes another digital crop selection rectangle that can only
-crop at the end of the lines and frames.
-
-Scaler
-------
-
-The scaler sub-device represents the digital crop and scaling functionality of
-the sensor. The V4L2 selection target ``V4L2_SEL_TGT_CROP`` is used to
-configure the digital crop on the sink pad (0) when digital crop is supported.
-Scaling is configured using selection target ``V4L2_SEL_TGT_COMPOSE`` on the
-sink pad (0) as well.
-
-Additionally, if the scaler sub-device exists, its source pad (1) exposes
-another digital crop selection rectangle that can only crop at the end of the
-lines and frames.
-
-Digital and analogue crop
--------------------------
-
-Digital crop functionality is referred to as cropping that effectively works by
-dropping some data on the floor. Analogue crop, on the other hand, means that
-the cropped information is never retrieved. In case of camera sensors, the
-analogue data is never read from the pixel matrix that are outside the
-configured selection rectangle that designates crop. The difference has an
-effect in device timing and likely also in power consumption.
+Also see :ref:`the CCS driver UAPI documentation <media-ccs-uapi>`.
 
 CCS static data
 ---------------

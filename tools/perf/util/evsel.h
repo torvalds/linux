@@ -339,6 +339,7 @@ struct perf_sample;
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name);
+char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
 static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {

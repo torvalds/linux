@@ -534,7 +534,7 @@ int qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset)
 }
 
 int qca8k_set_mac_eee(struct dsa_switch *ds, int port,
-		      struct ethtool_eee *eee)
+		      struct ethtool_keee *eee)
 {
 	u32 lpi_en = QCA8K_REG_EEE_CTRL_LPI_EN(port);
 	struct qca8k_priv *priv = ds->priv;
@@ -558,7 +558,7 @@ exit:
 }
 
 int qca8k_get_mac_eee(struct dsa_switch *ds, int port,
-		      struct ethtool_eee *e)
+		      struct ethtool_keee *e)
 {
 	/* Nothing to do on the port's MAC */
 	return 0;

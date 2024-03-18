@@ -15,13 +15,11 @@
 #include <linux/bits.h>
 
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
-#define CIF_FPU			3	/* restore FPU registers */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 #define CIF_MCCK_GUEST		6	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
 #define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
-#define _CIF_FPU		BIT(CIF_FPU)
 #define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
 #define _CIF_DEDICATED_CPU	BIT(CIF_DEDICATED_CPU)
@@ -33,13 +31,12 @@
 #include <linux/cpumask.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
+#include <asm/fpu-types.h>
 #include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
-#include <asm/fpu/types.h>
-#include <asm/fpu/internal.h>
 #include <asm/irqflags.h>
 
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
@@ -169,6 +166,8 @@ struct thread_struct {
 	unsigned int gmap_write_flag;		/* gmap fault write indication */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
 	unsigned int gmap_pfault;		/* signal of a pending guest pfault */
+	int ufpu_flags;				/* user fpu flags */
+	int kfpu_flags;				/* kernel fpu flags */
 
 	/* Per-thread information related to debugging */
 	struct per_regs per_user;		/* User specified PER registers */
@@ -184,7 +183,8 @@ struct thread_struct {
 	struct gs_cb *gs_cb;			/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
 	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
-	struct fpu fpu;				/* FP and VX register save area */
+	struct fpu ufpu;			/* User FP and VX register save area */
+	struct fpu kfpu;			/* Kernel FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
@@ -203,7 +203,6 @@ typedef struct thread_struct thread_struct;
 
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
-	.fpu.regs = (void *) init_task.thread.fpu.fprs,			\
 	.last_break = 1,						\
 }
 

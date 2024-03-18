@@ -31,8 +31,9 @@ void __init hv_vtl_init_platform(void)
 	x86_init.timers.timer_init = x86_init_noop;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
+	x86_init.mpparse.find_mptable = x86_init_noop;
+	x86_init.mpparse.early_parse_smp_cfg = x86_init_noop;
+	x86_init.mpparse.parse_smp_cfg = x86_init_noop;
 
 	x86_platform.get_wallclock = get_rtc_noop;
 	x86_platform.set_wallclock = set_rtc_noop;

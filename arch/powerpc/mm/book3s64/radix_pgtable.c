@@ -1339,20 +1339,6 @@ void __ref radix__vmemmap_free(unsigned long start, unsigned long end,
 #endif
 #endif
 
-#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
-void radix__kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	unsigned long addr;
-
-	addr = (unsigned long)page_address(page);
-
-	if (enable)
-		set_memory_p(addr, numpages);
-	else
-		set_memory_np(addr, numpages);
-}
-#endif
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,

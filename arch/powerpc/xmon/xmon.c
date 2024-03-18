@@ -643,10 +643,8 @@ static int xmon_core(struct pt_regs *regs, volatile int fromipi)
 			touch_nmi_watchdog();
 		} else {
 			cmd = 1;
-#ifdef CONFIG_SMP
 			if (xmon_batch)
 				cmd = batch_cmds(regs);
-#endif
 			if (!locked_down && cmd)
 				cmd = cmds(regs);
 			if (locked_down || cmd != 0) {
@@ -1820,8 +1818,8 @@ static void print_bug_trap(struct pt_regs *regs)
 	const struct bug_entry *bug;
 	unsigned long addr;
 
-	if (regs->msr & MSR_PR)
-		return;		/* not in kernel */
+	if (user_mode(regs))
+		return;
 	addr = regs->nip;	/* address of trap instruction */
 	if (!is_kernel_addr(addr))
 		return;

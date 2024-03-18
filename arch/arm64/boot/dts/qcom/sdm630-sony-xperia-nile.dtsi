@@ -241,6 +241,16 @@
 	};
 };
 
+&pm660l_wled {
+	status = "okay";
+
+	qcom,switching-freq = <800>;
+	qcom,ovp-millivolt = <29600>;
+	qcom,current-boost-limit = <970>;
+	qcom,current-limit-microamp = <17500>;
+	qcom,num-strings = <2>;
+};
+
 &pon_pwrkey {
 	status = "okay";
 };
@@ -658,10 +668,16 @@
 };
 
 &usb3 {
+	qcom,select-utmi-as-pipe-clk;
+
 	status = "okay";
 };
 
 &usb3_dwc3 {
+	maximum-speed = "high-speed";
+	phys = <&qusb2phy0>;
+	phy-names = "usb2-phy";
+
 	dr_mode = "peripheral";
 	extcon = <&extcon_usb>;
 };

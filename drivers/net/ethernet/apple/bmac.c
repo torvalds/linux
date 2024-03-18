@@ -1591,7 +1591,7 @@ bmac_proc_info(char *buffer, char **start, off_t offset, int length)
 }
 #endif
 
-static int bmac_remove(struct macio_dev *mdev)
+static void bmac_remove(struct macio_dev *mdev)
 {
 	struct net_device *dev = macio_get_drvdata(mdev);
 	struct bmac_data *bp = netdev_priv(dev);
@@ -1609,8 +1609,6 @@ static int bmac_remove(struct macio_dev *mdev)
 	macio_release_resources(mdev);
 
 	free_netdev(dev);
-
-	return 0;
 }
 
 static const struct of_device_id bmac_match[] =

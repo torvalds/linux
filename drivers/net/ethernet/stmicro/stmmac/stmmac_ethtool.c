@@ -243,8 +243,6 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_discard_frames_gb),
 	STMMAC_MMC_STAT(mmc_rx_discard_octets_gb),
 	STMMAC_MMC_STAT(mmc_rx_align_err_frames),
-	STMMAC_MMC_STAT(mmc_rx_ipc_intr_mask),
-	STMMAC_MMC_STAT(mmc_rx_ipc_intr),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_hderr),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_nopay),
@@ -897,15 +895,13 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 static int stmmac_ethtool_op_get_eee(struct net_device *dev,
-				     struct ethtool_eee *edata)
+				     struct ethtool_keee *edata)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (!priv->dma_cap.eee)
 		return -EOPNOTSUPP;
 
-	edata->eee_enabled = priv->eee_enabled;
-	edata->eee_active = priv->eee_active;
 	edata->tx_lpi_timer = priv->tx_lpi_timer;
 	edata->tx_lpi_enabled = priv->tx_lpi_enabled;
 
@@ -913,7 +909,7 @@ static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 }
 
 static int stmmac_ethtool_op_set_eee(struct net_device *dev,
-				     struct ethtool_eee *edata)
+				     struct ethtool_keee *edata)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;

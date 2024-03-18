@@ -1014,7 +1014,7 @@ void notrace __bpf_tramp_exit(struct bpf_tramp_image *tr)
 
 bpf_trampoline_enter_t bpf_trampoline_enter(const struct bpf_prog *prog)
 {
-	bool sleepable = prog->aux->sleepable;
+	bool sleepable = prog->sleepable;
 
 	if (bpf_prog_check_recur(prog))
 		return sleepable ? __bpf_prog_enter_sleepable_recur :
@@ -1029,7 +1029,7 @@ bpf_trampoline_enter_t bpf_trampoline_enter(const struct bpf_prog *prog)
 
 bpf_trampoline_exit_t bpf_trampoline_exit(const struct bpf_prog *prog)
 {
-	bool sleepable = prog->aux->sleepable;
+	bool sleepable = prog->sleepable;
 
 	if (bpf_prog_check_recur(prog))
 		return sleepable ? __bpf_prog_exit_sleepable_recur :

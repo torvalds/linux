@@ -24,8 +24,8 @@
 #include <uapi/linux/i2c.h>
 
 extern const struct bus_type i2c_bus_type;
-extern struct device_type i2c_adapter_type;
-extern struct device_type i2c_client_type;
+extern const struct device_type i2c_adapter_type;
+extern const struct device_type i2c_client_type;
 
 /* --- General options ------------------------------------------------	*/
 
@@ -931,7 +931,7 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 
 static inline u8 i2c_8bit_addr_from_msg(const struct i2c_msg *msg)
 {
-	return (msg->addr << 1) | (msg->flags & I2C_M_RD ? 1 : 0);
+	return (msg->addr << 1) | (msg->flags & I2C_M_RD);
 }
 
 u8 *i2c_get_dma_safe_msg_buf(struct i2c_msg *msg, unsigned int threshold);

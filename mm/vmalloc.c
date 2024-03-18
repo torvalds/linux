@@ -304,8 +304,8 @@ static int vmap_range_noflush(unsigned long addr, unsigned long end,
 	return err;
 }
 
-int ioremap_page_range(unsigned long addr, unsigned long end,
-		phys_addr_t phys_addr, pgprot_t prot)
+int vmap_page_range(unsigned long addr, unsigned long end,
+		    phys_addr_t phys_addr, pgprot_t prot)
 {
 	int err;
 
@@ -316,6 +316,26 @@ int ioremap_page_range(unsigned long addr, unsigned long end,
 		err = kmsan_ioremap_page_range(addr, end, phys_addr, prot,
 					       ioremap_max_page_shift);
 	return err;
+}
+
+int ioremap_page_range(unsigned long addr, unsigned long end,
+		phys_addr_t phys_addr, pgprot_t prot)
+{
+	struct vm_struct *area;
+
+	area = find_vm_area((void *)addr);
+	if (!area || !(area->flags & VM_IOREMAP)) {
+		WARN_ONCE(1, "vm_area at addr %lx is not marked as VM_IOREMAP\n", addr);
+		return -EINVAL;
+	}
+	if (addr != (unsigned long)area->addr ||
+	    (void *)end != area->addr + get_vm_area_size(area)) {
+		WARN_ONCE(1, "ioremap request [%lx,%lx) doesn't match vm_area [%lx, %lx)\n",
+			  addr, end, (long)area->addr,
+			  (long)area->addr + get_vm_area_size(area));
+		return -ERANGE;
+	}
+	return vmap_page_range(addr, end, phys_addr, prot);
 }
 
 static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
@@ -633,6 +653,58 @@ static int vmap_pages_range(unsigned long addr, unsigned long end,
 	err = vmap_pages_range_noflush(addr, end, prot, pages, page_shift);
 	flush_cache_vmap(addr, end);
 	return err;
+}
+
+static int check_sparse_vm_area(struct vm_struct *area, unsigned long start,
+				unsigned long end)
+{
+	might_sleep();
+	if (WARN_ON_ONCE(area->flags & VM_FLUSH_RESET_PERMS))
+		return -EINVAL;
+	if (WARN_ON_ONCE(area->flags & VM_NO_GUARD))
+		return -EINVAL;
+	if (WARN_ON_ONCE(!(area->flags & VM_SPARSE)))
+		return -EINVAL;
+	if ((end - start) >> PAGE_SHIFT > totalram_pages())
+		return -E2BIG;
+	if (start < (unsigned long)area->addr ||
+	    (void *)end > area->addr + get_vm_area_size(area))
+		return -ERANGE;
+	return 0;
+}
+
+/**
+ * vm_area_map_pages - map pages inside given sparse vm_area
+ * @area: vm_area
+ * @start: start address inside vm_area
+ * @end: end address inside vm_area
+ * @pages: pages to map (always PAGE_SIZE pages)
+ */
+int vm_area_map_pages(struct vm_struct *area, unsigned long start,
+		      unsigned long end, struct page **pages)
+{
+	int err;
+
+	err = check_sparse_vm_area(area, start, end);
+	if (err)
+		return err;
+
+	return vmap_pages_range(start, end, PAGE_KERNEL, pages, PAGE_SHIFT);
+}
+
+/**
+ * vm_area_unmap_pages - unmap pages inside given sparse vm_area
+ * @area: vm_area
+ * @start: start address inside vm_area
+ * @end: end address inside vm_area
+ */
+void vm_area_unmap_pages(struct vm_struct *area, unsigned long start,
+			 unsigned long end)
+{
+	if (check_sparse_vm_area(area, start, end))
+		return;
+
+	vunmap_range(start, end);
 }
 
 int is_vmalloc_or_module_addr(const void *x)
@@ -4220,9 +4292,9 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 
 		if (flags & VMAP_RAM)
 			copied = vmap_ram_vread_iter(iter, addr, n, flags);
-		else if (!(vm && (vm->flags & VM_IOREMAP)))
+		else if (!(vm && (vm->flags & (VM_IOREMAP | VM_SPARSE))))
 			copied = aligned_vread_iter(iter, addr, n);
-		else /* IOREMAP area is treated as memory hole */
+		else /* IOREMAP | SPARSE area is treated as memory hole */
 			copied = zero_iter(iter, n);
 
 		addr += copied;
@@ -4809,6 +4881,9 @@ static int vmalloc_info_show(struct seq_file *m, void *p)
 
 			if (v->flags & VM_IOREMAP)
 				seq_puts(m, " ioremap");
+
+			if (v->flags & VM_SPARSE)
+				seq_puts(m, " sparse");
 
 			if (v->flags & VM_ALLOC)
 				seq_puts(m, " vmalloc");

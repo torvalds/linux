@@ -36,6 +36,8 @@
  * Checksum an MP configuration block.
  */
 
+static unsigned int num_procs __initdata;
+
 static int __init mpf_checksum(unsigned char *mp, int len)
 {
 	int sum = 0;
@@ -50,16 +52,15 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 {
 	char *bootup_cpu = "";
 
-	if (!(m->cpuflag & CPU_ENABLED)) {
-		disabled_cpus++;
+	topology_register_apic(m->apicid, CPU_ACPIID_INVALID, m->cpuflag & CPU_ENABLED);
+	if (!(m->cpuflag & CPU_ENABLED))
 		return;
-	}
 
 	if (m->cpuflag & CPU_BOOTPROCESSOR)
 		bootup_cpu = " (Bootup-CPU)";
 
 	pr_info("Processor #%d%s\n", m->apicid, bootup_cpu);
-	generic_processor_info(m->apicid);
+	num_procs++;
 }
 
 #ifdef CONFIG_X86_IO_APIC
@@ -236,9 +237,9 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		}
 	}
 
-	if (!num_processors)
+	if (!num_procs && !acpi_lapic)
 		pr_err("MPTABLE: no processors registered!\n");
-	return num_processors;
+	return num_procs || acpi_lapic;
 }
 
 #ifdef CONFIG_X86_IO_APIC
@@ -473,7 +474,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-void __init default_get_smp_config(unsigned int early)
+static __init void mpparse_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf;
 
@@ -529,13 +530,23 @@ void __init default_get_smp_config(unsigned int early)
 	} else
 		BUG();
 
-	if (!early)
-		pr_info("Processors: %d\n", num_processors);
+	if (!early && !acpi_lapic)
+		pr_info("Processors: %d\n", num_procs);
 	/*
 	 * Only use the first configuration found.
 	 */
 out:
 	early_memunmap(mpf, sizeof(*mpf));
+}
+
+void __init mpparse_parse_early_smp_config(void)
+{
+	mpparse_get_smp_config(true);
+}
+
+void __init mpparse_parse_smp_config(void)
+{
+	mpparse_get_smp_config(false);
 }
 
 static void __init smp_reserve_memory(struct mpf_intel *mpf)
@@ -587,7 +598,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 	return ret;
 }
 
-void __init default_find_smp_config(void)
+void __init mpparse_find_mptable(void)
 {
 	unsigned int address;
 

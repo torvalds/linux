@@ -8,8 +8,8 @@
  * Copyright (C)      2016  Kees Cook
  */
 
-/* No PAGE_TABLE_ISOLATION support needed either: */
-#undef CONFIG_PAGE_TABLE_ISOLATION
+/* No MITIGATION_PAGE_TABLE_ISOLATION support needed either: */
+#undef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 
 #include "error.h"
 #include "misc.h"
@@ -389,5 +389,5 @@ void do_boot_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 void do_boot_nmi_trap(struct pt_regs *regs, unsigned long error_code)
 {
-	/* Empty handler to ignore NMI during early boot */
+	spurious_nmi_count++;
 }

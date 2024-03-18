@@ -482,9 +482,9 @@ static int nilfs_recovery_copy_block(struct the_nilfs *nilfs,
 	if (unlikely(!bh_org))
 		return -EIO;
 
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	memcpy(kaddr + from, bh_org->b_data, bh_org->b_size);
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 	brelse(bh_org);
 	return 0;
 }

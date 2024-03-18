@@ -125,6 +125,11 @@ enum dentry_d_lock_class
 	DENTRY_D_LOCK_NESTED
 };
 
+enum d_real_type {
+	D_REAL_DATA,
+	D_REAL_METADATA,
+};
+
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
@@ -139,7 +144,7 @@ struct dentry_operations {
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(const struct path *, bool);
-	struct dentry *(*d_real)(struct dentry *, const struct inode *);
+	struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
 } ____cacheline_aligned;
 
 /*
@@ -547,24 +552,23 @@ static inline struct inode *d_backing_inode(const struct dentry *upper)
 /**
  * d_real - Return the real dentry
  * @dentry: the dentry to query
- * @inode: inode to select the dentry from multiple layers (can be NULL)
+ * @type: the type of real dentry (data or metadata)
  *
  * If dentry is on a union/overlay, then return the underlying, real dentry.
  * Otherwise return the dentry itself.
  *
  * See also: Documentation/filesystems/vfs.rst
  */
-static inline struct dentry *d_real(struct dentry *dentry,
-				    const struct inode *inode)
+static inline struct dentry *d_real(struct dentry *dentry, enum d_real_type type)
 {
 	if (unlikely(dentry->d_flags & DCACHE_OP_REAL))
-		return dentry->d_op->d_real(dentry, inode);
+		return dentry->d_op->d_real(dentry, type);
 	else
 		return dentry;
 }
 
 /**
- * d_real_inode - Return the real inode
+ * d_real_inode - Return the real inode hosting the data
  * @dentry: The dentry to query
  *
  * If dentry is on a union/overlay, then return the underlying, real inode.
@@ -573,7 +577,7 @@ static inline struct dentry *d_real(struct dentry *dentry,
 static inline struct inode *d_real_inode(const struct dentry *dentry)
 {
 	/* This usage of d_real() results in const dentry */
-	return d_backing_inode(d_real((struct dentry *) dentry, NULL));
+	return d_inode(d_real((struct dentry *) dentry, D_REAL_DATA));
 }
 
 struct name_snapshot {

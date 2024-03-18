@@ -31,8 +31,8 @@
 #define FS_ACCESS		0x00000001	/* File was accessed */
 #define FS_MODIFY		0x00000002	/* File was modified */
 #define FS_ATTRIB		0x00000004	/* Metadata changed */
-#define FS_CLOSE_WRITE		0x00000008	/* Writtable file was closed */
-#define FS_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
+#define FS_CLOSE_WRITE		0x00000008	/* Writable file was closed */
+#define FS_CLOSE_NOWRITE	0x00000010	/* Unwritable file closed */
 #define FS_OPEN			0x00000020	/* File was opened */
 #define FS_MOVED_FROM		0x00000040	/* File was moved from X */
 #define FS_MOVED_TO		0x00000080	/* File was moved to Y */

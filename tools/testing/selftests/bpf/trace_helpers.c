@@ -271,7 +271,7 @@ ssize_t get_uprobe_offset(const void *addr)
 	 * addi  r2,r2,XXXX
 	 */
 	{
-		const u32 *insn = (const u32 *)(uintptr_t)addr;
+		const __u32 *insn = (const __u32 *)(uintptr_t)addr;
 
 		if ((((*insn & OP_RT_RA_MASK) == ADDIS_R2_R12) ||
 		     ((*insn & OP_RT_RA_MASK) == LIS_R2)) &&

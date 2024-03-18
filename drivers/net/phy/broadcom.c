@@ -665,10 +665,11 @@ static int bcm54616s_config_aneg(struct phy_device *phydev)
 static int bcm54616s_read_status(struct phy_device *phydev)
 {
 	struct bcm54616s_phy_priv *priv = phydev->priv;
+	bool changed;
 	int err;
 
 	if (priv->mode_1000bx_en)
-		err = genphy_c37_read_status(phydev);
+		err = genphy_c37_read_status(phydev, &changed);
 	else
 		err = genphy_read_status(phydev);
 

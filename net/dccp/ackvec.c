@@ -376,15 +376,11 @@ EXPORT_SYMBOL_GPL(dccp_ackvec_parsed_cleanup);
 
 int __init dccp_ackvec_init(void)
 {
-	dccp_ackvec_slab = kmem_cache_create("dccp_ackvec",
-					     sizeof(struct dccp_ackvec), 0,
-					     SLAB_HWCACHE_ALIGN, NULL);
+	dccp_ackvec_slab = KMEM_CACHE(dccp_ackvec, SLAB_HWCACHE_ALIGN);
 	if (dccp_ackvec_slab == NULL)
 		goto out_err;
 
-	dccp_ackvec_record_slab = kmem_cache_create("dccp_ackvec_record",
-					     sizeof(struct dccp_ackvec_record),
-					     0, SLAB_HWCACHE_ALIGN, NULL);
+	dccp_ackvec_record_slab = KMEM_CACHE(dccp_ackvec_record, SLAB_HWCACHE_ALIGN);
 	if (dccp_ackvec_record_slab == NULL)
 		goto out_destroy_slab;
 

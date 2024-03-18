@@ -908,7 +908,7 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
 pmd_t *populate_extra_pmd(unsigned long vaddr);
 pte_t *populate_extra_pte(unsigned long vaddr);
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 pgd_t __pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd);
 
 /*
@@ -922,12 +922,12 @@ static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 		return pgd;
 	return __pti_set_user_pgtbl(pgdp, pgd);
 }
-#else   /* CONFIG_PAGE_TABLE_ISOLATION */
+#else   /* CONFIG_MITIGATION_PAGE_TABLE_ISOLATION */
 static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 {
 	return pgd;
 }
-#endif  /* CONFIG_PAGE_TABLE_ISOLATION */
+#endif  /* CONFIG_MITIGATION_PAGE_TABLE_ISOLATION */
 
 #endif	/* __ASSEMBLY__ */
 
@@ -1124,7 +1124,7 @@ static inline int p4d_bad(p4d_t p4d)
 {
 	unsigned long ignore_flags = _KERNPG_TABLE | _PAGE_USER;
 
-	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
+	if (IS_ENABLED(CONFIG_MITIGATION_PAGE_TABLE_ISOLATION))
 		ignore_flags |= _PAGE_NX;
 
 	return (p4d_flags(p4d) & ~ignore_flags) != 0;
@@ -1170,7 +1170,7 @@ static inline int pgd_bad(pgd_t pgd)
 	if (!pgtable_l5_enabled())
 		return 0;
 
-	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
+	if (IS_ENABLED(CONFIG_MITIGATION_PAGE_TABLE_ISOLATION))
 		ignore_flags |= _PAGE_NX;
 
 	return (pgd_flags(pgd) & ~ignore_flags) != _KERNPG_TABLE;
@@ -1415,9 +1415,9 @@ static inline bool pgdp_maps_userspace(void *__ptr)
 #define pgd_leaf	pgd_leaf
 static inline bool pgd_leaf(pgd_t pgd) { return false; }
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 /*
- * All top-level PAGE_TABLE_ISOLATION page tables are order-1 pages
+ * All top-level MITIGATION_PAGE_TABLE_ISOLATION page tables are order-1 pages
  * (8k-aligned and 8k in size).  The kernel one is at the beginning 4k and
  * the user one is in the last 4k.  To switch between them, you
  * just need to flip the 12th bit in their addresses.
@@ -1462,7 +1462,7 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
 {
 	return ptr_clear_bit(p4dp, PTI_PGTABLE_SWITCH_BIT);
 }
-#endif /* CONFIG_PAGE_TABLE_ISOLATION */
+#endif /* CONFIG_MITIGATION_PAGE_TABLE_ISOLATION */
 
 /*
  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
@@ -1477,7 +1477,7 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
 	memcpy(dst, src, count * sizeof(pgd_t));
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;
 	/* Clone the user space pgd as well */

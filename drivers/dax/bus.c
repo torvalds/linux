@@ -241,7 +241,7 @@ static void dax_bus_remove(struct device *dev)
 		dax_drv->remove(dev_dax);
 }
 
-static struct bus_type dax_bus_type = {
+static const struct bus_type dax_bus_type = {
 	.name = "dax",
 	.uevent = dax_bus_uevent,
 	.match = dax_bus_match,

@@ -28,6 +28,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -1407,7 +1408,6 @@ static void cio2_notifier_unbind(struct v4l2_async_notifier *notifier,
 static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 {
 	struct cio2_device *cio2 = to_cio2_device(notifier);
-	struct device *dev = &cio2->pci_dev->dev;
 	struct sensor_async_subdev *s_asd;
 	struct v4l2_async_connection *asd;
 	struct cio2_queue *q;
@@ -1417,23 +1417,10 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 
-		ret = media_entity_get_fwnode_pad(&q->sensor->entity,
-						  s_asd->asd.match.fwnode,
-						  MEDIA_PAD_FL_SOURCE);
-		if (ret < 0) {
-			dev_err(dev, "no pad for endpoint %pfw (%d)\n",
-				s_asd->asd.match.fwnode, ret);
+		ret = v4l2_create_fwnode_links_to_pad(asd->sd,
+						      &q->subdev_pads[CIO2_PAD_SINK], 0);
+		if (ret)
 			return ret;
-		}
-
-		ret = media_create_pad_link(&q->sensor->entity, ret,
-					    &q->subdev.entity, CIO2_PAD_SINK,
-					    0);
-		if (ret) {
-			dev_err(dev, "failed to create link for %s (endpoint %pfw, error %d)\n",
-				q->sensor->name, s_asd->asd.match.fwnode, ret);
-			return ret;
-		}
 	}
 
 	return v4l2_device_register_subdev_nodes(&cio2->v4l2_dev);
@@ -1572,6 +1559,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	v4l2_subdev_init(subdev, &cio2_subdev_ops);
 	subdev->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	subdev->owner = THIS_MODULE;
+	subdev->dev = dev;
 	snprintf(subdev->name, sizeof(subdev->name),
 		 CIO2_ENTITY_NAME " %td", q - cio2->queue);
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
@@ -1679,29 +1667,12 @@ static void cio2_queues_exit(struct cio2_device *cio2)
 		cio2_queue_exit(cio2, &cio2->queue[i]);
 }
 
-static int cio2_check_fwnode_graph(struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *endpoint;
-
-	if (IS_ERR_OR_NULL(fwnode))
-		return -EINVAL;
-
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (endpoint) {
-		fwnode_handle_put(endpoint);
-		return 0;
-	}
-
-	return cio2_check_fwnode_graph(fwnode->secondary);
-}
-
 /**************** PCI interface ****************/
 
 static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
 	struct device *dev = &pci_dev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct cio2_device *cio2;
 	int r;
 
@@ -1710,17 +1681,9 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	 * if the device has no endpoints then we can try to build those as
 	 * software_nodes parsed from SSDB.
 	 */
-	r = cio2_check_fwnode_graph(fwnode);
-	if (r) {
-		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
-			dev_err(dev, "fwnode graph has no endpoints connected\n");
-			return -EINVAL;
-		}
-
-		r = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
-		if (r)
-			return r;
-	}
+	r = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
+	if (r)
+		return r;
 
 	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
 	if (!cio2)

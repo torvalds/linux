@@ -292,7 +292,7 @@ static void guest_code(struct test_desc *test)
 
 static void no_dabt_handler(struct ex_regs *regs)
 {
-	GUEST_FAIL("Unexpected dabt, far_el1 = 0x%llx", read_sysreg(far_el1));
+	GUEST_FAIL("Unexpected dabt, far_el1 = 0x%lx", read_sysreg(far_el1));
 }
 
 static void no_iabt_handler(struct ex_regs *regs)

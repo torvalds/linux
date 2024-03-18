@@ -41,7 +41,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb0hub_sel>;
 
-	sel-usb-hub-hog {
+	sel_usb_hub_hog: sel-usb-hub-hog {
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		output-high;
@@ -198,8 +198,7 @@
 
 	pinctrl_usbotg: usbotggrp {
 		fsl,pins = <MX8MN_IOMUXC_GPIO1_IO12_USB1_OTG_PWR	0x84>,
-			   <MX8MN_IOMUXC_GPIO1_IO13_USB1_OTG_OC		0x84>,
-			   <MX8MN_IOMUXC_GPIO1_IO10_USB1_OTG_ID		0x1C4>;
+			   <MX8MN_IOMUXC_GPIO1_IO13_USB1_OTG_OC		0x84>;
 	};
 
 	pinctrl_usdhc2: usdhc2grp {

@@ -11,7 +11,9 @@
 #include <linux/errno.h>
 #include <linux/mfd/cs42l43.h>
 #include <linux/mfd/cs42l43-regs.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -201,6 +203,11 @@ static size_t cs42l43_spi_max_length(struct spi_device *spi)
 	return CS42L43_SPI_MAX_LENGTH;
 }
 
+static void cs42l43_release_of_node(void *data)
+{
+	fwnode_handle_put(data);
+}
+
 static int cs42l43_spi_probe(struct platform_device *pdev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
@@ -227,12 +234,6 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	priv->ctlr->transfer_one = cs42l43_transfer_one;
 	priv->ctlr->set_cs = cs42l43_set_cs;
 	priv->ctlr->max_transfer_size = cs42l43_spi_max_length;
-
-	if (is_of_node(fwnode))
-		fwnode = fwnode_get_named_child_node(fwnode, "spi");
-
-	device_set_node(&priv->ctlr->dev, fwnode);
-
 	priv->ctlr->mode_bits = SPI_3WIRE | SPI_MODE_X_MASK;
 	priv->ctlr->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	priv->ctlr->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
@@ -255,6 +256,17 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	// Disable Watchdog timer and enable stall
 	regmap_write(priv->regmap, CS42L43_SPI_CONFIG3, 0);
 	regmap_write(priv->regmap, CS42L43_SPI_CONFIG4, CS42L43_SPI_STALL_ENA_MASK);
+
+	if (is_of_node(fwnode)) {
+		fwnode = fwnode_get_named_child_node(fwnode, "spi");
+		ret = devm_add_action(priv->dev, cs42l43_release_of_node, fwnode);
+		if (ret) {
+			fwnode_handle_put(fwnode);
+			return ret;
+		}
+	}
+
+	device_set_node(&priv->ctlr->dev, fwnode);
 
 	ret = devm_spi_register_controller(priv->dev, priv->ctlr);
 	if (ret) {

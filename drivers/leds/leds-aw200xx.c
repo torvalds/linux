@@ -282,7 +282,7 @@ static int aw200xx_set_imax(const struct aw200xx *const chip,
 			    u32 led_imax_uA)
 {
 	u32 g_imax_uA = aw200xx_imax_to_global(chip, led_imax_uA);
-	u32 coeff_table[] = {1, 2, 3, 4, 6, 8, 12, 16};
+	static const u32 coeff_table[] = {1, 2, 3, 4, 6, 8, 12, 16};
 	u32 gccr_imax = UINT_MAX;
 	u32 cur_imax = 0;
 	int i;

@@ -1087,18 +1087,7 @@ static bool i8xx_fbc_tiling_valid(const struct intel_plane_state *plane_state)
 
 static bool skl_fbc_tiling_valid(const struct intel_plane_state *plane_state)
 {
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_Yf_TILED:
-	case I915_FORMAT_MOD_4_TILED:
-	case I915_FORMAT_MOD_X_TILED:
-		return true;
-	default:
-		return false;
-	}
+	return true;
 }
 
 static bool tiling_is_valid(const struct intel_plane_state *plane_state)

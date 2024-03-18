@@ -64,14 +64,22 @@ enum thermal_notify_event {
  * @threshold: trip crossing notification threshold miliCelsius
  * @type: trip point type
  * @priv: pointer to driver data associated with this trip
+ * @flags: flags representing binary properties of the trip
  */
 struct thermal_trip {
 	int temperature;
 	int hysteresis;
 	int threshold;
 	enum thermal_trip_type type;
+	u8 flags;
 	void *priv;
 };
+
+#define THERMAL_TRIP_FLAG_RW_TEMP	BIT(0)
+#define THERMAL_TRIP_FLAG_RW_HYST	BIT(1)
+
+#define THERMAL_TRIP_FLAG_RW	(THERMAL_TRIP_FLAG_RW_TEMP | \
+				 THERMAL_TRIP_FLAG_RW_HYST)
 
 struct thermal_zone_device_ops {
 	int (*bind) (struct thermal_zone_device *,
@@ -83,7 +91,6 @@ struct thermal_zone_device_ops {
 	int (*change_mode) (struct thermal_zone_device *,
 		enum thermal_device_mode);
 	int (*set_trip_temp) (struct thermal_zone_device *, int, int);
-	int (*set_trip_hyst) (struct thermal_zone_device *, int, int);
 	int (*get_crit_temp) (struct thermal_zone_device *, int *);
 	int (*set_emul_temp) (struct thermal_zone_device *, int);
 	int (*get_trend) (struct thermal_zone_device *,
@@ -130,7 +137,6 @@ struct thermal_cooling_device {
  * @trip_hyst_attrs:	attributes for trip points for sysfs: trip hysteresis
  * @mode:		current mode of this thermal zone
  * @devdata:	private pointer for device private data
- * @trips:	an array of struct thermal_trip
  * @num_trips:	number of trip points the thermal zone supports
  * @passive_delay_jiffies: number of jiffies to wait between polls when
  *			performing passive cooling.
@@ -160,6 +166,7 @@ struct thermal_cooling_device {
  * @poll_queue:	delayed work for polling
  * @notify_event: Last notification event
  * @suspended: thermal zone suspend indicator
+ * @trips:	array of struct thermal_trip objects
  */
 struct thermal_zone_device {
 	int id;
@@ -172,7 +179,6 @@ struct thermal_zone_device {
 	struct thermal_attr *trip_hyst_attrs;
 	enum thermal_device_mode mode;
 	void *devdata;
-	struct thermal_trip *trips;
 	int num_trips;
 	unsigned long passive_delay_jiffies;
 	unsigned long polling_delay_jiffies;
@@ -183,7 +189,7 @@ struct thermal_zone_device {
 	int prev_low_trip;
 	int prev_high_trip;
 	atomic_t need_update;
-	struct thermal_zone_device_ops *ops;
+	struct thermal_zone_device_ops ops;
 	struct thermal_zone_params *tzp;
 	struct thermal_governor *governor;
 	void *governor_data;
@@ -193,10 +199,11 @@ struct thermal_zone_device {
 	struct list_head node;
 	struct delayed_work poll_queue;
 	enum thermal_notify_event notify_event;
+	bool suspended;
 #ifdef CONFIG_THERMAL_DEBUGFS
 	struct thermal_debugfs *debugfs;
 #endif
-	bool suspended;
+	struct thermal_trip trips[] __counted_by(num_trips);
 };
 
 /**
@@ -214,7 +221,7 @@ struct thermal_zone_device {
  * @governor_list:	node in thermal_governor_list (in thermal_core.c)
  */
 struct thermal_governor {
-	char name[THERMAL_NAME_LENGTH];
+	const char *name;
 	int (*bind_to_tz)(struct thermal_zone_device *tz);
 	void (*unbind_from_tz)(struct thermal_zone_device *tz);
 	int (*throttle)(struct thermal_zone_device *tz,
@@ -226,7 +233,7 @@ struct thermal_governor {
 
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
-	char governor_name[THERMAL_NAME_LENGTH];
+	const char *governor_name;
 
 	/*
 	 * a boolean to indicate if the thermal to hwmon sysfs interface
@@ -315,17 +322,16 @@ int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp);
 #ifdef CONFIG_THERMAL
 struct thermal_zone_device *thermal_zone_device_register_with_trips(
 					const char *type,
-					struct thermal_trip *trips,
-					int num_trips, int mask,
-					void *devdata,
-					struct thermal_zone_device_ops *ops,
+					const struct thermal_trip *trips,
+					int num_trips, void *devdata,
+					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp,
 					int passive_delay, int polling_delay);
 
 struct thermal_zone_device *thermal_tripless_zone_device_register(
 					const char *type,
 					void *devdata,
-					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp);
 
 void thermal_zone_device_unregister(struct thermal_zone_device *tz);
@@ -375,10 +381,9 @@ void thermal_zone_device_critical(struct thermal_zone_device *tz);
 #else
 static inline struct thermal_zone_device *thermal_zone_device_register_with_trips(
 					const char *type,
-					struct thermal_trip *trips,
-					int num_trips, int mask,
-					void *devdata,
-					struct thermal_zone_device_ops *ops,
+					const struct thermal_trip *trips,
+					int num_trips, void *devdata,
+					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp,
 					int passive_delay, int polling_delay)
 { return ERR_PTR(-ENODEV); }

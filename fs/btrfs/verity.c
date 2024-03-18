@@ -14,7 +14,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
-#include "disk-io.h"
 #include "locking.h"
 #include "fs.h"
 #include "accessors.h"

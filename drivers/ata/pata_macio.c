@@ -1188,7 +1188,7 @@ static int pata_macio_attach(struct macio_dev *mdev,
 	return rc;
 }
 
-static int pata_macio_detach(struct macio_dev *mdev)
+static void pata_macio_detach(struct macio_dev *mdev)
 {
 	struct ata_host *host = macio_get_drvdata(mdev);
 	struct pata_macio_priv *priv = host->private_data;
@@ -1203,8 +1203,6 @@ static int pata_macio_detach(struct macio_dev *mdev)
 	ata_host_detach(host);
 
 	unlock_media_bay(priv->mdev->media_bay);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

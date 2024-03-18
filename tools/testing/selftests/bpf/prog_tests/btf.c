@@ -3535,6 +3535,32 @@ static struct btf_raw_test raw_tests[] = {
 	.value_type_id = 1,
 	.max_entries = 1,
 },
+{
+	.descr = "datasec: name '?.foo bar:buz' is ok",
+	.raw_types = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+		/* VAR x */                                     /* [2] */
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_VAR, 0, 0), 1),
+		BTF_VAR_STATIC,
+		/* DATASEC ?.data */                            /* [3] */
+		BTF_TYPE_ENC(3, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0x\0?.foo bar:buz"),
+},
+{
+	.descr = "type name '?foo' is not ok",
+	.raw_types = {
+		/* union ?foo; */
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_FWD, 1, 0), 0), /* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0?foo"),
+	.err_str = "Invalid name",
+	.btf_load_err = true,
+},
 
 {
 	.descr = "float test #1, well-formed",
@@ -4361,6 +4387,9 @@ static void do_test_raw(unsigned int test_num)
 	}
 
 	if (err || btf_fd < 0)
+		goto done;
+
+	if (!test->map_type)
 		goto done;
 
 	opts.btf_fd = btf_fd;

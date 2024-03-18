@@ -34,6 +34,7 @@
 #include "dc_bios_types.h"
 #include "link_enc_cfg.h"
 
+#include "dc_dmub_srv.h"
 #include "gpio_service_interface.h"
 
 #ifndef MIN
@@ -61,6 +62,38 @@
 #define AUX_REG_WRITE(reg_name, val) \
 			dm_write_reg(CTX, AUX_REG(reg_name), val)
 
+static uint8_t phy_id_from_transmitter(enum transmitter t)
+{
+	uint8_t phy_id;
+
+	switch (t) {
+	case TRANSMITTER_UNIPHY_A:
+		phy_id = 0;
+		break;
+	case TRANSMITTER_UNIPHY_B:
+		phy_id = 1;
+		break;
+	case TRANSMITTER_UNIPHY_C:
+		phy_id = 2;
+		break;
+	case TRANSMITTER_UNIPHY_D:
+		phy_id = 3;
+		break;
+	case TRANSMITTER_UNIPHY_E:
+		phy_id = 4;
+		break;
+	case TRANSMITTER_UNIPHY_F:
+		phy_id = 5;
+		break;
+	case TRANSMITTER_UNIPHY_G:
+		phy_id = 6;
+		break;
+	default:
+		phy_id = 0;
+		break;
+	}
+	return phy_id;
+}
 
 void enc32_hw_init(struct link_encoder *enc)
 {
@@ -117,37 +150,49 @@ void dcn32_link_encoder_enable_dp_output(
 	}
 }
 
-static bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+static bool query_dp_alt_from_dmub(struct link_encoder *enc,
+	union dmub_rb_cmd *cmd)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	uint32_t dp_alt_mode_disable = 0;
-	bool is_usb_c_alt_mode = false;
 
-	if (enc->features.flags.bits.DP_IS_USB_C) {
-		/* if value == 1 alt mode is disabled, otherwise it is enabled */
-		REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &dp_alt_mode_disable);
-		is_usb_c_alt_mode = (dp_alt_mode_disable == 0);
-	}
+	memset(cmd, 0, sizeof(*cmd));
+	cmd->query_dp_alt.header.type = DMUB_CMD__VBIOS;
+	cmd->query_dp_alt.header.sub_type =
+		DMUB_CMD__VBIOS_TRANSMITTER_QUERY_DP_ALT;
+	cmd->query_dp_alt.header.payload_bytes = sizeof(cmd->query_dp_alt.data);
+	cmd->query_dp_alt.data.phy_id = phy_id_from_transmitter(enc10->base.transmitter);
 
-	return is_usb_c_alt_mode;
+	if (!dc_wake_and_execute_dmub_cmd(enc->ctx, cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		return false;
+
+	return true;
 }
 
-static void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
+bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	union dmub_rb_cmd cmd;
+
+	if (!query_dp_alt_from_dmub(enc, &cmd))
+		return false;
+
+	return (cmd.query_dp_alt.data.is_dp_alt_disable == 0);
+}
+
+void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings)
 {
-	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	uint32_t is_in_usb_c_dp4_mode = 0;
+	union dmub_rb_cmd cmd;
 
 	dcn10_link_encoder_get_max_link_cap(enc, link_settings);
 
-	/* in usb c dp2 mode, max lane count is 2 */
-	if (enc->funcs->is_in_alt_mode && enc->funcs->is_in_alt_mode(enc)) {
-		REG_GET(RDPCSPIPE_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &is_in_usb_c_dp4_mode);
-		if (!is_in_usb_c_dp4_mode)
-			link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
-	}
+	if (!query_dp_alt_from_dmub(enc, &cmd))
+		return;
 
+	if (cmd.query_dp_alt.data.is_usb &&
+			cmd.query_dp_alt.data.is_dp4 == 0)
+		link_settings->lane_count = MIN(LANE_COUNT_TWO, link_settings->lane_count);
 }
+
 
 static const struct link_encoder_funcs dcn32_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
@@ -203,10 +248,12 @@ void dcn32_link_encoder_construct(
 	enc10->base.hpd_source = init_data->hpd_source;
 	enc10->base.connector = init_data->connector;
 
-
 	enc10->base.preferred_engine = ENGINE_ID_UNKNOWN;
 
 	enc10->base.features = *enc_features;
+	if (enc10->base.connector.id == CONNECTOR_ID_USBC)
+		enc10->base.features.flags.bits.DP_IS_USB_C = 1;
+
 	if (enc10->base.connector.id == CONNECTOR_ID_USBC)
 		enc10->base.features.flags.bits.DP_IS_USB_C = 1;
 

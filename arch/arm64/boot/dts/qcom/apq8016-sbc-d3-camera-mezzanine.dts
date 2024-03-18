@@ -9,7 +9,7 @@
 #include "apq8016-sbc.dts"
 
 / {
-	camera_vdddo_1v8: camera-vdddo-1v8 {
+	camera_vdddo_1v8: regulator-camera-vdddo {
 		compatible = "regulator-fixed";
 		regulator-name = "camera_vdddo";
 		regulator-min-microvolt = <1800000>;
@@ -17,7 +17,7 @@
 		regulator-always-on;
 	};
 
-	camera_vdda_2v8: camera-vdda-2v8 {
+	camera_vdda_2v8: regulator-camera-vdda {
 		compatible = "regulator-fixed";
 		regulator-name = "camera_vdda";
 		regulator-min-microvolt = <2800000>;
@@ -25,7 +25,7 @@
 		regulator-always-on;
 	};
 
-	camera_vddd_1v5: camera-vddd-1v5 {
+	camera_vddd_1v5: regulator-camera-vddd {
 		compatible = "regulator-fixed";
 		regulator-name = "camera_vddd";
 		regulator-min-microvolt = <1500000>;
@@ -53,7 +53,7 @@
 };
 
 &cci_i2c0 {
-	camera_rear@3b {
+	camera@3b {
 		compatible = "ovti,ov5640";
 		reg = <0x3b>;
 

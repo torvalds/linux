@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
+#include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/btf_ids.h>
+#include <linux/delay.h>
 #include <linux/error-injection.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -341,12 +343,12 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.write = bpf_testmod_test_write,
 };
 
-BTF_SET8_START(bpf_testmod_common_kfunc_ids)
+BTF_KFUNCS_START(bpf_testmod_common_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
-BTF_SET8_END(bpf_testmod_common_kfunc_ids)
+BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
 
 static const struct btf_kfunc_id_set bpf_testmod_common_kfunc_set = {
 	.owner = THIS_MODULE,
@@ -492,7 +494,7 @@ __bpf_kfunc static u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused
 	return arg;
 }
 
-BTF_SET8_START(bpf_testmod_check_kfunc_ids)
+BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
@@ -518,11 +520,118 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
-BTF_SET8_END(bpf_testmod_check_kfunc_ids)
+BTF_KFUNCS_END(bpf_testmod_check_kfunc_ids)
+
+static int bpf_testmod_ops_init(struct btf *btf)
+{
+	return 0;
+}
+
+static bool bpf_testmod_ops_is_valid_access(int off, int size,
+					    enum bpf_access_type type,
+					    const struct bpf_prog *prog,
+					    struct bpf_insn_access_aux *info)
+{
+	return bpf_tracing_btf_ctx_access(off, size, type, prog, info);
+}
+
+static int bpf_testmod_ops_init_member(const struct btf_type *t,
+				       const struct btf_member *member,
+				       void *kdata, const void *udata)
+{
+	if (member->offset == offsetof(struct bpf_testmod_ops, data) * 8) {
+		/* For data fields, this function has to copy it and return
+		 * 1 to indicate that the data has been handled by the
+		 * struct_ops type, or the verifier will reject the map if
+		 * the value of the data field is not zero.
+		 */
+		((struct bpf_testmod_ops *)kdata)->data = ((struct bpf_testmod_ops *)udata)->data;
+		return 1;
+	}
+	return 0;
+}
 
 static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
 	.owner = THIS_MODULE,
 	.set   = &bpf_testmod_check_kfunc_ids,
+};
+
+static const struct bpf_verifier_ops bpf_testmod_verifier_ops = {
+	.is_valid_access = bpf_testmod_ops_is_valid_access,
+};
+
+static int bpf_dummy_reg(void *kdata)
+{
+	struct bpf_testmod_ops *ops = kdata;
+
+	if (ops->test_1)
+		ops->test_1();
+	/* Some test cases (ex. struct_ops_maybe_null) may not have test_2
+	 * initialized, so we need to check for NULL.
+	 */
+	if (ops->test_2)
+		ops->test_2(4, ops->data);
+
+	return 0;
+}
+
+static void bpf_dummy_unreg(void *kdata)
+{
+}
+
+static int bpf_testmod_test_1(void)
+{
+	return 0;
+}
+
+static void bpf_testmod_test_2(int a, int b)
+{
+}
+
+static int bpf_testmod_ops__test_maybe_null(int dummy,
+					    struct task_struct *task__nullable)
+{
+	return 0;
+}
+
+static struct bpf_testmod_ops __bpf_testmod_ops = {
+	.test_1 = bpf_testmod_test_1,
+	.test_2 = bpf_testmod_test_2,
+	.test_maybe_null = bpf_testmod_ops__test_maybe_null,
+};
+
+struct bpf_struct_ops bpf_bpf_testmod_ops = {
+	.verifier_ops = &bpf_testmod_verifier_ops,
+	.init = bpf_testmod_ops_init,
+	.init_member = bpf_testmod_ops_init_member,
+	.reg = bpf_dummy_reg,
+	.unreg = bpf_dummy_unreg,
+	.cfi_stubs = &__bpf_testmod_ops,
+	.name = "bpf_testmod_ops",
+	.owner = THIS_MODULE,
+};
+
+static int bpf_dummy_reg2(void *kdata)
+{
+	struct bpf_testmod_ops2 *ops = kdata;
+
+	ops->test_1();
+	return 0;
+}
+
+static struct bpf_testmod_ops2 __bpf_testmod_ops2 = {
+	.test_1 = bpf_testmod_test_1,
+};
+
+struct bpf_struct_ops bpf_testmod_ops2 = {
+	.verifier_ops = &bpf_testmod_verifier_ops,
+	.init = bpf_testmod_ops_init,
+	.init_member = bpf_testmod_ops_init_member,
+	.reg = bpf_dummy_reg2,
+	.unreg = bpf_dummy_unreg,
+	.cfi_stubs = &__bpf_testmod_ops2,
+	.name = "bpf_testmod_ops2",
+	.owner = THIS_MODULE,
 };
 
 extern int bpf_fentry_test1(int a);
@@ -535,6 +644,8 @@ static int bpf_testmod_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_testmod_kfunc_set);
+	ret = ret ?: register_bpf_struct_ops(&bpf_bpf_testmod_ops, bpf_testmod_ops);
+	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
 	if (ret < 0)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)
@@ -544,7 +655,15 @@ static int bpf_testmod_init(void)
 
 static void bpf_testmod_exit(void)
 {
-	return sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
+        /* Need to wait for all references to be dropped because
+         * bpf_kfunc_call_test_release() which currently resides in kernel can
+         * be called after bpf_testmod is unloaded. Once release function is
+         * moved into the module this wait can be removed.
+         */
+	while (refcount_read(&prog_test_struct.cnt) > 1)
+		msleep(20);
+
+	sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 
 module_init(bpf_testmod_init);

@@ -1015,7 +1015,7 @@ static void nfc_check_pres_timeout(struct timer_list *t)
 	schedule_work(&dev->check_pres_work);
 }
 
-struct class nfc_class = {
+const struct class nfc_class = {
 	.name = "nfc",
 	.dev_release = nfc_release,
 };

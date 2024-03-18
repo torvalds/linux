@@ -55,10 +55,9 @@ static void
 intel_dump_dp_vsc_sdp(struct drm_i915_private *i915,
 		      const struct drm_dp_vsc_sdp *vsc)
 {
-	if (!drm_debug_enabled(DRM_UT_KMS))
-		return;
+	struct drm_printer p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
-	drm_dp_vsc_sdp_log(KERN_DEBUG, i915->drm.dev, vsc);
+	drm_dp_vsc_sdp_log(&p, vsc);
 }
 
 static void

@@ -15,3 +15,4 @@
 0x0066[[:xdigit:]]{4},1,power8,core
 0x004e[[:xdigit:]]{4},1,power9,core
 0x0080[[:xdigit:]]{4},1,power10,core
+0x0082[[:xdigit:]]{4},1,power10,core

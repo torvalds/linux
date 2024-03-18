@@ -14,7 +14,7 @@ int ionic_tx_napi(struct napi_struct *napi, int budget);
 int ionic_txrx_napi(struct napi_struct *napi, int budget);
 netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 
-bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
-bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
+bool ionic_rx_service(struct ionic_cq *cq);
 
+int ionic_xdp_xmit(struct net_device *netdev, int n, struct xdp_frame **xdp, u32 flags);
 #endif /* _IONIC_TXRX_H_ */

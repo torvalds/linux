@@ -5481,7 +5481,7 @@ mpt3sas_atto_validate_nvram(struct MPT3SAS_ADAPTER *ioc,
  * mpt3sas_atto_get_sas_addr - get the ATTO SAS address from mfg page 1
  *
  * @ioc : per adapter object
- * @*sas_addr : return sas address
+ * @sas_addr : return sas address
  * Return: 0 for success, non-zero for failure.
  */
 static int
@@ -7916,6 +7916,67 @@ mpt3sas_base_validate_event_type(struct MPT3SAS_ADAPTER *ioc, u32 *event_type)
 }
 
 /**
+* mpt3sas_base_unlock_and_get_host_diagnostic- enable Host Diagnostic Register writes
+* @ioc: per adapter object
+* @host_diagnostic: host diagnostic register content
+*
+* Return: 0 for success, non-zero for failure.
+*/
+
+int
+mpt3sas_base_unlock_and_get_host_diagnostic(struct MPT3SAS_ADAPTER *ioc,
+	u32 *host_diagnostic)
+{
+
+	u32 count;
+	*host_diagnostic = 0;
+	count = 0;
+
+	do {
+		/* Write magic sequence to WriteSequence register
+		 * Loop until in diagnostic mode
+		 */
+		drsprintk(ioc, ioc_info(ioc, "write magic sequence\n"));
+		writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_1ST_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_2ND_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_3RD_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_4TH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_5TH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_6TH_KEY_VALUE, &ioc->chip->WriteSequence);
+
+		/* wait 100 msec */
+		msleep(100);
+
+		if (count++ > 20) {
+			ioc_info(ioc,
+				    "Stop writing magic sequence after 20 retries\n");
+			_base_dump_reg_set(ioc);
+			return -EFAULT;
+		}
+
+		*host_diagnostic = ioc->base_readl_ext_retry(&ioc->chip->HostDiagnostic);
+		drsprintk(ioc,
+			     ioc_info(ioc, "wrote magic sequence: count(%d), host_diagnostic(0x%08x)\n",
+				     count, *host_diagnostic));
+
+	} while ((*host_diagnostic & MPI2_DIAG_DIAG_WRITE_ENABLE) == 0);
+	return 0;
+}
+
+/**
+ * mpt3sas_base_lock_host_diagnostic: Disable Host Diagnostic Register writes
+ * @ioc: per adapter object
+ */
+
+void
+mpt3sas_base_lock_host_diagnostic(struct MPT3SAS_ADAPTER *ioc)
+{
+	drsprintk(ioc, ioc_info(ioc, "disable writes to the diagnostic register\n"));
+	writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+}
+
+/**
  * _base_diag_reset - the "big hammer" start of day reset
  * @ioc: per adapter object
  *
@@ -7935,49 +7996,21 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 
 	drsprintk(ioc, ioc_info(ioc, "clear interrupts\n"));
 
-	count = 0;
-	do {
-		/* Write magic sequence to WriteSequence register
-		 * Loop until in diagnostic mode
-		 */
-		drsprintk(ioc, ioc_info(ioc, "write magic sequence\n"));
-		writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_1ST_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_2ND_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_3RD_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_4TH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_5TH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_6TH_KEY_VALUE, &ioc->chip->WriteSequence);
-
-		/* wait 100 msec */
-		msleep(100);
-
-		if (count++ > 20) {
-			ioc_info(ioc,
-			    "Stop writing magic sequence after 20 retries\n");
-			_base_dump_reg_set(ioc);
-			goto out;
-		}
-
-		host_diagnostic = ioc->base_readl_ext_retry(&ioc->chip->HostDiagnostic);
-		drsprintk(ioc,
-			  ioc_info(ioc, "wrote magic sequence: count(%d), host_diagnostic(0x%08x)\n",
-				   count, host_diagnostic));
-
-	} while ((host_diagnostic & MPI2_DIAG_DIAG_WRITE_ENABLE) == 0);
+	mutex_lock(&ioc->hostdiag_unlock_mutex);
+	if (mpt3sas_base_unlock_and_get_host_diagnostic(ioc, &host_diagnostic))
+		goto out;
 
 	hcb_size = ioc->base_readl(&ioc->chip->HCBSize);
-
 	drsprintk(ioc, ioc_info(ioc, "diag reset: issued\n"));
 	writel(host_diagnostic | MPI2_DIAG_RESET_ADAPTER,
 	     &ioc->chip->HostDiagnostic);
 
-	/*This delay allows the chip PCIe hardware time to finish reset tasks*/
+	/* This delay allows the chip PCIe hardware time to finish reset tasks */
 	msleep(MPI2_HARD_RESET_PCIE_FIRST_READ_DELAY_MICRO_SEC/1000);
 
 	/* Approximately 300 second max wait */
 	for (count = 0; count < (300000000 /
-		MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC); count++) {
+	    MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC); count++) {
 
 		host_diagnostic = ioc->base_readl_ext_retry(&ioc->chip->HostDiagnostic);
 
@@ -7990,13 +8023,15 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (!(host_diagnostic & MPI2_DIAG_RESET_ADAPTER))
 			break;
 
-		msleep(MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC / 1000);
+		/* Wait to pass the second read delay window */
+		msleep(MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC/1000);
 	}
 
 	if (host_diagnostic & MPI2_DIAG_HCB_MODE) {
 
 		drsprintk(ioc,
-			  ioc_info(ioc, "restart the adapter assuming the HCB Address points to good F/W\n"));
+			ioc_info(ioc, "restart the adapter assuming the\n"
+					"HCB Address points to good F/W\n"));
 		host_diagnostic &= ~MPI2_DIAG_BOOT_DEVICE_SELECT_MASK;
 		host_diagnostic |= MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW;
 		writel(host_diagnostic, &ioc->chip->HostDiagnostic);
@@ -8010,9 +8045,8 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 	writel(host_diagnostic & ~MPI2_DIAG_HOLD_IOC_RESET,
 	    &ioc->chip->HostDiagnostic);
 
-	drsprintk(ioc,
-		  ioc_info(ioc, "disable writes to the diagnostic register\n"));
-	writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+	mpt3sas_base_lock_host_diagnostic(ioc);
+	mutex_unlock(&ioc->hostdiag_unlock_mutex);
 
 	drsprintk(ioc, ioc_info(ioc, "Wait for FW to go to the READY state\n"));
 	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_READY, 20);
@@ -8030,6 +8064,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
  out:
 	pci_cfg_access_unlock(ioc->pdev);
 	ioc_err(ioc, "diag reset: FAILED\n");
+	mutex_unlock(&ioc->hostdiag_unlock_mutex);
 	return -EFAULT;
 }
 

@@ -1329,43 +1329,6 @@ static void rnbd_init_mq_hw_queues(struct rnbd_clt_dev *dev)
 	}
 }
 
-static void setup_request_queue(struct rnbd_clt_dev *dev,
-				struct rnbd_msg_open_rsp *rsp)
-{
-	blk_queue_logical_block_size(dev->queue,
-				     le16_to_cpu(rsp->logical_block_size));
-	blk_queue_physical_block_size(dev->queue,
-				      le16_to_cpu(rsp->physical_block_size));
-	blk_queue_max_hw_sectors(dev->queue,
-				 dev->sess->max_io_size / SECTOR_SIZE);
-
-	/*
-	 * we don't support discards to "discontiguous" segments
-	 * in on request
-	 */
-	blk_queue_max_discard_segments(dev->queue, 1);
-
-	blk_queue_max_discard_sectors(dev->queue,
-				      le32_to_cpu(rsp->max_discard_sectors));
-	dev->queue->limits.discard_granularity =
-					le32_to_cpu(rsp->discard_granularity);
-	dev->queue->limits.discard_alignment =
-					le32_to_cpu(rsp->discard_alignment);
-	if (le16_to_cpu(rsp->secure_discard))
-		blk_queue_max_secure_erase_sectors(dev->queue,
-					le32_to_cpu(rsp->max_discard_sectors));
-	blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, dev->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
-	blk_queue_max_segments(dev->queue, dev->sess->max_segments);
-	blk_queue_io_opt(dev->queue, dev->sess->max_io_size);
-	blk_queue_virt_boundary(dev->queue, SZ_4K - 1);
-	blk_queue_write_cache(dev->queue,
-			      !!(rsp->cache_policy & RNBD_WRITEBACK),
-			      !!(rsp->cache_policy & RNBD_FUA));
-	blk_queue_max_write_zeroes_sectors(dev->queue,
-					   le32_to_cpu(rsp->max_write_zeroes_sectors));
-}
-
 static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
 				   struct rnbd_msg_open_rsp *rsp, int idx)
 {
@@ -1403,18 +1366,41 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
 static int rnbd_client_setup_device(struct rnbd_clt_dev *dev,
 				    struct rnbd_msg_open_rsp *rsp)
 {
+	struct queue_limits lim = {
+		.logical_block_size	= le16_to_cpu(rsp->logical_block_size),
+		.physical_block_size	= le16_to_cpu(rsp->physical_block_size),
+		.io_opt			= dev->sess->max_io_size,
+		.max_hw_sectors		= dev->sess->max_io_size / SECTOR_SIZE,
+		.max_hw_discard_sectors	= le32_to_cpu(rsp->max_discard_sectors),
+		.discard_granularity	= le32_to_cpu(rsp->discard_granularity),
+		.discard_alignment	= le32_to_cpu(rsp->discard_alignment),
+		.max_segments		= dev->sess->max_segments,
+		.virt_boundary_mask	= SZ_4K - 1,
+		.max_write_zeroes_sectors =
+			le32_to_cpu(rsp->max_write_zeroes_sectors),
+	};
 	int idx = dev->clt_device_id;
 
 	dev->size = le64_to_cpu(rsp->nsectors) *
 			le16_to_cpu(rsp->logical_block_size);
 
-	dev->gd = blk_mq_alloc_disk(&dev->sess->tag_set, dev);
+	if (rsp->secure_discard) {
+		lim.max_secure_erase_sectors =
+			le32_to_cpu(rsp->max_discard_sectors);
+	}
+
+	dev->gd = blk_mq_alloc_disk(&dev->sess->tag_set, &lim, dev);
 	if (IS_ERR(dev->gd))
 		return PTR_ERR(dev->gd);
 	dev->queue = dev->gd->queue;
 	rnbd_init_mq_hw_queues(dev);
 
-	setup_request_queue(dev, rsp);
+	blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, dev->queue);
+	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
+	blk_queue_write_cache(dev->queue,
+			      !!(rsp->cache_policy & RNBD_WRITEBACK),
+			      !!(rsp->cache_policy & RNBD_FUA));
+
 	return rnbd_clt_setup_gen_disk(dev, rsp, idx);
 }
 

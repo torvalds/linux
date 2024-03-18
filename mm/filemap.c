@@ -124,6 +124,15 @@
  *    ->private_lock		(zap_pte_range->block_dirty_folio)
  */
 
+static void mapping_set_update(struct xa_state *xas,
+		struct address_space *mapping)
+{
+	if (dax_mapping(mapping) || shmem_mapping(mapping))
+		return;
+	xas_set_update(xas, workingset_update_node);
+	xas_set_lru(xas, &shadow_nodes);
+}
+
 static void page_cache_delete(struct address_space *mapping,
 				   struct folio *folio, void *shadow)
 {
@@ -2605,15 +2614,6 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 		if (unlikely(iocb->ki_pos >= isize))
 			goto put_folios;
 		end_offset = min_t(loff_t, isize, iocb->ki_pos + iter->count);
-
-		/*
-		 * Pairs with a barrier in
-		 * block_write_end()->mark_buffer_dirty() or other page
-		 * dirtying routines like iomap_write_end() to ensure
-		 * changes to page contents are visible before we see
-		 * increased inode size.
-		 */
-		smp_rmb();
 
 		/*
 		 * Once we start copying data, we don't want to be touching any

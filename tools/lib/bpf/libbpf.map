@@ -245,7 +245,6 @@ LIBBPF_0.3.0 {
 		btf__parse_raw_split;
 		btf__parse_split;
 		btf__new_empty_split;
-		btf__new_split;
 		ring_buffer__epoll_fd;
 } LIBBPF_0.2.0;
 
@@ -326,7 +325,6 @@ LIBBPF_0.7.0 {
 		bpf_xdp_detach;
 		bpf_xdp_query;
 		bpf_xdp_query_id;
-		btf_ext__raw_data;
 		libbpf_probe_bpf_helper;
 		libbpf_probe_bpf_map_type;
 		libbpf_probe_bpf_prog_type;
@@ -411,4 +409,8 @@ LIBBPF_1.3.0 {
 } LIBBPF_1.2.0;
 
 LIBBPF_1.4.0 {
+	global:
+		bpf_token_create;
+		btf__new_split;
+		btf_ext__raw_data;
 } LIBBPF_1.3.0;

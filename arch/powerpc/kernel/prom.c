@@ -151,6 +151,9 @@ static void __init move_device_tree(void)
  * pa-features property is missing, or a 1/0 to indicate if the feature
  * is supported/not supported.  Note that the bit numbers are
  * big-endian to match the definition in PAPR.
+ * Note: the 'clear' flag clears the feature if the bit is set in the
+ * ibm,pa/pi-features property, it does not set the feature if the
+ * bit is clear.
  */
 struct ibm_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
@@ -159,7 +162,7 @@ struct ibm_feature {
 	unsigned int	cpu_user_ftrs2;	/* PPC_FEATURE2_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa/pi-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
-	unsigned char	invert;		/* if 1, pa bit set => clear feature */
+	unsigned char	clear;		/* if 1, pa bit set => clear feature */
 };
 
 static struct ibm_feature ibm_pa_features[] __initdata = {
@@ -193,6 +196,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
  */
 static struct ibm_feature ibm_pi_features[] __initdata = {
 	{ .pabyte = 0, .pabit = 3, .mmu_features  = MMU_FTR_NX_DSI },
+	{ .pabyte = 0, .pabit = 4, .cpu_features  = CPU_FTR_DBELL, .clear = 1 },
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
@@ -220,12 +224,12 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 		if (fp->pabyte >= ftrs[0])
 			continue;
 		bit = (ftrs[2 + fp->pabyte] >> (7 - fp->pabit)) & 1;
-		if (bit ^ fp->invert) {
+		if (bit && !fp->clear) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 |= fp->cpu_user_ftrs2;
 			cur_cpu_spec->mmu_features |= fp->mmu_features;
-		} else {
+		} else if (bit == fp->clear) {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 &= ~fp->cpu_user_ftrs2;
@@ -368,12 +372,30 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	if (found < 0)
 		return 0;
 
-	DBG("boot cpu: logical %d physical %d\n", found,
-	    be32_to_cpu(intserv[found_thread]));
 	boot_cpuid = found;
 
 	if (IS_ENABLED(CONFIG_PPC64))
 		boot_cpu_hwid = be32_to_cpu(intserv[found_thread]);
+
+	if (nr_cpu_ids % nthreads != 0) {
+		set_nr_cpu_ids(ALIGN(nr_cpu_ids, nthreads));
+		pr_warn("nr_cpu_ids was not a multiple of threads_per_core, adjusted to %d\n",
+			nr_cpu_ids);
+	}
+
+	if (boot_cpuid >= nr_cpu_ids) {
+		// Remember boot core for smp_setup_cpu_maps()
+		boot_core_hwid = be32_to_cpu(intserv[0]);
+
+		pr_warn("Boot CPU %d (core hwid %d) >= nr_cpu_ids, adjusted boot CPU to %d\n",
+			boot_cpuid, boot_core_hwid, found_thread);
+
+		// Adjust boot CPU to appear on logical core 0
+		boot_cpuid = found_thread;
+	}
+
+	DBG("boot cpu: logical %d physical %d\n", boot_cpuid,
+	    be32_to_cpu(intserv[found_thread]));
 
 	/*
 	 * PAPR defines "logical" PVR values for cpus that

@@ -78,11 +78,6 @@ struct mlxsw_sp_span_entry;
 enum mlxsw_sp_l3proto;
 union mlxsw_sp_l3addr;
 
-struct mlxsw_sp_upper {
-	struct net_device *dev;
-	unsigned int ref_count;
-};
-
 enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
 	MLXSW_SP_RIF_TYPE_VLAN,
@@ -136,6 +131,7 @@ struct mlxsw_sp_span_ops;
 struct mlxsw_sp_qdisc_state;
 struct mlxsw_sp_mall_entry;
 struct mlxsw_sp_pgt;
+struct mlxsw_sp_lag;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -164,7 +160,8 @@ struct mlxsw_sp {
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
-	struct mlxsw_sp_upper *lags;
+	struct mlxsw_sp_lag *lags;
+	u16 max_lag;
 	struct mlxsw_sp_port_mapping *port_mapping;
 	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
@@ -256,12 +253,6 @@ struct mlxsw_sp_fid_core_ops {
 	int (*init)(struct mlxsw_sp *mlxsw_sp);
 	void (*fini)(struct mlxsw_sp *mlxsw_sp);
 };
-
-static inline struct mlxsw_sp_upper *
-mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
-{
-	return &mlxsw_sp->lags[lag_id];
-}
 
 struct mlxsw_sp_port_pcpu_stats {
 	u64			rx_packets;
@@ -715,8 +706,8 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 			   u16 vid_end, bool is_member, bool untagged);
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
-			      unsigned int counter_index, u64 *packets,
-			      u64 *bytes);
+			      unsigned int counter_index, bool clear,
+			      u64 *packets, u64 *bytes);
 int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,

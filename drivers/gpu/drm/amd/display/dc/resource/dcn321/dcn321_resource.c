@@ -1760,6 +1760,7 @@ static bool dcn321_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->config.dc_mode_clk_limit_support = true;
+	dc->config.enable_windowed_mpo_odm = true;
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

@@ -59,6 +59,8 @@
 #define FIRMWARE_VCN4_0_3		"amdgpu/vcn_4_0_3.bin"
 #define FIRMWARE_VCN4_0_4		"amdgpu/vcn_4_0_4.bin"
 #define FIRMWARE_VCN4_0_5		"amdgpu/vcn_4_0_5.bin"
+#define FIRMWARE_VCN4_0_6		"amdgpu/vcn_4_0_6.bin"
+#define FIRMWARE_VCN5_0_0		"amdgpu/vcn_5_0_0.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
@@ -82,6 +84,8 @@ MODULE_FIRMWARE(FIRMWARE_VCN4_0_2);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_3);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_4);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_5);
+MODULE_FIRMWARE(FIRMWARE_VCN4_0_6);
+MODULE_FIRMWARE(FIRMWARE_VCN5_0_0);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -1189,7 +1193,7 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 		amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
-			adev->virt.ops->ras_poison_handler(adev);
+			adev->virt.ops->ras_poison_handler(adev, ras_if->block);
 		else
 			dev_warn(adev->dev,
 				"No ras_poison_handler interface in SRIOV for VCN!\n");

@@ -3721,22 +3721,34 @@ apply_min_padding:
 	*padding_h = max_t(u32, *padding_h, min_pad_h);
 }
 
-static int atomisp_set_crop(struct atomisp_device *isp,
-			    const struct v4l2_mbus_framefmt *format,
-			    struct v4l2_subdev_state *sd_state,
-			    int which)
+static int atomisp_set_crop_and_fmt(struct atomisp_device *isp,
+				    struct v4l2_mbus_framefmt *ffmt,
+				    int which)
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_subdev_selection sel = {
 		.which = which,
 		.target = V4L2_SEL_TGT_CROP,
-		.r.width = format->width,
-		.r.height = format->height,
+		.r.width = ffmt->width,
+		.r.height = ffmt->height,
 	};
-	int ret;
+	struct v4l2_subdev_format format = {
+		.which = which,
+		.format = *ffmt,
+	};
+	struct v4l2_subdev_state *sd_state;
+	int ret = 0;
+
+	if (!input->camera)
+		return -EINVAL;
+
+	sd_state = (which == V4L2_SUBDEV_FORMAT_TRY) ? input->try_sd_state :
+						       input->camera->active_state;
+	if (sd_state)
+		v4l2_subdev_lock_state(sd_state);
 
 	if (!input->crop_support)
-		return 0;
+		goto set_fmt;
 
 	/* Cropping is done before binning, when binning double the crop rect */
 	if (input->binning_support && sel.r.width <= (input->native_rect.width / 2) &&
@@ -3757,6 +3769,14 @@ static int atomisp_set_crop(struct atomisp_device *isp,
 		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
 			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
 
+set_fmt:
+	if (ret == 0)
+		ret = v4l2_subdev_call(input->camera, pad, set_fmt, sd_state, &format);
+
+	if (sd_state)
+		v4l2_subdev_unlock_state(sd_state);
+
+	*ffmt = format.format;
 	return ret;
 }
 
@@ -3767,15 +3787,9 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 {
 	const struct atomisp_format_bridge *fmt, *snr_fmt;
 	struct atomisp_sub_device *asd = &isp->asd;
-	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
-	struct v4l2_subdev_format format = {
-		.which = V4L2_SUBDEV_FORMAT_TRY,
-	};
+	struct v4l2_mbus_framefmt ffmt = { };
 	u32 padding_w, padding_h;
 	int ret;
-
-	if (!input->camera)
-		return -EINVAL;
 
 	fmt = atomisp_get_format_bridge(f->pixelformat);
 	/* Currently, raw formats are broken!!! */
@@ -3797,38 +3811,27 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 	 * the set_fmt call, like atomisp_set_fmt_to_snr() does.
 	 */
 	atomisp_get_padding(isp, f->width, f->height, &padding_w, &padding_h);
-	v4l2_fill_mbus_format(&format.format, f, fmt->mbus_code);
-	format.format.width += padding_w;
-	format.format.height += padding_h;
+	v4l2_fill_mbus_format(&ffmt, f, fmt->mbus_code);
+	ffmt.width += padding_w;
+	ffmt.height += padding_h;
 
-	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
-		format.format.width, format.format.height);
+	dev_dbg(isp->dev, "try_mbus_fmt: try %ux%u\n", ffmt.width, ffmt.height);
 
-	v4l2_subdev_lock_state(input->try_sd_state);
-
-	ret = atomisp_set_crop(isp, &format.format, input->try_sd_state,
-			       V4L2_SUBDEV_FORMAT_TRY);
-	if (ret == 0)
-		ret = v4l2_subdev_call(input->camera, pad, set_fmt,
-				       input->try_sd_state, &format);
-
-	v4l2_subdev_unlock_state(input->try_sd_state);
-
+	ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
 	if (ret)
 		return ret;
 
-	dev_dbg(isp->dev, "try_mbus_fmt: got %ux%u\n",
-		format.format.width, format.format.height);
+	dev_dbg(isp->dev, "try_mbus_fmt: got %ux%u\n", ffmt.width, ffmt.height);
 
-	snr_fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
+	snr_fmt = atomisp_get_format_bridge_from_mbus(ffmt.code);
 	if (!snr_fmt) {
 		dev_err(isp->dev, "unknown sensor format 0x%8.8x\n",
-			format.format.code);
+			ffmt.code);
 		return -EINVAL;
 	}
 
-	f->width = format.format.width - padding_w;
-	f->height = format.format.height - padding_h;
+	f->width = ffmt.width - padding_w;
+	f->height = ffmt.height - padding_h;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -4236,28 +4239,22 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = asd->isp;
-	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
-	struct v4l2_subdev_state *act_sd_state;
-	struct v4l2_subdev_format vformat = {
-		.which = V4L2_SUBDEV_FORMAT_TRY,
-	};
-	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
-	struct v4l2_mbus_framefmt *req_ffmt;
+	struct v4l2_mbus_framefmt req_ffmt, ffmt = { };
 	struct atomisp_input_stream_info *stream_info =
-	    (struct atomisp_input_stream_info *)ffmt->reserved;
+	    (struct atomisp_input_stream_info *)&ffmt.reserved;
 	int ret;
 
 	format = atomisp_get_format_bridge(f->pixelformat);
 	if (!format)
 		return -EINVAL;
 
-	v4l2_fill_mbus_format(ffmt, f, format->mbus_code);
-	ffmt->height += asd->sink_pad_padding_h + dvs_env_h;
-	ffmt->width += asd->sink_pad_padding_w + dvs_env_w;
+	v4l2_fill_mbus_format(&ffmt, f, format->mbus_code);
+	ffmt.height += asd->sink_pad_padding_h + dvs_env_h;
+	ffmt.width += asd->sink_pad_padding_w + dvs_env_w;
 
 	dev_dbg(isp->dev, "s_mbus_fmt: ask %ux%u (padding %ux%u, dvs %ux%u)\n",
-		ffmt->width, ffmt->height, asd->sink_pad_padding_w, asd->sink_pad_padding_h,
+		ffmt.width, ffmt.height, asd->sink_pad_padding_w, asd->sink_pad_padding_h,
 		dvs_env_w, dvs_env_h);
 
 	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL, stream_info);
@@ -4266,28 +4263,17 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		v4l2_subdev_lock_state(input->try_sd_state);
-
-		ret = atomisp_set_crop(isp, &vformat.format, input->try_sd_state,
-				       V4L2_SUBDEV_FORMAT_TRY);
-		if (ret == 0) {
-			vformat.which = V4L2_SUBDEV_FORMAT_TRY;
-			ret = v4l2_subdev_call(input->camera, pad, set_fmt,
-					       input->try_sd_state, &vformat);
-		}
-
-		v4l2_subdev_unlock_state(input->try_sd_state);
-
+		ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
 		if (ret)
 			return ret;
 
 		dev_dbg(isp->dev, "video dis: sensor width: %d, height: %d\n",
-			ffmt->width, ffmt->height);
+			ffmt.width, ffmt.height);
 
-		if (ffmt->width < req_ffmt->width ||
-		    ffmt->height < req_ffmt->height) {
-			req_ffmt->height -= dvs_env_h;
-			req_ffmt->width -= dvs_env_w;
+		if (ffmt.width < req_ffmt.width ||
+		    ffmt.height < req_ffmt.height) {
+			req_ffmt.height -= dvs_env_h;
+			req_ffmt.width -= dvs_env_w;
 			ffmt = req_ffmt;
 			dev_warn(isp->dev,
 				 "can not enable video dis due to sensor limitation.");
@@ -4295,32 +4281,21 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 		}
 	}
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-
-	ret = atomisp_set_crop(isp, &vformat.format, act_sd_state,
-			       V4L2_SUBDEV_FORMAT_ACTIVE);
-	if (ret == 0) {
-		vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(input->camera, pad, set_fmt, act_sd_state, &vformat);
-	}
-
-	if (act_sd_state)
-		v4l2_subdev_unlock_state(act_sd_state);
-
+	ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_ACTIVE);
 	if (ret)
 		return ret;
 
 	__atomisp_update_stream_env(asd, ATOMISP_INPUT_STREAM_GENERAL, stream_info);
 
 	dev_dbg(isp->dev, "sensor width: %d, height: %d\n",
-		ffmt->width, ffmt->height);
+		ffmt.width, ffmt.height);
 
-	if (ffmt->width < ATOM_ISP_STEP_WIDTH ||
-	    ffmt->height < ATOM_ISP_STEP_HEIGHT)
+	if (ffmt.width < ATOM_ISP_STEP_WIDTH ||
+	    ffmt.height < ATOM_ISP_STEP_HEIGHT)
 		return -EINVAL;
 
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-	    (ffmt->width < req_ffmt->width || ffmt->height < req_ffmt->height)) {
+	    (ffmt.width < req_ffmt.width || ffmt.height < req_ffmt.height)) {
 		dev_warn(isp->dev,
 			 "can not enable video dis due to sensor limitation.");
 		asd->params.video_dis_en = false;
@@ -4328,9 +4303,9 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 
 	atomisp_subdev_set_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
-				ATOMISP_SUBDEV_PAD_SINK, ffmt);
+				ATOMISP_SUBDEV_PAD_SINK, &ffmt);
 
-	return css_input_resolution_changed(asd, ffmt);
+	return css_input_resolution_changed(asd, &ffmt);
 }
 
 int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)

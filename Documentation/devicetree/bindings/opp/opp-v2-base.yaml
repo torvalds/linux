@@ -57,8 +57,6 @@ patternProperties:
           specific binding.
         minItems: 1
         maxItems: 32
-        items:
-          maxItems: 1
 
       opp-microvolt:
         description: |

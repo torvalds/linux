@@ -43,6 +43,60 @@ extern const struct xfs_buf_ops xfs_sb_buf_ops;
 extern const struct xfs_buf_ops xfs_sb_quiet_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 
+/* btree ops */
+extern const struct xfs_btree_ops xfs_bnobt_ops;
+extern const struct xfs_btree_ops xfs_cntbt_ops;
+extern const struct xfs_btree_ops xfs_inobt_ops;
+extern const struct xfs_btree_ops xfs_finobt_ops;
+extern const struct xfs_btree_ops xfs_bmbt_ops;
+extern const struct xfs_btree_ops xfs_refcountbt_ops;
+extern const struct xfs_btree_ops xfs_rmapbt_ops;
+extern const struct xfs_btree_ops xfs_rmapbt_mem_ops;
+
+static inline bool xfs_btree_is_bno(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_bnobt_ops;
+}
+
+static inline bool xfs_btree_is_cnt(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_cntbt_ops;
+}
+
+static inline bool xfs_btree_is_bmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_bmbt_ops;
+}
+
+static inline bool xfs_btree_is_ino(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_inobt_ops;
+}
+
+static inline bool xfs_btree_is_fino(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_finobt_ops;
+}
+
+static inline bool xfs_btree_is_refcount(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_refcountbt_ops;
+}
+
+static inline bool xfs_btree_is_rmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rmapbt_ops;
+}
+
+#ifdef CONFIG_XFS_BTREE_IN_MEM
+static inline bool xfs_btree_is_mem_rmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rmapbt_mem_ops;
+}
+#else
+# define xfs_btree_is_mem_rmap(...)	(false)
+#endif
+
 /* log size calculation functions */
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 int	xfs_log_calc_minimum_size(struct xfs_mount *);
@@ -127,19 +181,6 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
 #define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
 #define	XFS_ICHGTIME_CREATE	0x4	/* inode create timestamp */
-
-
-/*
- * Symlink decoding/encoding functions
- */
-int xfs_symlink_blocks(struct xfs_mount *mp, int pathlen);
-int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-bool xfs_symlink_hdr_ok(xfs_ino_t ino, uint32_t offset,
-			uint32_t size, struct xfs_buf *bp);
-void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
-				 struct xfs_inode *ip, struct xfs_ifork *ifp);
-xfs_failaddr_t xfs_symlink_shortform_verify(void *sfp, int64_t size);
 
 /* Computed inode geometry for the filesystem. */
 struct xfs_ino_geometry {

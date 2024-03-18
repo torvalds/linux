@@ -198,36 +198,6 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
-static void msm_dsi_manager_set_split_display(u8 id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
-	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	struct msm_dsi *master_dsi, *slave_dsi;
-
-	if (IS_BONDED_DSI() && !IS_MASTER_DSI_LINK(id)) {
-		master_dsi = other_dsi;
-		slave_dsi = msm_dsi;
-	} else {
-		master_dsi = msm_dsi;
-		slave_dsi = other_dsi;
-	}
-
-	if (!msm_dsi->external_bridge || !IS_BONDED_DSI())
-		return;
-
-	/*
-	 * Set split display info to kms once bonded DSI panel is connected to
-	 * both hosts.
-	 */
-	if (other_dsi && other_dsi->external_bridge && kms->funcs->set_split_display) {
-		kms->funcs->set_split_display(kms, master_dsi->encoder,
-					      slave_dsi->encoder,
-					      msm_dsi_is_cmd_mode(msm_dsi));
-	}
-}
-
 static int dsi_mgr_bridge_power_on(struct drm_bridge *bridge)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
@@ -305,8 +275,6 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
-	if (!msm_dsi_device_connected(msm_dsi))
-		return;
 
 	/* Do nothing with the host if it is slave-DSI in case of bonded DSI */
 	if (is_bonded_dsi && !IS_MASTER_DSI_LINK(id))
@@ -363,9 +331,6 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 	int ret;
 
 	DBG("id=%d", id);
-
-	if (!msm_dsi_device_connected(msm_dsi))
-		return;
 
 	/*
 	 * Do nothing with the host if it is slave-DSI in case of bonded DSI.
@@ -466,55 +431,48 @@ static const struct drm_bridge_funcs dsi_mgr_bridge_funcs = {
 };
 
 /* initialize bridge */
-int msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi)
+struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi,
+					       struct drm_encoder *encoder)
 {
-	struct drm_bridge *bridge = NULL;
+	struct drm_bridge *bridge;
 	struct dsi_bridge *dsi_bridge;
-	struct drm_encoder *encoder;
 	int ret;
 
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
 				sizeof(*dsi_bridge), GFP_KERNEL);
 	if (!dsi_bridge)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	dsi_bridge->id = msm_dsi->id;
-
-	encoder = msm_dsi->encoder;
 
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
 
 	ret = devm_drm_bridge_add(msm_dsi->dev->dev, bridge);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
-	msm_dsi->bridge = bridge;
-
-	return 0;
+	return bridge;
 }
 
-int msm_dsi_manager_ext_bridge_init(u8 id)
+int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev = msm_dsi->dev;
 	struct drm_encoder *encoder;
-	struct drm_bridge *int_bridge, *ext_bridge;
+	struct drm_bridge *ext_bridge;
 	int ret;
 
-	int_bridge = msm_dsi->bridge;
 	ext_bridge = devm_drm_of_get_bridge(&msm_dsi->pdev->dev,
 					    msm_dsi->pdev->dev.of_node, 1, 0);
 	if (IS_ERR(ext_bridge))
 		return PTR_ERR(ext_bridge);
 
-	msm_dsi->external_bridge = ext_bridge;
-
-	encoder = msm_dsi->encoder;
+	encoder = int_bridge->encoder;
 
 	/*
 	 * Try first to create the bridge without it creating its own
@@ -545,9 +503,6 @@ int msm_dsi_manager_ext_bridge_init(u8 id)
 		if (ret < 0)
 			return ret;
 	}
-
-	/* The pipeline is ready, ping encoders if necessary */
-	msm_dsi_manager_set_split_display(id);
 
 	return 0;
 }

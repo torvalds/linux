@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2014, 2018-2024 Intel Corporation
  * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -16,7 +16,7 @@
 /**
  * enum iwl_fw_error_dump_type - types of data in the dump file
  * @IWL_FW_ERROR_DUMP_CSR: Control Status Registers - from offset 0
- * @IWL_FW_ERROR_DUMP_RXF:
+ * @IWL_FW_ERROR_DUMP_RXF: RX FIFO contents
  * @IWL_FW_ERROR_DUMP_TXCMD: last TX command data, structured as
  *	&struct iwl_fw_error_dump_txcmd packets
  * @IWL_FW_ERROR_DUMP_DEV_FW_INFO:  struct %iwl_fw_error_dump_info
@@ -24,21 +24,24 @@
  * @IWL_FW_ERROR_DUMP_FW_MONITOR: firmware monitor
  * @IWL_FW_ERROR_DUMP_PRPH: range of periphery registers - there can be several
  *	sections like this in a single file.
+ * @IWL_FW_ERROR_DUMP_TXF: TX FIFO contents
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
  *	Structured as &struct iwl_fw_error_dump_trigger_desc.
  * @IWL_FW_ERROR_DUMP_RB: the content of an RB structured as
  *	&struct iwl_fw_error_dump_rb
- * @IWL_FW_ERROR_PAGING: UMAC's image memory segments which were
+ * @IWL_FW_ERROR_DUMP_PAGING: UMAC's image memory segments which were
  *	paged to the DRAM.
  * @IWL_FW_ERROR_DUMP_RADIO_REG: Dump the radio registers.
+ * @IWL_FW_ERROR_DUMP_INTERNAL_TXF: internal TX FIFO data
  * @IWL_FW_ERROR_DUMP_EXTERNAL: used only by external code utilities, and
  *	for that reason is not in use in any other place in the Linux Wi-Fi
  *	stack.
  * @IWL_FW_ERROR_DUMP_MEM_CFG: the addresses and sizes of fifos in the smem,
  *	which we get from the fw after ALIVE. The content is structured as
  *	&struct iwl_fw_error_dump_smem_cfg.
+ * @IWL_FW_ERROR_DUMP_D3_DEBUG_DATA: D3 debug data
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -59,8 +62,6 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_EXTERNAL = 15, /* Do not move */
 	IWL_FW_ERROR_DUMP_MEM_CFG = 16,
 	IWL_FW_ERROR_DUMP_D3_DEBUG_DATA = 17,
-
-	IWL_FW_ERROR_DUMP_MAX,
 };
 
 /**
@@ -442,7 +443,7 @@ struct iwl_fw_ini_err_table_dump {
  * struct iwl_fw_error_dump_rb - content of an Receive Buffer
  * @index: the index of the Receive Buffer in the Rx queue
  * @rxq: the RB's Rx queue
- * @reserved:
+ * @reserved: reserved
  * @data: the content of the Receive Buffer
  */
 struct iwl_fw_error_dump_rb {
@@ -488,7 +489,7 @@ struct iwl_fw_ini_special_device_memory {
  * struct iwl_fw_error_dump_paging - content of the UMAC's image page
  *	block on DRAM
  * @index: the index of the page block
- * @reserved:
+ * @reserved: reserved
  * @data: the content of the page block
  */
 struct iwl_fw_error_dump_paging {
@@ -511,6 +512,7 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
 /**
  * enum iwl_fw_dbg_trigger - triggers available
  *
+ * @FW_DBG_TRIGGER_INVALID: invalid trigger value
  * @FW_DBG_TRIGGER_USER: trigger log collection by user
  *	This should not be defined as a trigger to the driver, but a value the
  *	driver should set to indicate that the trigger was initiated by the
@@ -530,14 +532,15 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
  *	events.
  * @FW_DBG_TRIGGER_BA: trigger log collection upon BlockAck related events.
- * @FW_DBG_TX_LATENCY: trigger log collection when the tx latency goes above a
- *	threshold.
- * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
+ * @FW_DBG_TRIGGER_TX_LATENCY: trigger log collection when the tx latency
+ *	goes above a threshold.
+ * @FW_DBG_TRIGGER_TDLS: trigger log collection upon TDLS related events.
  * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
  *  the firmware sends a tx reply.
  * @FW_DBG_TRIGGER_ALIVE_TIMEOUT: trigger log collection if alive flow timeouts
  * @FW_DBG_TRIGGER_DRIVER: trigger log collection upon a flow failure
  *	in the driver.
+ * @FW_DBG_TRIGGER_MAX: beyond triggers, number for sizing arrays etc.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,

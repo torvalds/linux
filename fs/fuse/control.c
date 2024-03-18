@@ -174,11 +174,7 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	if (!fc)
 		goto out;
 
-	down_read(&fc->killsb);
-	spin_lock(&fc->bg_lock);
-	fc->congestion_threshold = val;
-	spin_unlock(&fc->bg_lock);
-	up_read(&fc->killsb);
+	WRITE_ONCE(fc->congestion_threshold, val);
 	fuse_conn_put(fc);
 out:
 	return ret;

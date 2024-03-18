@@ -195,7 +195,7 @@ static void free_chan_prog(struct ccw1 *cpa)
 	struct ccw1 *ptr = cpa;
 
 	while (ptr->cda) {
-		kfree((void *)(addr_t) ptr->cda);
+		kfree(phys_to_virt(ptr->cda));
 		ptr++;
 	}
 	kfree(cpa);
@@ -237,7 +237,7 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
 			free_chan_prog(cpa);
 			return ERR_PTR(-ENOMEM);
 		}
-		cpa[i].cda = (u32)(addr_t) kbuf;
+		cpa[i].cda = (u32)virt_to_phys(kbuf);
 		if (copy_from_user(kbuf, ubuf, reclen)) {
 			free_chan_prog(cpa);
 			return ERR_PTR(-EFAULT);

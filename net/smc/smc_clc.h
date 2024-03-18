@@ -175,7 +175,7 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 #define SMCD_CLC_MAX_V2_GID_ENTRIES	8 /* max # of CHID-GID entries in CLC
 					   * proposal SMC-Dv2 extension.
 					   * each ISM device takes one entry and
-					   * each virtual ISM takes two entries.
+					   * each Emulated-ISM takes two entries
 					   */
 
 struct smc_clc_msg_proposal_area {

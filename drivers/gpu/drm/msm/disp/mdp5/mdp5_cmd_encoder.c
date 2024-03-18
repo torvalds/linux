@@ -158,46 +158,4 @@ void mdp5_cmd_encoder_enable(struct drm_encoder *encoder)
 
 	mdp5_cmd_enc->enabled = true;
 }
-
-int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
-				       struct drm_encoder *slave_encoder)
-{
-	struct mdp5_encoder *mdp5_cmd_enc = to_mdp5_encoder(encoder);
-	struct mdp5_kms *mdp5_kms;
-	struct device *dev;
-	int intf_num;
-	u32 data = 0;
-
-	if (!encoder || !slave_encoder)
-		return -EINVAL;
-
-	mdp5_kms = get_kms(encoder);
-	intf_num = mdp5_cmd_enc->intf->num;
-
-	/* Switch slave encoder's trigger MUX, to use the master's
-	 * start signal for the slave encoder
-	 */
-	if (intf_num == 1)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF2_SW_TRG_MUX;
-	else if (intf_num == 2)
-		data |= MDP5_SPLIT_DPL_UPPER_INTF1_SW_TRG_MUX;
-	else
-		return -EINVAL;
-
-	/* Smart Panel, Sync mode */
-	data |= MDP5_SPLIT_DPL_UPPER_SMART_PANEL;
-
-	dev = &mdp5_kms->pdev->dev;
-
-	/* Make sure clocks are on when connectors calling this function. */
-	pm_runtime_get_sync(dev);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, data);
-
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
-		   MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
-	pm_runtime_put_sync(dev);
-
-	return 0;
-}
 #endif /* CONFIG_DRM_MSM_DSI */

@@ -255,6 +255,7 @@ enum io_uring_op {
 	IORING_OP_FUTEX_WAKE,
 	IORING_OP_FUTEX_WAITV,
 	IORING_OP_FIXED_FD_INSTALL,
+	IORING_OP_FTRUNCATE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
@@ -570,6 +571,10 @@ enum {
 	/* return status information for a buffer group */
 	IORING_REGISTER_PBUF_STATUS		= 26,
 
+	/* set/clear busy poll settings */
+	IORING_REGISTER_NAPI			= 27,
+	IORING_UNREGISTER_NAPI			= 28,
+
 	/* this goes last */
 	IORING_REGISTER_LAST,
 
@@ -701,6 +706,14 @@ struct io_uring_buf_status {
 	__u32	buf_group;	/* input */
 	__u32	head;		/* output */
 	__u32	resv[8];
+};
+
+/* argument for IORING_(UN)REGISTER_NAPI */
+struct io_uring_napi {
+	__u32	busy_poll_to;
+	__u8	prefer_busy_poll;
+	__u8	pad[3];
+	__u64	resv;
 };
 
 /*

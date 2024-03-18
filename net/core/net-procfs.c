@@ -3,52 +3,22 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/wext.h>
+#include <net/hotdata.h>
 
 #include "dev.h"
 
-#define BUCKET_SPACE (32 - NETDEV_HASHBITS - 1)
-
-#define get_bucket(x) ((x) >> BUCKET_SPACE)
-#define get_offset(x) ((x) & ((1 << BUCKET_SPACE) - 1))
-#define set_bucket_offset(b, o) ((b) << BUCKET_SPACE | (o))
-
-static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff_t *pos)
+static void *dev_seq_from_index(struct seq_file *seq, loff_t *pos)
 {
-	struct net *net = seq_file_net(seq);
+	unsigned long ifindex = *pos;
 	struct net_device *dev;
-	struct hlist_head *h;
-	unsigned int count = 0, offset = get_offset(*pos);
 
-	h = &net->dev_index_head[get_bucket(*pos)];
-	hlist_for_each_entry_rcu(dev, h, index_hlist) {
-		if (++count == offset)
-			return dev;
+	for_each_netdev_dump(seq_file_net(seq), dev, ifindex) {
+		*pos = dev->ifindex;
+		return dev;
 	}
-
 	return NULL;
 }
 
-static inline struct net_device *dev_from_bucket(struct seq_file *seq, loff_t *pos)
-{
-	struct net_device *dev;
-	unsigned int bucket;
-
-	do {
-		dev = dev_from_same_bucket(seq, pos);
-		if (dev)
-			return dev;
-
-		bucket = get_bucket(*pos) + 1;
-		*pos = set_bucket_offset(bucket, 1);
-	} while (bucket < NETDEV_HASHENTRIES);
-
-	return NULL;
-}
-
-/*
- *	This is invoked by the /proc filesystem handler to display a device
- *	in detail.
- */
 static void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
@@ -56,16 +26,13 @@ static void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
-	if (get_bucket(*pos) >= NETDEV_HASHENTRIES)
-		return NULL;
-
-	return dev_from_bucket(seq, pos);
+	return dev_seq_from_index(seq, pos);
 }
 
 static void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	return dev_from_bucket(seq, pos);
+	return dev_seq_from_index(seq, pos);
 }
 
 static void dev_seq_stop(struct seq_file *seq, void *v)
@@ -217,7 +184,7 @@ static void *ptype_get_idx(struct seq_file *seq, loff_t pos)
 		}
 	}
 
-	list_for_each_entry_rcu(pt, &ptype_all, list) {
+	list_for_each_entry_rcu(pt, &net_hotdata.ptype_all, list) {
 		if (i == pos)
 			return pt;
 		++i;
@@ -265,13 +232,13 @@ static void *ptype_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 			}
 		}
 
-		nxt = ptype_all.next;
+		nxt = net_hotdata.ptype_all.next;
 		goto ptype_all;
 	}
 
 	if (pt->type == htons(ETH_P_ALL)) {
 ptype_all:
-		if (nxt != &ptype_all)
+		if (nxt != &net_hotdata.ptype_all)
 			goto found;
 		hash = 0;
 		nxt = ptype_base[0].next;

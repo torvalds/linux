@@ -36,9 +36,9 @@ STATIC void
 xfs_cui_item_free(
 	struct xfs_cui_log_item	*cuip)
 {
-	kmem_free(cuip->cui_item.li_lv_shadow);
+	kvfree(cuip->cui_item.li_lv_shadow);
 	if (cuip->cui_format.cui_nextents > XFS_CUI_MAX_FAST_EXTENTS)
-		kmem_free(cuip);
+		kfree(cuip);
 	else
 		kmem_cache_free(xfs_cui_cache, cuip);
 }
@@ -143,8 +143,8 @@ xfs_cui_init(
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_CUI_MAX_FAST_EXTENTS)
-		cuip = kmem_zalloc(xfs_cui_log_item_sizeof(nextents),
-				0);
+		cuip = kzalloc(xfs_cui_log_item_sizeof(nextents),
+				GFP_KERNEL | __GFP_NOFAIL);
 	else
 		cuip = kmem_cache_zalloc(xfs_cui_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
@@ -207,7 +207,7 @@ xfs_cud_item_release(
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
 	xfs_cui_release(cudp->cud_cuip);
-	kmem_free(cudp->cud_item.li_lv_shadow);
+	kvfree(cudp->cud_item.li_lv_shadow);
 	kmem_cache_free(xfs_cud_cache, cudp);
 }
 
@@ -425,7 +425,7 @@ xfs_cui_recover_work(
 	struct xfs_refcount_intent	*ri;
 
 	ri = kmem_cache_alloc(xfs_refcount_intent_cache,
-			GFP_NOFS | __GFP_NOFAIL);
+			GFP_KERNEL | __GFP_NOFAIL);
 	ri->ri_type = pmap->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;

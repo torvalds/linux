@@ -209,7 +209,7 @@ static int dptf_power_add(struct platform_device *pdev)
 	return 0;
 }
 
-static int dptf_power_remove(struct platform_device *pdev)
+static void dptf_power_remove(struct platform_device *pdev)
 {
 	struct acpi_device *acpi_dev = platform_get_drvdata(pdev);
 
@@ -221,8 +221,6 @@ static int dptf_power_remove(struct platform_device *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, &dptf_battery_attribute_group);
 	else
 		sysfs_remove_group(&pdev->dev.kobj, &dptf_power_attribute_group);
-
-	return 0;
 }
 
 static const struct acpi_device_id int3407_device_ids[] = {
@@ -242,7 +240,7 @@ MODULE_DEVICE_TABLE(acpi, int3407_device_ids);
 
 static struct platform_driver dptf_power_driver = {
 	.probe = dptf_power_add,
-	.remove = dptf_power_remove,
+	.remove_new = dptf_power_remove,
 	.driver = {
 		.name = "dptf_power",
 		.acpi_match_table = int3407_device_ids,

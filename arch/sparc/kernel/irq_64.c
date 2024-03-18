@@ -980,7 +980,7 @@ void notrace init_irqwork_curcpu(void)
  *
  * On SMP this gets invoked from the CPU trampoline before
  * the cpu has fully taken over the trap table from OBP,
- * and it's kernel stack + %g6 thread register state is
+ * and its kernel stack + %g6 thread register state is
  * not fully cooked yet.
  *
  * Therefore you cannot make any OBP calls, not even prom_printf,

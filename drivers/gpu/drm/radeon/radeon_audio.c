@@ -37,15 +37,14 @@
 
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
-struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
-struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
+struct r600_audio_pin *r600_audio_get_pin(struct radeon_device *rdev);
+struct r600_audio_pin *dce6_audio_get_pin(struct radeon_device *rdev);
 static void radeon_audio_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 
-static const u32 pin_offsets[7] =
-{
+static const u32 pin_offsets[7] = {
 	(0x5e00 - 0x5e00),
 	(0x5e18 - 0x5e00),
 	(0x5e30 - 0x5e00),
@@ -361,7 +360,7 @@ static void radeon_audio_write_latency_fields(struct drm_encoder *encoder,
 		radeon_encoder->audio->write_latency_fields(encoder, connector, mode);
 }
 
-struct r600_audio_pin* radeon_audio_get_pin(struct drm_encoder *encoder)
+struct r600_audio_pin *radeon_audio_get_pin(struct drm_encoder *encoder)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -528,7 +527,7 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 		*N, *CTS, freq);
 }
 
-static const struct radeon_hdmi_acr* radeon_audio_acr(unsigned int clock)
+static const struct radeon_hdmi_acr *radeon_audio_acr(unsigned int clock)
 {
 	static struct radeon_hdmi_acr res;
 	u8 i;

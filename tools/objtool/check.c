@@ -3620,6 +3620,18 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 				}
 
 				if (!save_insn->visited) {
+					/*
+					 * If the restore hint insn is at the
+					 * beginning of a basic block and was
+					 * branched to from elsewhere, and the
+					 * save insn hasn't been visited yet,
+					 * defer following this branch for now.
+					 * It will be seen later via the
+					 * straight-line path.
+					 */
+					if (!prev_insn)
+						return 0;
+
 					WARN_INSN(insn, "objtool isn't smart enough to handle this CFI save/restore combo");
 					return 1;
 				}
@@ -3980,11 +3992,11 @@ static int validate_retpoline(struct objtool_file *file)
 
 		if (insn->type == INSN_RETURN) {
 			if (opts.rethunk) {
-				WARN_INSN(insn, "'naked' return found in RETHUNK build");
+				WARN_INSN(insn, "'naked' return found in MITIGATION_RETHUNK build");
 			} else
 				continue;
 		} else {
-			WARN_INSN(insn, "indirect %s found in RETPOLINE build",
+			WARN_INSN(insn, "indirect %s found in MITIGATION_RETPOLINE build",
 				  insn->type == INSN_JUMP_DYNAMIC ? "jump" : "call");
 		}
 

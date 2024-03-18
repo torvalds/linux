@@ -53,6 +53,7 @@
 #include <asm/io.h>
 
 #include "tick-internal.h"
+#include "timer_migration.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/timer.h>
@@ -187,15 +188,66 @@ EXPORT_SYMBOL(jiffies_64);
 #define WHEEL_SIZE	(LVL_SIZE * LVL_DEPTH)
 
 #ifdef CONFIG_NO_HZ_COMMON
-# define NR_BASES	2
-# define BASE_STD	0
-# define BASE_DEF	1
+/*
+ * If multiple bases need to be locked, use the base ordering for lock
+ * nesting, i.e. lowest number first.
+ */
+# define NR_BASES	3
+# define BASE_LOCAL	0
+# define BASE_GLOBAL	1
+# define BASE_DEF	2
 #else
 # define NR_BASES	1
-# define BASE_STD	0
+# define BASE_LOCAL	0
+# define BASE_GLOBAL	0
 # define BASE_DEF	0
 #endif
 
+/**
+ * struct timer_base - Per CPU timer base (number of base depends on config)
+ * @lock:		Lock protecting the timer_base
+ * @running_timer:	When expiring timers, the lock is dropped. To make
+ *			sure not to race agains deleting/modifying a
+ *			currently running timer, the pointer is set to the
+ *			timer, which expires at the moment. If no timer is
+ *			running, the pointer is NULL.
+ * @expiry_lock:	PREEMPT_RT only: Lock is taken in softirq around
+ *			timer expiry callback execution and when trying to
+ *			delete a running timer and it wasn't successful in
+ *			the first glance. It prevents priority inversion
+ *			when callback was preempted on a remote CPU and a
+ *			caller tries to delete the running timer. It also
+ *			prevents a life lock, when the task which tries to
+ *			delete a timer preempted the softirq thread which
+ *			is running the timer callback function.
+ * @timer_waiters:	PREEMPT_RT only: Tells, if there is a waiter
+ *			waiting for the end of the timer callback function
+ *			execution.
+ * @clk:		clock of the timer base; is updated before enqueue
+ *			of a timer; during expiry, it is 1 offset ahead of
+ *			jiffies to avoid endless requeuing to current
+ *			jiffies
+ * @next_expiry:	expiry value of the first timer; it is updated when
+ *			finding the next timer and during enqueue; the
+ *			value is not valid, when next_expiry_recalc is set
+ * @cpu:		Number of CPU the timer base belongs to
+ * @next_expiry_recalc: States, whether a recalculation of next_expiry is
+ *			required. Value is set true, when a timer was
+ *			deleted.
+ * @is_idle:		Is set, when timer_base is idle. It is triggered by NOHZ
+ *			code. This state is only used in standard
+ *			base. Deferrable timers, which are enqueued remotely
+ *			never wake up an idle CPU. So no matter of supporting it
+ *			for this base.
+ * @timers_pending:	Is set, when a timer is pending in the base. It is only
+ *			reliable when next_expiry_recalc is not set.
+ * @pending_map:	bitmap of the timer wheel; each bit reflects a
+ *			bucket of the wheel. When a bit is set, at least a
+ *			single timer is enqueued in the related bucket.
+ * @vectors:		Array of lists; Each array member reflects a bucket
+ *			of the timer wheel. The list contains all timers
+ *			which are enqueued into a specific bucket.
+ */
 struct timer_base {
 	raw_spinlock_t		lock;
 	struct timer_list	*running_timer;
@@ -583,11 +635,16 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 
 	/*
 	 * We might have to IPI the remote CPU if the base is idle and the
-	 * timer is not deferrable. If the other CPU is on the way to idle
-	 * then it can't set base->is_idle as we hold the base lock:
+	 * timer is pinned. If it is a non pinned timer, it is only queued
+	 * on the remote CPU, when timer was running during queueing. Then
+	 * everything is handled by remote CPU anyway. If the other CPU is
+	 * on the way to idle then it can't set base->is_idle as we hold
+	 * the base lock:
 	 */
-	if (base->is_idle)
+	if (base->is_idle) {
+		WARN_ON_ONCE(!(timer->flags & TIMER_PINNED));
 		wake_up_nohz_cpu(base->cpu);
+	}
 }
 
 /*
@@ -899,7 +956,10 @@ static int detach_if_pending(struct timer_list *timer, struct timer_base *base,
 
 static inline struct timer_base *get_timer_cpu_base(u32 tflags, u32 cpu)
 {
-	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_STD], cpu);
+	int index = tflags & TIMER_PINNED ? BASE_LOCAL : BASE_GLOBAL;
+	struct timer_base *base;
+
+	base = per_cpu_ptr(&timer_bases[index], cpu);
 
 	/*
 	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
@@ -912,7 +972,10 @@ static inline struct timer_base *get_timer_cpu_base(u32 tflags, u32 cpu)
 
 static inline struct timer_base *get_timer_this_cpu_base(u32 tflags)
 {
-	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
+	int index = tflags & TIMER_PINNED ? BASE_LOCAL : BASE_GLOBAL;
+	struct timer_base *base;
+
+	base = this_cpu_ptr(&timer_bases[index]);
 
 	/*
 	 * If the timer is deferrable and NO_HZ_COMMON is set then we need
@@ -926,17 +989,6 @@ static inline struct timer_base *get_timer_this_cpu_base(u32 tflags)
 static inline struct timer_base *get_timer_base(u32 tflags)
 {
 	return get_timer_cpu_base(tflags, tflags & TIMER_CPUMASK);
-}
-
-static inline struct timer_base *
-get_target_base(struct timer_base *base, unsigned tflags)
-{
-#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-	if (static_branch_likely(&timers_migration_enabled) &&
-	    !(tflags & TIMER_PINNED))
-		return get_timer_cpu_base(tflags, get_nohz_timer_target());
-#endif
-	return get_timer_this_cpu_base(tflags);
 }
 
 static inline void __forward_timer_base(struct timer_base *base,
@@ -1093,7 +1145,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	if (!ret && (options & MOD_TIMER_PENDING_ONLY))
 		goto out_unlock;
 
-	new_base = get_target_base(base, timer->flags);
+	new_base = get_timer_this_cpu_base(timer->flags);
 
 	if (base != new_base) {
 		/*
@@ -1246,11 +1298,48 @@ void add_timer(struct timer_list *timer)
 EXPORT_SYMBOL(add_timer);
 
 /**
+ * add_timer_local() - Start a timer on the local CPU
+ * @timer:	The timer to be started
+ *
+ * Same as add_timer() except that the timer flag TIMER_PINNED is set.
+ *
+ * See add_timer() for further details.
+ */
+void add_timer_local(struct timer_list *timer)
+{
+	if (WARN_ON_ONCE(timer_pending(timer)))
+		return;
+	timer->flags |= TIMER_PINNED;
+	__mod_timer(timer, timer->expires, MOD_TIMER_NOTPENDING);
+}
+EXPORT_SYMBOL(add_timer_local);
+
+/**
+ * add_timer_global() - Start a timer without TIMER_PINNED flag set
+ * @timer:	The timer to be started
+ *
+ * Same as add_timer() except that the timer flag TIMER_PINNED is unset.
+ *
+ * See add_timer() for further details.
+ */
+void add_timer_global(struct timer_list *timer)
+{
+	if (WARN_ON_ONCE(timer_pending(timer)))
+		return;
+	timer->flags &= ~TIMER_PINNED;
+	__mod_timer(timer, timer->expires, MOD_TIMER_NOTPENDING);
+}
+EXPORT_SYMBOL(add_timer_global);
+
+/**
  * add_timer_on - Start a timer on a particular CPU
  * @timer:	The timer to be started
  * @cpu:	The CPU to start it on
  *
- * Same as add_timer() except that it starts the timer on the given CPU.
+ * Same as add_timer() except that it starts the timer on the given CPU and
+ * the TIMER_PINNED flag is set. When timer shouldn't be a pinned timer in
+ * the next round, add_timer_global() should be used instead as it unsets
+ * the TIMER_PINNED flag.
  *
  * See add_timer() for further details.
  */
@@ -1263,6 +1352,9 @@ void add_timer_on(struct timer_list *timer, int cpu)
 
 	if (WARN_ON_ONCE(timer_pending(timer)))
 		return;
+
+	/* Make sure timer flags have TIMER_PINNED flag set */
+	timer->flags |= TIMER_PINNED;
 
 	new_base = get_timer_cpu_base(timer->flags, cpu);
 
@@ -1911,71 +2003,350 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 	return DIV_ROUND_UP_ULL(nextevt, TICK_NSEC) * TICK_NSEC;
 }
 
-/**
- * get_next_timer_interrupt - return the time (clock mono) of the next timer
- * @basej:	base time jiffies
- * @basem:	base time clock monotonic
- *
- * Returns the tick aligned clock monotonic time of the next pending
- * timer or KTIME_MAX if no timer is pending.
- */
-u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
+static unsigned long next_timer_interrupt(struct timer_base *base,
+					  unsigned long basej)
 {
-	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
-	unsigned long nextevt = basej + NEXT_TIMER_MAX_DELTA;
-	u64 expires = KTIME_MAX;
-	bool was_idle;
-
-	/*
-	 * Pretend that there is no timer pending if the cpu is offline.
-	 * Possible pending timers will be migrated later to an active cpu.
-	 */
-	if (cpu_is_offline(smp_processor_id()))
-		return expires;
-
-	raw_spin_lock(&base->lock);
 	if (base->next_expiry_recalc)
 		next_expiry_recalc(base);
+
+	/*
+	 * Move next_expiry for the empty base into the future to prevent an
+	 * unnecessary raise of the timer softirq when the next_expiry value
+	 * will be reached even if there is no timer pending.
+	 *
+	 * This update is also required to make timer_base::next_expiry values
+	 * easy comparable to find out which base holds the first pending timer.
+	 */
+	if (!base->timers_pending)
+		base->next_expiry = basej + NEXT_TIMER_MAX_DELTA;
+
+	return base->next_expiry;
+}
+
+static unsigned long fetch_next_timer_interrupt(unsigned long basej, u64 basem,
+						struct timer_base *base_local,
+						struct timer_base *base_global,
+						struct timer_events *tevt)
+{
+	unsigned long nextevt, nextevt_local, nextevt_global;
+	bool local_first;
+
+	nextevt_local = next_timer_interrupt(base_local, basej);
+	nextevt_global = next_timer_interrupt(base_global, basej);
+
+	local_first = time_before_eq(nextevt_local, nextevt_global);
+
+	nextevt = local_first ? nextevt_local : nextevt_global;
+
+	/*
+	 * If the @nextevt is at max. one tick away, use @nextevt and store
+	 * it in the local expiry value. The next global event is irrelevant in
+	 * this case and can be left as KTIME_MAX.
+	 */
+	if (time_before_eq(nextevt, basej + 1)) {
+		/* If we missed a tick already, force 0 delta */
+		if (time_before(nextevt, basej))
+			nextevt = basej;
+		tevt->local = basem + (u64)(nextevt - basej) * TICK_NSEC;
+
+		/*
+		 * This is required for the remote check only but it doesn't
+		 * hurt, when it is done for both call sites:
+		 *
+		 * * The remote callers will only take care of the global timers
+		 *   as local timers will be handled by CPU itself. When not
+		 *   updating tevt->global with the already missed first global
+		 *   timer, it is possible that it will be missed completely.
+		 *
+		 * * The local callers will ignore the tevt->global anyway, when
+		 *   nextevt is max. one tick away.
+		 */
+		if (!local_first)
+			tevt->global = tevt->local;
+		return nextevt;
+	}
+
+	/*
+	 * Update tevt.* values:
+	 *
+	 * If the local queue expires first, then the global event can be
+	 * ignored. If the global queue is empty, nothing to do either.
+	 */
+	if (!local_first && base_global->timers_pending)
+		tevt->global = basem + (u64)(nextevt_global - basej) * TICK_NSEC;
+
+	if (base_local->timers_pending)
+		tevt->local = basem + (u64)(nextevt_local - basej) * TICK_NSEC;
+
+	return nextevt;
+}
+
+# ifdef CONFIG_SMP
+/**
+ * fetch_next_timer_interrupt_remote() - Store next timers into @tevt
+ * @basej:	base time jiffies
+ * @basem:	base time clock monotonic
+ * @tevt:	Pointer to the storage for the expiry values
+ * @cpu:	Remote CPU
+ *
+ * Stores the next pending local and global timer expiry values in the
+ * struct pointed to by @tevt. If a queue is empty the corresponding
+ * field is set to KTIME_MAX. If local event expires before global
+ * event, global event is set to KTIME_MAX as well.
+ *
+ * Caller needs to make sure timer base locks are held (use
+ * timer_lock_remote_bases() for this purpose).
+ */
+void fetch_next_timer_interrupt_remote(unsigned long basej, u64 basem,
+				       struct timer_events *tevt,
+				       unsigned int cpu)
+{
+	struct timer_base *base_local, *base_global;
+
+	/* Preset local / global events */
+	tevt->local = tevt->global = KTIME_MAX;
+
+	base_local = per_cpu_ptr(&timer_bases[BASE_LOCAL], cpu);
+	base_global = per_cpu_ptr(&timer_bases[BASE_GLOBAL], cpu);
+
+	lockdep_assert_held(&base_local->lock);
+	lockdep_assert_held(&base_global->lock);
+
+	fetch_next_timer_interrupt(basej, basem, base_local, base_global, tevt);
+}
+
+/**
+ * timer_unlock_remote_bases - unlock timer bases of cpu
+ * @cpu:	Remote CPU
+ *
+ * Unlocks the remote timer bases.
+ */
+void timer_unlock_remote_bases(unsigned int cpu)
+	__releases(timer_bases[BASE_LOCAL]->lock)
+	__releases(timer_bases[BASE_GLOBAL]->lock)
+{
+	struct timer_base *base_local, *base_global;
+
+	base_local = per_cpu_ptr(&timer_bases[BASE_LOCAL], cpu);
+	base_global = per_cpu_ptr(&timer_bases[BASE_GLOBAL], cpu);
+
+	raw_spin_unlock(&base_global->lock);
+	raw_spin_unlock(&base_local->lock);
+}
+
+/**
+ * timer_lock_remote_bases - lock timer bases of cpu
+ * @cpu:	Remote CPU
+ *
+ * Locks the remote timer bases.
+ */
+void timer_lock_remote_bases(unsigned int cpu)
+	__acquires(timer_bases[BASE_LOCAL]->lock)
+	__acquires(timer_bases[BASE_GLOBAL]->lock)
+{
+	struct timer_base *base_local, *base_global;
+
+	base_local = per_cpu_ptr(&timer_bases[BASE_LOCAL], cpu);
+	base_global = per_cpu_ptr(&timer_bases[BASE_GLOBAL], cpu);
+
+	lockdep_assert_irqs_disabled();
+
+	raw_spin_lock(&base_local->lock);
+	raw_spin_lock_nested(&base_global->lock, SINGLE_DEPTH_NESTING);
+}
+
+/**
+ * timer_base_is_idle() - Return whether timer base is set idle
+ *
+ * Returns value of local timer base is_idle value.
+ */
+bool timer_base_is_idle(void)
+{
+	return __this_cpu_read(timer_bases[BASE_LOCAL].is_idle);
+}
+
+static void __run_timer_base(struct timer_base *base);
+
+/**
+ * timer_expire_remote() - expire global timers of cpu
+ * @cpu:	Remote CPU
+ *
+ * Expire timers of global base of remote CPU.
+ */
+void timer_expire_remote(unsigned int cpu)
+{
+	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_GLOBAL], cpu);
+
+	__run_timer_base(base);
+}
+
+static void timer_use_tmigr(unsigned long basej, u64 basem,
+			    unsigned long *nextevt, bool *tick_stop_path,
+			    bool timer_base_idle, struct timer_events *tevt)
+{
+	u64 next_tmigr;
+
+	if (timer_base_idle)
+		next_tmigr = tmigr_cpu_new_timer(tevt->global);
+	else if (tick_stop_path)
+		next_tmigr = tmigr_cpu_deactivate(tevt->global);
+	else
+		next_tmigr = tmigr_quick_check(tevt->global);
+
+	/*
+	 * If the CPU is the last going idle in timer migration hierarchy, make
+	 * sure the CPU will wake up in time to handle remote timers.
+	 * next_tmigr == KTIME_MAX if other CPUs are still active.
+	 */
+	if (next_tmigr < tevt->local) {
+		u64 tmp;
+
+		/* If we missed a tick already, force 0 delta */
+		if (next_tmigr < basem)
+			next_tmigr = basem;
+
+		tmp = div_u64(next_tmigr - basem, TICK_NSEC);
+
+		*nextevt = basej + (unsigned long)tmp;
+		tevt->local = next_tmigr;
+	}
+}
+# else
+static void timer_use_tmigr(unsigned long basej, u64 basem,
+			    unsigned long *nextevt, bool *tick_stop_path,
+			    bool timer_base_idle, struct timer_events *tevt)
+{
+	/*
+	 * Make sure first event is written into tevt->local to not miss a
+	 * timer on !SMP systems.
+	 */
+	tevt->local = min_t(u64, tevt->local, tevt->global);
+}
+# endif /* CONFIG_SMP */
+
+static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
+					     bool *idle)
+{
+	struct timer_events tevt = { .local = KTIME_MAX, .global = KTIME_MAX };
+	struct timer_base *base_local, *base_global;
+	unsigned long nextevt;
+	bool idle_is_possible;
+
+	/*
+	 * When the CPU is offline, the tick is cancelled and nothing is supposed
+	 * to try to stop it.
+	 */
+	if (WARN_ON_ONCE(cpu_is_offline(smp_processor_id()))) {
+		if (idle)
+			*idle = true;
+		return tevt.local;
+	}
+
+	base_local = this_cpu_ptr(&timer_bases[BASE_LOCAL]);
+	base_global = this_cpu_ptr(&timer_bases[BASE_GLOBAL]);
+
+	raw_spin_lock(&base_local->lock);
+	raw_spin_lock_nested(&base_global->lock, SINGLE_DEPTH_NESTING);
+
+	nextevt = fetch_next_timer_interrupt(basej, basem, base_local,
+					     base_global, &tevt);
+
+	/*
+	 * If the next event is only one jiffie ahead there is no need to call
+	 * timer migration hierarchy related functions. The value for the next
+	 * global timer in @tevt struct equals then KTIME_MAX. This is also
+	 * true, when the timer base is idle.
+	 *
+	 * The proper timer migration hierarchy function depends on the callsite
+	 * and whether timer base is idle or not. @nextevt will be updated when
+	 * this CPU needs to handle the first timer migration hierarchy
+	 * event. See timer_use_tmigr() for detailed information.
+	 */
+	idle_is_possible = time_after(nextevt, basej + 1);
+	if (idle_is_possible)
+		timer_use_tmigr(basej, basem, &nextevt, idle,
+				base_local->is_idle, &tevt);
 
 	/*
 	 * We have a fresh next event. Check whether we can forward the
 	 * base.
 	 */
-	__forward_timer_base(base, basej);
-
-	if (base->timers_pending) {
-		nextevt = base->next_expiry;
-
-		/* If we missed a tick already, force 0 delta */
-		if (time_before(nextevt, basej))
-			nextevt = basej;
-		expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
-	} else {
-		/*
-		 * Move next_expiry for the empty base into the future to
-		 * prevent a unnecessary raise of the timer softirq when the
-		 * next_expiry value will be reached even if there is no timer
-		 * pending.
-		 */
-		base->next_expiry = nextevt;
-	}
+	__forward_timer_base(base_local, basej);
+	__forward_timer_base(base_global, basej);
 
 	/*
-	 * Base is idle if the next event is more than a tick away.
-	 *
-	 * If the base is marked idle then any timer add operation must forward
-	 * the base clk itself to keep granularity small. This idle logic is
-	 * only maintained for the BASE_STD base, deferrable timers may still
-	 * see large granularity skew (by design).
+	 * Set base->is_idle only when caller is timer_base_try_to_set_idle()
 	 */
-	was_idle = base->is_idle;
-	base->is_idle = time_after(nextevt, basej + 1);
-	if (was_idle != base->is_idle)
-		trace_timer_base_idle(base->is_idle, base->cpu);
+	if (idle) {
+		/*
+		 * Bases are idle if the next event is more than a tick
+		 * away. Caution: @nextevt could have changed by enqueueing a
+		 * global timer into timer migration hierarchy. Therefore a new
+		 * check is required here.
+		 *
+		 * If the base is marked idle then any timer add operation must
+		 * forward the base clk itself to keep granularity small. This
+		 * idle logic is only maintained for the BASE_LOCAL and
+		 * BASE_GLOBAL base, deferrable timers may still see large
+		 * granularity skew (by design).
+		 */
+		if (!base_local->is_idle && time_after(nextevt, basej + 1)) {
+			base_local->is_idle = true;
+			trace_timer_base_idle(true, base_local->cpu);
+		}
+		*idle = base_local->is_idle;
 
-	raw_spin_unlock(&base->lock);
+		/*
+		 * When timer base is not set idle, undo the effect of
+		 * tmigr_cpu_deactivate() to prevent inconsitent states - active
+		 * timer base but inactive timer migration hierarchy.
+		 *
+		 * When timer base was already marked idle, nothing will be
+		 * changed here.
+		 */
+		if (!base_local->is_idle && idle_is_possible)
+			tmigr_cpu_activate();
+	}
 
-	return cmp_next_hrtimer_event(basem, expires);
+	raw_spin_unlock(&base_global->lock);
+	raw_spin_unlock(&base_local->lock);
+
+	return cmp_next_hrtimer_event(basem, tevt.local);
+}
+
+/**
+ * get_next_timer_interrupt() - return the time (clock mono) of the next timer
+ * @basej:	base time jiffies
+ * @basem:	base time clock monotonic
+ *
+ * Returns the tick aligned clock monotonic time of the next pending timer or
+ * KTIME_MAX if no timer is pending. If timer of global base was queued into
+ * timer migration hierarchy, first global timer is not taken into account. If
+ * it was the last CPU of timer migration hierarchy going idle, first global
+ * event is taken into account.
+ */
+u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
+{
+	return __get_next_timer_interrupt(basej, basem, NULL);
+}
+
+/**
+ * timer_base_try_to_set_idle() - Try to set the idle state of the timer bases
+ * @basej:	base time jiffies
+ * @basem:	base time clock monotonic
+ * @idle:	pointer to store the value of timer_base->is_idle on return;
+ *		*idle contains the information whether tick was already stopped
+ *
+ * Returns the tick aligned clock monotonic time of the next pending timer or
+ * KTIME_MAX if no timer is pending. When tick was already stopped KTIME_MAX is
+ * returned as well.
+ */
+u64 timer_base_try_to_set_idle(unsigned long basej, u64 basem, bool *idle)
+{
+	if (*idle)
+		return KTIME_MAX;
+
+	return __get_next_timer_interrupt(basej, basem, idle);
 }
 
 /**
@@ -1985,18 +2356,18 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
  */
 void timer_clear_idle(void)
 {
-	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
-
 	/*
-	 * We do this unlocked. The worst outcome is a remote enqueue sending
-	 * a pointless IPI, but taking the lock would just make the window for
-	 * sending the IPI a few instructions smaller for the cost of taking
-	 * the lock in the exit from idle path.
+	 * We do this unlocked. The worst outcome is a remote pinned timer
+	 * enqueue sending a pointless IPI, but taking the lock would just
+	 * make the window for sending the IPI a few instructions smaller
+	 * for the cost of taking the lock in the exit from idle
+	 * path. Required for BASE_LOCAL only.
 	 */
-	if (base->is_idle) {
-		base->is_idle = false;
-		trace_timer_base_idle(false, smp_processor_id());
-	}
+	__this_cpu_write(timer_bases[BASE_LOCAL].is_idle, false);
+	trace_timer_base_idle(false, smp_processor_id());
+
+	/* Activate without holding the timer_base->lock */
+	tmigr_cpu_activate();
 }
 #endif
 
@@ -2009,11 +2380,10 @@ static inline void __run_timers(struct timer_base *base)
 	struct hlist_head heads[LVL_DEPTH];
 	int levels;
 
-	if (time_before(jiffies, base->next_expiry))
-		return;
+	lockdep_assert_held(&base->lock);
 
-	timer_base_lock_expiry(base);
-	raw_spin_lock_irq(&base->lock);
+	if (base->running_timer)
+		return;
 
 	while (time_after_eq(jiffies, base->clk) &&
 	       time_after_eq(jiffies, base->next_expiry)) {
@@ -2037,8 +2407,25 @@ static inline void __run_timers(struct timer_base *base)
 		while (levels--)
 			expire_timers(base, heads + levels);
 	}
+}
+
+static void __run_timer_base(struct timer_base *base)
+{
+	if (time_before(jiffies, base->next_expiry))
+		return;
+
+	timer_base_lock_expiry(base);
+	raw_spin_lock_irq(&base->lock);
+	__run_timers(base);
 	raw_spin_unlock_irq(&base->lock);
 	timer_base_unlock_expiry(base);
+}
+
+static void run_timer_base(int index)
+{
+	struct timer_base *base = this_cpu_ptr(&timer_bases[index]);
+
+	__run_timer_base(base);
 }
 
 /*
@@ -2046,11 +2433,14 @@ static inline void __run_timers(struct timer_base *base)
  */
 static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 {
-	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
+	run_timer_base(BASE_LOCAL);
+	if (IS_ENABLED(CONFIG_NO_HZ_COMMON)) {
+		run_timer_base(BASE_GLOBAL);
+		run_timer_base(BASE_DEF);
 
-	__run_timers(base);
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON))
-		__run_timers(this_cpu_ptr(&timer_bases[BASE_DEF]));
+		if (is_timers_nohz_active())
+			tmigr_handle_remote();
+	}
 }
 
 /*
@@ -2058,19 +2448,18 @@ static __latent_entropy void run_timer_softirq(struct softirq_action *h)
  */
 static void run_local_timers(void)
 {
-	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
+	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_LOCAL]);
 
 	hrtimer_run_queues();
-	/* Raise the softirq only if required. */
-	if (time_before(jiffies, base->next_expiry)) {
-		if (!IS_ENABLED(CONFIG_NO_HZ_COMMON))
+
+	for (int i = 0; i < NR_BASES; i++, base++) {
+		/* Raise the softirq only if required. */
+		if (time_after_eq(jiffies, base->next_expiry) ||
+		    (i == BASE_DEF && tmigr_requires_handle_remote())) {
+			raise_softirq(TIMER_SOFTIRQ);
 			return;
-		/* CPU is awake, so check the deferrable base. */
-		base++;
-		if (time_before(jiffies, base->next_expiry))
-			return;
+		}
 	}
-	raise_softirq(TIMER_SOFTIRQ);
 }
 
 /*

@@ -756,12 +756,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			qusb2p_hstx_trim: hstx_trim@24e {
+			qusb2p_hstx_trim: hstx-trim@24e {
 				reg = <0x24e 0x2>;
 				bits = <5 4>;
 			};
 
-			qusb2s_hstx_trim: hstx_trim@24f {
+			qusb2s_hstx_trim: hstx-trim@24f {
 				reg = <0x24f 0x1>;
 				bits = <1 4>;
 			};
@@ -2077,7 +2077,7 @@
 				<0 0>,
 				<0 0>,
 				<150000000 300000000>,
-				<0 0>,
+				<75000000 150000000>,
 				<0 0>,
 				<0 0>,
 				<0 0>,
@@ -2096,8 +2096,8 @@
 			compatible = "qcom,msm8996-qmp-ufs-phy";
 			reg = <0x00627000 0x1000>;
 
-			clocks = <&gcc GCC_UFS_CLKREF_CLK>;
-			clock-names = "ref";
+			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>, <&gcc GCC_UFS_CLKREF_CLK>;
+			clock-names = "ref", "qref";
 
 			resets = <&ufshc 0>;
 			reset-names = "ufsphy";
@@ -3381,8 +3381,12 @@
 			#size-cells = <1>;
 			ranges;
 
-			interrupts = <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "hs_phy_irq";
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "qusb2_phy",
+					  "hs_phy_irq";
 
 			clocks = <&gcc GCC_PERIPH_NOC_USB20_AHB_CLK>,
 				<&gcc GCC_USB20_MASTER_CLK>,

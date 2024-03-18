@@ -283,6 +283,7 @@ __u32 sysctl_rmem_max __read_mostly = SK_RMEM_MAX;
 EXPORT_SYMBOL(sysctl_rmem_max);
 __u32 sysctl_wmem_default __read_mostly = SK_WMEM_MAX;
 __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
+int sysctl_mem_pcpu_rsv __read_mostly = SK_MEMORY_PCPU_RESERVE;
 
 int sysctl_tstamp_allow_data __read_mostly = 1;
 
@@ -2052,8 +2053,9 @@ static void sock_copy(struct sock *nsk, const struct sock *osk)
 
 	memcpy(nsk, osk, offsetof(struct sock, sk_dontcopy_begin));
 
-	memcpy(&nsk->sk_dontcopy_end, &osk->sk_dontcopy_end,
-	       prot->obj_size - offsetof(struct sock, sk_dontcopy_end));
+	unsafe_memcpy(&nsk->sk_dontcopy_end, &osk->sk_dontcopy_end,
+		      prot->obj_size - offsetof(struct sock, sk_dontcopy_end),
+		      /* alloc is larger than struct, see sk_prot_alloc() */);
 
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
@@ -2582,8 +2584,18 @@ EXPORT_SYMBOL(sock_efree);
 #ifdef CONFIG_INET
 void sock_pfree(struct sk_buff *skb)
 {
-	if (sk_is_refcounted(skb->sk))
-		sock_gen_put(skb->sk);
+	struct sock *sk = skb->sk;
+
+	if (!sk_is_refcounted(sk))
+		return;
+
+	if (sk->sk_state == TCP_NEW_SYN_RECV && inet_reqsk(sk)->syncookie) {
+		inet_reqsk(sk)->rsk_listener = NULL;
+		reqsk_free(inet_reqsk(sk));
+		return;
+	}
+
+	sock_gen_put(sk);
 }
 EXPORT_SYMBOL(sock_pfree);
 #endif /* CONFIG_INET */
@@ -4223,3 +4235,65 @@ int sk_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 	return sock_ioctl_out(sk, cmd, arg);
 }
 EXPORT_SYMBOL(sk_ioctl);
+
+static int __init sock_struct_check(void)
+{
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rx, sk_drops);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rx, sk_peek_off);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rx, sk_error_queue);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rx, sk_receive_queue);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rx, sk_backlog);
+
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rx_dst);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rx_dst_ifindex);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rx_dst_cookie);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rcvbuf);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_filter);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_wq);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_data_ready);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rcvtimeo);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rx, sk_rcvlowat);
+
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rxtx, sk_err);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rxtx, sk_socket);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_rxtx, sk_memcg);
+
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rxtx, sk_lock);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rxtx, sk_reserved_mem);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rxtx, sk_forward_alloc);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_rxtx, sk_tsflags);
+
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_omem_alloc);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_omem_alloc);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_sndbuf);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_wmem_queued);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_wmem_alloc);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_tsq_flags);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_send_head);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_write_queue);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_write_pending);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_dst_pending_confirm);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_pacing_status);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_frag);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_timer);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_pacing_rate);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_zckey);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_write_tx, sk_tskey);
+
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_max_pacing_rate);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_sndtimeo);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_priority);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_mark);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_dst_cache);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_route_caps);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_gso_type);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_gso_max_size);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_allocation);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_txhash);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_gso_max_segs);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_pacing_shift);
+	CACHELINE_ASSERT_GROUP_MEMBER(struct sock, sock_read_tx, sk_use_task_frag);
+	return 0;
+}
+
+core_initcall(sock_struct_check);
