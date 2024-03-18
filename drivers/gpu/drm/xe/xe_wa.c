@@ -401,6 +401,11 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
 			     XE_RTP_NOCHECK))
 	},
+	{ XE_RTP_NAME("14020495402"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1274),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(ROW_CHICKEN2, DISABLE_TDL_SVHS_GATING))
+	},
 
 	/* Xe2_LPG */
 
