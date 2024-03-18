@@ -49,12 +49,13 @@ defined in the CPUID 0x8000001f[ecx] field.
 The KVM_MEMORY_ENCRYPT_OP ioctl
 ===============================
 
-The main ioctl to access SEV is KVM_MEMORY_ENCRYPT_OP.  If the argument
-to KVM_MEMORY_ENCRYPT_OP is NULL, the ioctl returns 0 if SEV is enabled
-and ``ENOTTY`` if it is disabled (on some older versions of Linux,
-the ioctl runs normally even with a NULL argument, and therefore will
-likely return ``EFAULT``).  If non-NULL, the argument to KVM_MEMORY_ENCRYPT_OP
-must be a struct kvm_sev_cmd::
+The main ioctl to access SEV is KVM_MEMORY_ENCRYPT_OP, which operates on
+the VM file descriptor.  If the argument to KVM_MEMORY_ENCRYPT_OP is NULL,
+the ioctl returns 0 if SEV is enabled and ``ENOTTY`` if it is disabled
+(on some older versions of Linux, the ioctl tries to run normally even
+with a NULL argument, and therefore will likely return ``EFAULT`` instead
+of zero if SEV is enabled).  If non-NULL, the argument to
+KVM_MEMORY_ENCRYPT_OP must be a struct kvm_sev_cmd::
 
        struct kvm_sev_cmd {
                __u32 id;
