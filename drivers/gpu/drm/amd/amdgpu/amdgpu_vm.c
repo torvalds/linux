@@ -988,6 +988,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	params.unlocked = unlocked;
 	params.needs_flush = flush_tlb;
 	params.allow_override = allow_override;
+	INIT_LIST_HEAD(&params.tlb_flush_waitlist);
 
 	/* Implicitly sync to command submissions in the same VM before
 	 * unmapping. Sync to moving fences before mapping.
@@ -1077,6 +1078,8 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		amdgpu_vm_tlb_flush(&params, fence, tlb_cb);
 		tlb_cb = NULL;
 	}
+
+	amdgpu_vm_pt_free_list(adev, &params);
 
 error_free:
 	kfree(tlb_cb);
