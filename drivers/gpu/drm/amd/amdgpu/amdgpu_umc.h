@@ -66,8 +66,6 @@ struct amdgpu_umc_ras {
 					void *ras_error_status);
 	bool (*check_ecc_err_status)(struct amdgpu_device *adev,
 			enum amdgpu_mca_error_type type, void *ras_error_status);
-	/* support different eeprom table version for different asic */
-	void (*set_eeprom_table_version)(struct amdgpu_ras_eeprom_table_header *hdr);
 };
 
 struct amdgpu_umc_funcs {
