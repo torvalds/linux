@@ -241,7 +241,6 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
  * define empty stubs for use by pin_page_for_write.
  */
 #define pmd_hugewillfault(pmd)	(0)
-#define pmd_thp_or_huge(pmd)	(0)
 
 #endif /* __ASSEMBLY__ */
 
