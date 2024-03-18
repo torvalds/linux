@@ -303,18 +303,6 @@ void bch2_readahead(struct readahead_control *ractl)
 	darray_exit(&readpages_iter.folios);
 }
 
-static void __bchfs_readfolio(struct bch_fs *c, struct bch_read_bio *rbio,
-			     subvol_inum inum, struct folio *folio)
-{
-	bch2_folio_create(folio, __GFP_NOFAIL);
-
-	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
-	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
-	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
-
-	bch2_trans_run(c, (bchfs_read(trans, rbio, inum, NULL), 0));
-}
-
 static void bch2_read_single_folio_end_io(struct bio *bio)
 {
 	complete(bio->bi_private);
@@ -329,6 +317,9 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
 
+	if (!bch2_folio_create(folio, GFP_KERNEL))
+		return -ENOMEM;
+
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_KERNEL, &c->bio_read),
@@ -336,7 +327,11 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	rbio->bio.bi_private = &done;
 	rbio->bio.bi_end_io = bch2_read_single_folio_end_io;
 
-	__bchfs_readfolio(c, rbio, inode_inum(inode), folio);
+	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
+	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
+	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
+
+	bch2_trans_run(c, (bchfs_read(trans, rbio, inode_inum(inode), NULL), 0));
 	wait_for_completion(&done);
 
 	ret = blk_status_to_errno(rbio->bio.bi_status);

@@ -834,16 +834,6 @@
 					<&clks IMX7D_LCDIF_PIXEL_ROOT_CLK>;
 				clock-names = "pix", "axi";
 				status = "disabled";
-
-				port {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					lcdif_out_mipi_dsi: endpoint@0 {
-						reg = <0>;
-						remote-endpoint = <&mipi_dsi_in_lcdif>;
-					};
-				};
 			};
 
 			mipi_csi: mipi-csi@30750000 {
@@ -895,22 +885,6 @@
 				samsung,esc-clock-frequency = <20000000>;
 				samsung,pll-clock-frequency = <24000000>;
 				status = "disabled";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-						#address-cells = <1>;
-						#size-cells = <0>;
-
-						mipi_dsi_in_lcdif: endpoint@0 {
-							reg = <0>;
-							remote-endpoint = <&lcdif_out_mipi_dsi>;
-						};
-					};
-				};
 			};
 		};
 

@@ -65,9 +65,11 @@ properties:
 
   rx-internal-delay-ps:
     enum: [0, 1800]
+    default: 0
 
   tx-internal-delay-ps:
     enum: [0, 2000]
+    default: 0
 
   '#address-cells':
     const: 1
