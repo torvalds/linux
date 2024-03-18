@@ -1226,9 +1226,6 @@ __uprobe_perf_filter(struct trace_uprobe_filter *filter, struct mm_struct *mm)
 {
 	struct perf_event *event;
 
-	if (filter->nr_systemwide)
-		return true;
-
 	list_for_each_entry(event, &filter->perf_events, hw.tp_list) {
 		if (event->hw.target->mm == mm)
 			return true;
@@ -1352,6 +1349,13 @@ static bool uprobe_perf_filter(struct uprobe_consumer *uc,
 
 	tu = container_of(uc, struct trace_uprobe, consumer);
 	filter = tu->tp.event->filter;
+
+	/*
+	 * speculative short-circuiting check to avoid unnecessarily taking
+	 * filter->rwlock below, if the uprobe has system-wide consumer
+	 */
+	if (READ_ONCE(filter->nr_systemwide))
+		return true;
 
 	read_lock(&filter->rwlock);
 	ret = __uprobe_perf_filter(filter, mm);
