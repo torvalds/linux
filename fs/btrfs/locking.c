@@ -364,8 +364,12 @@ void btrfs_drew_write_lock(struct btrfs_drew_lock *lock)
 
 void btrfs_drew_write_unlock(struct btrfs_drew_lock *lock)
 {
-	atomic_dec(&lock->writers);
-	cond_wake_up(&lock->pending_readers);
+	/*
+	 * atomic_dec_and_test() implies a full barrier, so woken up readers are
+	 * guaranteed to see the decrement.
+	 */
+	if (atomic_dec_and_test(&lock->writers))
+		wake_up(&lock->pending_readers);
 }
 
 void btrfs_drew_read_lock(struct btrfs_drew_lock *lock)
