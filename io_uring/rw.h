@@ -9,8 +9,9 @@ struct io_async_rw {
 	};
 	struct iov_iter			iter;
 	struct iov_iter_state		iter_state;
-	struct iovec			fast_iov[UIO_FASTIOV];
+	struct iovec			fast_iov;
 	struct iovec			*free_iovec;
+	int				free_iov_nr;
 	struct wait_page_queue		wpq;
 };
 

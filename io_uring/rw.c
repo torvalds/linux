@@ -81,7 +81,9 @@ static int __io_import_iovec(int ddir, struct io_kiocb *req,
 {
 	const struct io_issue_def *def = &io_issue_defs[req->opcode];
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	struct iovec *iov;
 	void __user *buf;
+	int nr_segs, ret;
 	size_t sqe_len;
 
 	buf = u64_to_user_ptr(rw->addr);
@@ -99,9 +101,24 @@ static int __io_import_iovec(int ddir, struct io_kiocb *req,
 		return import_ubuf(ddir, buf, sqe_len, &io->iter);
 	}
 
-	io->free_iovec = io->fast_iov;
-	return __import_iovec(ddir, buf, sqe_len, UIO_FASTIOV, &io->free_iovec,
-				&io->iter, req->ctx->compat);
+	if (io->free_iovec) {
+		nr_segs = io->free_iov_nr;
+		iov = io->free_iovec;
+	} else {
+		iov = &io->fast_iov;
+		nr_segs = 1;
+	}
+	ret = __import_iovec(ddir, buf, sqe_len, nr_segs, &iov, &io->iter,
+				req->ctx->compat);
+	if (unlikely(ret < 0))
+		return ret;
+	if (iov) {
+		req->flags |= REQ_F_NEED_CLEANUP;
+		io->free_iov_nr = io->iter.nr_segs;
+		kfree(io->free_iovec);
+		io->free_iovec = iov;
+	}
+	return 0;
 }
 
 static inline int io_import_iovec(int rw, struct io_kiocb *req,
@@ -122,6 +139,7 @@ static void io_rw_iovec_free(struct io_async_rw *rw)
 {
 	if (rw->free_iovec) {
 		kfree(rw->free_iovec);
+		rw->free_iov_nr = 0;
 		rw->free_iovec = NULL;
 	}
 }
@@ -129,12 +147,16 @@ static void io_rw_iovec_free(struct io_async_rw *rw)
 static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_async_rw *rw = req->async_data;
+	struct iovec *iov;
 
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED)) {
 		io_rw_iovec_free(rw);
 		return;
 	}
+	iov = rw->free_iovec;
 	if (io_alloc_cache_put(&req->ctx->rw_cache, &rw->cache)) {
+		if (iov)
+			kasan_mempool_poison_object(iov);
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
 	}
@@ -184,6 +206,11 @@ static int io_rw_alloc_async(struct io_kiocb *req)
 	entry = io_alloc_cache_get(&ctx->rw_cache);
 	if (entry) {
 		rw = container_of(entry, struct io_async_rw, cache);
+		if (rw->free_iovec) {
+			kasan_mempool_unpoison_object(rw->free_iovec,
+				rw->free_iov_nr * sizeof(struct iovec));
+			req->flags |= REQ_F_NEED_CLEANUP;
+		}
 		req->flags |= REQ_F_ASYNC_DATA;
 		req->async_data = rw;
 		goto done;
@@ -191,8 +218,9 @@ static int io_rw_alloc_async(struct io_kiocb *req)
 
 	if (!io_alloc_async_data(req)) {
 		rw = req->async_data;
-done:
 		rw->free_iovec = NULL;
+		rw->free_iov_nr = 0;
+done:
 		rw->bytes_done = 0;
 		return 0;
 	}
@@ -1145,6 +1173,10 @@ void io_rw_cache_free(struct io_cache_entry *entry)
 	struct io_async_rw *rw;
 
 	rw = container_of(entry, struct io_async_rw, cache);
-	kfree(rw->free_iovec);
+	if (rw->free_iovec) {
+		kasan_mempool_unpoison_object(rw->free_iovec,
+				rw->free_iov_nr * sizeof(struct iovec));
+		io_rw_iovec_free(rw);
+	}
 	kfree(rw);
 }
