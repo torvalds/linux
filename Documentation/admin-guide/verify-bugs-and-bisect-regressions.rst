@@ -99,7 +99,8 @@ will be considered the 'good' release and used to prepare the .config file.
        # * Note: on Arch Linux, its derivatives and a few other distributions
        #   the following commands will do nothing at all or only part of the
        #   job. See the step-by-step guide for further details.
-       command -v installkernel && sudo make modules_install install
+       sudo make modules_install
+       command -v installkernel && sudo make install
        # * Check how much space your self-built kernel actually needs, which
        #   enables you to make better estimates later:
        du -ch /boot/*$(make -s kernelrelease)* | tail -n 1
@@ -520,44 +521,32 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
 
 * Install your newly built kernel.
 
-  Before doing so, consider checking if there is still enough room for it::
+  Before doing so, consider checking if there is still enough space for it::
 
     df -h /boot/ /lib/modules/
 
-  150 MByte in /boot/ and 200 in /lib/modules/ usually suffice. Those are rough
-  estimates assuming the worst case. How much your kernels actually require will
-  be determined later.
+  For now assume 150 MByte in /boot/ and 200 in /lib/modules/ will suffice; how
+  much your kernels actually require will be determined later during this guide.
 
-  Now install the kernel, which will be saved in parallel to the kernels from
-  your Linux distribution::
+  Now install the kernel's modules and its image, which will be stored in
+  parallel to the your Linux distribution's kernels::
 
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
 
-  On many commodity Linux distributions this will take care of everything
-  required to boot your kernel. You might want to ensure that's the case by
-  checking if your boot loader's configuration was updated; furthermore ensure
-  an initramfs (also known as initrd) exists, which on many distributions can be
-  achieved by running ``ls -l /boot/init*$(make -s kernelrelease)*``. Those
-  steps are recommended, as there are quite a few Linux distribution where above
-  command is insufficient:
+  The second command ideally will take care of three steps required at this
+  point: copying the kernel's image to /boot/, generating an initramfs, and
+  adding an entry for both to the boot loader's configuration.
 
-  * On Arch Linux, its derivatives, many immutable Linux distributions, and a
-    few others the above command does nothing at, as they lack 'installkernel'
-    executable.
+  Sadly some distributions (among them Arch Linux, its derivatives, and many
+  immutable Linux distributions) will perform none or only some of those tasks.
+  You therefore want to check if all of them were taken care of and manually
+  perform those that were not. The reference section provides further details on
+  that; your distribution's documentation might help, too.
 
-  * Some distributions install the kernel, but don't add an entry for your
-    kernel in your boot loader's configuration -- the kernel thus won't show up
-    in the boot menu.
-
-  * Some distributions add a boot loader menu entry, but don't create an
-    initramfs on installation -- in that case your kernel most likely will be
-    unable to mount the root partition during bootup.
-
-  If any of that applies to you, see the reference section for further guidance.
-  Once you figured out what to do, consider writing down the necessary
-  installation steps: if you will build more kernels as described in
-  segment 2 and 3, you will have to execute these commands every time that
-  ``command -v installkernel [...]`` comes up again.
+  Once you figured out the steps needed at this point, consider writing them
+  down: if you will build more kernels as described in segment 2 and 3, you will
+  have to perform those again after executing ``command -v installkernel [...]``.
 
   [:ref:`details<install_bisref>`]
 
@@ -622,7 +611,8 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -670,7 +660,8 @@ otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -727,7 +718,8 @@ each kernel on commodity x86 machines.
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -843,7 +835,8 @@ each kernel on commodity x86 machines.
     make -j $(nproc --all) &&
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     Make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -1580,39 +1573,38 @@ Put the kernel in place
   *Install the kernel you just built.* [:ref:`... <install_bissbs>`]
 
 What you need to do after executing the command in the step-by-step guide
-depends on the existence and the implementation of an ``installkernel``
-executable. Many commodity Linux distributions ship such a kernel installer in
-'/sbin/' that does everything needed, hence there is nothing left for you
-except rebooting. But some distributions contain an installkernel that does
-only part of the job -- and a few lack it completely and leave all the work to
-you.
+depends on the existence and the implementation of ``/sbin/installkernel``
+executable on your distribution.
 
-If ``installkernel`` is found, the kernel's build system will delegate the
-actual installation of your kernel's image and related files to this executable.
-On almost all Linux distributions it will store the image as '/boot/vmlinuz-
-<kernelrelease identifier>' and put a 'System.map-<kernelrelease
-identifier>' alongside it. Your kernel will thus be installed in parallel to any
-existing ones, unless you already have one with exactly the same release name.
+If installkernel is found, the kernel's build system will delegate the actual
+installation of your kernel image to this executable, which then performs some
+or all of these tasks:
 
-Installkernel on many distributions will afterwards generate an 'initramfs'
-(often also called 'initrd'), which commodity distributions rely on for booting;
-hence be sure to keep the order of the two make targets used in the step-by-step
-guide, as things will go sideways if you install your kernel's image before its
-modules. Often installkernel will then add your kernel to the bootloader
-configuration, too. You have to take care of one or both of these tasks
-yourself, if your distributions installkernel doesn't handle them.
+ * On almost all Linux distributions installkernel will store your kernel's
+   image in /boot/, usually as '/boot/vmlinuz-<kernelrelease_id>'; often it will
+   put a 'System.map-<kernelrelease_id>' alongside it.
 
-A few distributions like Arch Linux and its derivatives totally lack an
-installkernel executable. On those just install the modules using the kernel's
-build system and then install the image and the System.map file manually::
+ * On most distributions installkernel will then generate an 'initramfs'
+   (sometimes also called 'initrd'), which usually are stored as
+   '/boot/initramfs-<kernelrelease_id>.img' or
+   '/boot/initrd-<kernelrelease_id>'. Commodity distributions rely on this file
+   for booting, hence ensure to execute the make target 'modules_install' first,
+   as your distribution's initramfs generator otherwise will be unable to find
+   the modules that go into the image.
 
-   sudo make modules_install
+ * On some distributions installkernel will then add an entry for your kernel
+   to your bootloader's configuration.
+
+You have to take care of some or all of the tasks yourself, if your
+distribution lacks a installkernel script or does only handle part of them.
+Consult the distribution's documentation for details. If in doubt, install the
+kernel manually::
+
    sudo install -m 0600 $(make -s image_name) /boot/vmlinuz-$(make -s kernelrelease)
    sudo install -m 0600 System.map /boot/System.map-$(make -s kernelrelease)
 
-If your distribution boots with the help of an initramfs, now generate one for
-your kernel using the tools your distribution provides for this process.
-Afterwards add your kernel to your bootloader configuration and reboot.
+Now generate your initramfs using the tools your distribution provides for this
+process. Afterwards add your kernel to your bootloader configuration and reboot.
 
 [:ref:`back to step-by-step guide <install_bissbs>`]
 
