@@ -119,9 +119,9 @@ enum {
 void io_eventfd_ops(struct rcu_head *rcu);
 void io_activate_pollwq(struct io_ring_ctx *ctx);
 
-#if defined(CONFIG_PROVE_LOCKING)
 static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 {
+#if defined(CONFIG_PROVE_LOCKING)
 	lockdep_assert(in_task());
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
@@ -140,12 +140,8 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		else
 			lockdep_assert(current == ctx->submitter_task);
 	}
-}
-#else
-static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
-{
-}
 #endif
+}
 
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
