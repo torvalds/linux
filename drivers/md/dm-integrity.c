@@ -1856,12 +1856,12 @@ again:
 			r = dm_integrity_rw_tag(ic, checksums, &dio->metadata_block, &dio->metadata_offset,
 						checksums_ptr - checksums, dio->op == REQ_OP_READ ? TAG_CMP : TAG_WRITE);
 			if (unlikely(r)) {
-				if (r > 0) {
-					integrity_recheck(dio, checksums);
-					goto skip_io;
-				}
 				if (likely(checksums != checksums_onstack))
 					kfree(checksums);
+				if (r > 0) {
+					integrity_recheck(dio, checksums_onstack);
+					goto skip_io;
+				}
 				goto error;
 			}
 
