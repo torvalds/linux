@@ -5874,6 +5874,15 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sdata->vif.active_links != active_links) {
+		/* usable links are affected when active_links are changed,
+		 * so notify the driver about the status change
+		 */
+		changed |= BSS_CHANGED_MLD_VALID_LINKS;
+		active_links &= sdata->vif.active_links;
+		if (!active_links)
+			active_links =
+				BIT(__ffs(sdata->vif.valid_links &
+				    ~dormant_links));
 		ret = ieee80211_set_active_links(&sdata->vif, active_links);
 		if (ret) {
 			sdata_info(sdata, "Failed to set TTLM active links\n");
@@ -5888,7 +5897,6 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	changed |= BSS_CHANGED_MLD_VALID_LINKS;
 	sdata->vif.suspended_links = suspended_links;
 	if (sdata->vif.suspended_links)
 		changed |= BSS_CHANGED_MLD_TTLM;
