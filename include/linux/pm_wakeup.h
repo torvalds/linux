@@ -107,7 +107,7 @@ extern void wakeup_sources_read_unlock(int idx);
 extern struct wakeup_source *wakeup_sources_walk_start(void);
 extern struct wakeup_source *wakeup_sources_walk_next(struct wakeup_source *ws);
 extern int device_wakeup_enable(struct device *dev);
-extern int device_wakeup_disable(struct device *dev);
+extern void device_wakeup_disable(struct device *dev);
 extern void device_set_wakeup_capable(struct device *dev, bool capable);
 extern int device_set_wakeup_enable(struct device *dev, bool enable);
 extern void __pm_stay_awake(struct wakeup_source *ws);
@@ -154,10 +154,9 @@ static inline int device_wakeup_enable(struct device *dev)
 	return 0;
 }
 
-static inline int device_wakeup_disable(struct device *dev)
+static inline void device_wakeup_disable(struct device *dev)
 {
 	dev->power.should_wakeup = false;
-	return 0;
 }
 
 static inline int device_set_wakeup_enable(struct device *dev, bool enable)
