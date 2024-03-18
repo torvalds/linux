@@ -32,6 +32,7 @@ struct btree_update {
 	struct closure			cl;
 	struct bch_fs			*c;
 	u64				start_time;
+	unsigned long			ip_started;
 
 	struct list_head		list;
 	struct list_head		unwritten_list;

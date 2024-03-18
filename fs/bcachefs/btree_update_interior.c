@@ -1117,6 +1117,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	closure_init(&as->cl, NULL);
 	as->c		= c;
 	as->start_time	= start_time;
+	as->ip_started	= _RET_IP_;
 	as->mode	= BTREE_INTERIOR_NO_UPDATE;
 	as->took_gc_lock = true;
 	as->btree_id	= path->btree_id;
@@ -2441,12 +2442,12 @@ void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_for_each_entry(as, &c->btree_interior_update_list, list)
-		prt_printf(out, "%p m %u w %u r %u j %llu\n",
-		       as,
-		       as->mode,
-		       as->nodes_written,
-		       closure_nr_remaining(&as->cl),
-		       as->journal.seq);
+		prt_printf(out, "%ps: mode=%u nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
+			   (void *) as->ip_started,
+			   as->mode,
+			   as->nodes_written,
+			   closure_nr_remaining(&as->cl),
+			   as->journal.seq);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
