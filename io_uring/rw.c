@@ -96,12 +96,12 @@ static int __io_import_iovec(int ddir, struct io_kiocb *req,
 			rw->len = sqe_len;
 		}
 
-		return import_ubuf(ddir, buf, sqe_len, &io->s.iter);
+		return import_ubuf(ddir, buf, sqe_len, &io->iter);
 	}
 
-	io->free_iovec = io->s.fast_iov;
+	io->free_iovec = io->fast_iov;
 	return __import_iovec(ddir, buf, sqe_len, UIO_FASTIOV, &io->free_iovec,
-				&io->s.iter, req->ctx->compat);
+				&io->iter, req->ctx->compat);
 }
 
 static inline int io_import_iovec(int rw, struct io_kiocb *req,
@@ -114,7 +114,7 @@ static inline int io_import_iovec(int rw, struct io_kiocb *req,
 	if (unlikely(ret < 0))
 		return ret;
 
-	iov_iter_save_state(&io->s.iter, &io->s.iter_state);
+	iov_iter_save_state(&io->iter, &io->iter_state);
 	return 0;
 }
 
@@ -216,7 +216,7 @@ static int io_prep_rw_setup(struct io_kiocb *req, int ddir, bool do_import)
 	if (unlikely(ret < 0))
 		return ret;
 
-	iov_iter_save_state(&rw->s.iter, &rw->s.iter_state);
+	iov_iter_save_state(&rw->iter, &rw->iter_state);
 	return 0;
 }
 
@@ -308,8 +308,8 @@ static int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	io_req_set_rsrc_node(req, ctx, 0);
 
 	io = req->async_data;
-	ret = io_import_fixed(ddir, &io->s.iter, req->imu, rw->addr, rw->len);
-	iov_iter_save_state(&io->s.iter, &io->s.iter_state);
+	ret = io_import_fixed(ddir, &io->iter, req->imu, rw->addr, rw->len);
+	iov_iter_save_state(&io->iter, &io->iter_state);
 	return ret;
 }
 
@@ -374,7 +374,7 @@ static void io_resubmit_prep(struct io_kiocb *req)
 {
 	struct io_async_rw *io = req->async_data;
 
-	iov_iter_restore(&io->s.iter, &io->s.iter_state);
+	iov_iter_restore(&io->iter, &io->iter_state);
 }
 
 static bool io_rw_should_reissue(struct io_kiocb *req)
@@ -808,7 +808,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	ret = io_rw_init_file(req, FMODE_READ);
 	if (unlikely(ret))
 		return ret;
-	req->cqe.res = iov_iter_count(&io->s.iter);
+	req->cqe.res = iov_iter_count(&io->iter);
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
@@ -826,7 +826,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(ret))
 		return ret;
 
-	ret = io_iter_do_read(rw, &io->s.iter);
+	ret = io_iter_do_read(rw, &io->iter);
 
 	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
 		req->flags &= ~REQ_F_REISSUE;
@@ -853,7 +853,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	 * untouched in case of error. Restore it and we'll advance it
 	 * manually if we need to.
 	 */
-	iov_iter_restore(&io->s.iter, &io->s.iter_state);
+	iov_iter_restore(&io->iter, &io->iter_state);
 
 	do {
 		/*
@@ -861,11 +861,11 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 * above or inside this loop. Advance the iter by the bytes
 		 * that were consumed.
 		 */
-		iov_iter_advance(&io->s.iter, ret);
-		if (!iov_iter_count(&io->s.iter))
+		iov_iter_advance(&io->iter, ret);
+		if (!iov_iter_count(&io->iter))
 			break;
 		io->bytes_done += ret;
-		iov_iter_save_state(&io->s.iter, &io->s.iter_state);
+		iov_iter_save_state(&io->iter, &io->iter_state);
 
 		/* if we can retry, do so with the callbacks armed */
 		if (!io_rw_should_retry(req)) {
@@ -873,19 +873,19 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 			return -EAGAIN;
 		}
 
-		req->cqe.res = iov_iter_count(&io->s.iter);
+		req->cqe.res = iov_iter_count(&io->iter);
 		/*
 		 * Now retry read with the IOCB_WAITQ parts set in the iocb. If
 		 * we get -EIOCBQUEUED, then we'll get a notification when the
 		 * desired page gets unlocked. We can also get a partial read
 		 * here, and if we do, then just retry at the new offset.
 		 */
-		ret = io_iter_do_read(rw, &io->s.iter);
+		ret = io_iter_do_read(rw, &io->iter);
 		if (ret == -EIOCBQUEUED)
 			return IOU_ISSUE_SKIP_COMPLETE;
 		/* we got some bytes, but not all. retry. */
 		kiocb->ki_flags &= ~IOCB_WAITQ;
-		iov_iter_restore(&io->s.iter, &io->s.iter_state);
+		iov_iter_restore(&io->iter, &io->iter_state);
 	} while (ret > 0);
 done:
 	/* it's faster to check here then delegate to kfree */
@@ -989,7 +989,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	ret = io_rw_init_file(req, FMODE_WRITE);
 	if (unlikely(ret))
 		return ret;
-	req->cqe.res = iov_iter_count(&io->s.iter);
+	req->cqe.res = iov_iter_count(&io->iter);
 
 	if (force_nonblock) {
 		/* If the file doesn't support async, just async punt */
@@ -1019,9 +1019,9 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	kiocb->ki_flags |= IOCB_WRITE;
 
 	if (likely(req->file->f_op->write_iter))
-		ret2 = call_write_iter(req->file, kiocb, &io->s.iter);
+		ret2 = call_write_iter(req->file, kiocb, &io->iter);
 	else if (req->file->f_op->write)
-		ret2 = loop_rw_iter(WRITE, rw, &io->s.iter);
+		ret2 = loop_rw_iter(WRITE, rw, &io->iter);
 	else
 		ret2 = -EINVAL;
 
@@ -1053,7 +1053,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			 * in the worker. Also update bytes_done to account for
 			 * the bytes already written.
 			 */
-			iov_iter_save_state(&io->s.iter, &io->s.iter_state);
+			iov_iter_save_state(&io->iter, &io->iter_state);
 			io->bytes_done += ret2;
 
 			if (kiocb->ki_flags & IOCB_WRITE)
@@ -1064,7 +1064,7 @@ done:
 		ret = kiocb_done(req, ret2, issue_flags);
 	} else {
 ret_eagain:
-		iov_iter_restore(&io->s.iter, &io->s.iter_state);
+		iov_iter_restore(&io->iter, &io->iter_state);
 		if (kiocb->ki_flags & IOCB_WRITE)
 			io_req_end_write(req);
 		return -EAGAIN;
@@ -1164,5 +1164,6 @@ void io_rw_cache_free(struct io_cache_entry *entry)
 	struct io_async_rw *rw;
 
 	rw = container_of(entry, struct io_async_rw, cache);
+	kfree(rw->free_iovec);
 	kfree(rw);
 }

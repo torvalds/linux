@@ -2,18 +2,14 @@
 
 #include <linux/pagemap.h>
 
-struct io_rw_state {
-	struct iov_iter			iter;
-	struct iov_iter_state		iter_state;
-	struct iovec			fast_iov[UIO_FASTIOV];
-};
-
 struct io_async_rw {
 	union {
 		size_t			bytes_done;
 		struct io_cache_entry	cache;
 	};
-	struct io_rw_state		s;
+	struct iov_iter			iter;
+	struct iov_iter_state		iter_state;
+	struct iovec			fast_iov[UIO_FASTIOV];
 	struct iovec			*free_iovec;
 	struct wait_page_queue		wpq;
 };
