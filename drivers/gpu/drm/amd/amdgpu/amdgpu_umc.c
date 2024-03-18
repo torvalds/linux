@@ -21,9 +21,12 @@
  *
  */
 
+#include <linux/sort.h>
 #include "amdgpu.h"
 #include "umc_v6_7.h"
 #define MAX_UMC_POISON_POLLING_TIME_SYNC   20  //ms
+
+#define MAX_UMC_HASH_STRING_SIZE  256
 
 static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 				    struct ras_err_data *err_data, uint64_t err_addr,
@@ -445,4 +448,68 @@ int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
 		return adev->umc.ras->update_ecc_status(adev,
 					status, ipid, addr);
 	return 0;
+}
+
+static int amdgpu_umc_uint64_cmp(const void *a, const void *b)
+{
+	uint64_t *addr_a = (uint64_t *)a;
+	uint64_t *addr_b = (uint64_t *)b;
+
+	if (*addr_a > *addr_b)
+		return 1;
+	else if (*addr_a < *addr_b)
+		return -1;
+	else
+		return 0;
+}
+
+/* Use string hash to avoid logging the same bad pages repeatedly */
+int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
+		uint64_t *pfns, int len, uint64_t *val)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	char buf[MAX_UMC_HASH_STRING_SIZE] = {0};
+	int offset = 0, i = 0;
+	uint64_t hash_val;
+
+	if (!pfns || !len)
+		return -EINVAL;
+
+	sort(pfns, len, sizeof(uint64_t), amdgpu_umc_uint64_cmp, NULL);
+
+	for (i = 0; i < len; i++)
+		offset += snprintf(&buf[offset], sizeof(buf) - offset, "%llx", pfns[i]);
+
+	hash_val = siphash(buf, offset, &con->umc_ecc_log.ecc_key);
+
+	*val = hash_val;
+
+	return 0;
+}
+
+int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
+		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_ecc_log_info *ecc_log;
+	int ret;
+
+	ecc_log = &con->umc_ecc_log;
+
+	mutex_lock(&ecc_log->lock);
+	ret = radix_tree_insert(ecc_tree, ecc_err->hash_index, ecc_err);
+	if (!ret) {
+		struct ras_err_pages *err_pages = &ecc_err->err_pages;
+		int i;
+
+		/* Reserve memory */
+		for (i = 0; i < err_pages->count; i++)
+			amdgpu_ras_reserve_page(adev, err_pages->pfn[i]);
+
+		radix_tree_tag_set(ecc_tree,
+			ecc_err->hash_index, UMC_ECC_NEW_DETECTED_TAG);
+	}
+	mutex_unlock(&ecc_log->lock);
+
+	return ret;
 }

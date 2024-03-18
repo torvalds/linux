@@ -546,8 +546,10 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint16_t hwid, mcatype;
 	struct ta_ras_query_address_input addr_in;
 	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
-	uint64_t err_addr;
+	uint64_t err_addr, hash_val = 0;
+	struct ras_ecc_err *ecc_err;
 	int count;
+	int ret;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
 	mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
@@ -587,6 +589,43 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	if (count <= 0) {
 		dev_warn(adev->dev, "Fail to convert error address! count:%d\n", count);
 		return 0;
+	}
+
+	ret = amdgpu_umc_build_pages_hash(adev,
+			page_pfn, count, &hash_val);
+	if (ret) {
+		dev_err(adev->dev, "Fail to build error pages hash\n");
+		return ret;
+	}
+
+	ecc_err = kzalloc(sizeof(*ecc_err), GFP_KERNEL);
+	if (!ecc_err)
+		return -ENOMEM;
+
+	ecc_err->err_pages.pfn = kcalloc(count, sizeof(*ecc_err->err_pages.pfn), GFP_KERNEL);
+	if (!ecc_err->err_pages.pfn) {
+		kfree(ecc_err);
+		return -ENOMEM;
+	}
+
+	memcpy(ecc_err->err_pages.pfn, page_pfn, count * sizeof(*ecc_err->err_pages.pfn));
+	ecc_err->err_pages.count = count;
+
+	ecc_err->hash_index = hash_val;
+	ecc_err->status = status;
+	ecc_err->ipid = ipid;
+	ecc_err->addr = addr;
+
+	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
+	if (ret) {
+		if (ret == -EEXIST)
+			con->umc_ecc_log.de_updated = true;
+		else
+			dev_err(adev->dev, "Fail to log ecc error! ret:%d\n", ret);
+
+		kfree(ecc_err->err_pages.pfn);
+		kfree(ecc_err);
+		return ret;
 	}
 
 	con->umc_ecc_log.de_updated = true;

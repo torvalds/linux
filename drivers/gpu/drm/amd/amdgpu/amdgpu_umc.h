@@ -52,6 +52,8 @@
 #define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
 		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
 
+/* Page retirement tag */
+#define UMC_ECC_NEW_DETECTED_TAG       0x1
 
 typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
 			uint32_t umc_inst, uint32_t ch_inst, void *data);
@@ -127,5 +129,8 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 
 int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
 				uint64_t status, uint64_t ipid, uint64_t addr);
-
+int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
+		uint64_t *pfns, int len, uint64_t *val);
+int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
+		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err);
 #endif
