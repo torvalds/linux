@@ -326,7 +326,6 @@ static void gt_irq_handler(struct xe_tile *tile,
 					xe_heci_gsc_irq_handler(xe, intr_vec);
 				else
 					gt_other_irq_handler(engine_gt, instance, intr_vec);
-				continue;
 			}
 		}
 	}
