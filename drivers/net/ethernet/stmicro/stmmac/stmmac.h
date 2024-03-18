@@ -328,6 +328,7 @@ struct stmmac_priv {
 	bool phy_irq_enabled;
 	bool boot_kpi;
 	bool early_eth;
+	bool early_eth_config_set;
 };
 
 enum stmmac_state {
