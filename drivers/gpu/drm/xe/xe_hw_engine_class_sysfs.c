@@ -499,8 +499,8 @@ static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-	static struct kobj_eclass *
-kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name)
+static struct kobj_eclass *
+kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char *name)
 {
 	struct kobj_eclass *keclass;
 	int err = 0;
@@ -635,6 +635,24 @@ static void hw_engine_class_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
+static const char *xe_hw_engine_class_to_str(enum xe_engine_class class)
+{
+	switch (class) {
+	case XE_ENGINE_CLASS_RENDER:
+		return "rcs";
+	case XE_ENGINE_CLASS_VIDEO_DECODE:
+		return "vcs";
+	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		return "vecs";
+	case XE_ENGINE_CLASS_COPY:
+		return "bcs";
+	case XE_ENGINE_CLASS_COMPUTE:
+		return "ccs";
+	default:
+		return NULL;
+	}
+}
+
 /**
  * xe_hw_engine_class_sysfs_init - Init HW engine classes on GT.
  * @gt: Xe GT.
@@ -664,7 +682,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 		goto err_object;
 
 	for_each_hw_engine(hwe, gt, id) {
-		char name[MAX_ENGINE_CLASS_NAME_LEN];
+		const char *name;
 		struct kobj_eclass *keclass;
 
 		if (hwe->class == XE_ENGINE_CLASS_OTHER ||
@@ -675,24 +693,8 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 			continue;
 
 		class_mask |= 1 << hwe->class;
-
-		switch (hwe->class) {
-		case XE_ENGINE_CLASS_RENDER:
-			strcpy(name, "rcs");
-			break;
-		case XE_ENGINE_CLASS_VIDEO_DECODE:
-			strcpy(name, "vcs");
-			break;
-		case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-			strcpy(name, "vecs");
-			break;
-		case XE_ENGINE_CLASS_COPY:
-			strcpy(name, "bcs");
-			break;
-		case XE_ENGINE_CLASS_COMPUTE:
-			strcpy(name, "ccs");
-			break;
-		default:
+		name = xe_hw_engine_class_to_str(hwe->class);
+		if (!name) {
 			err = -EINVAL;
 			goto err_object;
 		}
