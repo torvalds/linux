@@ -67,7 +67,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rwv,
+		.prep			= io_prep_readv,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITEV] = {
@@ -81,7 +81,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rwv,
+		.prep			= io_prep_writev,
 		.issue			= io_write,
 	},
 	[IORING_OP_FSYNC] = {
@@ -99,7 +99,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw_fixed,
+		.prep			= io_prep_read_fixed,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITE_FIXED] = {
@@ -112,7 +112,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw_fixed,
+		.prep			= io_prep_write_fixed,
 		.issue			= io_write,
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -239,7 +239,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_read,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITE] = {
@@ -252,7 +252,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_write,
 		.issue			= io_write,
 	},
 	[IORING_OP_FADVISE] = {
@@ -490,14 +490,12 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_READV] = {
 		.async_size		= sizeof(struct io_async_rw),
 		.name			= "READV",
-		.prep_async		= io_readv_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITEV] = {
 		.async_size		= sizeof(struct io_async_rw),
 		.name			= "WRITEV",
-		.prep_async		= io_writev_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
@@ -699,6 +697,7 @@ const struct io_cold_def io_cold_defs[] = {
 #endif
 	},
 	[IORING_OP_READ_MULTISHOT] = {
+		.async_size		= sizeof(struct io_async_rw),
 		.name			= "READ_MULTISHOT",
 	},
 	[IORING_OP_WAITID] = {

@@ -9,21 +9,26 @@ struct io_rw_state {
 };
 
 struct io_async_rw {
+	union {
+		size_t			bytes_done;
+		struct io_cache_entry	cache;
+	};
 	struct io_rw_state		s;
-	const struct iovec		*free_iovec;
-	size_t				bytes_done;
+	struct iovec			*free_iovec;
 	struct wait_page_queue		wpq;
 };
 
-int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe);
-int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe);
-int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_read_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_write_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_readv(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_writev(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_read(struct io_kiocb *req, const struct io_uring_sqe *sqe);
+int io_prep_write(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_read(struct io_kiocb *req, unsigned int issue_flags);
-int io_readv_prep_async(struct io_kiocb *req);
 int io_write(struct io_kiocb *req, unsigned int issue_flags);
-int io_writev_prep_async(struct io_kiocb *req);
 void io_readv_writev_cleanup(struct io_kiocb *req);
 void io_rw_fail(struct io_kiocb *req);
 void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts);
 int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags);
+void io_rw_cache_free(struct io_cache_entry *entry);
