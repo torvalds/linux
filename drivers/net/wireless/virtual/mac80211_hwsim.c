@@ -216,7 +216,7 @@ static const struct ieee80211_regdomain *hwsim_world_regdom_custom[] = {
 
 struct hwsim_vif_priv {
 	u32 magic;
-	u32 skip_beacons;
+	u32 skip_beacons[IEEE80211_MLD_MAX_NUM_LINKS];
 	u8 bssid[ETH_ALEN];
 	bool assoc;
 	bool bcn_en;
@@ -2136,13 +2136,16 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static void mac80211_hwsim_vif_add_debugfs(struct ieee80211_hw *hw,
-					   struct ieee80211_vif *vif)
+static void
+mac80211_hwsim_link_add_debugfs(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf,
+				struct dentry *dir)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 
-	debugfs_create_u32("skip_beacons", 0600, vif->debugfs_dir,
-			   &vp->skip_beacons);
+	debugfs_create_u32("skip_beacons", 0600, dir,
+			   &vp->skip_beacons[link_conf->link_id]);
 }
 #endif
 
@@ -2217,8 +2220,8 @@ static void __mac80211_hwsim_beacon_tx(struct ieee80211_bss_conf *link_conf,
 	/* TODO: get MCS */
 	int bitrate = 100;
 
-	if (vp->skip_beacons) {
-		vp->skip_beacons--;
+	if (vp->skip_beacons[link_conf->link_id]) {
+		vp->skip_beacons[link_conf->link_id]--;
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -3925,7 +3928,7 @@ out:
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 #define HWSIM_DEBUGFS_OPS					\
-	.vif_add_debugfs = mac80211_hwsim_vif_add_debugfs,
+	.link_add_debugfs = mac80211_hwsim_link_add_debugfs,
 #else
 #define HWSIM_DEBUGFS_OPS
 #endif
