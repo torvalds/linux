@@ -1473,7 +1473,7 @@ static struct regmap_config regcfg = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.write_flag_mask = MAX310X_WRITE_BIT,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = MAX310X_REG_1F,
 	.writeable_reg = max310x_reg_writeable,
 	.volatile_reg = max310x_reg_volatile,
@@ -1577,7 +1577,7 @@ static int max310x_i2c_extended_reg_enable(struct device *dev, bool enable)
 static struct regmap_config regcfg_i2c = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.writeable_reg = max310x_reg_writeable,
 	.volatile_reg = max310x_reg_volatile,
 	.precious_reg = max310x_reg_precious,
