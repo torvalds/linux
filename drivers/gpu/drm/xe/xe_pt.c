@@ -618,7 +618,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;
 
-	if (vma && (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) &&
+	if ((vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) &&
 	    (is_devmem || !IS_DGFX(xe)))
 		xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
 
