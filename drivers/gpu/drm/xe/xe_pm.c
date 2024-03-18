@@ -80,13 +80,15 @@ int xe_pm_suspend(struct xe_device *xe)
 	u8 id;
 	int err;
 
+	drm_dbg(&xe->drm, "Suspending device\n");
+
 	for_each_gt(gt, xe, id)
 		xe_gt_suspend_prepare(gt);
 
 	/* FIXME: Super racey... */
 	err = xe_bo_evict_all(xe);
 	if (err)
-		return err;
+		goto err;
 
 	xe_display_pm_suspend(xe);
 
@@ -94,7 +96,7 @@ int xe_pm_suspend(struct xe_device *xe)
 		err = xe_gt_suspend(gt);
 		if (err) {
 			xe_display_pm_resume(xe);
-			return err;
+			goto err;
 		}
 	}
 
@@ -102,7 +104,11 @@ int xe_pm_suspend(struct xe_device *xe)
 
 	xe_display_pm_suspend_late(xe);
 
+	drm_dbg(&xe->drm, "Device suspended\n");
 	return 0;
+err:
+	drm_dbg(&xe->drm, "Device suspend failed %d\n", err);
+	return err;
 }
 
 /**
@@ -118,13 +124,15 @@ int xe_pm_resume(struct xe_device *xe)
 	u8 id;
 	int err;
 
+	drm_dbg(&xe->drm, "Resuming device\n");
+
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
 
 	for_each_gt(gt, xe, id) {
 		err = xe_pcode_init(gt);
 		if (err)
-			return err;
+			goto err;
 	}
 
 	xe_display_pm_resume_early(xe);
@@ -135,7 +143,7 @@ int xe_pm_resume(struct xe_device *xe)
 	 */
 	err = xe_bo_restore_kernel(xe);
 	if (err)
-		return err;
+		goto err;
 
 	xe_irq_resume(xe);
 
@@ -146,9 +154,13 @@ int xe_pm_resume(struct xe_device *xe)
 
 	err = xe_bo_restore_user(xe);
 	if (err)
-		return err;
+		goto err;
 
+	drm_dbg(&xe->drm, "Device resumed\n");
 	return 0;
+err:
+	drm_dbg(&xe->drm, "Device resume failed %d\n", err);
+	return err;
 }
 
 static bool xe_pm_pci_d3cold_capable(struct xe_device *xe)
