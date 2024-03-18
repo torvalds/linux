@@ -102,8 +102,22 @@ def define_anorak():
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/thermal/qcom/qti_cpufreq_cdev.ko",
         "drivers/tty/serial/msm_geni_serial.ko",
+        "drivers/usb/dwc3/dwc3-msm.ko",
+        "drivers/usb/gadget/function/usb_f_ccid.ko",
+        "drivers/usb/gadget/function/usb_f_cdev.ko",
+        "drivers/usb/gadget/function/usb_f_diag.ko",
+        "drivers/usb/gadget/function/usb_f_gsi.ko",
+        "drivers/usb/gadget/function/usb_f_qdss.ko",
+        "drivers/usb/misc/ehset.ko",
+        "drivers/usb/misc/lvstest.ko",
+        "drivers/usb/phy/phy-generic.ko",
+        "drivers/usb/phy/phy-msm-snps-hs.ko",
+        "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
+        "drivers/usb/redriver/nb7vpq904m.ko",
+        "drivers/usb/redriver/redriver.ko",
         "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
+        "sound/usb/snd-usb-audio-qmi.ko",
     ]
 
     _anorak_consolidate_in_tree_modules = _anorak_in_tree_modules + [

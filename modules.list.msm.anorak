@@ -44,6 +44,7 @@ qcom_ipcc.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
+phy-generic.ko
 kryo_arm64_edac.ko
 llcc-qcom.ko
 icc-rpmh.ko
