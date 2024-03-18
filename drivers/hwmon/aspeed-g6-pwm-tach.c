@@ -195,7 +195,7 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	expect_period = div64_u64(ULLONG_MAX, (u64)priv->clk_rate);
 	expect_period = min(expect_period, state->period);
-	dev_dbg(chip->dev, "expect period: %lldns, duty_cycle: %lldns",
+	dev_dbg(pwmchip_parent(chip), "expect period: %lldns, duty_cycle: %lldns",
 		expect_period, state->duty_cycle);
 	/*
 	 * Pick the smallest value for div_h so that div_l can be the biggest
@@ -218,12 +218,12 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (div_l > 255)
 		div_l = 255;
 
-	dev_dbg(chip->dev, "clk source: %ld div_h %lld, div_l : %lld\n",
+	dev_dbg(pwmchip_parent(chip), "clk source: %ld div_h %lld, div_l : %lld\n",
 		priv->clk_rate, div_h, div_l);
 	/* duty_pt = duty_cycle * (PERIOD + 1) / period */
 	duty_pt = div64_u64(state->duty_cycle * priv->clk_rate,
 			    (u64)NSEC_PER_SEC * (div_l + 1) << div_h);
-	dev_dbg(chip->dev, "duty_cycle = %lld, duty_pt = %d\n",
+	dev_dbg(pwmchip_parent(chip), "duty_cycle = %lld, duty_pt = %d\n",
 		state->duty_cycle, duty_pt);
 
 	/*
