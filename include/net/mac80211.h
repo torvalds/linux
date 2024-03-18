@@ -7591,6 +7591,15 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
 void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 				      u16 active_links);
 
+/**
+ * ieee80211_send_teardown_neg_ttlm - tear down a negotiated TTLM request
+ * @vif: the interface on which the tear down request should be sent.
+ *
+ * This function can be used to tear down a previously accepted negotiated
+ * TTLM request.
+ */
+void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif);
+
 /* for older drivers - let's not document these ... */
 int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
 				  struct ieee80211_chanctx_conf *ctx);
