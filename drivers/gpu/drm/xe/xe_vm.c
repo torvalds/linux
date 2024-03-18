@@ -2033,7 +2033,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
 	int err;
 
-	xe_assert(vm->xe, region <= ARRAY_SIZE(region_to_mem_type));
+	xe_assert(vm->xe, region < ARRAY_SIZE(region_to_mem_type));
 
 	if (!xe_vma_has_no_bo(vma)) {
 		err = xe_bo_migrate(xe_vma_bo(vma), region_to_mem_type[region]);
