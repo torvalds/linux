@@ -14,6 +14,8 @@
 	#size-cells = <1>;
 	interrupt-parent = <&intc>;
 
+	chosen { };
+
 	clocks {
 		xo_board: xo_board {
 			compatible = "fixed-clock";
