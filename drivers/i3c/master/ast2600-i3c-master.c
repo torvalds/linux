@@ -1550,26 +1550,72 @@ static int aspeed_i3c_master_bus_recovery(struct i3c_master_controller *m)
 	return ret;
 }
 
+static void aspeed_i3c_master_bus_timed_reset(struct i3c_master_controller *m)
+{
+	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
+	u32 reset, status, sda_lvl;
+	int ret;
+
+	ret = aspeed_i3c_master_enter_halt(master, true);
+	if (ret) {
+		dev_err(master->dev,
+			"Failed to perform timed reset! Controller state %08x\n",
+			readl(master->regs + PRESENT_STATE));
+		return;
+	}
+
+	sda_lvl = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+			    readl(master->regs + PRESENT_STATE));
+	if (sda_lvl == 0) {
+		dev_warn(master->dev,
+			 "SDA stuck low! Try to recover the bus...\n");
+
+		/* Toggle SCL pulses to make SDA go high */
+		ret = aspeed_i3c_master_bus_recovery(m);
+		if (ret)
+			goto sw_force_reset;
+	}
+
+	reset = RESET_CTRL_BUS |
+		FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
+	writel(reset, master->regs + RESET_CTRL);
+
+	/* Resume the controller to send out the timed reset pattern */
+	aspeed_i3c_master_resume(master);
+	ret = readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
+					(status & RESET_CTRL_BUS) == 0, 10,
+					1000000);
+	if (!ret)
+		return;
+
+	/* Should not reach here. Anyway, apply software force mode timed reset */
+	aspeed_i3c_master_enter_halt(master, true);
+
+sw_force_reset:
+	dev_warn(master->dev, "Apply software force mode timed reset\n");
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_VAL, 0);
+	mdelay(DIV_ROUND_UP(master->timing.timed_reset_scl_low_ns, 1000000));
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_EN, 0);
+	aspeed_i3c_master_resume(master);
+}
+
 static void aspeed_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	int i;
 
 	if (master->base.jdec_spd) {
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_OUT_SW_MODE_VAL, 0);
-		mdelay(DIV_ROUND_UP(master->timing.timed_reset_scl_low_ns,
-				    1000000));
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
-		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
-				  SCL_OUT_SW_MODE_EN, 0);
+		aspeed_i3c_master_bus_timed_reset(m);
 	} else {
 		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 				  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL,
