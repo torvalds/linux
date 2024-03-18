@@ -234,11 +234,10 @@ static inline int device_init_wakeup(struct device *dev, bool enable)
 	if (enable) {
 		device_set_wakeup_capable(dev, true);
 		return device_wakeup_enable(dev);
-	} else {
-		device_wakeup_disable(dev);
-		device_set_wakeup_capable(dev, false);
-		return 0;
 	}
+	device_wakeup_disable(dev);
+	device_set_wakeup_capable(dev, false);
+	return 0;
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */
