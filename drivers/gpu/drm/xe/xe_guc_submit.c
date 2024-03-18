@@ -833,7 +833,9 @@ static void simple_error_capture(struct xe_exec_queue *q)
 			}
 		}
 
-		xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
+		if (xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL))
+			xe_gt_info(guc_to_gt(guc),
+				   "failed to get forcewake for error capture");
 		xe_guc_ct_print(&guc->ct, &p, true);
 		guc_exec_queue_print(q, &p);
 		for_each_hw_engine(hwe, guc_to_gt(guc), id) {

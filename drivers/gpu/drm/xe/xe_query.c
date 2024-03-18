@@ -148,7 +148,8 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL))
+		return -EIO;
 
 	__read_timestamps(gt,
 			  RING_TIMESTAMP(hwe->mmio_base),
