@@ -155,7 +155,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 	/* Internal objects. */
 	spin_lock(&client->bos_lock);
 	list_for_each_entry(bo, &client->bos_list, client_link) {
-		if (!bo || !kref_get_unless_zero(&bo->ttm.base.refcount))
+		if (!kref_get_unless_zero(&bo->ttm.base.refcount))
 			continue;
 		bo_meminfo(bo, stats);
 		xe_bo_put(bo);
