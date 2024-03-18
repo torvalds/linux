@@ -129,22 +129,19 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	}
 }
 
-static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req,
-						  unsigned int issue_flags)
+static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_cache_entry *entry;
 	struct io_async_msghdr *hdr;
 
-	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		entry = io_alloc_cache_get(&ctx->netmsg_cache);
-		if (entry) {
-			hdr = container_of(entry, struct io_async_msghdr, cache);
-			hdr->free_iov = NULL;
-			req->flags |= REQ_F_ASYNC_DATA;
-			req->async_data = hdr;
-			return hdr;
-		}
+	entry = io_alloc_cache_get(&ctx->netmsg_cache);
+	if (entry) {
+		hdr = container_of(entry, struct io_async_msghdr, cache);
+		hdr->free_iov = NULL;
+		req->flags |= REQ_F_ASYNC_DATA;
+		req->async_data = hdr;
+		return hdr;
 	}
 
 	if (!io_alloc_async_data(req)) {
@@ -153,12 +150,6 @@ static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req,
 		return hdr;
 	}
 	return NULL;
-}
-
-static inline struct io_async_msghdr *io_msg_alloc_async_prep(struct io_kiocb *req)
-{
-	/* ->prep_async is always called from the submission context */
-	return io_msg_alloc_async(req, 0);
 }
 
 #ifdef CONFIG_COMPAT
@@ -328,8 +319,7 @@ static int io_sendmsg_prep_setup(struct io_kiocb *req, int is_msg)
 	struct io_async_msghdr *kmsg;
 	int ret;
 
-	/* always locked for prep */
-	kmsg = io_msg_alloc_async(req, 0);
+	kmsg = io_msg_alloc_async(req);
 	if (unlikely(!kmsg))
 		return -ENOMEM;
 	if (!is_msg)
@@ -550,8 +540,7 @@ static int io_recvmsg_prep_setup(struct io_kiocb *req)
 	struct io_async_msghdr *kmsg;
 	int ret;
 
-	/* always locked for prep */
-	kmsg = io_msg_alloc_async(req, 0);
+	kmsg = io_msg_alloc_async(req);
 	if (unlikely(!kmsg))
 		return -ENOMEM;
 
