@@ -154,6 +154,13 @@ static inline void io_req_task_work_add(struct io_kiocb *req)
 	__io_req_task_work_add(req, 0);
 }
 
+static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
+{
+	if (!wq_list_empty(&ctx->submit_state.compl_reqs) ||
+	    ctx->submit_state.cqes_count)
+		__io_submit_flush_completions(ctx);
+}
+
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
 

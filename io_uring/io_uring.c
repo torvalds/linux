@@ -95,6 +95,7 @@
 #include "waitid.h"
 #include "futex.h"
 #include "napi.h"
+#include "uring_cmd.h"
 
 #include "timeout.h"
 #include "poll.h"
@@ -173,13 +174,6 @@ static struct ctl_table kernel_io_uring_disabled_table[] = {
 	{},
 };
 #endif
-
-static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
-{
-	if (!wq_list_empty(&ctx->submit_state.compl_reqs) ||
-	    ctx->submit_state.cqes_count)
-		__io_submit_flush_completions(ctx);
-}
 
 static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 {
@@ -3237,37 +3231,6 @@ static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 		ret |= (cret != IO_WQ_CANCEL_NOTFOUND);
 	}
 	mutex_unlock(&ctx->uring_lock);
-
-	return ret;
-}
-
-static bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
-		struct task_struct *task, bool cancel_all)
-{
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	bool ret = false;
-
-	lockdep_assert_held(&ctx->uring_lock);
-
-	hlist_for_each_entry_safe(req, tmp, &ctx->cancelable_uring_cmd,
-			hash_node) {
-		struct io_uring_cmd *cmd = io_kiocb_to_cmd(req,
-				struct io_uring_cmd);
-		struct file *file = req->file;
-
-		if (!cancel_all && req->task != task)
-			continue;
-
-		if (cmd->flags & IORING_URING_CMD_CANCELABLE) {
-			/* ->sqe isn't available if no async data */
-			if (!req_has_async_data(req))
-				cmd->sqe = NULL;
-			file->f_op->uring_cmd(cmd, IO_URING_F_CANCEL);
-			ret = true;
-		}
-	}
-	io_submit_flush_completions(ctx);
 
 	return ret;
 }
