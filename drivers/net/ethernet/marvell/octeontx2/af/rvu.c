@@ -2114,7 +2114,7 @@ bad_message:
 	}
 }
 
-static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
+static void __rvu_mbox_handler(struct rvu_work *mwork, int type, bool poll)
 {
 	struct rvu *rvu = mwork->rvu;
 	int offset, err, id, devid;
@@ -2181,6 +2181,9 @@ static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
 	}
 	mw->mbox_wrk[devid].num_msgs = 0;
 
+	if (poll)
+		otx2_mbox_wait_for_zero(mbox, devid);
+
 	/* Send mbox responses to VF/PF */
 	otx2_mbox_msg_send(mbox, devid);
 }
@@ -2188,15 +2191,18 @@ static void __rvu_mbox_handler(struct rvu_work *mwork, int type)
 static inline void rvu_afpf_mbox_handler(struct work_struct *work)
 {
 	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
+	struct rvu *rvu = mwork->rvu;
 
-	__rvu_mbox_handler(mwork, TYPE_AFPF);
+	mutex_lock(&rvu->mbox_lock);
+	__rvu_mbox_handler(mwork, TYPE_AFPF, true);
+	mutex_unlock(&rvu->mbox_lock);
 }
 
 static inline void rvu_afvf_mbox_handler(struct work_struct *work)
 {
 	struct rvu_work *mwork = container_of(work, struct rvu_work, work);
 
-	__rvu_mbox_handler(mwork, TYPE_AFVF);
+	__rvu_mbox_handler(mwork, TYPE_AFVF, false);
 }
 
 static void __rvu_mbox_up_handler(struct rvu_work *mwork, int type)
@@ -2370,6 +2376,8 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 				set_bit(i, pf_bmap);
 		}
 	}
+
+	mutex_init(&rvu->mbox_lock);
 
 	mbox_regions = kcalloc(num, sizeof(void *), GFP_KERNEL);
 	if (!mbox_regions) {
