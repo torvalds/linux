@@ -72,6 +72,8 @@ static int __init hyperv_init(void)
 		return ret;
 	}
 
+	ms_hyperv_late_init();
+
 	hyperv_initialized = true;
 	return 0;
 }

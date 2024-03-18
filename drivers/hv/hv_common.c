@@ -20,8 +20,11 @@
 #include <linux/sched/task_stack.h>
 #include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
+#include <linux/random.h>
+#include <linux/efi.h>
 #include <linux/kdebug.h>
 #include <linux/kmsg_dump.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
 #include <linux/set_memory.h>
@@ -353,6 +356,72 @@ int __init hv_common_init(void)
 		hv_vp_index[i] = VP_INVAL;
 
 	return 0;
+}
+
+void __init ms_hyperv_late_init(void)
+{
+	struct acpi_table_header *header;
+	acpi_status status;
+	u8 *randomdata;
+	u32 length, i;
+
+	/*
+	 * Seed the Linux random number generator with entropy provided by
+	 * the Hyper-V host in ACPI table OEM0.
+	 */
+	if (!IS_ENABLED(CONFIG_ACPI))
+		return;
+
+	status = acpi_get_table("OEM0", 0, &header);
+	if (ACPI_FAILURE(status) || !header)
+		return;
+
+	/*
+	 * Since the "OEM0" table name is for OEM specific usage, verify
+	 * that what we're seeing purports to be from Microsoft.
+	 */
+	if (strncmp(header->oem_table_id, "MICROSFT", 8))
+		goto error;
+
+	/*
+	 * Ensure the length is reasonable. Requiring at least 8 bytes and
+	 * no more than 4K bytes is somewhat arbitrary and just protects
+	 * against a malformed table. Hyper-V currently provides 64 bytes,
+	 * but allow for a change in a later version.
+	 */
+	if (header->length < sizeof(*header) + 8 ||
+	    header->length > sizeof(*header) + SZ_4K)
+		goto error;
+
+	length = header->length - sizeof(*header);
+	randomdata = (u8 *)(header + 1);
+
+	pr_debug("Hyper-V: Seeding rng with %d random bytes from ACPI table OEM0\n",
+			length);
+
+	add_bootloader_randomness(randomdata, length);
+
+	/*
+	 * To prevent the seed data from being visible in /sys/firmware/acpi,
+	 * zero out the random data in the ACPI table and fixup the checksum.
+	 * The zero'ing is done out of an abundance of caution in avoiding
+	 * potential security risks to the rng. Similarly, reset the table
+	 * length to just the header size so that a subsequent kexec doesn't
+	 * try to use the zero'ed out random data.
+	 */
+	for (i = 0; i < length; i++) {
+		header->checksum += randomdata[i];
+		randomdata[i] = 0;
+	}
+
+	for (i = 0; i < sizeof(header->length); i++)
+		header->checksum += ((u8 *)&header->length)[i];
+	header->length = sizeof(*header);
+	for (i = 0; i < sizeof(header->length); i++)
+		header->checksum -= ((u8 *)&header->length)[i];
+
+error:
+	acpi_put_table(header);
 }
 
 /*
