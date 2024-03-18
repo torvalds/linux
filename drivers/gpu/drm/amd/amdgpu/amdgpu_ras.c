@@ -1269,7 +1269,8 @@ int amdgpu_ras_unbind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk)
 }
 
 static int amdgpu_aca_log_ras_error_data(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
-					 enum aca_error_type type, struct ras_err_data *err_data)
+					 enum aca_error_type type, struct ras_err_data *err_data,
+					 struct ras_query_context *qctx)
 {
 	struct ras_manager *obj;
 
@@ -1277,7 +1278,7 @@ static int amdgpu_aca_log_ras_error_data(struct amdgpu_device *adev, enum amdgpu
 	if (!obj)
 		return -EINVAL;
 
-	return amdgpu_aca_get_error_data(adev, &obj->aca_handle, type, err_data);
+	return amdgpu_aca_get_error_data(adev, &obj->aca_handle, type, err_data, qctx);
 }
 
 ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *attr,
@@ -1334,15 +1335,15 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 		}
 	} else {
 		if (amdgpu_aca_is_enabled(adev)) {
-			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_UE, err_data);
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_UE, err_data, qctx);
 			if (ret)
 				return ret;
 
-			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_CE, err_data);
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_CE, err_data, qctx);
 			if (ret)
 				return ret;
 
-			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_DEFERRED, err_data);
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_DEFERRED, err_data, qctx);
 			if (ret)
 				return ret;
 		} else {
