@@ -113,6 +113,7 @@ will be considered the 'good' release and used to prepare the .config file.
        #   checking if the output of the next two commands matches:
        tail -n 1 ~/kernels-built
        uname -r
+       cat /proc/sys/kernel/tainted
 
   c) Check if the problem occurs with this kernel as well.
 
@@ -572,21 +573,29 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   Remember the identifier momentarily, as it will help you pick the right kernel
   from the boot menu upon restarting.
 
-.. _recheckbroken_bissbs:
-
-* Reboot into the kernel you just built and check if the feature that is
-  expected to be broken really is.
-
-  Start by making sure the kernel you booted is the one you just built. When
-  unsure, check if the output of these commands show the exact same release
-  identifier::
+* Reboot into your newly built kernel. To ensure your actually started the one
+  you just built, you might want to verify if the output of these commands
+  matches::
 
     tail -n 1 ~/kernels-built
     uname -r
 
- Now verify if the feature that causes trouble works with your newly built
- kernel. If things work while investigating a regression, check the reference
- section for further details.
+.. _tainted_bissbs:
+
+* Check if the kernel marked itself as 'tainted'::
+
+    cat /proc/sys/kernel/tainted
+
+  If that command does not return '0', check the reference section, as the cause
+  for this might interfere with your testing.
+
+  [:ref:`details<tainted_bisref>`]
+
+.. _recheckbroken_bissbs:
+
+* Verify if your bug occurs with the newly built kernel. If it does not, check
+  out the instructions in the reference section to ensure nothing went sideways
+  during your tests.
 
   [:ref:`details<recheckbroken_bisref>`]
 
@@ -616,11 +625,14 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
-  Now verify if you booted the kernel you intended to start, to then check if
-  everything works fine with this kernel::
+  Confirm you booted the kernel you intended to start and check its tainted
+  status::
 
     tail -n 1 ~/kernels-built
     uname -r
+    cat /proc/sys/kernel/tainted
+
+  Now verify if this kernel is showing the problem.
 
   [:ref:`details<recheckstablebroken_bisref>`]
 
@@ -1629,13 +1641,32 @@ need to look in different places.
 
 [:ref:`back to step-by-step guide <storagespace_bissbs>`]
 
+.. _tainted_bisref:
+
+Check if your newly built kernel considers itself 'tainted'
+-----------------------------------------------------------
+
+  *Check if the kernel marked itself as 'tainted'.*
+  [:ref:`... <tainted_bissbs>`]
+
+Linux marks itself as tainted when something happens that potentially leads to
+follow-up errors that look totally unrelated. That is why developers might
+ignore or react scantly to reports from tainted kernels -- unless of course the
+kernel set the flag right when the reported bug occurred.
+
+That's why you want check why a kernel is tainted as explained in
+Documentation/admin-guide/tainted-kernels.rst; doing so is also in your own
+interest, as your testing might be flawed otherwise.
+
+[:ref:`back to step-by-step guide <tainted_bissbs>`]
+
 .. _recheckbroken_bisref:
 
 Check the kernel built from the latest codebase
 -----------------------------------------------
 
-  *Reboot into the kernel you just built and check if the feature that regressed
-  is really broken there.* [:ref:`... <recheckbroken_bissbs>`]
+  *Verify if your bug occurs with the newly built kernel.*
+  [:ref:`... <recheckbroken_bissbs>`]
 
 There are a couple of reasons why the regression you face might not show up with
 your own kernel built from the latest codebase. These are the most frequent:
@@ -1711,6 +1742,9 @@ Build your own version of the 'good' kernel
 In case the feature that broke with newer kernels does not work with your first
 self-built kernel, find and resolve the cause before moving on. There are a
 multitude of reasons why this might happen. Some ideas where to look:
+
+* Check the taint status and the output of ``dmesg``, maybe something unrelated
+  went wrong.
 
 * Maybe localmodconfig did something odd and disabled the module required to
   test the feature? Then you might want to recreate a .config file based on the
