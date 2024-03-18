@@ -125,8 +125,11 @@ static int thc63_parse_dt(struct thc63_dev *thc63)
 
 	remote = of_graph_get_remote_node(thc63->dev->of_node,
 					  THC63_RGB_OUT0, -1);
-	if (!remote)
+	if (!remote) {
+		dev_err(thc63->dev, "No remote endpoint for port@%u\n",
+			THC63_RGB_OUT0);
 		return -ENODEV;
+	}
 
 	thc63->next = of_drm_find_bridge(remote);
 	of_node_put(remote);
