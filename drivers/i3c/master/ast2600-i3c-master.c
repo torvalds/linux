@@ -234,6 +234,8 @@ DECLARE_CRC8_TABLE(i3c_crc8_table);
 #define     CM_TFR_STS_MASTER_SERV_IBI	0xe
 #define     CM_TFR_STS_MASTER_HALT	0xf
 #define     CM_TFR_STS_SLAVE_HALT	0x6
+#define   SDA_LINE_SIGNAL_LEVEL		BIT(1)
+#define   SCL_LINE_SIGNAL_LEVEL		BIT(0)
 
 #define CCC_DEVICE_STATUS		0x58
 #define DEVICE_ADDR_TABLE_POINTER	0x5c
@@ -1514,6 +1516,40 @@ static void aspeed_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 	aspeed_i3c_master_disable(master);
 }
 
+static int aspeed_i3c_master_bus_recovery(struct i3c_master_controller *m)
+{
+	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
+	int i, ret = -1;
+
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
+
+	for (i = 0; i < 19; i++) {
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, 0);
+
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+
+		if (readl(master->regs + PRESENT_STATE) & SDA_LINE_SIGNAL_LEVEL) {
+			ret = 0;
+			break;
+		}
+	}
+
+	regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+			  SCL_OUT_SW_MODE_EN, 0);
+
+	if (ret)
+		dev_err(master->dev, "Failed to recover the bus\n");
+
+	return ret;
+}
+
 static void aspeed_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
@@ -1577,6 +1613,8 @@ static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 {
 	struct aspeed_i3c_xfer *xfer;
 	struct aspeed_i3c_cmd *cmd;
+	struct i3c_master_controller *m = &master->base;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int ret, pos = 0;
 
 	if (ccc->id & I3C_CCC_DIRECT) {
@@ -1609,10 +1647,19 @@ static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d id=%x\n",
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, ccc->id);
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -1631,6 +1678,8 @@ static int aspeed_i3c_ccc_get(struct aspeed_i3c_master *master, struct i3c_ccc_c
 {
 	struct aspeed_i3c_xfer *xfer;
 	struct aspeed_i3c_cmd *cmd;
+	struct i3c_master_controller *m = &master->base;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int ret, pos;
 
 	pos = aspeed_i3c_master_sync_hw_dat(master, ccc->dests[0].addr);
@@ -1659,10 +1708,19 @@ static int aspeed_i3c_ccc_get(struct aspeed_i3c_master *master, struct i3c_ccc_c
 	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d id=%x\n",
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len, ccc->id);
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -1709,6 +1767,7 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 	struct aspeed_i3c_xfer *xfer;
 	struct aspeed_i3c_cmd *cmd;
 	u32 olddevs, newdevs, dat;
+	u32 sda_lvl_pre, sda_lvl_post;
 	u8 p, last_addr = 0;
 	int ret, pos, ndevs;
 
@@ -1761,10 +1820,19 @@ static int aspeed_i3c_master_daa(struct i3c_master_controller *m)
 		      COMMAND_PORT_TOC |
 		      COMMAND_PORT_ROC;
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -1812,6 +1880,7 @@ static int aspeed_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	struct aspeed_i3c_xfer *xfer;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int i, ret = 0;
 	struct aspeed_i3c_cmd *cmd_ccc;
 
@@ -1868,10 +1937,19 @@ static int aspeed_i3c_master_ccc_xfers(struct i3c_dev_desc *dev,
 			cmd->rx_len);
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -1890,6 +1968,7 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct aspeed_i3c_xfer *xfer;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int i, ret = 0;
 
 	if (!i3c_nxfers)
@@ -1961,10 +2040,19 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 			cmd->rx_len);
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -1990,6 +2078,7 @@ static int aspeed_i3c_master_send_hdr_cmd(struct i3c_master_controller *m,
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	u8 dat_index;
 	int ret, i, ntxwords = 0, nrxwords = 0;
+	u32 sda_lvl_pre, sda_lvl_post;
 	struct aspeed_i3c_xfer *xfer;
 
 	if (ncmds < 1)
@@ -2056,10 +2145,19 @@ static int aspeed_i3c_master_send_hdr_cmd(struct i3c_master_controller *m,
 			 cmd->rx_len);
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover the bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
@@ -2143,6 +2241,7 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
 	struct aspeed_i3c_xfer *xfer;
+	u32 sda_lvl_pre, sda_lvl_post;
 	int i, ret = 0;
 
 	if (!i2c_nxfers)
@@ -2201,10 +2300,19 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 			cmd->rx_len);
 	}
 
+	sda_lvl_pre = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+				readl(master->regs + PRESENT_STATE));
 	aspeed_i3c_master_enqueue_xfer(master, xfer);
 	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT)) {
 		aspeed_i3c_master_enter_halt(master, true);
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
+		sda_lvl_post = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+					 readl(master->regs + PRESENT_STATE));
+		if (sda_lvl_pre == 0 && sda_lvl_post == 0) {
+			dev_warn(master->dev,
+				 "SDA stuck low! Try to recover bus...\n");
+			aspeed_i3c_master_bus_recovery(m);
+		}
 		aspeed_i3c_master_resume(master);
 	}
 
