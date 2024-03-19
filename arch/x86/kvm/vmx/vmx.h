@@ -15,6 +15,7 @@
 #include "vmx_ops.h"
 #include "../cpuid.h"
 #include "run_flags.h"
+#include "../mmu.h"
 
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
@@ -719,7 +720,8 @@ static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 	if (!enable_ept)
 		return true;
 
-	return allow_smaller_maxphyaddr && cpuid_maxphyaddr(vcpu) < boot_cpu_data.x86_phys_bits;
+	return allow_smaller_maxphyaddr &&
+	       cpuid_maxphyaddr(vcpu) < kvm_get_shadow_phys_bits();
 }
 
 static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)
