@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include <linux/mod_devicetable.h>
 #include "iwl-csr.h"
 #include "iwl-drv.h"
 
@@ -484,6 +485,7 @@ const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
 		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
+extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
 
 /*
