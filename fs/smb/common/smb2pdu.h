@@ -280,15 +280,16 @@ struct smb3_blob_data {
 #define SE_GROUP_RESOURCE		0x20000000
 #define SE_GROUP_LOGON_ID		0xC0000000
 
-/* struct sid_attr_data is SidData array in BlobData format then le32 Attr */
-
 struct sid_array_data {
 	__le16 SidAttrCount;
 	/* SidAttrList - array of sid_attr_data structs */
 } __packed;
 
-struct luid_attr_data {
-
+/* struct sid_attr_data is SidData array in BlobData format then le32 Attr */
+struct sid_attr_data {
+	__le16 BlobSize;
+	__u8 BlobData[];
+	/* __le32 Attr */
 } __packed;
 
 /*
@@ -502,6 +503,7 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
 /* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
 #define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
+#define SMB3_COMPRESS_LZ4	cpu_to_le16(0x0005)
 
 /* Compression Flags */
 #define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)
