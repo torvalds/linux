@@ -6157,7 +6157,6 @@ DEVICE-MAPPER  (LVM)
 M:	Alasdair Kergon <agk@redhat.com>
 M:	Mike Snitzer <snitzer@kernel.org>
 M:	Mikulas Patocka <mpatocka@redhat.com>
-M:	dm-devel@lists.linux.dev
 L:	dm-devel@lists.linux.dev
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/dm-devel/list/
@@ -6173,7 +6172,6 @@ F:	include/uapi/linux/dm-*.h
 
 DEVICE-MAPPER VDO TARGET
 M:	Matthew Sakai <msakai@redhat.com>
-M:	dm-devel@lists.linux.dev
 L:	dm-devel@lists.linux.dev
 S:	Maintained
 F:	Documentation/admin-guide/device-mapper/vdo*.rst
