@@ -1158,12 +1158,13 @@ static bool poll_for_allocation_change_trigger(struct dc_link *link)
 	int i;
 	const int act_retries = 30;
 	enum act_return_status result = ACT_FAILED;
+	enum dc_connection_type display_connected = (link->type != dc_connection_none);
 	union payload_table_update_status update_status = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 	union lane_align_status_updated lane_status_updated;
 	DC_LOGGER_INIT(link->ctx->logger);
 
-	if (link->aux_access_disabled)
+	if (!display_connected || link->aux_access_disabled)
 		return true;
 	for (i = 0; i < act_retries; i++) {
 		get_lane_status(link, link->cur_link_settings.lane_count, dpcd_lane_status, &lane_status_updated);
@@ -1512,6 +1513,7 @@ static bool write_128b_132b_sst_payload_allocation_table(
 	union payload_table_update_status update_status = { 0 };
 	const uint32_t max_retries = 30;
 	uint32_t retries = 0;
+	enum dc_connection_type display_connected = (link->type != dc_connection_none);
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (allocate)	{
@@ -1529,7 +1531,7 @@ static bool write_128b_132b_sst_payload_allocation_table(
 	proposed_table->stream_allocations[0].slot_count = req_slot_count;
 	proposed_table->stream_allocations[0].vcp_id = vc_id;
 
-	if (link->aux_access_disabled)
+	if (!display_connected || link->aux_access_disabled)
 		return true;
 
 	/// Write DPCD 2C0 = 1 to start updating
