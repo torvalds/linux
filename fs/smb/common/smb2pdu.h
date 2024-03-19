@@ -227,7 +227,7 @@ struct smb2_compression_hdr {
 	__le32 OriginalCompressedSegmentSize;
 	__le16 CompressionAlgorithm;
 	__le16 Flags;
-	__le16 Offset; /* this is the size of the uncompressed SMB2 header below */
+	__le32 Offset; /* this is the size of the uncompressed SMB2 header below */
 	/* uncompressed SMB2 header (READ or WRITE) goes here */
 	/* compressed data goes here */
 } __packed;
