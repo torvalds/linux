@@ -28,6 +28,8 @@ enum type_state_kind {
 	TSR_KIND_INVALID = 0,
 	TSR_KIND_TYPE,
 	TSR_KIND_PERCPU_BASE,
+	TSR_KIND_CONST,
+	TSR_KIND_POINTER,
 };
 
 #define pr_debug_dtp(fmt, ...)					\
@@ -53,6 +55,13 @@ static void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 	case TSR_KIND_PERCPU_BASE:
 		pr_info(" percpu base\n");
 		return;
+	case TSR_KIND_CONST:
+		pr_info(" constant\n");
+		return;
+	case TSR_KIND_POINTER:
+		pr_info(" pointer");
+		/* it also prints the type info */
+		break;
 	case TSR_KIND_TYPE:
 	default:
 		break;
@@ -393,7 +402,7 @@ static void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
 	switch (tag) {
 	case DW_TAG_structure_type:
 	case DW_TAG_union_type:
-		stack->compound = true;
+		stack->compound = (kind != TSR_KIND_POINTER);
 		break;
 	default:
 		stack->compound = false;
@@ -585,6 +594,58 @@ static void update_insn_state_x86(struct type_state *state,
 		return;
 	}
 
+	if (!strncmp(dl->ins.name, "add", 3)) {
+		u64 imm_value = -1ULL;
+		int offset;
+		const char *var_name = NULL;
+		struct map_symbol *ms = dloc->ms;
+		u64 ip = ms->sym->start + dl->al.offset;
+
+		if (!has_reg_type(state, dst->reg1))
+			return;
+
+		tsr = &state->regs[dst->reg1];
+
+		if (src->imm)
+			imm_value = src->offset;
+		else if (has_reg_type(state, src->reg1) &&
+			 state->regs[src->reg1].kind == TSR_KIND_CONST)
+			imm_value = state->regs[src->reg1].imm_value;
+		else if (src->reg1 == DWARF_REG_PC) {
+			u64 var_addr = annotate_calc_pcrel(dloc->ms, ip,
+							   src->offset, dl);
+
+			if (get_global_var_info(dloc, var_addr,
+						&var_name, &offset) &&
+			    !strcmp(var_name, "this_cpu_off") &&
+			    tsr->kind == TSR_KIND_CONST) {
+				tsr->kind = TSR_KIND_PERCPU_BASE;
+				imm_value = tsr->imm_value;
+			}
+		}
+		else
+			return;
+
+		if (tsr->kind != TSR_KIND_PERCPU_BASE)
+			return;
+
+		if (get_global_var_type(cu_die, dloc, ip, imm_value, &offset,
+					&type_die) && offset == 0) {
+			/*
+			 * This is not a pointer type, but it should be treated
+			 * as a pointer.
+			 */
+			tsr->type = type_die;
+			tsr->kind = TSR_KIND_POINTER;
+			tsr->ok = true;
+
+			pr_debug_dtp("add [%x] percpu %#"PRIx64" -> reg%d",
+				     insn_offset, imm_value, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+		return;
+	}
+
 	if (strncmp(dl->ins.name, "mov", 3))
 		return;
 
@@ -629,6 +690,16 @@ static void update_insn_state_x86(struct type_state *state,
 			pr_debug_dtp("mov [%x] this-cpu addr=%#"PRIx64" -> reg%d",
 				     insn_offset, var_addr, dst->reg1);
 			pr_debug_type_name(&tsr->type, tsr->kind);
+			return;
+		}
+
+		if (src->imm) {
+			tsr->kind = TSR_KIND_CONST;
+			tsr->imm_value = src->offset;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] imm=%#x -> reg%d\n",
+				     insn_offset, tsr->imm_value, dst->reg1);
 			return;
 		}
 
@@ -739,12 +810,25 @@ retry:
 				tsr->kind = TSR_KIND_TYPE;
 				tsr->ok = true;
 
-				pr_debug_dtp("mov [%x] percpu %#x(reg%d) -> reg%d type=",
+				pr_debug_dtp("mov [%x] percpu %#x(reg%d) -> reg%d",
 					     insn_offset, src->offset, sreg, dst->reg1);
 				pr_debug_type_name(&tsr->type, tsr->kind);
 			} else {
 				tsr->ok = false;
 			}
+		}
+		/* And then dereference the calculated pointer if it has one */
+		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
+			 state->regs[sreg].kind == TSR_KIND_POINTER &&
+			 die_get_member_type(&state->regs[sreg].type,
+					     src->offset, &type_die)) {
+			tsr->type = type_die;
+			tsr->kind = TSR_KIND_TYPE;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] pointer %#x(reg%d) -> reg%d",
+				     insn_offset, src->offset, sreg, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
 		}
 		/* Or try another register if any */
 		else if (src->multi_regs && sreg == src->reg1 &&
@@ -997,6 +1081,25 @@ static bool check_matching_type(struct type_state *state,
 			return true;
 		}
 		return false;
+	}
+
+	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_POINTER) {
+		pr_debug_dtp(" percpu ptr\n");
+
+		/*
+		 * It's actaully pointer but the address was calculated using
+		 * some arithmetic.  So it points to the actual type already.
+		 */
+		*type_die = state->regs[reg].type;
+
+		dloc->type_offset = dloc->op->offset;
+
+		/* Get the size of the actual type */
+		if (dwarf_aggregate_size(type_die, &size) < 0 ||
+		    (unsigned)dloc->type_offset >= size)
+			return false;
+
+		return true;
 	}
 
 	if (map__dso(dloc->ms->map)->kernel && arch__is(dloc->arch, "x86")) {
