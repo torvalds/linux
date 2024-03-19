@@ -22,6 +22,7 @@
 #include "strbuf.h"
 #include "symbol.h"
 #include "symbol_conf.h"
+#include "thread.h"
 
 #define pr_debug_dtp(fmt, ...)					\
 do {								\
@@ -382,6 +383,50 @@ static struct type_state_stack *findnew_stack_state(struct type_state *state,
 	return stack;
 }
 
+static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
+				u64 ip, u64 var_addr, int *var_offset,
+				Dwarf_Die *type_die)
+{
+	u64 pc, mem_addr;
+	int offset;
+	bool is_pointer = false;
+	const char *var_name = NULL;
+	Dwarf_Die var_die;
+	struct addr_location al;
+	struct symbol *sym;
+
+	/* Try to get the variable by address first */
+	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, &offset) &&
+	    check_variable(&var_die, type_die, offset, is_pointer) == 0) {
+		*var_offset = offset;
+		return true;
+	}
+
+	/* Kernel symbols might be relocated */
+	mem_addr = var_addr + map__reloc(dloc->ms->map);
+
+	addr_location__init(&al);
+	sym = thread__find_symbol_fb(dloc->thread, dloc->cpumode,
+				     mem_addr, &al);
+	if (sym) {
+		var_name = sym->name;
+		/* Calculate type offset from the start of variable */
+		*var_offset = mem_addr - map__unmap_ip(al.map, sym->start);
+	}
+	addr_location__exit(&al);
+	if (var_name == NULL)
+		return false;
+
+	pc = map__rip_2objdump(dloc->ms->map, ip);
+
+	/* Try to get the name of global variable */
+	if (die_find_variable_at(cu_die, var_name, pc, &var_die) &&
+	    check_variable(&var_die, type_die, *var_offset, is_pointer) == 0)
+		return true;
+
+	return false;
+}
+
 /**
  * update_var_state - Update type state using given variables
  * @state: type state table
@@ -637,22 +682,12 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	pr_debug_dtp("CU die offset: %#lx\n", (long)dwarf_dieoffset(&cu_die));
 
 	if (reg == DWARF_REG_PC) {
-		if (die_find_variable_by_addr(&cu_die, dloc->var_addr, &var_die,
-					      &offset)) {
-			ret = check_variable(&var_die, type_die, offset,
-					     /*is_pointer=*/false);
+		if (get_global_var_type(&cu_die, dloc, dloc->ip, dloc->var_addr,
+					&offset, type_die)) {
 			dloc->type_offset = offset;
 
 			pr_debug_dtp("found PC-rel by addr=%#"PRIx64" offset=%#x\n",
 				     dloc->var_addr, offset);
-			goto out;
-		}
-
-		if (dloc->var_name &&
-		    die_find_variable_at(&cu_die, dloc->var_name, pc, &var_die)) {
-			ret = check_variable(&var_die, type_die, dloc->type_offset,
-					     /*is_pointer=*/false);
-			/* dloc->type_offset was updated by the caller */
 			goto out;
 		}
 	}
@@ -769,8 +804,7 @@ struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 	 * The type offset is the same as instruction offset by default.
 	 * But when finding a global variable, the offset won't be valid.
 	 */
-	if (dloc->var_name == NULL)
-		dloc->type_offset = dloc->op->offset;
+	dloc->type_offset = dloc->op->offset;
 
 	dloc->fbreg = -1;
 

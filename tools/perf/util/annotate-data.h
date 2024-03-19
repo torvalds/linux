@@ -11,6 +11,7 @@ struct annotated_op_loc;
 struct debuginfo;
 struct evsel;
 struct map_symbol;
+struct thread;
 
 /**
  * struct annotated_member - Type of member field
@@ -76,10 +77,11 @@ extern struct annotated_data_type stackop_type;
 /**
  * struct data_loc_info - Data location information
  * @arch: CPU architecture info
+ * @thread: Thread info
  * @ms: Map and Symbol info
  * @ip: Instruction address
  * @var_addr: Data address (for global variables)
- * @var_name: Variable name (for global variables)
+ * @cpumode: CPU execution mode
  * @op: Instruction operand location (regs and offset)
  * @di: Debug info
  * @fbreg: Frame base register
@@ -89,10 +91,11 @@ extern struct annotated_data_type stackop_type;
 struct data_loc_info {
 	/* These are input field, should be filled by caller */
 	struct arch *arch;
+	struct thread *thread;
 	struct map_symbol *ms;
 	u64 ip;
 	u64 var_addr;
-	const char *var_name;
+	u8 cpumode;
 	struct annotated_op_loc *op;
 
 	/* These are used internally */
