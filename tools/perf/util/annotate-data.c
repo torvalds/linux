@@ -47,10 +47,14 @@ static void pr_debug_type_name(Dwarf_Die *die)
 	free(str);
 }
 
-/* Type information in a register, valid when ok is true */
+/*
+ * Type information in a register, valid when @ok is true.
+ * The @caller_saved registers are invalidated after a function call.
+ */
 struct type_state_reg {
 	Dwarf_Die type;
 	bool ok;
+	bool caller_saved;
 };
 
 /* Type information in a stack location, dynamically allocated */
@@ -76,6 +80,8 @@ struct type_state {
 	struct type_state_reg regs[TYPE_STATE_MAX_REGS];
 	/* state of stack location */
 	struct list_head stack_vars;
+	/* return value register */
+	int ret_reg;
 };
 
 static bool has_reg_type(struct type_state *state, int reg)
@@ -91,10 +97,23 @@ void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
 		       Dwarf_Die *cu_die, struct disasm_line *dl);
 
-void init_type_state(struct type_state *state, struct arch *arch __maybe_unused)
+void init_type_state(struct type_state *state, struct arch *arch)
 {
 	memset(state, 0, sizeof(*state));
 	INIT_LIST_HEAD(&state->stack_vars);
+
+	if (arch__is(arch, "x86")) {
+		state->regs[0].caller_saved = true;
+		state->regs[1].caller_saved = true;
+		state->regs[2].caller_saved = true;
+		state->regs[4].caller_saved = true;
+		state->regs[5].caller_saved = true;
+		state->regs[8].caller_saved = true;
+		state->regs[9].caller_saved = true;
+		state->regs[10].caller_saved = true;
+		state->regs[11].caller_saved = true;
+		state->ret_reg = 0;
+	}
 }
 
 void exit_type_state(struct type_state *state)
@@ -499,6 +518,37 @@ static void update_insn_state_x86(struct type_state *state,
 
 	if (annotate_get_insn_location(dloc->arch, dl, &loc) < 0)
 		return;
+
+	if (ins__is_call(&dl->ins)) {
+		struct symbol *func = dl->ops.target.sym;
+
+		if (func == NULL)
+			return;
+
+		/* __fentry__ will preserve all registers */
+		if (!strcmp(func->name, "__fentry__"))
+			return;
+
+		pr_debug_dtp("call [%x] %s\n", insn_offset, func->name);
+
+		/* Otherwise invalidate caller-saved registers after call */
+		for (unsigned i = 0; i < ARRAY_SIZE(state->regs); i++) {
+			if (state->regs[i].caller_saved)
+				state->regs[i].ok = false;
+		}
+
+		/* Update register with the return type (if any) */
+		if (die_find_func_rettype(cu_die, func->name, &type_die)) {
+			tsr = &state->regs[state->ret_reg];
+			tsr->type = type_die;
+			tsr->ok = true;
+
+			pr_debug_dtp("call [%x] return -> reg%d",
+				     insn_offset, state->ret_reg);
+			pr_debug_type_name(&type_die);
+		}
+		return;
+	}
 
 	if (strncmp(dl->ins.name, "mov", 3))
 		return;
