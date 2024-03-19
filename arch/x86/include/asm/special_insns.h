@@ -182,8 +182,8 @@ static __always_inline void clflush(volatile void *__p)
 
 static inline void clflushopt(volatile void *__p)
 {
-	alternative_io(".byte 0x3e; clflush %P0",
-		       ".byte 0x66; clflush %P0",
+	alternative_io(".byte 0x3e; clflush %0",
+		       ".byte 0x66; clflush %0",
 		       X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
 }
