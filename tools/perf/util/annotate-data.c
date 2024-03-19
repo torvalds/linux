@@ -23,6 +23,29 @@
 #include "symbol.h"
 #include "symbol_conf.h"
 
+#define pr_debug_dtp(fmt, ...)					\
+do {								\
+	if (debug_type_profile)					\
+		pr_info(fmt, ##__VA_ARGS__);			\
+	else							\
+		pr_debug3(fmt, ##__VA_ARGS__);			\
+} while (0)
+
+static void pr_debug_type_name(Dwarf_Die *die)
+{
+	struct strbuf sb;
+	char *str;
+
+	if (!debug_type_profile && verbose < 3)
+		return;
+
+	strbuf_init(&sb, 32);
+	die_get_typename_from_type(die, &sb);
+	str = strbuf_detach(&sb, NULL);
+	pr_info(" type=%s (die:%lx)\n", str, (long)dwarf_dieoffset(die));
+	free(str);
+}
+
 /*
  * Compare type name and size to maintain them in a tree.
  * I'm not sure if DWARF would have information of a single type in many
@@ -201,7 +224,7 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 
 	/* Get the type of the variable */
 	if (die_get_real_type(var_die, type_die) == NULL) {
-		pr_debug("variable has no type\n");
+		pr_debug_dtp("variable has no type\n");
 		ann_data_stat.no_typeinfo++;
 		return -1;
 	}
@@ -215,7 +238,7 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 		if ((dwarf_tag(type_die) != DW_TAG_pointer_type &&
 		     dwarf_tag(type_die) != DW_TAG_array_type) ||
 		    die_get_real_type(type_die, type_die) == NULL) {
-			pr_debug("no pointer or no type\n");
+			pr_debug_dtp("no pointer or no type\n");
 			ann_data_stat.no_typeinfo++;
 			return -1;
 		}
@@ -223,14 +246,15 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 
 	/* Get the size of the actual type */
 	if (dwarf_aggregate_size(type_die, &size) < 0) {
-		pr_debug("type size is unknown\n");
+		pr_debug_dtp("type size is unknown\n");
 		ann_data_stat.invalid_size++;
 		return -1;
 	}
 
 	/* Minimal sanity check */
 	if ((unsigned)offset >= size) {
-		pr_debug("offset: %d is bigger than size: %" PRIu64 "\n", offset, size);
+		pr_debug_dtp("offset: %d is bigger than size: %"PRIu64"\n",
+			     offset, size);
 		ann_data_stat.bad_offset++;
 		return -1;
 	}
@@ -251,6 +275,19 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	int fb_offset = 0;
 	bool is_fbreg = false;
 	u64 pc;
+	char buf[64];
+
+	if (dloc->op->multi_regs)
+		snprintf(buf, sizeof(buf), " or reg%d", dloc->op->reg2);
+	else if (dloc->op->reg1 == DWARF_REG_PC)
+		snprintf(buf, sizeof(buf), " (PC)");
+	else
+		buf[0] = '\0';
+
+	pr_debug_dtp("-----------------------------------------------------------\n");
+	pr_debug_dtp("%s [%"PRIx64"] for reg%d%s offset=%#x in %s\n",
+		     __func__, dloc->ip - dloc->ms->sym->start,
+		     dloc->op->reg1, buf, dloc->op->offset, dloc->ms->sym->name);
 
 	/*
 	 * IP is a relative instruction address from the start of the map, as
@@ -261,7 +298,7 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 
 	/* Get a compile_unit for this address */
 	if (!find_cu_die(dloc->di, pc, &cu_die)) {
-		pr_debug("cannot find CU for address %" PRIx64 "\n", pc);
+		pr_debug_dtp("cannot find CU for address %"PRIx64"\n", pc);
 		ann_data_stat.no_cuinfo++;
 		return -1;
 	}
@@ -269,12 +306,17 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	reg = loc->reg1;
 	offset = loc->offset;
 
+	pr_debug_dtp("CU die offset: %#lx\n", (long)dwarf_dieoffset(&cu_die));
+
 	if (reg == DWARF_REG_PC) {
 		if (die_find_variable_by_addr(&cu_die, dloc->var_addr, &var_die,
 					      &offset)) {
 			ret = check_variable(&var_die, type_die, offset,
 					     /*is_pointer=*/false);
 			dloc->type_offset = offset;
+
+			pr_debug_dtp("found PC-rel by addr=%#"PRIx64" offset=%#x\n",
+				     dloc->var_addr, offset);
 			goto out;
 		}
 
@@ -310,6 +352,9 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 			default:
 				break;
 			}
+
+			pr_debug_dtp("frame base: cfa=%d fbreg=%d\n",
+				     dloc->fb_cfa, fbreg);
 		}
 	}
 
@@ -334,6 +379,19 @@ retry:
 		/* Found a variable, see if it's correct */
 		ret = check_variable(&var_die, type_die, offset,
 				     reg != DWARF_REG_PC && !is_fbreg);
+		if (ret == 0) {
+			pr_debug_dtp("found \"%s\" in scope=%d/%d (die: %#lx) ",
+				     dwarf_diename(&var_die), i+1, nr_scopes,
+				     (long)dwarf_dieoffset(&scopes[i]));
+			if (reg == DWARF_REG_PC)
+				pr_debug_dtp("%#x(PC) offset=%#x", loc->offset, offset);
+			else if (reg == DWARF_REG_FB || is_fbreg)
+				pr_debug_dtp("%#x(reg%d) stack fb_offset=%#x offset=%#x",
+					     loc->offset, reg, fb_offset, offset);
+			else
+				pr_debug_dtp("%#x(reg%d)", loc->offset, reg);
+			pr_debug_type_name(type_die);
+		}
 		dloc->type_offset = offset;
 		goto out;
 	}
@@ -343,8 +401,10 @@ retry:
 		goto retry;
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		pr_debug_dtp("no variable found\n");
 		ann_data_stat.no_var++;
+	}
 
 out:
 	free(scopes);
@@ -373,7 +433,7 @@ struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 
 	dloc->di = debuginfo__new(dso->long_name);
 	if (dloc->di == NULL) {
-		pr_debug("cannot get the debug info\n");
+		pr_debug_dtp("cannot get the debug info\n");
 		return NULL;
 	}
 
