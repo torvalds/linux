@@ -1888,6 +1888,11 @@ static int q2spi_transfer_check(struct q2spi_geni *q2spi, struct q2spi_request *
 	if (!q2spi)
 		return -EINVAL;
 
+	if (q2spi->port_release) {
+		Q2SPI_DEBUG(q2spi, "%s Err Port in closed state, return\n", __func__);
+		return -ENOENT;
+	}
+
 	if (q2spi->hw_state_is_bad) {
 		Q2SPI_DEBUG(q2spi, "%s Err Retries failed, check HW state\n", __func__);
 		return -EPIPE;
@@ -2324,6 +2329,12 @@ static int q2spi_release(struct inode *inode, struct file *filp)
 
 	Q2SPI_DEBUG(q2spi, "%s PID:%d allocs:%d\n",
 		    __func__, current->pid, atomic_read(&q2spi->alloc_count));
+
+	if (q2spi->hw_state_is_bad) {
+		Q2SPI_DEBUG(q2spi, "%s Err check HW state\n", __func__);
+		return -EPIPE;
+	}
+
 	ret = pm_runtime_get_sync(q2spi->dev);
 	if (ret < 0)
 		Q2SPI_ERROR(q2spi, "%s Err for PM get ret:%d\n", __func__, ret);
