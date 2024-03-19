@@ -676,8 +676,10 @@ static int get_saved_records(void)
 		}
 
 		new = get_valid_record(old);
-		if (!new)
+		if (!new) {
 			erst_clear(record_id);
+			continue;
+		}
 
 		/* Restore the record */
 		memcpy(new, old, len);
