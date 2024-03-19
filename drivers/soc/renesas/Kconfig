@@ -24,6 +24,7 @@ config ARCH_RCAR_GEN2
 	select RENESAS_IRQC
 	select RST_RCAR
 	select SYS_SUPPORTS_SH_CMT
+	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_RCAR_GEN3
 	bool
