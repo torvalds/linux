@@ -4933,16 +4933,16 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 	u64 last_byte;
 	u64 cur_offset;
 	u64 hole_size;
-	int err = 0;
+	int ret = 0;
 
 	/*
 	 * If our size started in the middle of a block we need to zero out the
 	 * rest of the block before we expand the i_size, otherwise we could
 	 * expose stale data.
 	 */
-	err = btrfs_truncate_block(inode, oldsize, 0, 0);
-	if (err)
-		return err;
+	ret = btrfs_truncate_block(inode, oldsize, 0, 0);
+	if (ret)
+		return ret;
 
 	if (size <= hole_start)
 		return 0;
@@ -4953,7 +4953,7 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 	while (1) {
 		em = btrfs_get_extent(inode, NULL, cur_offset, block_end - cur_offset);
 		if (IS_ERR(em)) {
-			err = PTR_ERR(em);
+			ret = PTR_ERR(em);
 			em = NULL;
 			break;
 		}
@@ -4964,13 +4964,13 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 		if (!(em->flags & EXTENT_FLAG_PREALLOC)) {
 			struct extent_map *hole_em;
 
-			err = maybe_insert_hole(inode, cur_offset, hole_size);
-			if (err)
+			ret = maybe_insert_hole(inode, cur_offset, hole_size);
+			if (ret)
 				break;
 
-			err = btrfs_inode_set_file_extent_range(inode,
+			ret = btrfs_inode_set_file_extent_range(inode,
 							cur_offset, hole_size);
-			if (err)
+			if (ret)
 				break;
 
 			hole_em = alloc_extent_map();
@@ -4991,12 +4991,12 @@ int btrfs_cont_expand(struct btrfs_inode *inode, loff_t oldsize, loff_t size)
 			hole_em->ram_bytes = hole_size;
 			hole_em->generation = btrfs_get_fs_generation(fs_info);
 
-			err = btrfs_replace_extent_map_range(inode, hole_em, true);
+			ret = btrfs_replace_extent_map_range(inode, hole_em, true);
 			free_extent_map(hole_em);
 		} else {
-			err = btrfs_inode_set_file_extent_range(inode,
+			ret = btrfs_inode_set_file_extent_range(inode,
 							cur_offset, hole_size);
-			if (err)
+			if (ret)
 				break;
 		}
 next:
@@ -5008,7 +5008,7 @@ next:
 	}
 	free_extent_map(em);
 	unlock_extent(io_tree, hole_start, block_end - 1, &cached_state);
-	return err;
+	return ret;
 }
 
 static int btrfs_setsize(struct inode *inode, struct iattr *attr)
