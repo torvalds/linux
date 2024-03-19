@@ -2890,9 +2890,8 @@ init_vbt_panel_defaults(struct intel_panel *panel)
 static void
 init_vbt_missing_defaults(struct drm_i915_private *i915)
 {
+	unsigned int ports = DISPLAY_RUNTIME_INFO(i915)->port_mask;
 	enum port port;
-	int ports = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) |
-		    BIT(PORT_D) | BIT(PORT_E) | BIT(PORT_F);
 
 	if (!HAS_DDI(i915) && !IS_CHERRYVIEW(i915))
 		return;
