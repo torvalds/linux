@@ -4050,6 +4050,24 @@ static const char *intel_dp_mst_mode_str(enum drm_dp_mst_mode mst_mode)
 }
 
 static enum drm_dp_mst_mode
+intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
+			 enum drm_dp_mst_mode sink_mst_mode)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (!i915->display.params.enable_dp_mst)
+		return DRM_DP_SST;
+
+	if (!intel_dp_mst_source_support(intel_dp))
+		return DRM_DP_SST;
+
+	if (sink_mst_mode == DRM_DP_SST_SIDEBAND_MSG)
+		return DRM_DP_SST;
+
+	return sink_mst_mode;
+}
+
+static enum drm_dp_mst_mode
 intel_dp_mst_detect(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -4059,12 +4077,7 @@ intel_dp_mst_detect(struct intel_dp *intel_dp)
 
 	sink_mst_mode = drm_dp_read_mst_cap(&intel_dp->aux, intel_dp->dpcd);
 
-	if (i915->display.params.enable_dp_mst &&
-	    intel_dp_mst_source_support(intel_dp) &&
-	    sink_mst_mode == DRM_DP_MST)
-		mst_detect = DRM_DP_MST;
-	else
-		mst_detect = DRM_DP_SST;
+	mst_detect = intel_dp_mst_mode_choose(intel_dp, sink_mst_mode);
 
 	drm_dbg_kms(&i915->drm,
 		    "[ENCODER:%d:%s] MST support: port: %s, sink: %s, modparam: %s -> enable: %s\n",
