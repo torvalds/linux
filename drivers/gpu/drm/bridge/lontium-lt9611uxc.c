@@ -294,8 +294,8 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
-	unsigned int count;
 	const struct drm_edid *drm_edid;
+	int count;
 
 	drm_edid = drm_bridge_edid_read(&lt9611uxc->bridge, connector);
 	drm_edid_connector_update(connector, drm_edid);
