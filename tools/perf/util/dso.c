@@ -1329,6 +1329,7 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->inlined_nodes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
 		dso->data_types = RB_ROOT;
+		dso->global_vars = RB_ROOT;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
@@ -1373,6 +1374,7 @@ void dso__delete(struct dso *dso)
 	dso->symbol_names_len = 0;
 	zfree(&dso->symbol_names);
 	annotated_data_type__tree_delete(&dso->data_types);
+	global_var_type__tree_delete(&dso->global_vars);
 
 	if (dso->short_name_allocated) {
 		zfree((char **)&dso->short_name);

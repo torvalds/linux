@@ -153,6 +153,9 @@ int annotated_data_type__update_samples(struct annotated_data_type *adt,
 /* Release all data type information in the tree */
 void annotated_data_type__tree_delete(struct rb_root *root);
 
+/* Release all global variable information in the tree */
+void global_var_type__tree_delete(struct rb_root *root);
+
 #else /* HAVE_DWARF_SUPPORT */
 
 static inline struct annotated_data_type *
@@ -172,6 +175,10 @@ annotated_data_type__update_samples(struct annotated_data_type *adt __maybe_unus
 }
 
 static inline void annotated_data_type__tree_delete(struct rb_root *root __maybe_unused)
+{
+}
+
+static inline void global_var_type__tree_delete(struct rb_root *root __maybe_unused)
 {
 }
 

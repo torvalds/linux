@@ -154,7 +154,8 @@ struct dso {
 	size_t		 symbol_names_len;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
-	struct rb_root	data_types;
+	struct rb_root	 data_types;
+	struct rb_root	 global_vars;
 
 	struct {
 		u64		addr;
@@ -410,5 +411,8 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine);
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
 
 void reset_fd_limit(void);
+
+u64 dso__find_global_type(struct dso *dso, u64 addr);
+u64 dso__findnew_global_type(struct dso *dso, u64 addr, u64 offset);
 
 #endif /* __PERF_DSO */

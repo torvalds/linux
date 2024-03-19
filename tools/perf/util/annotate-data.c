@@ -433,6 +433,91 @@ static struct type_state_stack *findnew_stack_state(struct type_state *state,
 	return stack;
 }
 
+/* Maintain a cache for quick global variable lookup */
+struct global_var_entry {
+	struct rb_node node;
+	char *name;
+	u64 start;
+	u64 end;
+	u64 die_offset;
+};
+
+static int global_var_cmp(const void *_key, const struct rb_node *node)
+{
+	const u64 addr = (uintptr_t)_key;
+	struct global_var_entry *gvar;
+
+	gvar = rb_entry(node, struct global_var_entry, node);
+
+	if (gvar->start <= addr && addr < gvar->end)
+		return 0;
+	return gvar->start > addr ? -1 : 1;
+}
+
+static bool global_var_less(struct rb_node *node_a, const struct rb_node *node_b)
+{
+	struct global_var_entry *gvar_a, *gvar_b;
+
+	gvar_a = rb_entry(node_a, struct global_var_entry, node);
+	gvar_b = rb_entry(node_b, struct global_var_entry, node);
+
+	return gvar_a->start < gvar_b->start;
+}
+
+static struct global_var_entry *global_var__find(struct data_loc_info *dloc, u64 addr)
+{
+	struct dso *dso = map__dso(dloc->ms->map);
+	struct rb_node *node;
+
+	node = rb_find((void *)(uintptr_t)addr, &dso->global_vars, global_var_cmp);
+	if (node == NULL)
+		return NULL;
+
+	return rb_entry(node, struct global_var_entry, node);
+}
+
+static bool global_var__add(struct data_loc_info *dloc, u64 addr,
+			    const char *name, Dwarf_Die *type_die)
+{
+	struct dso *dso = map__dso(dloc->ms->map);
+	struct global_var_entry *gvar;
+	Dwarf_Word size;
+
+	if (dwarf_aggregate_size(type_die, &size) < 0)
+		return false;
+
+	gvar = malloc(sizeof(*gvar));
+	if (gvar == NULL)
+		return false;
+
+	gvar->name = strdup(name);
+	if (gvar->name == NULL) {
+		free(gvar);
+		return false;
+	}
+
+	gvar->start = addr;
+	gvar->end = addr + size;
+	gvar->die_offset = dwarf_dieoffset(type_die);
+
+	rb_add(&gvar->node, &dso->global_vars, global_var_less);
+	return true;
+}
+
+void global_var_type__tree_delete(struct rb_root *root)
+{
+	struct global_var_entry *gvar;
+
+	while (!RB_EMPTY_ROOT(root)) {
+		struct rb_node *node = rb_first(root);
+
+		rb_erase(node, root);
+		gvar = rb_entry(node, struct global_var_entry, node);
+		free(gvar->name);
+		free(gvar);
+	}
+}
+
 static bool get_global_var_info(struct data_loc_info *dloc, u64 addr,
 				const char **var_name, int *var_offset)
 {
@@ -467,14 +552,25 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	u64 pc;
 	int offset;
 	bool is_pointer = false;
-	const char *var_name;
+	const char *var_name = NULL;
+	struct global_var_entry *gvar;
 	Dwarf_Die var_die;
+
+	gvar = global_var__find(dloc, var_addr);
+	if (gvar) {
+		if (!dwarf_offdie(dloc->di->dbg, gvar->die_offset, type_die))
+			return false;
+
+		*var_offset = var_addr - gvar->start;
+		return true;
+	}
 
 	/* Try to get the variable by address first */
 	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, &offset) &&
 	    check_variable(&var_die, type_die, offset, is_pointer) == 0) {
+		var_name = dwarf_diename(&var_die);
 		*var_offset = offset;
-		return true;
+		goto ok;
 	}
 
 	if (!get_global_var_info(dloc, var_addr, &var_name, var_offset))
@@ -485,9 +581,14 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	/* Try to get the name of global variable */
 	if (die_find_variable_at(cu_die, var_name, pc, &var_die) &&
 	    check_variable(&var_die, type_die, *var_offset, is_pointer) == 0)
-		return true;
+		goto ok;
 
 	return false;
+
+ok:
+	/* The address should point to the start of the variable */
+	global_var__add(dloc, var_addr - *var_offset, var_name, type_die);
+	return true;
 }
 
 /**
