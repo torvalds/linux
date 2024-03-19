@@ -1061,7 +1061,46 @@ static void dml2_populate_pipe_to_plane_index_mapping(struct dml2_context *dml2,
 		plane_index = 0;
 	}
 }
+static void populate_dml_writeback_cfg_from_stream_state(struct dml_writeback_cfg_st *out,
+		unsigned int location, const struct dc_stream_state *in)
+{
+	if (in->num_wb_info > 0) {
+		for (int i = 0; i < __DML_NUM_DMB__; i++) {
+			const struct dc_writeback_info *wb_info = &in->writeback_info[i];
+			/*current dml support 1 dwb per stream, limitation*/
+			if (wb_info->wb_enabled) {
+				out->WritebackEnable[location] = wb_info->wb_enabled;
+				out->ActiveWritebacksPerSurface[location] = wb_info->dwb_params.cnv_params.src_width;
+				out->WritebackDestinationWidth[location] = wb_info->dwb_params.dest_width;
+				out->WritebackDestinationHeight[location] = wb_info->dwb_params.dest_height;
 
+				out->WritebackSourceWidth[location] = wb_info->dwb_params.cnv_params.crop_en ?
+					wb_info->dwb_params.cnv_params.crop_width :
+					wb_info->dwb_params.cnv_params.src_width;
+
+				out->WritebackSourceHeight[location] = wb_info->dwb_params.cnv_params.crop_en ?
+					wb_info->dwb_params.cnv_params.crop_height :
+					wb_info->dwb_params.cnv_params.src_height;
+				/*current design does not have chroma scaling, need to follow up*/
+				out->WritebackHTaps[location] = wb_info->dwb_params.scaler_taps.h_taps > 0 ?
+					wb_info->dwb_params.scaler_taps.h_taps : 1;
+				out->WritebackVTaps[location] = wb_info->dwb_params.scaler_taps.v_taps > 0 ?
+					wb_info->dwb_params.scaler_taps.v_taps : 1;
+
+				out->WritebackHRatio[location] = wb_info->dwb_params.cnv_params.crop_en ?
+					(double)wb_info->dwb_params.cnv_params.crop_width /
+						(double)wb_info->dwb_params.dest_width :
+					(double)wb_info->dwb_params.cnv_params.src_width /
+						(double)wb_info->dwb_params.dest_width;
+				out->WritebackVRatio[location] = wb_info->dwb_params.cnv_params.crop_en ?
+					(double)wb_info->dwb_params.cnv_params.crop_height /
+						(double)wb_info->dwb_params.dest_height :
+					(double)wb_info->dwb_params.cnv_params.src_height /
+						(double)wb_info->dwb_params.dest_height;
+			}
+		}
+	}
+}
 void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_state *context, struct dml_display_cfg_st *dml_dispcfg)
 {
 	int i = 0, j = 0, k = 0;
@@ -1106,6 +1145,10 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 
 		populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_stream_location, context->streams[i]);
 		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context);
+		/*Call site for populate_dml_writeback_cfg_from_stream_state*/
+		populate_dml_writeback_cfg_from_stream_state(&dml_dispcfg->writeback,
+			disp_cfg_stream_location, context->streams[i]);
+
 		switch (context->streams[i]->debug.force_odm_combine_segments) {
 		case 2:
 			dml2->v20.dml_core_ctx.policy.ODMUse[disp_cfg_stream_location] = dml_odm_use_policy_combine_2to1;

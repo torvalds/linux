@@ -41,6 +41,7 @@
 #define DCN_DML__VM_PRESENT__1 1
 #define DCN_DML__HOST_VM_PRESENT 1
 #define DCN_DML__HOST_VM_PRESENT__1 1
+#define DCN_DML__DWB 1
 
 #include "dml_depedencies.h"
 
@@ -59,6 +60,7 @@
 #define __DML_NUM_PLANES__                              DCN_DML__NUM_PLANE
 #define __DML_NUM_CURSORS__                             DCN_DML__NUM_CURSOR
 #define __DML_DPP_INVALID__                             0
+#define __DML_NUM_DMB__                                 DCN_DML__DWB
 #define __DML_PIPE_NO_PLANE__                           99
 
 #define __DML_MAX_STATE_ARRAY_SIZE__        DCN_DML__NUM_PWR_STATE
