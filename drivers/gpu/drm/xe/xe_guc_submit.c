@@ -1574,6 +1574,29 @@ static void deregister_exec_queue(struct xe_guc *guc, struct xe_exec_queue *q)
 	xe_guc_ct_send_g2h_handler(&guc->ct, action, ARRAY_SIZE(action));
 }
 
+static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q)
+{
+	trace_xe_exec_queue_scheduling_done(q);
+
+	if (exec_queue_pending_enable(q)) {
+		q->guc->resume_time = ktime_get();
+		clear_exec_queue_pending_enable(q);
+		smp_wmb();
+		wake_up_all(&guc->ct.wq);
+	} else {
+		clear_exec_queue_pending_disable(q);
+		if (q->guc->suspend_pending) {
+			suspend_fence_signal(q);
+		} else {
+			if (exec_queue_banned(q)) {
+				smp_wmb();
+				wake_up_all(&guc->ct.wq);
+			}
+			deregister_exec_queue(guc, q);
+		}
+	}
+}
+
 int xe_guc_sched_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -1596,27 +1619,21 @@ int xe_guc_sched_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		return -EPROTO;
 	}
 
-	trace_xe_exec_queue_scheduling_done(q);
-
-	if (exec_queue_pending_enable(q)) {
-		q->guc->resume_time = ktime_get();
-		clear_exec_queue_pending_enable(q);
-		smp_wmb();
-		wake_up_all(&guc->ct.wq);
-	} else {
-		clear_exec_queue_pending_disable(q);
-		if (q->guc->suspend_pending) {
-			suspend_fence_signal(q);
-		} else {
-			if (exec_queue_banned(q)) {
-				smp_wmb();
-				wake_up_all(&guc->ct.wq);
-			}
-			deregister_exec_queue(guc, q);
-		}
-	}
+	handle_sched_done(guc, q);
 
 	return 0;
+}
+
+static void handle_deregister_done(struct xe_guc *guc, struct xe_exec_queue *q)
+{
+	trace_xe_exec_queue_deregister_done(q);
+
+	clear_exec_queue_registered(q);
+
+	if (exec_queue_banned(q) || xe_exec_queue_is_lr(q))
+		xe_exec_queue_put(q);
+	else
+		__guc_exec_queue_fini(guc, q);
 }
 
 int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
@@ -1641,14 +1658,7 @@ int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		return -EPROTO;
 	}
 
-	trace_xe_exec_queue_deregister_done(q);
-
-	clear_exec_queue_registered(q);
-
-	if (exec_queue_banned(q) || xe_exec_queue_is_lr(q))
-		xe_exec_queue_put(q);
-	else
-		__guc_exec_queue_fini(guc, q);
+	handle_deregister_done(guc, q);
 
 	return 0;
 }
