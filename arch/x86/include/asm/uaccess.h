@@ -78,7 +78,7 @@ extern int __get_user_bad(void);
 	int __ret_gu;							\
 	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
 	__chk_user_ptr(ptr);						\
-	asm volatile("call __" #fn "_%P4"				\
+	asm volatile("call __" #fn "_%c4"				\
 		     : "=a" (__ret_gu), "=r" (__val_gu),		\
 			ASM_CALL_CONSTRAINT				\
 		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
@@ -177,7 +177,7 @@ extern void __put_user_nocheck_8(void);
 	__chk_user_ptr(__ptr);						\
 	__ptr_pu = __ptr;						\
 	__val_pu = __x;							\
-	asm volatile("call __" #fn "_%P[size]"				\
+	asm volatile("call __" #fn "_%c[size]"				\
 		     : "=c" (__ret_pu),					\
 			ASM_CALL_CONSTRAINT				\
 		     : "0" (__ptr_pu),					\
