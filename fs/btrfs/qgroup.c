@@ -3700,7 +3700,6 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 						     qgroup_rescan_work);
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans = NULL;
-	int err = -ENOMEM;
 	int ret = 0;
 	bool stopped = false;
 	bool did_leaf_rescans = false;
@@ -3709,8 +3708,10 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 		return;
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	/*
 	 * Rescan should only search for commit root, and any later difference
 	 * should be recorded by qgroup
@@ -3718,18 +3719,17 @@ static void btrfs_qgroup_rescan_worker(struct btrfs_work *work)
 	path->search_commit_root = 1;
 	path->skip_locking = 1;
 
-	err = 0;
-	while (!err && !(stopped = rescan_should_stop(fs_info))) {
+	while (!ret && !(stopped = rescan_should_stop(fs_info))) {
 		trans = btrfs_start_transaction(fs_info->fs_root, 0);
 		if (IS_ERR(trans)) {
-			err = PTR_ERR(trans);
+			ret = PTR_ERR(trans);
 			break;
 		}
 
-		err = qgroup_rescan_leaf(trans, path);
+		ret = qgroup_rescan_leaf(trans, path);
 		did_leaf_rescans = true;
 
-		if (err > 0)
+		if (ret > 0)
 			btrfs_commit_transaction(trans);
 		else
 			btrfs_end_transaction(trans);
@@ -3739,10 +3739,10 @@ out:
 	btrfs_free_path(path);
 
 	mutex_lock(&fs_info->qgroup_rescan_lock);
-	if (err > 0 &&
+	if (ret > 0 &&
 	    fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT) {
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
-	} else if (err < 0 || stopped) {
+	} else if (ret < 0 || stopped) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 	}
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
@@ -3757,11 +3757,11 @@ out:
 	if (did_leaf_rescans) {
 		trans = btrfs_start_transaction(fs_info->quota_root, 1);
 		if (IS_ERR(trans)) {
-			err = PTR_ERR(trans);
+			ret = PTR_ERR(trans);
 			trans = NULL;
 			btrfs_err(fs_info,
 				  "fail to start transaction for status update: %d",
-				  err);
+				  ret);
 		}
 	} else {
 		trans = NULL;
@@ -3772,11 +3772,11 @@ out:
 	    fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN)
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 	if (trans) {
-		ret = update_qgroup_status_item(trans);
-		if (ret < 0) {
-			err = ret;
-			btrfs_err(fs_info, "fail to update qgroup status: %d",
-				  err);
+		int ret2 = update_qgroup_status_item(trans);
+
+		if (ret2 < 0) {
+			ret = ret2;
+			btrfs_err(fs_info, "fail to update qgroup status: %d", ret);
 		}
 	}
 	fs_info->qgroup_rescan_running = false;
@@ -3793,11 +3793,11 @@ out:
 		btrfs_info(fs_info, "qgroup scan paused");
 	} else if (fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN) {
 		btrfs_info(fs_info, "qgroup scan cancelled");
-	} else if (err >= 0) {
+	} else if (ret >= 0) {
 		btrfs_info(fs_info, "qgroup scan completed%s",
-			err > 0 ? " (inconsistency flag cleared)" : "");
+			ret > 0 ? " (inconsistency flag cleared)" : "");
 	} else {
-		btrfs_err(fs_info, "qgroup scan failed with %d", err);
+		btrfs_err(fs_info, "qgroup scan failed with %d", ret);
 	}
 }
 
