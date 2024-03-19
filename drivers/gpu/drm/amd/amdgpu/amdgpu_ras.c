@@ -2703,6 +2703,40 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	}
 }
 
+int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block, uint16_t pasid,
+		pasid_notify pasid_fn, void *data, uint32_t reset)
+{
+	int ret = 0;
+	struct ras_poison_msg poison_msg;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	memset(&poison_msg, 0, sizeof(poison_msg));
+	poison_msg.block = block;
+	poison_msg.pasid = pasid;
+	poison_msg.reset = reset;
+	poison_msg.pasid_fn = pasid_fn;
+	poison_msg.data = data;
+
+	ret = kfifo_put(&con->poison_fifo, poison_msg);
+	if (!ret) {
+		dev_err(adev->dev, "Poison message fifo is full!\n");
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
+#ifdef PRE_DEFINED_FUNCTION
+static int amdgpu_ras_get_poison_req(struct amdgpu_device *adev,
+		struct ras_poison_msg *poison_msg)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	return kfifo_get(&con->poison_fifo, poison_msg);
+}
+#endif
+
 static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
@@ -2793,6 +2827,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	}
 
 	mutex_init(&con->page_rsv_lock);
+	INIT_KFIFO(con->poison_fifo);
 	mutex_init(&con->page_retirement_lock);
 	init_waitqueue_head(&con->page_retirement_wq);
 	atomic_set(&con->page_retirement_req_cnt, 0);

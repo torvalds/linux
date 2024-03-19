@@ -26,6 +26,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/list.h>
+#include <linux/kfifo.h>
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_smuio.h"
@@ -442,6 +443,17 @@ struct ras_query_context {
 	u64 event_id;
 };
 
+typedef int (*pasid_notify)(struct amdgpu_device *adev,
+		uint16_t pasid, void *data);
+
+struct ras_poison_msg {
+	enum amdgpu_ras_block block;
+	uint16_t pasid;
+	uint32_t reset;
+	pasid_notify pasid_fn;
+	void *data;
+};
+
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -501,6 +513,8 @@ struct amdgpu_ras {
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
 	struct mutex page_rsv_lock;
+	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
+
 	/* Fatal error detected flag */
 	atomic_t fed;
 
@@ -912,5 +926,9 @@ bool amdgpu_ras_event_id_is_valid(struct amdgpu_device *adev, u64 id);
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
 
 int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn);
+
+int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block, uint16_t pasid,
+		pasid_notify pasid_fn, void *data, uint32_t reset);
 
 #endif
