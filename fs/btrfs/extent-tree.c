@@ -5834,8 +5834,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 	struct walk_control *wc;
 	struct btrfs_key key;
 	const u64 rootid = btrfs_root_id(root);
-	int err = 0;
-	int ret;
+	int ret = 0;
 	int level;
 	bool root_dropped = false;
 	bool unfinished_drop = false;
@@ -5844,14 +5843,14 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
 	wc = kzalloc(sizeof(*wc), GFP_NOFS);
 	if (!wc) {
 		btrfs_free_path(path);
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -5864,12 +5863,12 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 	else
 		trans = btrfs_start_transaction(tree_root, 0);
 	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
+		ret = PTR_ERR(trans);
 		goto out_free;
 	}
 
-	err = btrfs_run_delayed_items(trans);
-	if (err)
+	ret = btrfs_run_delayed_items(trans);
+	if (ret)
 		goto out_end_trans;
 
 	/*
@@ -5900,11 +5899,11 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		path->lowest_level = level;
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		path->lowest_level = 0;
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			goto out_end_trans;
-		}
+
 		WARN_ON(ret > 0);
+		ret = 0;
 
 		/*
 		 * unlock our path, this is safe because only this
@@ -5917,14 +5916,17 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			btrfs_tree_lock(path->nodes[level]);
 			path->locks[level] = BTRFS_WRITE_LOCK;
 
+			/*
+			 * btrfs_lookup_extent_info() returns 0 for success,
+			 * or < 0 for error.
+			 */
 			ret = btrfs_lookup_extent_info(trans, fs_info,
 						path->nodes[level]->start,
 						level, 1, &wc->refs[level],
 						&wc->flags[level], NULL);
-			if (ret < 0) {
-				err = ret;
+			if (ret < 0)
 				goto out_end_trans;
-			}
+
 			BUG_ON(wc->refs[level] == 0);
 
 			if (level == btrfs_root_drop_level(root_item))
@@ -5950,19 +5952,18 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		ret = walk_down_tree(trans, root, path, wc);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
-			err = ret;
 			break;
 		}
 
 		ret = walk_up_tree(trans, root, path, wc, BTRFS_MAX_LEVEL);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
-			err = ret;
 			break;
 		}
 
 		if (ret > 0) {
 			BUG_ON(wc->stage != DROP_REFERENCE);
+			ret = 0;
 			break;
 		}
 
@@ -5984,7 +5985,6 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 						root_item);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
-				err = ret;
 				goto out_end_trans;
 			}
 
@@ -5995,7 +5995,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			if (!for_reloc && btrfs_need_cleaner_sleep(fs_info)) {
 				btrfs_debug(fs_info,
 					    "drop snapshot early exit");
-				err = -EAGAIN;
+				ret = -EAGAIN;
 				goto out_free;
 			}
 
@@ -6009,19 +6009,18 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			else
 				trans = btrfs_start_transaction(tree_root, 0);
 			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
+				ret = PTR_ERR(trans);
 				goto out_free;
 			}
 		}
 	}
 	btrfs_release_path(path);
-	if (err)
+	if (ret)
 		goto out_end_trans;
 
 	ret = btrfs_del_root(trans, &root->root_key);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
-		err = ret;
 		goto out_end_trans;
 	}
 
@@ -6030,10 +6029,11 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 				      NULL, NULL);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, ret);
-			err = ret;
 			goto out_end_trans;
 		} else if (ret > 0) {
-			/* if we fail to delete the orphan item this time
+			ret = 0;
+			/*
+			 * If we fail to delete the orphan item this time
 			 * around, it'll get picked up the next time.
 			 *
 			 * The most common failure here is just -ENOENT.
@@ -6064,18 +6064,19 @@ out_free:
 	kfree(wc);
 	btrfs_free_path(path);
 out:
-	if (!err && root_dropped) {
+	if (!ret && root_dropped) {
 		ret = btrfs_qgroup_cleanup_dropped_subvolume(fs_info, rootid);
 		if (ret < 0)
 			btrfs_warn_rl(fs_info,
 				      "failed to cleanup qgroup 0/%llu: %d",
 				      rootid, ret);
+		ret = 0;
 	}
 	/*
 	 * We were an unfinished drop root, check to see if there are any
 	 * pending, and if not clear and wake up any waiters.
 	 */
-	if (!err && unfinished_drop)
+	if (!ret && unfinished_drop)
 		btrfs_maybe_wake_unfinished_drop(fs_info);
 
 	/*
@@ -6087,7 +6088,7 @@ out:
 	 */
 	if (!for_reloc && !root_dropped)
 		btrfs_add_dead_root(root);
-	return err;
+	return ret;
 }
 
 /*
