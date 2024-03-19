@@ -237,6 +237,9 @@ size_t syscall_arg__scnprintf_socket_level(char *bf, size_t size, struct syscall
 size_t syscall_arg__scnprintf_fs_at_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_FS_AT_FLAGS syscall_arg__scnprintf_fs_at_flags
 
+size_t syscall_arg__scnprintf_faccessat2_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_FACCESSAT2_FLAGS syscall_arg__scnprintf_faccessat2_flags
+
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_MASK syscall_arg__scnprintf_statx_mask
 
