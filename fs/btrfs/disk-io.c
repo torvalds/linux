@@ -2914,22 +2914,22 @@ static int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 {
 	u64 root_objectid = 0;
 	struct btrfs_root *gang[8];
-	int i = 0;
-	int err = 0;
-	unsigned int ret = 0;
+	int ret = 0;
 
 	while (1) {
+		unsigned int found;
+
 		spin_lock(&fs_info->fs_roots_radix_lock);
-		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+		found = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
 					     (void **)gang, root_objectid,
 					     ARRAY_SIZE(gang));
-		if (!ret) {
+		if (!found) {
 			spin_unlock(&fs_info->fs_roots_radix_lock);
 			break;
 		}
-		root_objectid = btrfs_root_id(gang[ret - 1]) + 1;
+		root_objectid = btrfs_root_id(gang[found - 1]) + 1;
 
-		for (i = 0; i < ret; i++) {
+		for (int i = 0; i < found; i++) {
 			/* Avoid to grab roots in dead_roots. */
 			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
 				gang[i] = NULL;
@@ -2940,24 +2940,25 @@ static int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 		}
 		spin_unlock(&fs_info->fs_roots_radix_lock);
 
-		for (i = 0; i < ret; i++) {
+		for (int i = 0; i < found; i++) {
 			if (!gang[i])
 				continue;
 			root_objectid = btrfs_root_id(gang[i]);
-			err = btrfs_orphan_cleanup(gang[i]);
-			if (err)
-				goto out;
+			/*
+			 * Continue to release the remaining roots after the first
+			 * error without cleanup and preserve the first error
+			 * for the return.
+			 */
+			if (!ret)
+				ret = btrfs_orphan_cleanup(gang[i]);
 			btrfs_put_root(gang[i]);
 		}
+		if (ret)
+			break;
+
 		root_objectid++;
 	}
-out:
-	/* Release the uncleaned roots due to error. */
-	for (; i < ret; i++) {
-		if (gang[i])
-			btrfs_put_root(gang[i]);
-	}
-	return err;
+	return ret;
 }
 
 /*
