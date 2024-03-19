@@ -75,6 +75,10 @@ properties:
       - riscv,sv57
       - riscv,none
 
+  reg:
+    description:
+      The hart ID of this CPU node.
+
   riscv,cbom-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:

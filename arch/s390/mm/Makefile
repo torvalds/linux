@@ -7,6 +7,7 @@ obj-y		:= init.o fault.o extmem.o mmap.o vmem.o maccess.o
 obj-y		+= page-states.o pageattr.o pgtable.o pgalloc.o extable.o
 
 obj-$(CONFIG_CMM)		+= cmm.o
+obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_PTDUMP_CORE)	+= dump_pagetables.o
 obj-$(CONFIG_PGSTE)		+= gmap.o

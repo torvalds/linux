@@ -181,8 +181,34 @@ int arch_make_page_accessible(struct page *page);
 #define __PAGE_OFFSET		0x0UL
 #define PAGE_OFFSET		0x0UL
 
-#define __pa(x)			((unsigned long)(x))
+#define __pa_nodebug(x)		((unsigned long)(x))
+
+#ifdef __DECOMPRESSOR
+
+#define __pa(x)			__pa_nodebug(x)
+#define __pa32(x)		__pa(x)
 #define __va(x)			((void *)(unsigned long)(x))
+
+#else /* __DECOMPRESSOR */
+
+#ifdef CONFIG_DEBUG_VIRTUAL
+
+unsigned long __phys_addr(unsigned long x, bool is_31bit);
+
+#else /* CONFIG_DEBUG_VIRTUAL */
+
+static inline unsigned long __phys_addr(unsigned long x, bool is_31bit)
+{
+	return __pa_nodebug(x);
+}
+
+#endif /* CONFIG_DEBUG_VIRTUAL */
+
+#define __pa(x)			__phys_addr((unsigned long)(x), false)
+#define __pa32(x)		__phys_addr((unsigned long)(x), true)
+#define __va(x)			((void *)(unsigned long)(x))
+
+#endif /* __DECOMPRESSOR */
 
 #define phys_to_pfn(phys)	((phys) >> PAGE_SHIFT)
 #define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
@@ -205,7 +231,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
 
-#define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
+#define virt_addr_valid(kaddr)	pfn_valid(phys_to_pfn(__pa_nodebug(kaddr)))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 

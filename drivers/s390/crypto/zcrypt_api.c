@@ -107,7 +107,11 @@ EXPORT_SYMBOL(zcrypt_msgtype);
 
 struct zcdn_device;
 
-static struct class *zcrypt_class;
+static void zcdn_device_release(struct device *dev);
+static const struct class zcrypt_class = {
+	.name = ZCRYPT_NAME,
+	.dev_release = zcdn_device_release,
+};
 static dev_t zcrypt_devt;
 static struct cdev zcrypt_cdev;
 
@@ -130,7 +134,7 @@ static int zcdn_destroy(const char *name);
  */
 static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
 {
-	struct device *dev = class_find_device_by_name(zcrypt_class, name);
+	struct device *dev = class_find_device_by_name(&zcrypt_class, name);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -142,7 +146,7 @@ static inline struct zcdn_device *find_zcdndev_by_name(const char *name)
  */
 static inline struct zcdn_device *find_zcdndev_by_devt(dev_t devt)
 {
-	struct device *dev = class_find_device_by_devt(zcrypt_class, devt);
+	struct device *dev = class_find_device_by_devt(&zcrypt_class, devt);
 
 	return dev ? to_zcdn_dev(dev) : NULL;
 }
@@ -396,7 +400,7 @@ static int zcdn_create(const char *name)
 		goto unlockout;
 	}
 	zcdndev->device.release = zcdn_device_release;
-	zcdndev->device.class = zcrypt_class;
+	zcdndev->device.class = &zcrypt_class;
 	zcdndev->device.devt = devt;
 	zcdndev->device.groups = zcdn_dev_attr_groups;
 	if (name[0])
@@ -573,6 +577,7 @@ static inline struct zcrypt_queue *zcrypt_pick_queue(struct zcrypt_card *zc,
 {
 	if (!zq || !try_module_get(zq->queue->ap_dev.device.driver->owner))
 		return NULL;
+	zcrypt_card_get(zc);
 	zcrypt_queue_get(zq);
 	get_device(&zq->queue->ap_dev.device);
 	atomic_add(weight, &zc->load);
@@ -592,6 +597,7 @@ static inline void zcrypt_drop_queue(struct zcrypt_card *zc,
 	atomic_sub(weight, &zq->load);
 	put_device(&zq->queue->ap_dev.device);
 	zcrypt_queue_put(zq);
+	zcrypt_card_put(zc);
 	module_put(mod);
 }
 
@@ -2075,12 +2081,9 @@ static int __init zcdn_init(void)
 	int rc;
 
 	/* create a new class 'zcrypt' */
-	zcrypt_class = class_create(ZCRYPT_NAME);
-	if (IS_ERR(zcrypt_class)) {
-		rc = PTR_ERR(zcrypt_class);
-		goto out_class_create_failed;
-	}
-	zcrypt_class->dev_release = zcdn_device_release;
+	rc = class_register(&zcrypt_class);
+	if (rc)
+		goto out_class_register_failed;
 
 	/* alloc device minor range */
 	rc = alloc_chrdev_region(&zcrypt_devt,
@@ -2096,35 +2099,35 @@ static int __init zcdn_init(void)
 		goto out_cdev_add_failed;
 
 	/* need some class specific sysfs attributes */
-	rc = class_create_file(zcrypt_class, &class_attr_zcdn_create);
+	rc = class_create_file(&zcrypt_class, &class_attr_zcdn_create);
 	if (rc)
 		goto out_class_create_file_1_failed;
-	rc = class_create_file(zcrypt_class, &class_attr_zcdn_destroy);
+	rc = class_create_file(&zcrypt_class, &class_attr_zcdn_destroy);
 	if (rc)
 		goto out_class_create_file_2_failed;
 
 	return 0;
 
 out_class_create_file_2_failed:
-	class_remove_file(zcrypt_class, &class_attr_zcdn_create);
+	class_remove_file(&zcrypt_class, &class_attr_zcdn_create);
 out_class_create_file_1_failed:
 	cdev_del(&zcrypt_cdev);
 out_cdev_add_failed:
 	unregister_chrdev_region(zcrypt_devt, ZCRYPT_MAX_MINOR_NODES);
 out_alloc_chrdev_failed:
-	class_destroy(zcrypt_class);
-out_class_create_failed:
+	class_unregister(&zcrypt_class);
+out_class_register_failed:
 	return rc;
 }
 
 static void zcdn_exit(void)
 {
-	class_remove_file(zcrypt_class, &class_attr_zcdn_create);
-	class_remove_file(zcrypt_class, &class_attr_zcdn_destroy);
+	class_remove_file(&zcrypt_class, &class_attr_zcdn_create);
+	class_remove_file(&zcrypt_class, &class_attr_zcdn_destroy);
 	zcdn_destroy_all();
 	cdev_del(&zcrypt_cdev);
 	unregister_chrdev_region(zcrypt_devt, ZCRYPT_MAX_MINOR_NODES);
-	class_destroy(zcrypt_class);
+	class_unregister(&zcrypt_class);
 }
 
 /*
