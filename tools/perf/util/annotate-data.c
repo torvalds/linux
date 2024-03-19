@@ -30,6 +30,7 @@ enum type_state_kind {
 	TSR_KIND_PERCPU_BASE,
 	TSR_KIND_CONST,
 	TSR_KIND_POINTER,
+	TSR_KIND_CANARY,
 };
 
 #define pr_debug_dtp(fmt, ...)					\
@@ -62,6 +63,9 @@ static void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 		pr_info(" pointer");
 		/* it also prints the type info */
 		break;
+	case TSR_KIND_CANARY:
+		pr_info(" stack canary\n");
+		return;
 	case TSR_KIND_TYPE:
 	default:
 		break;
@@ -676,6 +680,15 @@ static void update_insn_state_x86(struct type_state *state,
 			 */
 			var_addr = src->offset;
 
+			if (var_addr == 40) {
+				tsr->kind = TSR_KIND_CANARY;
+				tsr->ok = true;
+
+				pr_debug_dtp("mov [%x] stack canary -> reg%d\n",
+					     insn_offset, dst->reg1);
+				return;
+			}
+
 			if (!get_global_var_type(cu_die, dloc, ip, var_addr,
 						 &offset, &type_die) ||
 			    !die_get_member_type(&type_die, offset, &type_die)) {
@@ -991,6 +1004,16 @@ static void delete_var_types(struct die_var_type *var_types)
 	}
 }
 
+/* should match to is_stack_canary() in util/annotate.c */
+static void setup_stack_canary(struct data_loc_info *dloc)
+{
+	if (arch__is(dloc->arch, "x86")) {
+		dloc->op->segment = INSN_SEG_X86_GS;
+		dloc->op->imm = true;
+		dloc->op->offset = 40;
+	}
+}
+
 /* It's at the target address, check if it has a matching type */
 static bool check_matching_type(struct type_state *state,
 				struct data_loc_info *dloc, int reg,
@@ -1038,6 +1061,11 @@ static bool check_matching_type(struct type_state *state,
 		if (stack == NULL)
 			return false;
 
+		if (stack->kind == TSR_KIND_CANARY) {
+			setup_stack_canary(dloc);
+			return false;
+		}
+
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
 		dloc->type_offset -= stack->offset;
@@ -1061,6 +1089,11 @@ static bool check_matching_type(struct type_state *state,
 		stack = find_stack_state(state, dloc->type_offset - fboff);
 		if (stack == NULL)
 			return false;
+
+		if (stack->kind == TSR_KIND_CANARY) {
+			setup_stack_canary(dloc);
+			return false;
+		}
 
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
@@ -1100,6 +1133,19 @@ static bool check_matching_type(struct type_state *state,
 			return false;
 
 		return true;
+	}
+
+	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_CANARY) {
+		pr_debug_dtp(" stack canary\n");
+
+		/*
+		 * This is a saved value of the stack canary which will be handled
+		 * in the outer logic when it returns failure here.  Pretend it's
+		 * from the stack canary directly.
+		 */
+		setup_stack_canary(dloc);
+
+		return false;
 	}
 
 	if (map__dso(dloc->ms->map)->kernel && arch__is(dloc->arch, "x86")) {
