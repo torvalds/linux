@@ -322,7 +322,7 @@ enum {
 	GLF_DIRTY			= 6,
 	GLF_LFLUSH			= 7,
 	GLF_INVALIDATE_IN_PROGRESS	= 8,
-	GLF_REPLY_PENDING		= 9,
+	GLF_HAVE_REPLY			= 9,
 	GLF_INITIAL			= 10,
 	GLF_FROZEN			= 11,
 	GLF_INSTANTIATE_IN_PROG		= 12, /* instantiate happening now */

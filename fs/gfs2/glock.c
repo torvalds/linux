@@ -1109,8 +1109,8 @@ static void glock_work_func(struct work_struct *work)
 	unsigned int drop_refs = 1;
 
 	spin_lock(&gl->gl_lockref.lock);
-	if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags)) {
-		clear_bit(GLF_REPLY_PENDING, &gl->gl_flags);
+	if (test_bit(GLF_HAVE_REPLY, &gl->gl_flags)) {
+		clear_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		finish_xmote(gl, gl->gl_reply);
 		drop_refs++;
 	}
@@ -1642,7 +1642,7 @@ unlock:
 	add_to_queue(gh);
 	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
 		     test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))) {
-		set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
+		set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		gl->gl_lockref.count++;
 		gfs2_glock_queue_work(gl, 0);
 	}
@@ -1930,7 +1930,7 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	    gl->gl_name.ln_type == LM_TYPE_INODE) {
 		if (time_before(now, holdtime))
 			delay = holdtime - now;
-		if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags))
+		if (test_bit(GLF_HAVE_REPLY, &gl->gl_flags))
 			delay = gl->gl_hold_time;
 	}
 	handle_callback(gl, state, delay, true);
@@ -1993,7 +1993,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 	}
 
 	gl->gl_lockref.count++;
-	set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
+	set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 	gfs2_glock_queue_work(gl, 0);
 	spin_unlock(&gl->gl_lockref.lock);
 }
@@ -2186,7 +2186,7 @@ static void thaw_glock(struct gfs2_glock *gl)
 		return;
 
 	spin_lock(&gl->gl_lockref.lock);
-	set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
+	set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 	gfs2_glock_queue_work(gl, 0);
 	spin_unlock(&gl->gl_lockref.lock);
 }
@@ -2364,7 +2364,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'f';
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, gflags))
 		*p++ = 'i';
-	if (test_bit(GLF_REPLY_PENDING, gflags))
+	if (test_bit(GLF_HAVE_REPLY, gflags))
 		*p++ = 'r';
 	if (test_bit(GLF_INITIAL, gflags))
 		*p++ = 'I';
