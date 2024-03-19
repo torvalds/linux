@@ -1,6 +1,7 @@
 perf-y += clone.o
 perf-y += fcntl.o
 perf-y += flock.o
+perf-y += fs_at_flags.o
 perf-y += fsmount.o
 perf-y += fspick.o
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86))

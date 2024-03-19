@@ -8,7 +8,6 @@
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
 #include <sys/types.h>
-#include <linux/fcntl.h>
 #include <linux/stat.h>
 
 #ifndef STATX_MNT_ID
@@ -20,36 +19,6 @@
 #ifndef STATX_MNT_ID_UNIQUE
 #define STATX_MNT_ID_UNIQUE	0x00004000U
 #endif
-
-size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg)
-{
-	bool show_prefix = arg->show_string_prefix;
-	const char *prefix = "AT_";
-	int printed = 0, flags = arg->val;
-
-	if (flags == 0)
-		return scnprintf(bf, size, "%s%s", show_prefix ? "AT_STATX_" : "", "SYNC_AS_STAT");
-#define	P_FLAG(n) \
-	if (flags & AT_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
-		flags &= ~AT_##n; \
-	}
-
-	P_FLAG(SYMLINK_NOFOLLOW);
-	P_FLAG(REMOVEDIR);
-	P_FLAG(SYMLINK_FOLLOW);
-	P_FLAG(NO_AUTOMOUNT);
-	P_FLAG(EMPTY_PATH);
-	P_FLAG(STATX_FORCE_SYNC);
-	P_FLAG(STATX_DONT_SYNC);
-
-#undef P_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
-}
 
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg)
 {

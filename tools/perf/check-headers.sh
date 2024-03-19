@@ -89,6 +89,7 @@ BEAUTY_FILES=(
   "arch/x86/include/asm/irq_vectors.h"
   "arch/x86/include/uapi/asm/prctl.h"
   "include/linux/socket.h"
+  "include/uapi/linux/fcntl.h"
   "include/uapi/linux/fs.h"
   "include/uapi/linux/mount.h"
   "include/uapi/linux/prctl.h"

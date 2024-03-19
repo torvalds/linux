@@ -1144,7 +1144,7 @@ static const struct syscall_fmt syscall_fmts[] = {
 	{ .name	    = "stat", .alias = "newstat", },
 	{ .name	    = "statx",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	 /* fdat */ },
-		   [2] = { .scnprintf = SCA_STATX_FLAGS, /* flags */ } ,
+		   [2] = { .scnprintf = SCA_FS_AT_FLAGS, /* flags */ } ,
 		   [3] = { .scnprintf = SCA_STATX_MASK,	 /* mask */ }, }, },
 	{ .name	    = "swapoff",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* specialfile */ }, }, },

@@ -489,6 +489,12 @@ beauty_ioctl_outdir := $(beauty_outdir)/ioctl
 # Create output directory if not already present
 $(shell [ -d '$(beauty_ioctl_outdir)' ] || mkdir -p '$(beauty_ioctl_outdir)')
 
+fs_at_flags_array := $(beauty_outdir)/fs_at_flags_array.c
+fs_at_flags_tbl := $(srctree)/tools/perf/trace/beauty/fs_at_flags.sh
+
+$(fs_at_flags_array): $(beauty_uapi_linux_dir)/fcntl.h $(fs_at_flags_tbl)
+	$(Q)$(SHELL) '$(fs_at_flags_tbl)' $(beauty_uapi_linux_dir) > $@
+
 clone_flags_array := $(beauty_outdir)/clone_flags_array.c
 clone_flags_tbl := $(srctree)/tools/perf/trace/beauty/clone.sh
 
@@ -772,6 +778,7 @@ build-dir   = $(or $(__build-dir),.)
 
 prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders \
 	arm64-sysreg-defs \
+	$(fs_at_flags_array) \
 	$(clone_flags_array) \
 	$(drm_ioctl_array) \
 	$(fadvise_advice_array) \
