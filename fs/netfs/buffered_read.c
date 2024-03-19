@@ -70,7 +70,7 @@ void netfs_rreq_unlock_folios(struct netfs_io_request *rreq)
 				if (!folio_started && test_bit(NETFS_SREQ_COPY_TO_CACHE,
 							       &subreq->flags)) {
 					trace_netfs_folio(folio, netfs_folio_trace_copy_to_cache);
-					folio_start_fscache(folio);
+					folio_start_private_2(folio);
 					folio_started = true;
 				}
 			} else {
@@ -506,7 +506,7 @@ retry:
 
 have_folio:
 	if (test_bit(NETFS_ICTX_USE_PGPRIV2, &ctx->flags)) {
-		ret = folio_wait_fscache_killable(folio);
+		ret = folio_wait_private_2_killable(folio);
 		if (ret < 0)
 			goto error;
 	}
