@@ -392,11 +392,14 @@ static enum nl80211_band iwl_nl80211_band_from_channel_idx(int ch_idx)
 	return NL80211_BAND_2GHZ;
 }
 
-static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
+static int iwl_init_channel_map(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
 				struct iwl_nvm_data *data,
 				const void * const nvm_ch_flags,
 				u32 sbands_flags, bool v4)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
+	struct device *dev = trans->dev;
 	int ch_idx;
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
@@ -477,6 +480,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 							       ch_flags, cfg);
 		else
 			channel->flags = 0;
+
+		if (fw_has_capa(&fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS))
+			channel->flags |= IEEE80211_CHAN_CAN_MONITOR;
 
 		iwl_nvm_print_channel_flags(dev, IWL_DL_EEPROM,
 					    channel->hw_value, ch_flags);
@@ -1171,12 +1178,11 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 			    const struct iwl_fw *fw)
 {
 	struct device *dev = trans->dev;
-	const struct iwl_cfg *cfg = trans->cfg;
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
-	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
+	n_channels = iwl_init_channel_map(trans, fw, data, nvm_ch_flags,
 					  sbands_flags, v4);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;
