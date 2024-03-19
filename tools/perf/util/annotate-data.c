@@ -553,12 +553,41 @@ static void update_insn_state_x86(struct type_state *state,
 			fbreg = -1;
 	}
 
-	/* Case 1. register to register transfers */
+	/* Case 1. register to register or segment:offset to register transfers */
 	if (!src->mem_ref && !dst->mem_ref) {
 		if (!has_reg_type(state, dst->reg1))
 			return;
 
 		tsr = &state->regs[dst->reg1];
+		if (map__dso(dloc->ms->map)->kernel &&
+		    src->segment == INSN_SEG_X86_GS && src->imm) {
+			u64 ip = dloc->ms->sym->start + dl->al.offset;
+			u64 var_addr;
+			int offset;
+
+			/*
+			 * In kernel, %gs points to a per-cpu region for the
+			 * current CPU.  Access with a constant offset should
+			 * be treated as a global variable access.
+			 */
+			var_addr = src->offset;
+
+			if (!get_global_var_type(cu_die, dloc, ip, var_addr,
+						 &offset, &type_die) ||
+			    !die_get_member_type(&type_die, offset, &type_die)) {
+				tsr->ok = false;
+				return;
+			}
+
+			tsr->type = type_die;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] this-cpu addr=%#"PRIx64" -> reg%d",
+				     insn_offset, var_addr, dst->reg1);
+			pr_debug_type_name(&tsr->type);
+			return;
+		}
+
 		if (!has_reg_type(state, src->reg1) ||
 		    !state->regs[src->reg1].ok) {
 			tsr->ok = false;
