@@ -3928,7 +3928,7 @@ static noinline_for_stack struct inode *create_reloc_inode(
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	u64 objectid;
-	int err = 0;
+	int ret = 0;
 
 	root = btrfs_grab_root(fs_info->data_reloc_root);
 	trans = btrfs_start_transaction(root, 6);
@@ -3937,31 +3937,31 @@ static noinline_for_stack struct inode *create_reloc_inode(
 		return ERR_CAST(trans);
 	}
 
-	err = btrfs_get_free_objectid(root, &objectid);
-	if (err)
+	ret = btrfs_get_free_objectid(root, &objectid);
+	if (ret)
 		goto out;
 
-	err = __insert_orphan_inode(trans, root, objectid);
-	if (err)
+	ret = __insert_orphan_inode(trans, root, objectid);
+	if (ret)
 		goto out;
 
 	inode = btrfs_iget(fs_info->sb, objectid, root);
 	if (IS_ERR(inode)) {
 		delete_orphan_inode(trans, root, objectid);
-		err = PTR_ERR(inode);
+		ret = PTR_ERR(inode);
 		inode = NULL;
 		goto out;
 	}
 	BTRFS_I(inode)->index_cnt = group->start;
 
-	err = btrfs_orphan_add(trans, BTRFS_I(inode));
+	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 out:
 	btrfs_put_root(root);
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
-	if (err) {
+	if (ret) {
 		iput(inode);
-		inode = ERR_PTR(err);
+		inode = ERR_PTR(ret);
 	}
 	return inode;
 }
