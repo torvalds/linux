@@ -533,7 +533,7 @@ static void register_engine(struct xe_exec_queue *q)
 	info.flags = CONTEXT_REGISTRATION_FLAG_KMD;
 
 	if (xe_exec_queue_is_parallel(q)) {
-		u32 ggtt_addr = xe_lrc_parallel_ggtt_addr(lrc);
+		u64 ggtt_addr = xe_lrc_parallel_ggtt_addr(lrc);
 		struct iosys_map map = xe_lrc_parallel_map(lrc);
 
 		info.wq_desc_lo = lower_32_bits(ggtt_addr +

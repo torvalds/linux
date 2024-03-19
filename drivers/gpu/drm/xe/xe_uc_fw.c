@@ -780,7 +780,8 @@ static int uc_fw_xfer(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
-	u32 src_offset, dma_ctrl;
+	u64 src_offset;
+	u32 dma_ctrl;
 	int ret;
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);

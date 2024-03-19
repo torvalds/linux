@@ -14,7 +14,7 @@
 #include "xe_guc.h"
 #include "xe_map.h"
 
-static int send_get_hwconfig(struct xe_guc *guc, u32 ggtt_addr, u32 size)
+static int send_get_hwconfig(struct xe_guc *guc, u64 ggtt_addr, u32 size)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_GET_HWCONFIG,
