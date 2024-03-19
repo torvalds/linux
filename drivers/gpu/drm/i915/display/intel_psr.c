@@ -2116,21 +2116,36 @@ static void intel_psr2_sel_fetch_pipe_alignment(struct intel_crtc_state *crtc_st
  * cursor fully when cursor is in SU area.
  */
 static void
-intel_psr2_sel_fetch_et_alignment(struct intel_crtc_state *crtc_state,
-				  struct intel_plane_state *cursor_state)
+intel_psr2_sel_fetch_et_alignment(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct drm_rect inter;
+	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
 
-	if (!crtc_state->enable_psr2_su_region_et ||
-	    !cursor_state->uapi.visible)
+	if (!crtc_state->enable_psr2_su_region_et)
 		return;
 
-	inter = crtc_state->psr2_su_area;
-	if (!drm_rect_intersect(&inter, &cursor_state->uapi.dst))
-		return;
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		struct drm_rect inter;
 
-	clip_area_update(&crtc_state->psr2_su_area, &cursor_state->uapi.dst,
-			 &crtc_state->pipe_src);
+		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
+			continue;
+
+		if (plane->id != PLANE_CURSOR)
+			continue;
+
+		if (!new_plane_state->uapi.visible)
+			continue;
+
+		inter = crtc_state->psr2_su_area;
+		if (!drm_rect_intersect(&inter, &new_plane_state->uapi.dst))
+			continue;
+
+		clip_area_update(&crtc_state->psr2_su_area, &new_plane_state->uapi.dst,
+				 &crtc_state->pipe_src);
+	}
 }
 
 /*
@@ -2173,8 +2188,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_plane_state *new_plane_state, *old_plane_state,
-		*cursor_plane_state = NULL;
+	struct intel_plane_state *new_plane_state, *old_plane_state;
 	struct intel_plane *plane;
 	bool full_update = false;
 	int i, ret;
@@ -2259,13 +2273,6 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		damaged_area.x2 += new_plane_state->uapi.dst.x1 - src.x1;
 
 		clip_area_update(&crtc_state->psr2_su_area, &damaged_area, &crtc_state->pipe_src);
-
-		/*
-		 * Cursor plane new state is stored to adjust su area to cover
-		 * cursor are fully.
-		 */
-		if (plane->id == PLANE_CURSOR)
-			cursor_plane_state = new_plane_state;
 	}
 
 	/*
@@ -2294,9 +2301,13 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if (ret)
 		return ret;
 
-	/* Adjust su area to cover cursor fully as necessary */
-	if (cursor_plane_state)
-		intel_psr2_sel_fetch_et_alignment(crtc_state, cursor_plane_state);
+	/*
+	 * Adjust su area to cover cursor fully as necessary (early
+	 * transport). This needs to be done after
+	 * drm_atomic_add_affected_planes to ensure visible cursor is added into
+	 * affected planes even when cursor is not updated by itself.
+	 */
+	intel_psr2_sel_fetch_et_alignment(state, crtc);
 
 	intel_psr2_sel_fetch_pipe_alignment(crtc_state);
 
