@@ -555,8 +555,13 @@ static bool hci_pio_process_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 			}
 		} else {
 			/* ibi or master read */
-			if (!TARGET_RESP_CCC_HDR(resp) && TARGET_RESP_TID(resp))
-				complete(&hci->ibi_comp);
+			if (!TARGET_RESP_CCC_HDR(resp)) {
+				if (TARGET_RESP_TID(resp) == TID_TARGET_IBI)
+					complete(&hci->ibi_comp);
+				else if (TARGET_RESP_TID(resp) ==
+					 TID_TARGET_RD_DATA)
+					complete(&hci->pending_r_comp);
+			}
 		}
 		/* Keep the response interrupt enable*/
 		return false;

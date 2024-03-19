@@ -64,6 +64,7 @@ struct i3c_hci {
 	u32 vendor_product_id;
 	void *vendor_data;
 	struct completion ibi_comp;
+	struct completion pending_r_comp;
 	struct work_struct hj_work;
 
 	/* Used for handling private write */

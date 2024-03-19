@@ -102,6 +102,9 @@ enum hci_rec_rst_proc {
 /* TID generation (4 bits wide in all cases) */
 #define hci_get_tid(bits) \
 	(atomic_inc_return_relaxed(&hci->next_cmd_tid) % (1U << 4))
+/* Specific tid to identify the response for IBI or master read */
+#define TID_TARGET_IBI		0b0001
+#define TID_TARGET_RD_DATA	0b0010
 
 /* This abstracts operations with our command descriptor formats */
 struct hci_cmd_ops {

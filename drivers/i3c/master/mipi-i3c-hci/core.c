@@ -945,6 +945,8 @@ static int ast2700_i3c_target_bus_init(struct i3c_master_controller *m)
 				  FIELD_PREP(ASPEED_I3C_CTRL_INIT_MODE,
 					     INIT_SEC_MST_MODE));
 
+	init_completion(&hci->ibi_comp);
+	init_completion(&hci->pending_r_comp);
 	ret = hci->io->init(hci);
 	if (ret)
 		return ret;
@@ -963,9 +965,9 @@ static void ast2700_i3c_target_bus_cleanup(struct i3c_master_controller *m)
 	kfree(hci->target_rx.buf);
 }
 
-static int ast2700_i3c_target_priv_xfers(struct i3c_dev_desc *dev,
-					 struct i3c_priv_xfer *i3c_xfers,
-					 int nxfers)
+static int ast2700_i3c_target_priv_xfers_w_tid(struct i3c_dev_desc *dev,
+					       struct i3c_priv_xfer *i3c_xfers,
+					       int nxfers, unsigned int tid)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
@@ -986,6 +988,7 @@ static int ast2700_i3c_target_priv_xfers(struct i3c_dev_desc *dev,
 			xfer[i].data_len = i3c_xfers[i].len;
 			xfer[i].rnw = i3c_xfers[i].rnw;
 			xfer[i].data = (void *)i3c_xfers[i].data.out;
+			xfer[i].cmd_tid = tid;
 			hci->cmd->prep_i3c_xfer(hci, dev, &xfer[i]);
 		} else {
 			dev_err(&hci->master.dev,
@@ -1000,6 +1003,14 @@ out:
 	hci_free_xfer(xfer, nxfers);
 
 	return ret;
+}
+
+static int ast2700_i3c_target_priv_xfers(struct i3c_dev_desc *dev,
+					 struct i3c_priv_xfer *i3c_xfers,
+					 int nxfers)
+{
+	return ast2700_i3c_target_priv_xfers_w_tid(dev, i3c_xfers, nxfers,
+						   TID_TARGET_RD_DATA);
 }
 
 static int ast2700_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, int len)
@@ -1017,7 +1028,7 @@ static int ast2700_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *d
 	if ((reg & ASPEED_I3C_SLV_STS1_IBI_EN) == 0)
 		return -EPERM;
 
-	init_completion(&hci->ibi_comp);
+	reinit_completion(&hci->ibi_comp);
 	reg = ast_inhouse_read(ASPEED_I3C_SLV_CAP_CTRL);
 	ast_inhouse_write(ASPEED_I3C_SLV_CAP_CTRL,
 			  reg | ASPEED_I3C_SLV_CAP_CTRL_IBI_REQ);
@@ -1077,8 +1088,7 @@ ast2700_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
 	if ((reg & ASPEED_I3C_SLV_STS1_IBI_EN) == 0)
 		return -EPERM;
-
-	ast2700_i3c_target_priv_xfers(dev, ibi_notify, 1);
+	ast2700_i3c_target_priv_xfers_w_tid(dev, ibi_notify, 1, TID_TARGET_IBI);
 	ast2700_i3c_target_priv_xfers(dev, pending_read, 1);
 	ast2700_i3c_target_generate_ibi(dev, NULL, 0);
 

@@ -332,26 +332,16 @@ static void hci_cmd_v1_prep_i3c_xfer(struct i3c_hci *hci,
 	u8 *data = xfer->data;
 	unsigned int data_len = xfer->data_len;
 
-	xfer->cmd_tid = hci_get_tid();
-
 	if (hci->master.target) {
-		/*
-		 * Target mode needs to prepare two cmd_desc for each xfer:
-		 * 1st for IBI (tid = 1)
-		 * 2nd for pending read data (tid = 0)
-		 * tid will be used to indentify ibi or master read, so this
-		 * usage rule can't be violated.
-		 */
-		xfer->cmd_desc[0] =
-			CMD_0_ATTR_T |
-			CMD_T0_TID(xfer->cmd_tid % 2) |
-			CMD_T0_DATA_LENGTH(data_len);
+		xfer->cmd_desc[0] = CMD_0_ATTR_T | CMD_T0_TID(xfer->cmd_tid) |
+				    CMD_T0_DATA_LENGTH(data_len);
 	} else {
 		struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
 		unsigned int dat_idx = dev_data->dat_idx;
 		enum hci_cmd_mode mode = get_i3c_mode(hci);
 		bool rnw = xfer->rnw;
 
+		xfer->cmd_tid = hci_get_tid();
 		if (!rnw && data_len <= 4) {
 			/* we use an Immediate Data Transfer Command */
 			xfer->cmd_desc[0] =
