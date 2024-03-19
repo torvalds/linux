@@ -89,3 +89,6 @@ gunyah_qcom.ko
 mem_buf_msgq.ko
 debug_symbol.ko
 minidump.ko
+hwkm.ko
+crypto-qti.ko
+ufshcd-crypto-qti.ko
