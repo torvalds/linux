@@ -3816,9 +3816,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	struct annotated_op_loc *op_loc;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;
-	u64 ip = he->ip, addr = 0;
-	const char *var_name = NULL;
-	int var_offset;
+	u64 ip = he->ip;
 	int i;
 
 	ann_data_stat.total++;
@@ -3871,13 +3869,18 @@ retry:
 	}
 
 	for_each_insn_op_loc(&loc, i, op_loc) {
+		struct data_loc_info dloc = {
+			.ms = ms,
+			/* Recalculate IP for LOCK prefix or insn fusion */
+			.ip = ms->sym->start + dl->al.offset,
+			.op = op_loc,
+		};
+
 		if (!op_loc->mem_ref)
 			continue;
 
 		/* Recalculate IP because of LOCK prefix or insn fusion */
 		ip = ms->sym->start + dl->al.offset;
-
-		var_offset = op_loc->offset;
 
 		/* PC-relative addressing */
 		if (op_loc->reg1 == DWARF_REG_PC) {
@@ -3885,37 +3888,34 @@ retry:
 			struct symbol *var;
 			u64 map_addr;
 
-			addr = annotate_calc_pcrel(ms, ip, op_loc->offset, dl);
+			dloc.var_addr = annotate_calc_pcrel(ms, ip, op_loc->offset, dl);
 			/* Kernel symbols might be relocated */
-			map_addr = addr + map__reloc(ms->map);
+			map_addr = dloc.var_addr + map__reloc(ms->map);
 
 			addr_location__init(&al);
 			var = thread__find_symbol_fb(he->thread, he->cpumode,
 						     map_addr, &al);
 			if (var) {
-				var_name = var->name;
+				dloc.var_name = var->name;
 				/* Calculate type offset from the start of variable */
-				var_offset = map_addr - map__unmap_ip(al.map, var->start);
+				dloc.type_offset = map_addr - map__unmap_ip(al.map, var->start);
 			}
 			addr_location__exit(&al);
 		}
 
-		mem_type = find_data_type(ms, ip, op_loc, addr, var_name);
+		mem_type = find_data_type(&dloc);
 		if (mem_type)
 			istat->good++;
 		else
 			istat->bad++;
 
-		if (mem_type && var_name)
-			op_loc->offset = var_offset;
-
 		if (symbol_conf.annotate_data_sample) {
 			annotated_data_type__update_samples(mem_type, evsel,
-							    op_loc->offset,
+							    dloc.type_offset,
 							    he->stat.nr_events,
 							    he->stat.period);
 		}
-		he->mem_type_off = op_loc->offset;
+		he->mem_type_off = dloc.type_offset;
 		return mem_type;
 	}
 

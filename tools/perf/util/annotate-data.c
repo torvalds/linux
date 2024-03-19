@@ -239,21 +239,28 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 }
 
 /* The result will be saved in @type_die */
-static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
-			      const char *var_name, struct annotated_op_loc *loc,
-			      Dwarf_Die *type_die)
+static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 {
+	struct annotated_op_loc *loc = dloc->op;
 	Dwarf_Die cu_die, var_die;
 	Dwarf_Die *scopes = NULL;
 	int reg, offset;
 	int ret = -1;
 	int i, nr_scopes;
 	int fbreg = -1;
-	bool is_fbreg = false;
 	int fb_offset = 0;
+	bool is_fbreg = false;
+	u64 pc;
+
+	/*
+	 * IP is a relative instruction address from the start of the map, as
+	 * it can be randomized/relocated, it needs to translate to PC which is
+	 * a file address for DWARF processing.
+	 */
+	pc = map__rip_2objdump(dloc->ms->map, dloc->ip);
 
 	/* Get a compile_unit for this address */
-	if (!find_cu_die(di, pc, &cu_die)) {
+	if (!find_cu_die(dloc->di, pc, &cu_die)) {
 		pr_debug("cannot find CU for address %" PRIx64 "\n", pc);
 		ann_data_stat.no_cuinfo++;
 		return -1;
@@ -263,18 +270,19 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 	offset = loc->offset;
 
 	if (reg == DWARF_REG_PC) {
-		if (die_find_variable_by_addr(&cu_die, addr, &var_die, &offset)) {
+		if (die_find_variable_by_addr(&cu_die, dloc->var_addr, &var_die,
+					      &offset)) {
 			ret = check_variable(&var_die, type_die, offset,
 					     /*is_pointer=*/false);
-			loc->offset = offset;
+			dloc->type_offset = offset;
 			goto out;
 		}
 
-		if (var_name && die_find_variable_at(&cu_die, var_name, pc,
-						     &var_die)) {
-			ret = check_variable(&var_die, type_die, 0,
+		if (dloc->var_name &&
+		    die_find_variable_at(&cu_die, dloc->var_name, pc, &var_die)) {
+			ret = check_variable(&var_die, type_die, dloc->type_offset,
 					     /*is_pointer=*/false);
-			/* loc->offset will be updated by the caller */
+			/* dloc->type_offset was updated by the caller */
 			goto out;
 		}
 	}
@@ -291,10 +299,11 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 		    dwarf_formblock(&attr, &block) == 0 && block.length == 1) {
 			switch (*block.data) {
 			case DW_OP_reg0 ... DW_OP_reg31:
-				fbreg = *block.data - DW_OP_reg0;
+				fbreg = dloc->fbreg = *block.data - DW_OP_reg0;
 				break;
 			case DW_OP_call_frame_cfa:
-				if (die_get_cfa(di->dbg, pc, &fbreg,
+				dloc->fb_cfa = true;
+				if (die_get_cfa(dloc->di->dbg, pc, &fbreg,
 						&fb_offset) < 0)
 					fbreg = -1;
 				break;
@@ -312,7 +321,7 @@ retry:
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
 		if (reg == DWARF_REG_PC) {
-			if (!die_find_variable_by_addr(&scopes[i], addr,
+			if (!die_find_variable_by_addr(&scopes[i], dloc->var_addr,
 						       &var_die, &offset))
 				continue;
 		} else {
@@ -325,7 +334,7 @@ retry:
 		/* Found a variable, see if it's correct */
 		ret = check_variable(&var_die, type_die, offset,
 				     reg != DWARF_REG_PC && !is_fbreg);
-		loc->offset = offset;
+		dloc->type_offset = offset;
 		goto out;
 	}
 
@@ -344,50 +353,46 @@ out:
 
 /**
  * find_data_type - Return a data type at the location
- * @ms: map and symbol at the location
- * @ip: instruction address of the memory access
- * @loc: instruction operand location
- * @addr: data address of the memory access
- * @var_name: global variable name
+ * @dloc: data location
  *
  * This functions searches the debug information of the binary to get the data
- * type it accesses.  The exact location is expressed by (@ip, reg, offset)
- * for pointer variables or (@ip, @addr) for global variables.  Note that global
- * variables might update the @loc->offset after finding the start of the variable.
- * If it cannot find a global variable by address, it tried to fine a declaration
- * of the variable using @var_name.  In that case, @loc->offset won't be updated.
+ * type it accesses.  The exact location is expressed by (ip, reg, offset)
+ * for pointer variables or (ip, addr) for global variables.  Note that global
+ * variables might update the @dloc->type_offset after finding the start of the
+ * variable.  If it cannot find a global variable by address, it tried to find
+ * a declaration of the variable using var_name.  In that case, @dloc->offset
+ * won't be updated.
  *
  * It return %NULL if not found.
  */
-struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   struct annotated_op_loc *loc, u64 addr,
-					   const char *var_name)
+struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 {
 	struct annotated_data_type *result = NULL;
-	struct dso *dso = map__dso(ms->map);
-	struct debuginfo *di;
+	struct dso *dso = map__dso(dloc->ms->map);
 	Dwarf_Die type_die;
-	u64 pc;
 
-	di = debuginfo__new(dso->long_name);
-	if (di == NULL) {
+	dloc->di = debuginfo__new(dso->long_name);
+	if (dloc->di == NULL) {
 		pr_debug("cannot get the debug info\n");
 		return NULL;
 	}
 
 	/*
-	 * IP is a relative instruction address from the start of the map, as
-	 * it can be randomized/relocated, it needs to translate to PC which is
-	 * a file address for DWARF processing.
+	 * The type offset is the same as instruction offset by default.
+	 * But when finding a global variable, the offset won't be valid.
 	 */
-	pc = map__rip_2objdump(ms->map, ip);
-	if (find_data_type_die(di, pc, addr, var_name, loc, &type_die) < 0)
+	if (dloc->var_name == NULL)
+		dloc->type_offset = dloc->op->offset;
+
+	dloc->fbreg = -1;
+
+	if (find_data_type_die(dloc, &type_die) < 0)
 		goto out;
 
 	result = dso__findnew_data_type(dso, &type_die);
 
 out:
-	debuginfo__delete(di);
+	debuginfo__delete(dloc->di);
 	return result;
 }
 
