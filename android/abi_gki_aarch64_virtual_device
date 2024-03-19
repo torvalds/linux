@@ -898,13 +898,6 @@
   vlan_vids_add_by_dev
   vlan_vids_del_by_dev
 
-# required by open-dice.ko
-  devm_memremap
-  devm_memunmap
-  of_reserved_mem_lookup
-  __platform_driver_probe
-  vm_iomap_memory
-
 # required by pl111_drm.ko
   __clk_get_name
   clk_hw_get_parent
