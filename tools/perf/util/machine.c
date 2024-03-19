@@ -3266,6 +3266,17 @@ bool machine__is_lock_function(struct machine *machine, u64 addr)
 
 		sym = machine__find_kernel_symbol_by_name(machine, "__lock_text_end", &kmap);
 		machine->lock.text_end = map__unmap_ip(kmap, sym->start);
+
+		sym = machine__find_kernel_symbol_by_name(machine, "__traceiter_contention_begin", &kmap);
+		if (sym) {
+			machine->traceiter.text_start = map__unmap_ip(kmap, sym->start);
+			machine->traceiter.text_end = map__unmap_ip(kmap, sym->end);
+		}
+		sym = machine__find_kernel_symbol_by_name(machine, "trace_contention_begin", &kmap);
+		if (sym) {
+			machine->trace.text_start = map__unmap_ip(kmap, sym->start);
+			machine->trace.text_end = map__unmap_ip(kmap, sym->end);
+		}
 	}
 
 	/* failed to get kernel symbols */
@@ -3279,6 +3290,19 @@ bool machine__is_lock_function(struct machine *machine, u64 addr)
 	/* spinlock functions are in lock text section */
 	if (machine->lock.text_start <= addr && addr < machine->lock.text_end)
 		return true;
+
+	/* traceiter functions currently don't have their own section
+	 * but we consider them lock functions
+	 */
+	if (machine->traceiter.text_start != 0) {
+		if (machine->traceiter.text_start <= addr && addr < machine->traceiter.text_end)
+			return true;
+	}
+
+	if (machine->trace.text_start != 0) {
+		if (machine->trace.text_start <= addr && addr < machine->trace.text_end)
+			return true;
+	}
 
 	return false;
 }
