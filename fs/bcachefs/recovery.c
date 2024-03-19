@@ -47,7 +47,7 @@ static bool btree_id_is_alloc(enum btree_id id)
 }
 
 /* for -o reconstruct_alloc: */
-static void do_reconstruct_alloc(struct bch_fs *c)
+static void bch2_reconstruct_alloc(struct bch_fs *c)
 {
 	bch2_journal_log_msg(c, "dropping alloc info");
 	bch_info(c, "dropping and reconstructing all alloc info");
@@ -82,15 +82,17 @@ static void do_reconstruct_alloc(struct bch_fs *c)
 
 	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
-	struct journal_keys *keys = &c->journal_keys;
-	size_t src, dst;
 
-	move_gap(keys, keys->nr);
-
-	for (src = 0, dst = 0; src < keys->nr; src++)
-		if (!btree_id_is_alloc(keys->data[src].btree_id))
-			keys->data[dst++] = keys->data[src];
-	keys->nr = keys->gap = dst;
+	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_backpointers,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_need_discard,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_freespace,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_bucket_gens,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
 }
 
 /*
@@ -731,7 +733,7 @@ use_clean:
 	c->journal_replay_seq_end	= blacklist_seq - 1;
 
 	if (c->opts.reconstruct_alloc)
-		do_reconstruct_alloc(c);
+		bch2_reconstruct_alloc(c);
 
 	zero_out_btree_mem_ptr(&c->journal_keys);
 

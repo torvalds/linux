@@ -567,3 +567,22 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	bch_verbose(c, "Journal keys: %zu read, %zu after sorting and compacting", nr_read, keys->nr);
 	return 0;
 }
+
+void bch2_shoot_down_journal_keys(struct bch_fs *c, enum btree_id btree,
+				  unsigned level_min, unsigned level_max,
+				  struct bpos start, struct bpos end)
+{
+	struct journal_keys *keys = &c->journal_keys;
+	size_t dst = 0;
+
+	move_gap(keys, keys->nr);
+
+	darray_for_each(*keys, i)
+		if (!(i->btree_id == btree &&
+		      i->level >= level_min &&
+		      i->level <= level_max &&
+		      bpos_ge(i->k->k.p, start) &&
+		      bpos_le(i->k->k.p, end)))
+			keys->data[dst++] = *i;
+	keys->nr = keys->gap = dst;
+}
