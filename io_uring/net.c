@@ -1428,17 +1428,10 @@ int io_socket(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-int io_connect_prep_async(struct io_kiocb *req)
-{
-	struct io_async_connect *io = req->async_data;
-	struct io_connect *conn = io_kiocb_to_cmd(req, struct io_connect);
-
-	return move_addr_to_kernel(conn->addr, conn->addr_len, &io->address);
-}
-
 int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_connect *conn = io_kiocb_to_cmd(req, struct io_connect);
+	struct io_async_msghdr *io;
 
 	if (sqe->len || sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in)
 		return -EINVAL;
@@ -1446,32 +1439,26 @@ int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	conn->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	conn->addr_len =  READ_ONCE(sqe->addr2);
 	conn->in_progress = conn->seen_econnaborted = false;
-	return 0;
+
+	io = io_msg_alloc_async(req);
+	if (unlikely(!io))
+		return -ENOMEM;
+
+	return move_addr_to_kernel(conn->addr, conn->addr_len, &io->addr);
 }
 
 int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_connect *connect = io_kiocb_to_cmd(req, struct io_connect);
-	struct io_async_connect __io, *io;
+	struct io_async_msghdr *io = req->async_data;
 	unsigned file_flags;
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
-	if (req_has_async_data(req)) {
-		io = req->async_data;
-	} else {
-		ret = move_addr_to_kernel(connect->addr,
-						connect->addr_len,
-						&__io.address);
-		if (ret)
-			goto out;
-		io = &__io;
-	}
-
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 
-	ret = __sys_connect_file(req->file, &io->address,
-					connect->addr_len, file_flags);
+	ret = __sys_connect_file(req->file, &io->addr, connect->addr_len,
+				 file_flags);
 	if ((ret == -EAGAIN || ret == -EINPROGRESS || ret == -ECONNABORTED)
 	    && force_nonblock) {
 		if (ret == -EINPROGRESS) {
@@ -1481,13 +1468,6 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 				goto out;
 			connect->seen_econnaborted = true;
 		}
-		if (req_has_async_data(req))
-			return -EAGAIN;
-		if (io_alloc_async_data(req)) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		memcpy(req->async_data, &__io, sizeof(__io));
 		return -EAGAIN;
 	}
 	if (connect->in_progress) {
@@ -1505,6 +1485,7 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 out:
 	if (ret < 0)
 		req_set_fail(req);
+	io_req_msg_cleanup(req, issue_flags);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
 }

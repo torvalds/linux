@@ -557,8 +557,7 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_CONNECT] = {
 		.name			= "CONNECT",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_connect),
-		.prep_async		= io_connect_prep_async,
+		.async_size		= sizeof(struct io_async_msghdr),
 #endif
 	},
 	[IORING_OP_FALLOCATE] = {

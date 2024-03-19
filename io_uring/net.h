@@ -28,10 +28,6 @@ struct io_async_msghdr {
 
 #if defined(CONFIG_NET)
 
-struct io_async_connect {
-	struct sockaddr_storage		address;
-};
-
 int io_shutdown_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_shutdown(struct io_kiocb *req, unsigned int issue_flags);
 
@@ -53,7 +49,6 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags);
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_socket(struct io_kiocb *req, unsigned int issue_flags);
 
-int io_connect_prep_async(struct io_kiocb *req);
 int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_connect(struct io_kiocb *req, unsigned int issue_flags);
 
