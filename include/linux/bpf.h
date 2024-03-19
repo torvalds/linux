@@ -1610,6 +1610,7 @@ struct bpf_tracing_link {
 struct bpf_raw_tp_link {
 	struct bpf_link link;
 	struct bpf_raw_event_map *btp;
+	u64 cookie;
 };
 
 struct bpf_link_primer {
