@@ -4061,7 +4061,8 @@ intel_dp_mst_mode_choose(struct intel_dp *intel_dp,
 	if (!intel_dp_mst_source_support(intel_dp))
 		return DRM_DP_SST;
 
-	if (sink_mst_mode == DRM_DP_SST_SIDEBAND_MSG)
+	if (sink_mst_mode == DRM_DP_SST_SIDEBAND_MSG &&
+	    !(intel_dp->dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_128B132B))
 		return DRM_DP_SST;
 
 	return sink_mst_mode;
