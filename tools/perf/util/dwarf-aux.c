@@ -696,6 +696,49 @@ Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 	return die_mem;
 }
 
+static int __die_find_func_rettype_cb(Dwarf_Die *die_mem, void *data)
+{
+	const char *func_name;
+
+	if (dwarf_tag(die_mem) != DW_TAG_subprogram)
+		return DIE_FIND_CB_SIBLING;
+
+	func_name = dwarf_diename(die_mem);
+	if (func_name && !strcmp(func_name, data))
+		return DIE_FIND_CB_END;
+
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_find_func_rettype - Search a return type of function
+ * @cu_die: a CU DIE
+ * @name: target function name
+ * @die_mem: a buffer for result DIE
+ *
+ * Search a non-inlined function which matches to @name and stores the
+ * return type of the function to @die_mem and returns it if found.
+ * Returns NULL if failed.  Note that it doesn't needs to find a
+ * definition of the function, so it doesn't match with address.
+ * Most likely, it can find a declaration at the top level.  Thus the
+ * callback function continues to sibling entries only.
+ */
+Dwarf_Die *die_find_func_rettype(Dwarf_Die *cu_die, const char *name,
+				 Dwarf_Die *die_mem)
+{
+	Dwarf_Die tmp_die;
+
+	cu_die = die_find_child(cu_die, __die_find_func_rettype_cb,
+				(void *)name, &tmp_die);
+	if (!cu_die)
+		return NULL;
+
+	if (die_get_real_type(&tmp_die, die_mem) == NULL)
+		return NULL;
+
+	return die_mem;
+}
+
 struct __instance_walk_param {
 	void    *addr;
 	int	(*callback)(Dwarf_Die *, void *);

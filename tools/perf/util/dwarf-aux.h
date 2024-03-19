@@ -94,6 +94,10 @@ Dwarf_Die *die_find_top_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 			       Dwarf_Die *die_mem);
 
+/* Search a non-inlined function by name and returns its return type */
+Dwarf_Die *die_find_func_rettype(Dwarf_Die *sp_die, const char *name,
+				 Dwarf_Die *die_mem);
+
 /* Walk on the instances of given DIE */
 int die_walk_instances(Dwarf_Die *in_die,
 		       int (*callback)(Dwarf_Die *, void *), void *data);
