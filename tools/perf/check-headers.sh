@@ -94,6 +94,7 @@ BEAUTY_FILES=(
   "include/uapi/linux/mount.h"
   "include/uapi/linux/prctl.h"
   "include/uapi/linux/sched.h"
+  "include/uapi/linux/stat.h"
   "include/uapi/linux/usbdevice_fs.h"
   "include/uapi/sound/asound.h"
 )

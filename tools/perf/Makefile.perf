@@ -673,6 +673,12 @@ arch_errno_tbl := $(srctree)/tools/perf/trace/beauty/arch_errno_names.sh
 $(arch_errno_name_array): $(arch_errno_tbl)
 	$(Q)$(SHELL) '$(arch_errno_tbl)' '$(patsubst -%,,$(CC))' $(arch_errno_hdr_dir) > $@
 
+statx_mask_array := $(beauty_outdir)/statx_mask_array.c
+statx_mask_tbl := $(srctree)/tools/perf/trace/beauty/statx_mask.sh
+
+$(statx_mask_array): $(beauty_uapi_linux_dir)/stat.h $(statx_mask_tbl)
+	$(Q)$(SHELL) '$(statx_mask_tbl)' $(beauty_uapi_linux_dir) > $@
+
 sync_file_range_arrays := $(beauty_outdir)/sync_file_range_arrays.c
 sync_file_range_tbls := $(srctree)/tools/perf/trace/beauty/sync_file_range.sh
 
@@ -807,6 +813,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders \
 	$(x86_arch_prctl_code_array) \
 	$(rename_flags_array) \
 	$(arch_errno_name_array) \
+	$(statx_mask_array) \
 	$(sync_file_range_arrays) \
 	$(LIBAPI) \
 	$(LIBPERF) \
