@@ -6077,7 +6077,7 @@ enum nl80211_plink_state {
  * @NL80211_PLINK_ACTION_BLOCK: block traffic from this mesh peer
  * @NUM_NL80211_PLINK_ACTIONS: number of possible actions
  */
-enum plink_actions {
+enum nl80211_plink_action {
 	NL80211_PLINK_ACTION_NO_ACTION,
 	NL80211_PLINK_ACTION_OPEN,
 	NL80211_PLINK_ACTION_BLOCK,
