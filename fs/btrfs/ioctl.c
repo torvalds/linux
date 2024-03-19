@@ -2386,7 +2386,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	char *subvol_name, *subvol_name_ptr = NULL;
 	int subvol_namelen;
-	int err = 0;
+	int ret = 0;
 	bool destroy_parent = false;
 
 	/* We don't support snapshots with extent tree v2 yet. */
@@ -2402,7 +2402,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			return PTR_ERR(vol_args2);
 
 		if (vol_args2->flags & ~BTRFS_SUBVOL_DELETE_ARGS_MASK) {
-			err = -EOPNOTSUPP;
+			ret = -EOPNOTSUPP;
 			goto out;
 		}
 
@@ -2411,31 +2411,31 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		 * name, same as v1 currently does.
 		 */
 		if (!(vol_args2->flags & BTRFS_SUBVOL_SPEC_BY_ID)) {
-			err = btrfs_check_ioctl_vol_args2_subvol_name(vol_args2);
-			if (err < 0)
+			ret = btrfs_check_ioctl_vol_args2_subvol_name(vol_args2);
+			if (ret < 0)
 				goto out;
 			subvol_name = vol_args2->name;
 
-			err = mnt_want_write_file(file);
-			if (err)
+			ret = mnt_want_write_file(file);
+			if (ret)
 				goto out;
 		} else {
 			struct inode *old_dir;
 
 			if (vol_args2->subvolid < BTRFS_FIRST_FREE_OBJECTID) {
-				err = -EINVAL;
+				ret = -EINVAL;
 				goto out;
 			}
 
-			err = mnt_want_write_file(file);
-			if (err)
+			ret = mnt_want_write_file(file);
+			if (ret)
 				goto out;
 
 			dentry = btrfs_get_dentry(fs_info->sb,
 					BTRFS_FIRST_FREE_OBJECTID,
 					vol_args2->subvolid, 0);
 			if (IS_ERR(dentry)) {
-				err = PTR_ERR(dentry);
+				ret = PTR_ERR(dentry);
 				goto out_drop_write;
 			}
 
@@ -2455,7 +2455,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			 */
 			dput(dentry);
 			if (IS_ERR(parent)) {
-				err = PTR_ERR(parent);
+				ret = PTR_ERR(parent);
 				goto out_drop_write;
 			}
 			old_dir = dir;
@@ -2479,14 +2479,14 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 			 * to delete without an idmapped mount.
 			 */
 			if (old_dir != dir && idmap != &nop_mnt_idmap) {
-				err = -EOPNOTSUPP;
+				ret = -EOPNOTSUPP;
 				goto free_parent;
 			}
 
 			subvol_name_ptr = btrfs_get_subvol_name_from_objectid(
 						fs_info, vol_args2->subvolid);
 			if (IS_ERR(subvol_name_ptr)) {
-				err = PTR_ERR(subvol_name_ptr);
+				ret = PTR_ERR(subvol_name_ptr);
 				goto free_parent;
 			}
 			/* subvol_name_ptr is already nul terminated */
@@ -2497,14 +2497,14 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		if (IS_ERR(vol_args))
 			return PTR_ERR(vol_args);
 
-		err = btrfs_check_ioctl_vol_args_path(vol_args);
-		if (err < 0)
+		ret = btrfs_check_ioctl_vol_args_path(vol_args);
+		if (ret < 0)
 			goto out;
 
 		subvol_name = vol_args->name;
 
-		err = mnt_want_write_file(file);
-		if (err)
+		ret = mnt_want_write_file(file);
+		if (ret)
 			goto out;
 	}
 
@@ -2512,26 +2512,26 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 
 	if (strchr(subvol_name, '/') ||
 	    strncmp(subvol_name, "..", subvol_namelen) == 0) {
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto free_subvol_name;
 	}
 
 	if (!S_ISDIR(dir->i_mode)) {
-		err = -ENOTDIR;
+		ret = -ENOTDIR;
 		goto free_subvol_name;
 	}
 
-	err = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
-	if (err == -EINTR)
+	ret = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
+	if (ret == -EINTR)
 		goto free_subvol_name;
 	dentry = lookup_one(idmap, subvol_name, parent, subvol_namelen);
 	if (IS_ERR(dentry)) {
-		err = PTR_ERR(dentry);
+		ret = PTR_ERR(dentry);
 		goto out_unlock_dir;
 	}
 
 	if (d_really_is_negative(dentry)) {
-		err = -ENOENT;
+		ret = -ENOENT;
 		goto out_dput;
 	}
 
@@ -2551,7 +2551,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		 * Users who want to delete empty subvols should try
 		 * rmdir(2).
 		 */
-		err = -EPERM;
+		ret = -EPERM;
 		if (!btrfs_test_opt(fs_info, USER_SUBVOL_RM_ALLOWED))
 			goto out_dput;
 
@@ -2562,29 +2562,29 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		 * of the subvol, not a random directory contained
 		 * within it.
 		 */
-		err = -EINVAL;
+		ret = -EINVAL;
 		if (root == dest)
 			goto out_dput;
 
-		err = inode_permission(idmap, inode, MAY_WRITE | MAY_EXEC);
-		if (err)
+		ret = inode_permission(idmap, inode, MAY_WRITE | MAY_EXEC);
+		if (ret)
 			goto out_dput;
 	}
 
 	/* check if subvolume may be deleted by a user */
-	err = btrfs_may_delete(idmap, dir, dentry, 1);
-	if (err)
+	ret = btrfs_may_delete(idmap, dir, dentry, 1);
+	if (ret)
 		goto out_dput;
 
 	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID) {
-		err = -EINVAL;
+		ret = -EINVAL;
 		goto out_dput;
 	}
 
 	btrfs_inode_lock(BTRFS_I(inode), 0);
-	err = btrfs_delete_subvolume(BTRFS_I(dir), dentry);
+	ret = btrfs_delete_subvolume(BTRFS_I(dir), dentry);
 	btrfs_inode_unlock(BTRFS_I(inode), 0);
-	if (!err)
+	if (!ret)
 		d_delete_notify(dir, dentry);
 
 out_dput:
@@ -2601,7 +2601,7 @@ out_drop_write:
 out:
 	kfree(vol_args2);
 	kfree(vol_args);
-	return err;
+	return ret;
 }
 
 static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
