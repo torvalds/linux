@@ -263,7 +263,7 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 	offset = loc->offset;
 
 	if (reg == DWARF_REG_PC) {
-		if (die_find_variable_by_addr(&cu_die, pc, addr, &var_die, &offset)) {
+		if (die_find_variable_by_addr(&cu_die, addr, &var_die, &offset)) {
 			ret = check_variable(&var_die, type_die, offset,
 					     /*is_pointer=*/false);
 			loc->offset = offset;
@@ -312,7 +312,7 @@ retry:
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
 		if (reg == DWARF_REG_PC) {
-			if (!die_find_variable_by_addr(&scopes[i], pc, addr,
+			if (!die_find_variable_by_addr(&scopes[i], addr,
 						       &var_die, &offset))
 				continue;
 		} else {

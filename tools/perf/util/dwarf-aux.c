@@ -1456,7 +1456,6 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 /**
  * die_find_variable_by_addr - Find variable located at given address
  * @sc_die: a scope DIE
- * @pc: the program address to find
  * @addr: the data address to find
  * @die_mem: a buffer to save the resulting DIE
  * @offset: the offset in the resulting type
@@ -1464,12 +1463,10 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
  * Find the variable DIE located at the given address (in PC-relative mode).
  * This is usually for global variables.
  */
-Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
-				     Dwarf_Addr addr, Dwarf_Die *die_mem,
-				     int *offset)
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
+				     Dwarf_Die *die_mem, int *offset)
 {
 	struct find_var_data data = {
-		.pc = pc,
 		.addr = addr,
 	};
 	Dwarf_Die *result;
