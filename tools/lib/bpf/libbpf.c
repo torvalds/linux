@@ -5352,8 +5352,8 @@ retry:
 					goto err_out;
 			}
 			if (map->def.type == BPF_MAP_TYPE_ARENA) {
-				map->mmaped = mmap((void *)map->map_extra, bpf_map_mmap_sz(map),
-						   PROT_READ | PROT_WRITE,
+				map->mmaped = mmap((void *)(long)map->map_extra,
+						   bpf_map_mmap_sz(map), PROT_READ | PROT_WRITE,
 						   map->map_extra ? MAP_SHARED | MAP_FIXED : MAP_SHARED,
 						   map->fd, 0);
 				if (map->mmaped == MAP_FAILED) {
