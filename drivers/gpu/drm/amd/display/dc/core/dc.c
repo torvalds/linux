@@ -3235,14 +3235,6 @@ static bool update_planes_and_stream_state(struct dc *dc,
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}
-
-		for (i = 0; i < context->stream_count; i++) {
-			struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(&context->res_ctx,
-					context->streams[i]);
-
-			if (otg_master && otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
-				resource_build_test_pattern_params(&context->res_ctx, otg_master);
-		}
 	}
 	update_seamless_boot_flags(dc, context, surface_count, stream);
 
@@ -3338,12 +3330,26 @@ static void commit_planes_do_stream_update(struct dc *dc,
  			}
 
 			if (stream_update->pending_test_pattern) {
-				dc_link_dp_set_test_pattern(stream->link,
+				/*
+				 * test pattern params depends on ODM topology
+				 * changes that we could be applying to front
+				 * end. Since at the current stage front end
+				 * changes are not yet applied. We can only
+				 * apply test pattern in hw based on current
+				 * state and populate the final test pattern
+				 * params in new state. If current and new test
+				 * pattern params are different as result of
+				 * different ODM topology being used, it will be
+				 * detected and handle during front end
+				 * programming update.
+				 */
+				dc->link_srv->dp_set_test_pattern(stream->link,
 					stream->test_pattern.type,
 					stream->test_pattern.color_space,
 					stream->test_pattern.p_link_settings,
 					stream->test_pattern.p_custom_pattern,
 					stream->test_pattern.cust_pattern_size);
+				resource_build_test_pattern_params(&context->res_ctx, pipe_ctx);
 			}
 
 			if (stream_update->dpms_off) {

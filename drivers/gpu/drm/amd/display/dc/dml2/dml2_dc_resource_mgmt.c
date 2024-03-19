@@ -1078,6 +1078,12 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 				ASSERT(false);
 			}
 		}
+
+		if (ctx->config.callbacks.build_test_pattern_params &&
+				pipe->stream &&
+				pipe->prev_odm_pipe == NULL &&
+				pipe->top_pipe == NULL)
+			ctx->config.callbacks.build_test_pattern_params(&state->res_ctx, pipe);
 	}
 
 	return true;

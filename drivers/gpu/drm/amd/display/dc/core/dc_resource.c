@@ -1457,6 +1457,9 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 	controller_color_space = convert_dp_to_controller_color_space(
 			otg_master->stream->test_pattern.color_space);
 
+	if (controller_test_pattern == CONTROLLER_DP_TEST_PATTERN_VIDEOMODE)
+		return;
+
 	odm_cnt = resource_get_opp_heads_for_otg_master(otg_master, res_ctx, opp_heads);
 
 	odm_slice_width = h_active / odm_cnt;
@@ -2325,6 +2328,9 @@ static bool update_pipe_params_after_odm_slice_count_change(
 
 	if (pool->funcs->build_pipe_pix_clk_params)
 		pool->funcs->build_pipe_pix_clk_params(otg_master);
+
+	if (otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
+		resource_build_test_pattern_params(&context->res_ctx, otg_master);
 	return result;
 }
 
@@ -5082,6 +5088,7 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 {
 	dml2_options->callbacks.dc = dc;
 	dml2_options->callbacks.build_scaling_params = &resource_build_scaling_params;
+	dml2_options->callbacks.build_test_pattern_params = &resource_build_test_pattern_params;
 	dml2_options->callbacks.acquire_secondary_pipe_for_mpc_odm = &dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy;
 	dml2_options->callbacks.update_pipes_for_stream_with_slice_count = &resource_update_pipes_for_stream_with_slice_count;
 	dml2_options->callbacks.update_pipes_for_plane_with_slice_count = &resource_update_pipes_for_plane_with_slice_count;

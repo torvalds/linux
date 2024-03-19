@@ -71,6 +71,7 @@ struct dml2_dcn_clocks {
 struct dml2_dc_callbacks {
 	struct dc *dc;
 	bool (*build_scaling_params)(struct pipe_ctx *pipe_ctx);
+	void (*build_test_pattern_params)(struct resource_context *res_ctx, struct pipe_ctx *otg_master);
 	bool (*can_support_mclk_switch_using_fw_based_vblank_stretch)(struct dc *dc, struct dc_state *context);
 	bool (*acquire_secondary_pipe_for_mpc_odm)(const struct dc *dc, struct dc_state *state, struct pipe_ctx *pri_pipe, struct pipe_ctx *sec_pipe, bool odm);
 	bool (*update_pipes_for_stream_with_slice_count)(
