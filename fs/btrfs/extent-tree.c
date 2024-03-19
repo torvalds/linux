@@ -446,9 +446,8 @@ static noinline int lookup_extent_data_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_data_ref *ref;
 	struct extent_buffer *leaf;
 	u32 nritems;
-	int ret;
 	int recow;
-	int err = -ENOENT;
+	int ret;
 
 	key.objectid = bytenr;
 	if (parent) {
@@ -462,26 +461,26 @@ static noinline int lookup_extent_data_ref(struct btrfs_trans_handle *trans,
 again:
 	recow = 0;
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-	if (ret < 0) {
-		err = ret;
-		goto fail;
-	}
+	if (ret < 0)
+		return ret;
 
 	if (parent) {
-		if (!ret)
-			return 0;
-		goto fail;
+		if (ret)
+			return -ENOENT;
+		return 0;
 	}
 
+	ret = -ENOENT;
 	leaf = path->nodes[0];
 	nritems = btrfs_header_nritems(leaf);
 	while (1) {
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				err = ret;
-			if (ret)
-				goto fail;
+			if (ret) {
+				if (ret > 1)
+					return -ENOENT;
+				return ret;
+			}
 
 			leaf = path->nodes[0];
 			nritems = btrfs_header_nritems(leaf);
@@ -502,13 +501,13 @@ again:
 				btrfs_release_path(path);
 				goto again;
 			}
-			err = 0;
+			ret = 0;
 			break;
 		}
 		path->slots[0]++;
 	}
 fail:
-	return err;
+	return ret;
 }
 
 static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
