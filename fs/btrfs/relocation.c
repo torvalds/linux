@@ -2742,12 +2742,11 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct tree_block *block;
 	struct tree_block *next;
-	int ret;
-	int err = 0;
+	int ret = 0;
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out_free_blocks;
 	}
 
@@ -2762,8 +2761,8 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	/* Get first keys */
 	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		if (!block->key_ready) {
-			err = get_tree_block_key(fs_info, block);
-			if (err)
+			ret = get_tree_block_key(fs_info, block);
+			if (ret)
 				goto out_free_path;
 		}
 	}
@@ -2773,25 +2772,23 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		node = build_backref_tree(trans, rc, &block->key,
 					  block->level, block->bytenr);
 		if (IS_ERR(node)) {
-			err = PTR_ERR(node);
+			ret = PTR_ERR(node);
 			goto out;
 		}
 
 		ret = relocate_tree_block(trans, rc, node, &block->key,
 					  path);
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			break;
-		}
 	}
 out:
-	err = finish_pending_nodes(trans, rc, path, err);
+	ret = finish_pending_nodes(trans, rc, path, ret);
 
 out_free_path:
 	btrfs_free_path(path);
 out_free_blocks:
 	free_block_list(blocks);
-	return err;
+	return ret;
 }
 
 static noinline_for_stack int prealloc_file_extent_cluster(
