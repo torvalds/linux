@@ -60,6 +60,32 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	tmu0: timer@e61e0000 {
+		compatible = "renesas,tmu-r8a73a4", "renesas,tmu";
+		reg = <0 0xe61e0000 0 0x30>;
+		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tuni0", "tuni1", "tuni2";
+		clocks = <&mstp1_clks R8A73A4_CLK_TMU0>;
+		clock-names = "fck";
+		power-domains = <&pd_c5>;
+		status = "disabled";
+	};
+
+	tmu3: timer@fff80000 {
+		compatible = "renesas,tmu-r8a73a4", "renesas,tmu";
+		reg = <0 0xfff80000 0 0x30>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tuni0", "tuni1", "tuni2";
+		clocks = <&mstp1_clks R8A73A4_CLK_TMU3>;
+		clock-names = "fck";
+		power-domains = <&pd_a3r>;
+		status = "disabled";
+	};
+
 	dbsc1: memory-controller@e6790000 {
 		compatible = "renesas,dbsc-r8a73a4";
 		reg = <0 0xe6790000 0 0x10000>;
@@ -654,6 +680,17 @@
 		};
 
 		/* Gate clocks */
+		mstp1_clks: mstp1_clks@e6150134 {
+			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0 0xe6150134 0 4>, <0 0xe6150038 0 4>;
+			clocks = <&cp_clk>, <&mp_clk>;
+			#clock-cells = <1>;
+			clock-indices = <
+				R8A73A4_CLK_TMU0 R8A73A4_CLK_TMU3
+			>;
+			clock-output-names =
+				"tmu0", "tmu3";
+		};
 		mstp2_clks: mstp2_clks@e6150138 {
 			compatible = "renesas,r8a73a4-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150138 0 4>, <0 0xe6150040 0 4>;
