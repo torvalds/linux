@@ -89,7 +89,7 @@ void exit_type_state(struct type_state *state);
 void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 		      u64 addr, u64 insn_offset, struct die_var_type *var_types);
 void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
-		       struct disasm_line *dl);
+		       Dwarf_Die *cu_die, struct disasm_line *dl);
 
 void init_type_state(struct type_state *state, struct arch *arch __maybe_unused)
 {
@@ -485,7 +485,7 @@ void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 }
 
 static void update_insn_state_x86(struct type_state *state,
-				  struct data_loc_info *dloc,
+				  struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				  struct disasm_line *dl)
 {
 	struct annotated_insn_loc loc;
@@ -577,6 +577,29 @@ retry:
 				     insn_offset, src->offset, sreg, dst->reg1);
 			pr_debug_type_name(&tsr->type);
 		}
+		/* Or check if it's a global variable */
+		else if (sreg == DWARF_REG_PC) {
+			struct map_symbol *ms = dloc->ms;
+			u64 ip = ms->sym->start + dl->al.offset;
+			u64 addr;
+			int offset;
+
+			addr = annotate_calc_pcrel(ms, ip, src->offset, dl);
+
+			if (!get_global_var_type(cu_die, dloc, ip, addr, &offset,
+						 &type_die) ||
+			    !die_get_member_type(&type_die, offset, &type_die)) {
+				tsr->ok = false;
+				return;
+			}
+
+			tsr->type = type_die;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] global addr=%"PRIx64" -> reg%d",
+				     insn_offset, addr, dst->reg1);
+			pr_debug_type_name(&type_die);
+		}
 		/* Or try another register if any */
 		else if (src->multi_regs && sreg == src->reg1 &&
 			 src->reg1 != src->reg2) {
@@ -628,11 +651,26 @@ retry:
 	/* Case 4. memory to memory transfers (not handled for now) */
 }
 
+/**
+ * update_insn_state - Update type state for an instruction
+ * @state: type state table
+ * @dloc: data location info
+ * @cu_die: compile unit debug entry
+ * @dl: disasm line for the instruction
+ *
+ * This function updates the @state table for the target operand of the
+ * instruction at @dl if it transfers the type like MOV on x86.  Since it
+ * tracks the type, it won't care about the values like in arithmetic
+ * instructions like ADD/SUB/MUL/DIV and INC/DEC.
+ *
+ * Note that ops->reg2 is only available when both mem_ref and multi_regs
+ * are true.
+ */
 void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
-		       struct disasm_line *dl)
+		       Dwarf_Die *cu_die, struct disasm_line *dl)
 {
 	if (arch__is(dloc->arch, "x86"))
-		update_insn_state_x86(state, dloc, dl);
+		update_insn_state_x86(state, dloc, cu_die, dl);
 }
 
 /* The result will be saved in @type_die */
