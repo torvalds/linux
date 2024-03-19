@@ -1067,13 +1067,18 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	flags &= ~BCH_WATERMARK_MASK;
 	flags |= watermark;
 
-	if (!(flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-	    watermark < c->journal.watermark) {
+	if (watermark < c->journal.watermark) {
 		struct journal_res res = { 0 };
+		unsigned journal_flags = watermark|JOURNAL_RES_GET_CHECK;
+
+		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
+		    watermark != BCH_WATERMARK_reclaim)
+			journal_flags |= JOURNAL_RES_GET_NONBLOCK;
 
 		ret = drop_locks_do(trans,
-			bch2_journal_res_get(&c->journal, &res, 1,
-					     watermark|JOURNAL_RES_GET_CHECK));
+			bch2_journal_res_get(&c->journal, &res, 1, journal_flags));
+		if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
+			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 		if (ret)
 			return ERR_PTR(ret);
 	}
