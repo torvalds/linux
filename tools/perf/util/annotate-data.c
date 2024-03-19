@@ -788,12 +788,83 @@ static void delete_var_types(struct die_var_type *var_types)
 }
 
 /* It's at the target address, check if it has a matching type */
-static bool find_matching_type(struct type_state *state __maybe_unused,
-			       struct data_loc_info *dloc __maybe_unused,
-			       int reg __maybe_unused,
-			       Dwarf_Die *type_die __maybe_unused)
+static bool check_matching_type(struct type_state *state,
+				struct data_loc_info *dloc, int reg,
+				Dwarf_Die *type_die)
 {
-	/* TODO */
+	Dwarf_Word size;
+	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
+
+	pr_debug_dtp("chk [%x] reg%d offset=%#x ok=%d",
+		     insn_offset, reg, dloc->op->offset, state->regs[reg].ok);
+
+	if (state->regs[reg].ok) {
+		int tag = dwarf_tag(&state->regs[reg].type);
+
+		pr_debug_dtp("\n");
+
+		/*
+		 * Normal registers should hold a pointer (or array) to
+		 * dereference a memory location.
+		 */
+		if (tag != DW_TAG_pointer_type && tag != DW_TAG_array_type)
+			return false;
+
+		/* Remove the pointer and get the target type */
+		if (die_get_real_type(&state->regs[reg].type, type_die) == NULL)
+			return false;
+
+		dloc->type_offset = dloc->op->offset;
+
+		/* Get the size of the actual type */
+		if (dwarf_aggregate_size(type_die, &size) < 0 ||
+		    (unsigned)dloc->type_offset >= size)
+			return false;
+
+		return true;
+	}
+
+	if (reg == dloc->fbreg) {
+		struct type_state_stack *stack;
+
+		pr_debug_dtp(" fbreg\n");
+
+		stack = find_stack_state(state, dloc->type_offset);
+		if (stack == NULL)
+			return false;
+
+		*type_die = stack->type;
+		/* Update the type offset from the start of slot */
+		dloc->type_offset -= stack->offset;
+
+		return true;
+	}
+
+	if (dloc->fb_cfa) {
+		struct type_state_stack *stack;
+		u64 pc = map__rip_2objdump(dloc->ms->map, dloc->ip);
+		int fbreg, fboff;
+
+		pr_debug_dtp(" cfa\n");
+
+		if (die_get_cfa(dloc->di->dbg, pc, &fbreg, &fboff) < 0)
+			fbreg = -1;
+
+		if (reg != fbreg)
+			return false;
+
+		stack = find_stack_state(state, dloc->type_offset - fboff);
+		if (stack == NULL)
+			return false;
+
+		*type_die = stack->type;
+		/* Update the type offset from the start of slot */
+		dloc->type_offset -= fboff + stack->offset;
+
+		return true;
+	}
+
+	pr_debug_dtp("\n");
 	return false;
 }
 
@@ -825,8 +896,8 @@ static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
 			update_var_state(&state, dloc, addr, dl->al.offset, var_types);
 
 			if (this_ip == dloc->ip) {
-				found = find_matching_type(&state, dloc, reg,
-							   type_die);
+				found = check_matching_type(&state, dloc, reg,
+							    type_die);
 				goto out;
 			}
 
@@ -896,6 +967,9 @@ again:
 		if (find_data_type_insn(dloc, reg, &basic_blocks, var_types,
 					cu_die, type_die)) {
 			ret = 0;
+			pr_debug_dtp("found by insn track: %#x(reg%d) type-offset=%#x",
+				     dloc->op->offset, reg, dloc->type_offset);
+			pr_debug_type_name(type_die);
 			break;
 		}
 
