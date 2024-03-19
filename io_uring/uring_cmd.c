@@ -14,6 +14,38 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
+static struct uring_cache *io_uring_async_get(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_cache_entry *entry;
+	struct uring_cache *cache;
+
+	entry = io_alloc_cache_get(&ctx->uring_cache);
+	if (entry) {
+		cache = container_of(entry, struct uring_cache, cache);
+		req->flags |= REQ_F_ASYNC_DATA;
+		req->async_data = cache;
+		return cache;
+	}
+	if (!io_alloc_async_data(req))
+		return req->async_data;
+	return NULL;
+}
+
+static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
+	struct uring_cache *cache = req->async_data;
+
+	if (issue_flags & IO_URING_F_UNLOCKED)
+		return;
+	if (io_alloc_cache_put(&req->ctx->uring_cache, &cache->cache)) {
+		ioucmd->sqe = NULL;
+		req->async_data = NULL;
+		req->flags &= ~REQ_F_ASYNC_DATA;
+	}
+}
+
 bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
 				   struct task_struct *task, bool cancel_all)
 {
@@ -128,6 +160,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
 	io_req_set_res(req, ret, 0);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
+	io_req_uring_cleanup(req, issue_flags);
 	if (req->ctx->flags & IORING_SETUP_IOPOLL) {
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
 		smp_store_release(&req->iopoll_completed, 1);
@@ -142,13 +175,19 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
-int io_uring_cmd_prep_async(struct io_kiocb *req)
+static int io_uring_cmd_prep_setup(struct io_kiocb *req,
+				   const struct io_uring_sqe *sqe)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
+	struct uring_cache *cache;
 
-	memcpy(req->async_data, ioucmd->sqe, uring_sqe_size(req->ctx));
-	ioucmd->sqe = req->async_data;
-	return 0;
+	cache = io_uring_async_get(req);
+	if (cache) {
+		memcpy(cache->sqes, sqe, uring_sqe_size(req->ctx));
+		ioucmd->sqe = req->async_data;
+		return 0;
+	}
+	return -ENOMEM;
 }
 
 int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -173,9 +212,9 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->imu = ctx->user_bufs[index];
 		io_req_set_rsrc_node(req, ctx, 0);
 	}
-	ioucmd->sqe = sqe;
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
-	return 0;
+
+	return io_uring_cmd_prep_setup(req, sqe);
 }
 
 int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
@@ -206,23 +245,14 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
-	if (ret == -EAGAIN) {
-		if (!req_has_async_data(req)) {
-			if (io_alloc_async_data(req))
-				return -ENOMEM;
-			io_uring_cmd_prep_async(req);
-		}
-		return -EAGAIN;
-	}
-
-	if (ret != -EIOCBQUEUED) {
-		if (ret < 0)
-			req_set_fail(req);
-		io_req_set_res(req, ret, 0);
+	if (ret == -EAGAIN || ret == -EIOCBQUEUED)
 		return ret;
-	}
 
-	return IOU_ISSUE_SKIP_COMPLETE;
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_uring_cleanup(req, issue_flags);
+	io_req_set_res(req, ret, 0);
+	return ret;
 }
 
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
@@ -311,3 +341,8 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_sock);
 #endif
+
+void io_uring_cache_free(struct io_cache_entry *entry)
+{
+	kfree(container_of(entry, struct uring_cache, cache));
+}
