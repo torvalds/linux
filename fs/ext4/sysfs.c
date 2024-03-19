@@ -443,24 +443,20 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 	return 0;
 }
 
-static ssize_t ext4_attr_store(struct kobject *kobj,
-			       struct attribute *attr,
-			       const char *buf, size_t len)
+static ssize_t ext4_generic_attr_store(struct ext4_attr *a,
+				       struct ext4_sb_info *sbi,
+				       const char *buf, size_t len)
 {
-	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
-						s_kobj);
-	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
-	void *ptr = calc_ptr(a, sbi);
+	int ret;
 	unsigned int t;
 	unsigned long lt;
-	int ret;
+	void *ptr = calc_ptr(a, sbi);
+
+	if (!ptr)
+		return 0;
 
 	switch (a->attr_id) {
-	case attr_reserved_clusters:
-		return reserved_clusters_store(sbi, buf, len);
 	case attr_pointer_ui:
-		if (!ptr)
-			return 0;
 		ret = kstrtouint(skip_spaces(buf), 0, &t);
 		if (ret)
 			return ret;
@@ -470,19 +466,33 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 			*((unsigned int *) ptr) = t;
 		return len;
 	case attr_pointer_ul:
-		if (!ptr)
-			return 0;
 		ret = kstrtoul(skip_spaces(buf), 0, &lt);
 		if (ret)
 			return ret;
 		*((unsigned long *) ptr) = lt;
 		return len;
+	}
+	return 0;
+}
+
+static ssize_t ext4_attr_store(struct kobject *kobj,
+			       struct attribute *attr,
+			       const char *buf, size_t len)
+{
+	struct ext4_sb_info *sbi = container_of(kobj, struct ext4_sb_info,
+						s_kobj);
+	struct ext4_attr *a = container_of(attr, struct ext4_attr, attr);
+
+	switch (a->attr_id) {
+	case attr_reserved_clusters:
+		return reserved_clusters_store(sbi, buf, len);
 	case attr_inode_readahead:
 		return inode_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
 		return trigger_test_error(sbi, buf, len);
+	default:
+		return ext4_generic_attr_store(a, sbi, buf, len);
 	}
-	return 0;
 }
 
 static void ext4_sb_release(struct kobject *kobj)
