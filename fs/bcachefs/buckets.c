@@ -808,6 +808,15 @@ static int __trigger_extent(struct btree_trans *trans,
 			return ret;
 	}
 
+	if (bch2_bkey_rebalance_opts(k)) {
+		struct disk_accounting_pos acc = {
+			.type		= BCH_DISK_ACCOUNTING_rebalance_work,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc, &replicas_sectors, 1, gc);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
