@@ -1035,7 +1035,7 @@ static int ast2700_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *d
 
 	if (!wait_for_completion_timeout(&hci->ibi_comp,
 					 msecs_to_jiffies(1000))) {
-		pr_warn("timeout waiting for completion\n");
+		dev_warn(&hci->master.dev, "timeout waiting for completion\n");
 		return -EINVAL;
 	}
 
@@ -1066,7 +1066,7 @@ static int ast2700_i3c_target_hj_req(struct i3c_dev_desc *dev)
 				 !(reg & ASPEED_I3C_SLV_CAP_CTRL_HJ_REQ), 0,
 				 1000000);
 	if (ret) {
-		pr_warn("timeout waiting for completion\n");
+		dev_warn(&hci->master.dev, "timeout waiting for completion\n");
 		return ret;
 	}
 
@@ -1088,9 +1088,15 @@ ast2700_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
 	if ((reg & ASPEED_I3C_SLV_STS1_IBI_EN) == 0)
 		return -EPERM;
+	reinit_completion(&hci->pending_r_comp);
 	ast2700_i3c_target_priv_xfers_w_tid(dev, ibi_notify, 1, TID_TARGET_IBI);
 	ast2700_i3c_target_priv_xfers(dev, pending_read, 1);
 	ast2700_i3c_target_generate_ibi(dev, NULL, 0);
+	if (!wait_for_completion_timeout(&hci->pending_r_comp,
+					 msecs_to_jiffies(1000))) {
+		dev_warn(&hci->master.dev, "timeout waiting for master read\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
