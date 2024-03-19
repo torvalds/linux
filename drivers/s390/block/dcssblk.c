@@ -920,7 +920,7 @@ __dcssblk_direct_access(struct dcssblk_dev_info *dev_info, pgoff_t pgoff,
 
 	dev_sz = dev_info->end - dev_info->start + 1;
 	if (kaddr)
-		*kaddr = (void *) dev_info->start + offset;
+		*kaddr = __va(dev_info->start + offset);
 	if (pfn)
 		*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset),
 				PFN_DEV|PFN_SPECIAL);
