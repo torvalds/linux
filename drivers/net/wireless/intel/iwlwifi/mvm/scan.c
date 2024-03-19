@@ -1750,8 +1750,9 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			&cp->channel_config[ch_cnt];
 
 		u32 s_ssid_bitmap = 0, bssid_bitmap = 0, flags = 0;
-		u8 j, k, s_max = 0, b_max = 0, n_used_bssid_entries;
-		bool force_passive, found = false, allow_passive = true,
+		u8 j, k, n_s_ssids = 0, n_bssids = 0;
+		u8 max_s_ssids, max_bssids;
+		bool force_passive = false, found = false, allow_passive = true,
 		     unsolicited_probe_on_chan = false, psc_no_listen = false;
 		s8 psd_20 = IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED;
 
@@ -1774,19 +1775,14 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		cfg->v5.iter_count = 1;
 		cfg->v5.iter_interval = 0;
 
-		/*
-		 * The optimize the scan time, i.e., reduce the scan dwell time
-		 * on each channel, the below logic tries to set 3 direct BSSID
-		 * probe requests for each broadcast probe request with a short
-		 * SSID.
-		 * TODO: improve this logic
-		 */
-		n_used_bssid_entries = 3;
 		for (j = 0; j < params->n_6ghz_params; j++) {
 			s8 tmp_psd_20;
 
 			if (!(scan_6ghz_params[j].channel_idx == i))
 				continue;
+
+			unsolicited_probe_on_chan |=
+				scan_6ghz_params[j].unsolicited_probe;
 
 			/* Use the highest PSD value allowed as advertised by
 			 * APs for this channel
@@ -1799,67 +1795,8 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			     psd_20 < tmp_psd_20))
 				psd_20 = tmp_psd_20;
 
-			found = false;
-			unsolicited_probe_on_chan |=
-				scan_6ghz_params[j].unsolicited_probe;
 			psc_no_listen |= scan_6ghz_params[j].psc_no_listen;
-
-			for (k = 0; k < pp->short_ssid_num; k++) {
-				if (!scan_6ghz_params[j].unsolicited_probe &&
-				    le32_to_cpu(pp->short_ssid[k]) ==
-				    scan_6ghz_params[j].short_ssid) {
-					/* Relevant short SSID bit set */
-					if (s_ssid_bitmap & BIT(k)) {
-						found = true;
-						break;
-					}
-
-					/*
-					 * Use short SSID only to create a new
-					 * iteration during channel dwell or in
-					 * case that the short SSID has a
-					 * matching SSID, i.e., scan for hidden
-					 * APs.
-					 */
-					if (n_used_bssid_entries >= 3) {
-						s_ssid_bitmap |= BIT(k);
-						s_max++;
-						n_used_bssid_entries -= 3;
-						found = true;
-						break;
-					} else if (pp->direct_scan[k].len) {
-						s_ssid_bitmap |= BIT(k);
-						s_max++;
-						found = true;
-						allow_passive = false;
-						break;
-					}
-				}
-			}
-
-			if (found)
-				continue;
-
-			for (k = 0; k < pp->bssid_num; k++) {
-				if (!memcmp(&pp->bssid_array[k],
-					    scan_6ghz_params[j].bssid,
-					    ETH_ALEN)) {
-					if (!(bssid_bitmap & BIT(k))) {
-						bssid_bitmap |= BIT(k);
-						b_max++;
-						n_used_bssid_entries++;
-					}
-					break;
-				}
-			}
 		}
-
-		if (cfg80211_channel_is_psc(params->channels[i]) &&
-		    psc_no_listen)
-			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
-
-		if (unsolicited_probe_on_chan)
-			flags |= IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES;
 
 		/*
 		 * In the following cases apply passive scan:
@@ -1881,19 +1818,105 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		if (!iwl_mvm_is_scan_fragmented(params->type)) {
 			if (!cfg80211_channel_is_psc(params->channels[i]) ||
 			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN) {
-				force_passive = (s_max > 3 || b_max > 9);
-				force_passive |= (unsolicited_probe_on_chan &&
-						  (s_max > 2 || b_max > 6));
+				if (unsolicited_probe_on_chan) {
+					max_s_ssids = 2;
+					max_bssids = 6;
+				} else {
+					max_s_ssids = 3;
+					max_bssids = 9;
+				}
 			} else {
-				force_passive = (s_max > 2 || b_max > 6);
+				max_s_ssids = 2;
+				max_bssids = 6;
 			}
 		} else if (cfg80211_channel_is_psc(params->channels[i])) {
-			force_passive = (s_max > 1 || b_max > 3);
+			max_s_ssids = 1;
+			max_bssids = 3;
 		} else {
-			force_passive = (s_max > 2 || b_max > 6);
-			force_passive |= (unsolicited_probe_on_chan &&
-					  (s_max > 1 || b_max > 3));
+			if (unsolicited_probe_on_chan) {
+				max_s_ssids = 1;
+				max_bssids = 3;
+			} else {
+				max_s_ssids = 2;
+				max_bssids = 6;
+			}
 		}
+
+		/*
+		 * The optimize the scan time, i.e., reduce the scan dwell time
+		 * on each channel, the below logic tries to set 3 direct BSSID
+		 * probe requests for each broadcast probe request with a short
+		 * SSID.
+		 * TODO: improve this logic
+		 */
+		for (j = 0; j < params->n_6ghz_params; j++) {
+			if (!(scan_6ghz_params[j].channel_idx == i))
+				continue;
+
+			found = false;
+
+			for (k = 0;
+			     k < pp->short_ssid_num && n_s_ssids < max_s_ssids;
+			     k++) {
+				if (!scan_6ghz_params[j].unsolicited_probe &&
+				    le32_to_cpu(pp->short_ssid[k]) ==
+				    scan_6ghz_params[j].short_ssid) {
+					/* Relevant short SSID bit set */
+					if (s_ssid_bitmap & BIT(k)) {
+						found = true;
+						break;
+					}
+
+					/*
+					 * Prefer creating BSSID entries unless
+					 * the short SSID probe can be done in
+					 * the same channel dwell iteration.
+					 *
+					 * We also need to create a short SSID
+					 * entry for any hidden AP.
+					 */
+					if (3 * n_s_ssids > n_bssids &&
+					    !pp->direct_scan[k].len)
+						break;
+
+					/* Hidden AP, cannot do passive scan */
+					if (pp->direct_scan[k].len)
+						allow_passive = false;
+
+					s_ssid_bitmap |= BIT(k);
+					n_s_ssids++;
+					found = true;
+					break;
+				}
+			}
+
+			if (found)
+				continue;
+
+			for (k = 0; k < pp->bssid_num; k++) {
+				if (!memcmp(&pp->bssid_array[k],
+					    scan_6ghz_params[j].bssid,
+					    ETH_ALEN)) {
+					if (!(bssid_bitmap & BIT(k))) {
+						if (n_bssids < max_bssids) {
+							bssid_bitmap |= BIT(k);
+							n_bssids++;
+						} else {
+							force_passive = TRUE;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		if (cfg80211_channel_is_psc(params->channels[i]) &&
+		    psc_no_listen)
+			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
+
+		if (unsolicited_probe_on_chan)
+			flags |= IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES;
+
 		if ((allow_passive && force_passive) ||
 		    (!(bssid_bitmap | s_ssid_bitmap) &&
 		     !cfg80211_channel_is_psc(params->channels[i])))
