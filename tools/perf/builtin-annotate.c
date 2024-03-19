@@ -430,6 +430,7 @@ static void print_annotate_data_stat(struct annotated_data_stat *s)
 	PRINT_STAT(no_typeinfo);
 	PRINT_STAT(invalid_size);
 	PRINT_STAT(bad_offset);
+	PRINT_STAT(insn_track);
 	printf("\n");
 
 #undef PRINT_STAT

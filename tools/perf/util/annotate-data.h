@@ -135,6 +135,7 @@ struct annotated_data_stat {
 	int no_typeinfo;
 	int invalid_size;
 	int bad_offset;
+	int insn_track;
 };
 extern struct annotated_data_stat ann_data_stat;
 

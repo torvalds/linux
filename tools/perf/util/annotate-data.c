@@ -89,15 +89,7 @@ static bool has_reg_type(struct type_state *state, int reg)
 	return (unsigned)reg < ARRAY_SIZE(state->regs);
 }
 
-/* These declarations will be remove once they are changed to static */
-void init_type_state(struct type_state *state, struct arch *arch __maybe_unused);
-void exit_type_state(struct type_state *state);
-void update_var_state(struct type_state *state, struct data_loc_info *dloc,
-		      u64 addr, u64 insn_offset, struct die_var_type *var_types);
-void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
-		       Dwarf_Die *cu_die, struct disasm_line *dl);
-
-void init_type_state(struct type_state *state, struct arch *arch)
+static void init_type_state(struct type_state *state, struct arch *arch)
 {
 	memset(state, 0, sizeof(*state));
 	INIT_LIST_HEAD(&state->stack_vars);
@@ -116,7 +108,7 @@ void init_type_state(struct type_state *state, struct arch *arch)
 	}
 }
 
-void exit_type_state(struct type_state *state)
+static void exit_type_state(struct type_state *state)
 {
 	struct type_state_stack *stack, *tmp;
 
@@ -457,8 +449,8 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
  * This function fills the @state table using @var_types info.  Each variable
  * is used only at the given location and updates an entry in the table.
  */
-void update_var_state(struct type_state *state, struct data_loc_info *dloc,
-		      u64 addr, u64 insn_offset, struct die_var_type *var_types)
+static void update_var_state(struct type_state *state, struct data_loc_info *dloc,
+			     u64 addr, u64 insn_offset, struct die_var_type *var_types)
 {
 	Dwarf_Die mem_die;
 	struct die_var_type *var;
@@ -716,11 +708,205 @@ retry:
  * Note that ops->reg2 is only available when both mem_ref and multi_regs
  * are true.
  */
-void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
-		       Dwarf_Die *cu_die, struct disasm_line *dl)
+static void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
+			      Dwarf_Die *cu_die, struct disasm_line *dl)
 {
 	if (arch__is(dloc->arch, "x86"))
 		update_insn_state_x86(state, dloc, cu_die, dl);
+}
+
+/*
+ * Prepend this_blocks (from the outer scope) to full_blocks, removing
+ * duplicate disasm line.
+ */
+static void prepend_basic_blocks(struct list_head *this_blocks,
+				 struct list_head *full_blocks)
+{
+	struct annotated_basic_block *first_bb, *last_bb;
+
+	last_bb = list_last_entry(this_blocks, typeof(*last_bb), list);
+	first_bb = list_first_entry(full_blocks, typeof(*first_bb), list);
+
+	if (list_empty(full_blocks))
+		goto out;
+
+	/* Last insn in this_blocks should be same as first insn in full_blocks */
+	if (last_bb->end != first_bb->begin) {
+		pr_debug("prepend basic blocks: mismatched disasm line %"PRIx64" -> %"PRIx64"\n",
+			 last_bb->end->al.offset, first_bb->begin->al.offset);
+		goto out;
+	}
+
+	/* Is the basic block have only one disasm_line? */
+	if (last_bb->begin == last_bb->end) {
+		list_del(&last_bb->list);
+		free(last_bb);
+		goto out;
+	}
+
+	/* Point to the insn before the last when adding this block to full_blocks */
+	last_bb->end = list_prev_entry(last_bb->end, al.node);
+
+out:
+	list_splice(this_blocks, full_blocks);
+}
+
+static void delete_basic_blocks(struct list_head *basic_blocks)
+{
+	struct annotated_basic_block *bb, *tmp;
+
+	list_for_each_entry_safe(bb, tmp, basic_blocks, list) {
+		list_del(&bb->list);
+		free(bb);
+	}
+}
+
+/* Make sure all variables have a valid start address */
+static void fixup_var_address(struct die_var_type *var_types, u64 addr)
+{
+	while (var_types) {
+		/*
+		 * Some variables have no address range meaning it's always
+		 * available in the whole scope.  Let's adjust the start
+		 * address to the start of the scope.
+		 */
+		if (var_types->addr == 0)
+			var_types->addr = addr;
+
+		var_types = var_types->next;
+	}
+}
+
+static void delete_var_types(struct die_var_type *var_types)
+{
+	while (var_types) {
+		struct die_var_type *next = var_types->next;
+
+		free(var_types);
+		var_types = next;
+	}
+}
+
+/* It's at the target address, check if it has a matching type */
+static bool find_matching_type(struct type_state *state __maybe_unused,
+			       struct data_loc_info *dloc __maybe_unused,
+			       int reg __maybe_unused,
+			       Dwarf_Die *type_die __maybe_unused)
+{
+	/* TODO */
+	return false;
+}
+
+/* Iterate instructions in basic blocks and update type table */
+static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
+				struct list_head *basic_blocks,
+				struct die_var_type *var_types,
+				Dwarf_Die *cu_die, Dwarf_Die *type_die)
+{
+	struct type_state state;
+	struct symbol *sym = dloc->ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
+	struct annotated_basic_block *bb;
+	bool found = false;
+
+	init_type_state(&state, dloc->arch);
+
+	list_for_each_entry(bb, basic_blocks, list) {
+		struct disasm_line *dl = bb->begin;
+
+		pr_debug_dtp("bb: [%"PRIx64" - %"PRIx64"]\n",
+			     bb->begin->al.offset, bb->end->al.offset);
+
+		list_for_each_entry_from(dl, &notes->src->source, al.node) {
+			u64 this_ip = sym->start + dl->al.offset;
+			u64 addr = map__rip_2objdump(dloc->ms->map, this_ip);
+
+			/* Update variable type at this address */
+			update_var_state(&state, dloc, addr, dl->al.offset, var_types);
+
+			if (this_ip == dloc->ip) {
+				found = find_matching_type(&state, dloc, reg,
+							   type_die);
+				goto out;
+			}
+
+			/* Update type table after processing the instruction */
+			update_insn_state(&state, dloc, cu_die, dl);
+			if (dl == bb->end)
+				break;
+		}
+	}
+
+out:
+	exit_type_state(&state);
+	return found;
+}
+
+/*
+ * Construct a list of basic blocks for each scope with variables and try to find
+ * the data type by updating a type state table through instructions.
+ */
+static int find_data_type_block(struct data_loc_info *dloc, int reg,
+				Dwarf_Die *cu_die, Dwarf_Die *scopes,
+				int nr_scopes, Dwarf_Die *type_die)
+{
+	LIST_HEAD(basic_blocks);
+	struct die_var_type *var_types = NULL;
+	u64 src_ip, dst_ip, prev_dst_ip;
+	int ret = -1;
+
+	/* TODO: other architecture support */
+	if (!arch__is(dloc->arch, "x86"))
+		return -1;
+
+	prev_dst_ip = dst_ip = dloc->ip;
+	for (int i = nr_scopes - 1; i >= 0; i--) {
+		Dwarf_Addr base, start, end;
+		LIST_HEAD(this_blocks);
+
+		if (dwarf_ranges(&scopes[i], 0, &base, &start, &end) < 0)
+			break;
+
+		pr_debug_dtp("scope: [%d/%d] (die:%lx)\n",
+			     i + 1, nr_scopes, (long)dwarf_dieoffset(&scopes[i]));
+		src_ip = map__objdump_2rip(dloc->ms->map, start);
+
+again:
+		/* Get basic blocks for this scope */
+		if (annotate_get_basic_blocks(dloc->ms->sym, src_ip, dst_ip,
+					      &this_blocks) < 0) {
+			/* Try previous block if they are not connected */
+			if (prev_dst_ip != dst_ip) {
+				dst_ip = prev_dst_ip;
+				goto again;
+			}
+
+			pr_debug_dtp("cannot find a basic block from %"PRIx64" to %"PRIx64"\n",
+				     src_ip - dloc->ms->sym->start,
+				     dst_ip - dloc->ms->sym->start);
+			continue;
+		}
+		prepend_basic_blocks(&this_blocks, &basic_blocks);
+
+		/* Get variable info for this scope and add to var_types list */
+		die_collect_vars(&scopes[i], &var_types);
+		fixup_var_address(var_types, start);
+
+		/* Find from start of this scope to the target instruction */
+		if (find_data_type_insn(dloc, reg, &basic_blocks, var_types,
+					cu_die, type_die)) {
+			ret = 0;
+			break;
+		}
+
+		/* Go up to the next scope and find blocks to the start */
+		prev_dst_ip = dst_ip;
+		dst_ip = src_ip;
+	}
+
+	delete_basic_blocks(&basic_blocks);
+	delete_var_types(var_types);
+	return ret;
 }
 
 /* The result will be saved in @type_die */
@@ -845,6 +1031,15 @@ retry:
 		}
 		dloc->type_offset = offset;
 		goto out;
+	}
+
+	if (reg != DWARF_REG_PC) {
+		ret = find_data_type_block(dloc, reg, &cu_die, scopes,
+					   nr_scopes, type_die);
+		if (ret == 0) {
+			ann_data_stat.insn_track++;
+			goto out;
+		}
 	}
 
 	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
