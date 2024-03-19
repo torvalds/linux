@@ -1465,7 +1465,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t written_buffered;
 	size_t prev_left = 0;
 	loff_t endbyte;
-	ssize_t err;
+	ssize_t ret;
 	unsigned int ilock_flags = 0;
 	struct iomap_dio *dio;
 
@@ -1482,9 +1482,9 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 		ilock_flags |= BTRFS_ILOCK_SHARED;
 
 relock:
-	err = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
-	if (err < 0)
-		return err;
+	ret = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
+	if (ret < 0)
+		return ret;
 
 	/* Shared lock cannot be used with security bits set. */
 	if ((ilock_flags & BTRFS_ILOCK_SHARED) && !IS_NOSEC(inode)) {
@@ -1493,14 +1493,14 @@ relock:
 		goto relock;
 	}
 
-	err = generic_write_checks(iocb, from);
-	if (err <= 0) {
+	ret = generic_write_checks(iocb, from);
+	if (ret <= 0) {
 		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		return err;
+		return ret;
 	}
 
-	err = btrfs_write_check(iocb, from, err);
-	if (err < 0) {
+	ret = btrfs_write_check(iocb, from, ret);
+	if (ret < 0) {
 		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		goto out;
 	}
@@ -1552,15 +1552,15 @@ relock:
 	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 
 	if (IS_ERR_OR_NULL(dio))
-		err = PTR_ERR_OR_ZERO(dio);
+		ret = PTR_ERR_OR_ZERO(dio);
 	else
-		err = iomap_dio_complete(dio);
+		ret = iomap_dio_complete(dio);
 
 	/* No increment (+=) because iomap returns a cumulative value. */
-	if (err > 0)
-		written = err;
+	if (ret > 0)
+		written = ret;
 
-	if (iov_iter_count(from) > 0 && (err == -EFAULT || err > 0)) {
+	if (iov_iter_count(from) > 0 && (ret == -EFAULT || ret > 0)) {
 		const size_t left = iov_iter_count(from);
 		/*
 		 * We have more data left to write. Try to fault in as many as
@@ -1577,7 +1577,7 @@ relock:
 		 * to buffered IO in case we haven't made any progress.
 		 */
 		if (left == prev_left) {
-			err = -ENOTBLK;
+			ret = -ENOTBLK;
 		} else {
 			fault_in_iov_iter_readable(from, left);
 			prev_left = left;
@@ -1586,10 +1586,10 @@ relock:
 	}
 
 	/*
-	 * If 'err' is -ENOTBLK or we have not written all data, then it means
+	 * If 'ret' is -ENOTBLK or we have not written all data, then it means
 	 * we must fallback to buffered IO.
 	 */
-	if ((err < 0 && err != -ENOTBLK) || !iov_iter_count(from))
+	if ((ret < 0 && ret != -ENOTBLK) || !iov_iter_count(from))
 		goto out;
 
 buffered:
@@ -1600,14 +1600,14 @@ buffered:
 	 * below, we will block when flushing and waiting for the IO.
 	 */
 	if (iocb->ki_flags & IOCB_NOWAIT) {
-		err = -EAGAIN;
+		ret = -EAGAIN;
 		goto out;
 	}
 
 	pos = iocb->ki_pos;
 	written_buffered = btrfs_buffered_write(iocb, from);
 	if (written_buffered < 0) {
-		err = written_buffered;
+		ret = written_buffered;
 		goto out;
 	}
 	/*
@@ -1615,18 +1615,18 @@ buffered:
 	 * able to read what was just written.
 	 */
 	endbyte = pos + written_buffered - 1;
-	err = btrfs_fdatawrite_range(inode, pos, endbyte);
-	if (err)
+	ret = btrfs_fdatawrite_range(inode, pos, endbyte);
+	if (ret)
 		goto out;
-	err = filemap_fdatawait_range(inode->i_mapping, pos, endbyte);
-	if (err)
+	ret = filemap_fdatawait_range(inode->i_mapping, pos, endbyte);
+	if (ret)
 		goto out;
 	written += written_buffered;
 	iocb->ki_pos = pos + written_buffered;
 	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_SHIFT,
 				 endbyte >> PAGE_SHIFT);
 out:
-	return err < 0 ? err : written;
+	return ret < 0 ? ret : written;
 }
 
 static ssize_t btrfs_encoded_write(struct kiocb *iocb, struct iov_iter *from,
