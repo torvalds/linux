@@ -9,14 +9,15 @@
 		compatible = "ti,clksel";
 		reg = <0xa00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		ssi_ssr_gate_fck_3430es2: clock-ssi-ssr-gate-fck-3430es2 {
+		ssi_ssr_gate_fck_3430es2: clock-ssi-ssr-gate-fck-3430es2@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,composite-no-wait-gate-clock";
 			clock-output-names = "ssi_ssr_gate_fck_3430es2";
 			clocks = <&corex2_fck>;
-			ti,bit-shift = <0>;
 		};
 	};
 
@@ -24,14 +25,15 @@
 		compatible = "ti,clksel";
 		reg = <0xa40>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		ssi_ssr_div_fck_3430es2: clock-ssi-ssr-div-fck-3430es2 {
+		ssi_ssr_div_fck_3430es2: clock-ssi-ssr-div-fck-3430es2@8 {
+			reg = <8>;
 			#clock-cells = <0>;
 			compatible = "ti,composite-divider-clock";
 			clock-output-names = "ssi_ssr_div_fck_3430es2";
 			clocks = <&corex2_fck>;
-			ti,bit-shift = <8>;
 			ti,dividers = <0>, <1>, <2>, <3>, <4>, <0>, <6>, <0>, <8>;
 		};
 	};
@@ -54,22 +56,23 @@
 		compatible = "ti,clksel";
 		reg = <0xa10>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		hsotgusb_ick_3430es2: clock-hsotgusb-ick-3430es2 {
+		hsotgusb_ick_3430es2: clock-hsotgusb-ick-3430es2@4 {
+			reg = <4>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-hsotgusb-interface-clock";
 			clock-output-names = "hsotgusb_ick_3430es2";
 			clocks = <&core_l3_ick>;
-			ti,bit-shift = <4>;
 		};
 
-		ssi_ick: clock-ssi-ick-3430es2 {
+		ssi_ick: clock-ssi-ick-3430es2@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-ssi-interface-clock";
 			clock-output-names = "ssi_ick_3430es2";
 			clocks = <&ssi_l4_ick>;
-			ti,bit-shift = <0>;
 		};
 	};
 
@@ -85,14 +88,15 @@
 		compatible = "ti,clksel";
 		reg = <0xc00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		usim_gate_fck: clock-usim-gate-fck {
+		usim_gate_fck: clock-usim-gate-fck@9 {
+			reg = <9>;
 			#clock-cells = <0>;
 			compatible = "ti,composite-gate-clock";
 			clock-output-names = "usim_gate_fck";
 			clocks = <&omap_96m_fck>;
-			ti,bit-shift = <9>;
 		};
 	};
 
@@ -172,14 +176,15 @@
 		compatible = "ti,clksel";
 		reg = <0xc40>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		usim_mux_fck: clock-usim-mux-fck {
+		usim_mux_fck: clock-usim-mux-fck@3 {
+			reg = <3>;
 			#clock-cells = <0>;
 			compatible = "ti,composite-mux-clock";
 			clock-output-names = "usim_mux_fck";
 			clocks = <&sys_ck>, <&sys_d2_ck>, <&omap_96m_d2_fck>, <&omap_96m_d4_fck>, <&omap_96m_d8_fck>, <&omap_96m_d10_fck>, <&dpll5_m2_d4_ck>, <&dpll5_m2_d8_ck>, <&dpll5_m2_d16_ck>, <&dpll5_m2_d20_ck>;
-			ti,bit-shift = <3>;
 			ti,index-starts-at-one;
 		};
 	};
@@ -194,14 +199,15 @@
 		compatible = "ti,clksel";
 		reg = <0xc10>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		usim_ick: clock-usim-ick {
+		usim_ick: clock-usim-ick@9 {
+			reg = <9>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "usim_ick";
 			clocks = <&wkup_l4_ick>;
-			ti,bit-shift = <9>;
 		};
 	};
 };
