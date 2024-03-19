@@ -420,7 +420,7 @@ static int ast2700_soc1_clk_init(struct device_node *soc1_node)
 	u32 uart_clk_source = 0;
 	void __iomem *clk_base;
 	struct clk_hw **clks;
-	u32 val;
+	u32 val, id;
 	int ret;
 
 	clk_base = of_iomap(soc1_node, 0);
@@ -449,6 +449,13 @@ static int ast2700_soc1_clk_init(struct device_node *soc1_node)
 		pr_err("soc1 failed to register reset controller\n");
 		return ret;
 	}
+	/*
+	 * Ast2700 A0 workaround:
+	 * I3C reset should assert all of the I3C controllers simultaneously.
+	 * Otherwise, it may lead to failure in accessing I3C registers.
+	 */
+	for (id = ASPEED_RESET_I3C0; id <= ASPEED_RESET_I3C15; id++)
+		ast2700_reset_assert(&reset->rcdev, id);
 
 	clks[AST2700_SOC1_CLKIN] =
 		clk_hw_register_fixed_rate(NULL, "soc1-clkin", NULL, 0, AST2700_CLK_25MHZ);
