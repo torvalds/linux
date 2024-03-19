@@ -2326,7 +2326,7 @@ static ssize_t pwm1_show(struct device *dev,
 
 	/* If we already set a value then just return it */
 	if (asus->agfn_pwm >= 0)
-		return sprintf(buf, "%d\n", asus->agfn_pwm);
+		return sysfs_emit(buf, "%d\n", asus->agfn_pwm);
 
 	/*
 	 * If we haven't set already set a value through the AGFN interface,
@@ -2512,8 +2512,8 @@ static ssize_t asus_hwmon_temp1(struct device *dev,
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%ld\n",
-		       deci_kelvin_to_millicelsius(value & 0xFFFF));
+	return sysfs_emit(buf, "%ld\n",
+			  deci_kelvin_to_millicelsius(value & 0xFFFF));
 }
 
 /* GPU fan on modern ROG laptops */
@@ -4061,7 +4061,7 @@ static ssize_t show_sys_wmi(struct asus_wmi *asus, int devid, char *buf)
 	if (value < 0)
 		return value;
 
-	return sprintf(buf, "%d\n", value);
+	return sysfs_emit(buf, "%d\n", value);
 }
 
 #define ASUS_WMI_CREATE_DEVICE_ATTR(_name, _mode, _cm)			\
