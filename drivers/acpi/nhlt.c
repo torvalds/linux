@@ -16,9 +16,9 @@
 #include <linux/types.h>
 #include <acpi/nhlt.h>
 
-static struct acpi_table_nhlt2 *acpi_gbl_nhlt;
+static struct acpi_table_nhlt *acpi_gbl_nhlt;
 
-static struct acpi_table_nhlt2 empty_nhlt = {
+static struct acpi_table_nhlt empty_nhlt = {
 	.header = {
 		.signature = ACPI_SIG_NHLT,
 	},
@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_put_gbl_table);
  *
  * Return: %true if endpoint matches specified criteria or %false otherwise.
  */
-bool acpi_nhlt_endpoint_match(const struct acpi_nhlt2_endpoint *ep,
+bool acpi_nhlt_endpoint_match(const struct acpi_nhlt_endpoint *ep,
 			      int link_type, int dev_type, int dir, int bus_id)
 {
 	return ep &&
@@ -90,11 +90,11 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_endpoint_match);
  * Return: A pointer to endpoint matching the criteria, %NULL if not found or
  * an ERR_PTR() otherwise.
  */
-struct acpi_nhlt2_endpoint *
-acpi_nhlt_tb_find_endpoint(const struct acpi_table_nhlt2 *tb,
+struct acpi_nhlt_endpoint *
+acpi_nhlt_tb_find_endpoint(const struct acpi_table_nhlt *tb,
 			   int link_type, int dev_type, int dir, int bus_id)
 {
-	struct acpi_nhlt2_endpoint *ep;
+	struct acpi_nhlt_endpoint *ep;
 
 	for_each_nhlt_endpoint(tb, ep)
 		if (acpi_nhlt_endpoint_match(ep, link_type, dev_type, dir, bus_id))
@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_tb_find_endpoint);
  * Return: A pointer to endpoint matching the criteria, %NULL if not found or
  * an ERR_PTR() otherwise.
  */
-struct acpi_nhlt2_endpoint *
+struct acpi_nhlt_endpoint *
 acpi_nhlt_find_endpoint(int link_type, int dev_type, int dir, int bus_id)
 {
 	/* TODO: Currently limited to table of index 0. */
@@ -136,12 +136,12 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_find_endpoint);
  * Return: A pointer to format matching the criteria, %NULL if not found or
  * an ERR_PTR() otherwise.
  */
-struct acpi_nhlt2_format_config *
-acpi_nhlt_endpoint_find_fmtcfg(const struct acpi_nhlt2_endpoint *ep,
+struct acpi_nhlt_format_config *
+acpi_nhlt_endpoint_find_fmtcfg(const struct acpi_nhlt_endpoint *ep,
 			       u16 ch, u32 rate, u16 vbps, u16 bps)
 {
-	struct acpi_nhlt2_wave_formatext *wav;
-	struct acpi_nhlt2_format_config *fmt;
+	struct acpi_nhlt_wave_formatext *wav;
+	struct acpi_nhlt_format_config *fmt;
 
 	for_each_nhlt_endpoint_fmtcfg(ep, fmt) {
 		wav = &fmt->format;
@@ -176,13 +176,13 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_endpoint_find_fmtcfg);
  * Return: A pointer to format matching the criteria, %NULL if not found or
  * an ERR_PTR() otherwise.
  */
-struct acpi_nhlt2_format_config *
-acpi_nhlt_tb_find_fmtcfg(const struct acpi_table_nhlt2 *tb,
+struct acpi_nhlt_format_config *
+acpi_nhlt_tb_find_fmtcfg(const struct acpi_table_nhlt *tb,
 			 int link_type, int dev_type, int dir, int bus_id,
 			 u16 ch, u32 rate, u16 vbps, u16 bps)
 {
-	struct acpi_nhlt2_format_config *fmt;
-	struct acpi_nhlt2_endpoint *ep;
+	struct acpi_nhlt_format_config *fmt;
+	struct acpi_nhlt_endpoint *ep;
 
 	for_each_nhlt_endpoint(tb, ep) {
 		if (!acpi_nhlt_endpoint_match(ep, link_type, dev_type, dir, bus_id))
@@ -215,7 +215,7 @@ EXPORT_SYMBOL_GPL(acpi_nhlt_tb_find_fmtcfg);
  * Return: A pointer to format matching the criteria, %NULL if not found or
  * an ERR_PTR() otherwise.
  */
-struct acpi_nhlt2_format_config *
+struct acpi_nhlt_format_config *
 acpi_nhlt_find_fmtcfg(int link_type, int dev_type, int dir, int bus_id,
 		      u16 ch, u32 rate, u16 vbps, u16 bps)
 {
@@ -244,10 +244,10 @@ static bool acpi_nhlt_config_is_vendor_micdevice(struct acpi_nhlt_config *cfg)
  *
  * Return: A number of microphones or an error code if an invalid endpoint is provided.
  */
-int acpi_nhlt_endpoint_mic_count(const struct acpi_nhlt2_endpoint *ep)
+int acpi_nhlt_endpoint_mic_count(const struct acpi_nhlt_endpoint *ep)
 {
 	union acpi_nhlt_device_config *devcfg;
-	struct acpi_nhlt2_format_config *fmt;
+	struct acpi_nhlt_format_config *fmt;
 	struct acpi_nhlt_config *cfg;
 	u16 max_ch = 0;
 

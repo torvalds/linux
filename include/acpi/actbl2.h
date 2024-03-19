@@ -1894,7 +1894,7 @@ struct nfit_device_handle {
  *
  ******************************************************************************/
 
-struct acpi_table_nhlt2 {
+struct acpi_table_nhlt {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u8 endpoints_count;
 	/*
@@ -1903,7 +1903,7 @@ struct acpi_table_nhlt2 {
 	 */
 };
 
-struct acpi_nhlt2_endpoint {
+struct acpi_nhlt_endpoint {
 	u32 length;
 	u8 link_type;
 	u8 instance_id;
@@ -1990,7 +1990,7 @@ struct acpi_nhlt_micdevice_config {
 #define ACPI_NHLT_ARRAYTYPE_LINEAR4_GEO2	0xE
 #define ACPI_NHLT_ARRAYTYPE_VENDOR		0xF
 
-struct acpi_nhlt2_vendor_mic_config {
+struct acpi_nhlt_vendor_mic_config {
 	u8 type;
 	u8 panel;
 	u16 speaker_position_distance;		/* mm */
@@ -2031,7 +2031,7 @@ struct acpi_nhlt_vendor_micdevice_config {
 	u8 config_type;
 	u8 array_type;
 	u8 mics_count;
-	struct acpi_nhlt2_vendor_mic_config mics[];
+	struct acpi_nhlt_vendor_mic_config mics[];
 };
 
 union acpi_nhlt_device_config {
@@ -2042,7 +2042,7 @@ union acpi_nhlt_device_config {
 };
 
 /* Inherited from Microsoft's WAVEFORMATEXTENSIBLE. */
-struct acpi_nhlt2_wave_formatext {
+struct acpi_nhlt_wave_formatext {
 	u16 format_tag;
 	u16 channel_count;
 	u32 samples_per_sec;
@@ -2055,17 +2055,17 @@ struct acpi_nhlt2_wave_formatext {
 	u8 subformat[16];
 };
 
-struct acpi_nhlt2_format_config {
-	struct acpi_nhlt2_wave_formatext format;
+struct acpi_nhlt_format_config {
+	struct acpi_nhlt_wave_formatext format;
 	struct acpi_nhlt_config config;
 };
 
-struct acpi_nhlt2_formats_config {
+struct acpi_nhlt_formats_config {
 	u8 formats_count;
-	struct acpi_nhlt2_format_config formats[];
+	struct acpi_nhlt_format_config formats[];
 };
 
-struct acpi_nhlt2_device_info {
+struct acpi_nhlt_device_info {
 	u8 id[16];
 	u8 instance_id;
 	u8 port_id;
@@ -2073,7 +2073,7 @@ struct acpi_nhlt2_device_info {
 
 struct acpi_nhlt_devices_info {
 	u8 devices_count;
-	struct acpi_nhlt2_device_info devices[];
+	struct acpi_nhlt_device_info devices[];
 };
 
 /*******************************************************************************
