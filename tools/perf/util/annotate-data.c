@@ -1115,10 +1115,15 @@ static void setup_stack_canary(struct data_loc_info *dloc)
 	}
 }
 
-/* It's at the target address, check if it has a matching type */
-static bool check_matching_type(struct type_state *state,
-				struct data_loc_info *dloc, int reg,
-				Dwarf_Die *cu_die, Dwarf_Die *type_die)
+/*
+ * It's at the target address, check if it has a matching type.
+ * It returns 1 if found, 0 if not or -1 if not found but no need to
+ * repeat the search.  The last case is for per-cpu variables which
+ * are similar to global variables and no additional info is needed.
+ */
+static int check_matching_type(struct type_state *state,
+			       struct data_loc_info *dloc, int reg,
+			       Dwarf_Die *cu_die, Dwarf_Die *type_die)
 {
 	Dwarf_Word size;
 	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
@@ -1137,20 +1142,20 @@ static bool check_matching_type(struct type_state *state,
 		 * dereference a memory location.
 		 */
 		if (tag != DW_TAG_pointer_type && tag != DW_TAG_array_type)
-			return false;
+			return -1;
 
 		/* Remove the pointer and get the target type */
 		if (die_get_real_type(&state->regs[reg].type, type_die) == NULL)
-			return false;
+			return -1;
 
 		dloc->type_offset = dloc->op->offset;
 
 		/* Get the size of the actual type */
 		if (dwarf_aggregate_size(type_die, &size) < 0 ||
 		    (unsigned)dloc->type_offset >= size)
-			return false;
+			return -1;
 
-		return true;
+		return 1;
 	}
 
 	if (reg == dloc->fbreg) {
@@ -1160,18 +1165,18 @@ static bool check_matching_type(struct type_state *state,
 
 		stack = find_stack_state(state, dloc->type_offset);
 		if (stack == NULL)
-			return false;
+			return 0;
 
 		if (stack->kind == TSR_KIND_CANARY) {
 			setup_stack_canary(dloc);
-			return false;
+			return -1;
 		}
 
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
 		dloc->type_offset -= stack->offset;
 
-		return true;
+		return 1;
 	}
 
 	if (dloc->fb_cfa) {
@@ -1185,22 +1190,22 @@ static bool check_matching_type(struct type_state *state,
 			fbreg = -1;
 
 		if (reg != fbreg)
-			return false;
+			return 0;
 
 		stack = find_stack_state(state, dloc->type_offset - fboff);
 		if (stack == NULL)
-			return false;
+			return 0;
 
 		if (stack->kind == TSR_KIND_CANARY) {
 			setup_stack_canary(dloc);
-			return false;
+			return -1;
 		}
 
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
 		dloc->type_offset -= fboff + stack->offset;
 
-		return true;
+		return 1;
 	}
 
 	if (state->regs[reg].kind == TSR_KIND_PERCPU_BASE) {
@@ -1212,9 +1217,10 @@ static bool check_matching_type(struct type_state *state,
 		if (get_global_var_type(cu_die, dloc, dloc->ip, var_addr,
 					&var_offset, type_die)) {
 			dloc->type_offset = var_offset;
-			return true;
+			return 1;
 		}
-		return false;
+		/* No need to retry per-cpu (global) variables */
+		return -1;
 	}
 
 	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_POINTER) {
@@ -1231,9 +1237,9 @@ static bool check_matching_type(struct type_state *state,
 		/* Get the size of the actual type */
 		if (dwarf_aggregate_size(type_die, &size) < 0 ||
 		    (unsigned)dloc->type_offset >= size)
-			return false;
+			return -1;
 
-		return true;
+		return 1;
 	}
 
 	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_CANARY) {
@@ -1246,7 +1252,7 @@ static bool check_matching_type(struct type_state *state,
 		 */
 		setup_stack_canary(dloc);
 
-		return false;
+		return -1;
 	}
 
 	if (map__dso(dloc->ms->map)->kernel && arch__is(dloc->arch, "x86")) {
@@ -1262,9 +1268,9 @@ static bool check_matching_type(struct type_state *state,
 			if (get_global_var_type(cu_die, dloc, dloc->ip, addr,
 						&offset, type_die)) {
 				dloc->type_offset = offset;
-				return true;
+				return 1;
 			}
-			return false;
+			return -1;
 		}
 
 		/* Access to per-cpu base like "-0x7dcf0500(,%rdx,8)" */
@@ -1280,26 +1286,28 @@ static bool check_matching_type(struct type_state *state,
 				pr_debug_dtp(" percpu base\n");
 
 				dloc->type_offset = offset;
-				return true;
+				return 1;
 			}
+			pr_debug_dtp(" negative offset\n");
+			return -1;
 		}
 	}
 
 	pr_debug_dtp("\n");
-	return false;
+	return 0;
 }
 
 /* Iterate instructions in basic blocks and update type table */
-static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
-				struct list_head *basic_blocks,
-				struct die_var_type *var_types,
-				Dwarf_Die *cu_die, Dwarf_Die *type_die)
+static int find_data_type_insn(struct data_loc_info *dloc, int reg,
+			       struct list_head *basic_blocks,
+			       struct die_var_type *var_types,
+			       Dwarf_Die *cu_die, Dwarf_Die *type_die)
 {
 	struct type_state state;
 	struct symbol *sym = dloc->ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotated_basic_block *bb;
-	bool found = false;
+	int ret = 0;
 
 	init_type_state(&state, dloc->arch);
 
@@ -1317,8 +1325,8 @@ static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
 			update_var_state(&state, dloc, addr, dl->al.offset, var_types);
 
 			if (this_ip == dloc->ip) {
-				found = check_matching_type(&state, dloc, reg,
-							    cu_die, type_die);
+				ret = check_matching_type(&state, dloc, reg,
+							  cu_die, type_die);
 				goto out;
 			}
 
@@ -1331,7 +1339,7 @@ static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
 
 out:
 	exit_type_state(&state);
-	return found;
+	return ret;
 }
 
 /*
@@ -1355,6 +1363,7 @@ static int find_data_type_block(struct data_loc_info *dloc, int reg,
 	for (int i = nr_scopes - 1; i >= 0; i--) {
 		Dwarf_Addr base, start, end;
 		LIST_HEAD(this_blocks);
+		int found;
 
 		if (dwarf_ranges(&scopes[i], 0, &base, &start, &end) < 0)
 			break;
@@ -1385,14 +1394,18 @@ again:
 		fixup_var_address(var_types, start);
 
 		/* Find from start of this scope to the target instruction */
-		if (find_data_type_insn(dloc, reg, &basic_blocks, var_types,
-					cu_die, type_die)) {
-			ret = 0;
+		found = find_data_type_insn(dloc, reg, &basic_blocks, var_types,
+					    cu_die, type_die);
+		if (found > 0) {
 			pr_debug_dtp("found by insn track: %#x(reg%d) type-offset=%#x",
 				     dloc->op->offset, reg, dloc->type_offset);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
+			ret = 0;
 			break;
 		}
+
+		if (found < 0)
+			break;
 
 		/* Go up to the next scope and find blocks to the start */
 		prev_dst_ip = dst_ip;
