@@ -388,7 +388,7 @@ typedef int (*xe_exec_queue_user_extension_fn)(struct xe_device *xe,
 					       struct xe_exec_queue *q,
 					       u64 extension);
 
-static const xe_exec_queue_set_property_fn exec_queue_user_extension_funcs[] = {
+static const xe_exec_queue_user_extension_fn exec_queue_user_extension_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY] = exec_queue_user_ext_set_property,
 };
 
