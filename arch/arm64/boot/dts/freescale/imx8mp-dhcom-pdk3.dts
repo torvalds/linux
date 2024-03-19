@@ -167,6 +167,16 @@
 				VDDIO-supply = <&reg_vdd_3p3v_awo>;
 			};
 
+			csi2exp: gpio@24 {
+				compatible = "nxp,pca9570";
+				reg = <0x24>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-line-names =
+					"CSI2_#RESET", "CSI2_#PWDN",
+					"CSI_#PWDN", "CSI_#RESET";
+			};
+
 			typec@3d {
 				compatible = "nxp,ptn5150";
 				reg = <0x3d>;
