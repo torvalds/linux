@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/bitmap.h>
 #include <linux/sched/signal.h>
+#include <linux/io.h>
 
 #include <asm/gmap.h>
 #include <asm/mmu_context.h>
@@ -1005,7 +1006,7 @@ static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (read_guest_real(vcpu, fac, &vsie_page->fac,
 				    stfle_size() * sizeof(u64)))
 			return set_validity_icpt(scb_s, 0x1090U);
-		scb_s->fac = (__u32)(__u64) &vsie_page->fac;
+		scb_s->fac = (u32)virt_to_phys(&vsie_page->fac);
 	}
 	return 0;
 }
