@@ -479,6 +479,29 @@ static int umc_v12_0_ras_late_init(struct amdgpu_device *adev, struct ras_common
 	return 0;
 }
 
+static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
+			uint64_t status, uint64_t ipid, uint64_t addr)
+{
+	uint16_t hwid, mcatype;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
+	mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
+
+	if ((hwid != MCA_UMC_HWID_V12_0) || (mcatype != MCA_UMC_MCATYPE_V12_0))
+		return 0;
+
+	if (!status)
+		return 0;
+
+	if (!umc_v12_0_is_deferred_error(adev, status))
+		return 0;
+
+	con->umc_ecc_log.de_updated = true;
+
+	return 0;
+}
+
 struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ras_block = {
 		.hw_ops = &umc_v12_0_ras_hw_ops,
@@ -489,5 +512,6 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ecc_info_query_ras_error_count = umc_v12_0_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v12_0_ecc_info_query_ras_error_address,
 	.check_ecc_err_status = umc_v12_0_check_ecc_err_status,
+	.update_ecc_status = umc_v12_0_update_ecc_status,
 };
 

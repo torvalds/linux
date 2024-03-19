@@ -437,3 +437,12 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
+				uint64_t status, uint64_t ipid, uint64_t addr)
+{
+	if (adev->umc.ras->update_ecc_status)
+		return adev->umc.ras->update_ecc_status(adev,
+					status, ipid, addr);
+	return 0;
+}

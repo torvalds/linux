@@ -4215,6 +4215,8 @@ void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info, struct ras_err_a
 {
 	struct ras_err_addr *mca_err_addr;
 
+	/* This function will be retired. */
+	return;
 	mca_err_addr = kzalloc(sizeof(*mca_err_addr), GFP_KERNEL);
 	if (!mca_err_addr)
 		return;

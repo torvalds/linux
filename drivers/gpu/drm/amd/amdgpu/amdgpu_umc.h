@@ -66,6 +66,8 @@ struct amdgpu_umc_ras {
 					void *ras_error_status);
 	bool (*check_ecc_err_status)(struct amdgpu_device *adev,
 			enum amdgpu_mca_error_type type, void *ras_error_status);
+	int (*update_ecc_status)(struct amdgpu_device *adev,
+			uint64_t status, uint64_t ipid, uint64_t addr);
 };
 
 struct amdgpu_umc_funcs {
@@ -122,4 +124,8 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 
 int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 			uint32_t reset, uint32_t timeout_ms);
+
+int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
+				uint64_t status, uint64_t ipid, uint64_t addr);
+
 #endif
