@@ -1536,18 +1536,15 @@ static int quick_update_accounting(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_qgroup *qgroup;
 	int ret = 1;
-	int err = 0;
 
 	qgroup = find_qgroup_rb(fs_info, src);
 	if (!qgroup)
 		goto out;
 	if (qgroup->excl == qgroup->rfer) {
-		ret = 0;
-		err = __qgroup_excl_accounting(fs_info, dst, qgroup, sign);
-		if (err < 0) {
-			ret = err;
+		ret = __qgroup_excl_accounting(fs_info, dst, qgroup, sign);
+		if (ret < 0)
 			goto out;
-		}
+		ret = 0;
 	}
 out:
 	if (ret)
