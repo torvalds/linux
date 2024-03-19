@@ -1340,6 +1340,11 @@ void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
+	/* Stop internal MLO scan, if running */
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
+	mutex_unlock(&mvm->mutex);
+
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
 
