@@ -2079,13 +2079,18 @@ exit:
 	crtc_state->psr2_man_track_ctl = val;
 }
 
-static u32 psr2_pipe_srcsz_early_tpt_calc(struct intel_crtc_state *crtc_state,
-					  bool full_update)
+static u32
+psr2_pipe_srcsz_early_tpt_calc(struct intel_crtc_state *crtc_state,
+			       bool full_update, bool cursor_in_su_area)
 {
 	int width, height;
 
 	if (!crtc_state->enable_psr2_su_region_et || full_update)
 		return 0;
+
+	if (!cursor_in_su_area)
+		return PIPESRC_WIDTH(0) |
+			PIPESRC_HEIGHT(drm_rect_height(&crtc_state->pipe_src));
 
 	width = drm_rect_width(&crtc_state->psr2_su_area);
 	height = drm_rect_height(&crtc_state->psr2_su_area);
@@ -2138,7 +2143,8 @@ static void intel_psr2_sel_fetch_pipe_alignment(struct intel_crtc_state *crtc_st
  */
 static void
 intel_psr2_sel_fetch_et_alignment(struct intel_atomic_state *state,
-				  struct intel_crtc *crtc)
+				  struct intel_crtc *crtc,
+				  bool *cursor_in_su_area)
 {
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane_state *new_plane_state;
@@ -2166,6 +2172,7 @@ intel_psr2_sel_fetch_et_alignment(struct intel_atomic_state *state,
 
 		clip_area_update(&crtc_state->psr2_su_area, &new_plane_state->uapi.dst,
 				 &crtc_state->pipe_src);
+		*cursor_in_su_area = true;
 	}
 }
 
@@ -2211,7 +2218,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_plane_state *new_plane_state, *old_plane_state;
 	struct intel_plane *plane;
-	bool full_update = false;
+	bool full_update = false, cursor_in_su_area = false;
 	int i, ret;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
@@ -2328,7 +2335,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	 * drm_atomic_add_affected_planes to ensure visible cursor is added into
 	 * affected planes even when cursor is not updated by itself.
 	 */
-	intel_psr2_sel_fetch_et_alignment(state, crtc);
+	intel_psr2_sel_fetch_et_alignment(state, crtc, &cursor_in_su_area);
 
 	intel_psr2_sel_fetch_pipe_alignment(crtc_state);
 
@@ -2392,7 +2399,8 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 skip_sel_fetch_set_loop:
 	psr2_man_trk_ctl_calc(crtc_state, full_update);
 	crtc_state->pipe_srcsz_early_tpt =
-		psr2_pipe_srcsz_early_tpt_calc(crtc_state, full_update);
+		psr2_pipe_srcsz_early_tpt_calc(crtc_state, full_update,
+					       cursor_in_su_area);
 	return 0;
 }
 
