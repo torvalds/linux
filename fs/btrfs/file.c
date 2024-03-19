@@ -128,7 +128,7 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 		      struct extent_state **cached, bool noreserve)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	int err = 0;
+	int ret = 0;
 	int i;
 	u64 num_bytes;
 	u64 start_pos;
@@ -158,10 +158,10 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 cached);
 
-	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
+	ret = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
 					extra_bits, cached);
-	if (err)
-		return err;
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
