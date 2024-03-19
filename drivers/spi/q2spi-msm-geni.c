@@ -2305,6 +2305,7 @@ static void q2spi_flush_pending_crs(struct q2spi_geni *q2spi)
 		if (q2spi_pkt->state == DATA_AVAIL) {
 			Q2SPI_DEBUG(q2spi, "%s q2spi_pkt %p data avail, force delete\n",
 				    __func__, q2spi_pkt);
+			q2spi_unmap_rx_buf(q2spi_pkt);
 			q2spi_pkt->state = IN_DELETION;
 			list_del(&q2spi_pkt->list);
 			q2spi_free_q2spi_pkt(q2spi_pkt, __LINE__);
@@ -3998,6 +3999,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	if (ret)
 		goto chardev_destroy;
 
+	mutex_init(&q2spi->geni_resource_lock);
 	ret = q2spi_geni_resources_on(q2spi);
 	if (ret)
 		goto chardev_destroy;
@@ -4015,7 +4017,6 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	spin_lock_init(&q2spi->txn_lock);
 	mutex_init(&q2spi->queue_lock);
 	mutex_init(&q2spi->send_msgs_lock);
-	mutex_init(&q2spi->geni_resource_lock);
 	spin_lock_init(&q2spi->cr_queue_lock);
 
 	q2spi->kworker = kthread_create_worker(0, "kthread_q2spi");
