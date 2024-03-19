@@ -790,7 +790,7 @@ static void delete_var_types(struct die_var_type *var_types)
 /* It's at the target address, check if it has a matching type */
 static bool check_matching_type(struct type_state *state,
 				struct data_loc_info *dloc, int reg,
-				Dwarf_Die *type_die)
+				Dwarf_Die *cu_die, Dwarf_Die *type_die)
 {
 	Dwarf_Word size;
 	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
@@ -864,6 +864,23 @@ static bool check_matching_type(struct type_state *state,
 		return true;
 	}
 
+	if (map__dso(dloc->ms->map)->kernel && arch__is(dloc->arch, "x86")) {
+		u64 addr;
+		int offset;
+
+		if (dloc->op->segment == INSN_SEG_X86_GS && dloc->op->imm) {
+			pr_debug_dtp(" this-cpu var\n");
+
+			addr = dloc->op->offset;
+
+			if (get_global_var_type(cu_die, dloc, dloc->ip, addr,
+						&offset, type_die)) {
+				dloc->type_offset = offset;
+				return true;
+			}
+		}
+	}
+
 	pr_debug_dtp("\n");
 	return false;
 }
@@ -897,7 +914,7 @@ static bool find_data_type_insn(struct data_loc_info *dloc, int reg,
 
 			if (this_ip == dloc->ip) {
 				found = check_matching_type(&state, dloc, reg,
-							    type_die);
+							    cu_die, type_die);
 				goto out;
 			}
 

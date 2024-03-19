@@ -3921,6 +3921,13 @@ retry:
 							    op_loc->offset, dl);
 		}
 
+		/* This CPU access in kernel - pretend PC-relative addressing */
+		if (map__dso(ms->map)->kernel && arch__is(arch, "x86") &&
+		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
+			dloc.var_addr = op_loc->offset;
+			op_loc->reg1 = DWARF_REG_PC;
+		}
+
 		mem_type = find_data_type(&dloc);
 		if (mem_type)
 			istat->good++;
