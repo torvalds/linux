@@ -1053,9 +1053,15 @@ static unsigned long get_entry_ip(unsigned long fentry_ip)
 {
 	u32 instr;
 
-	/* Being extra safe in here in case entry ip is on the page-edge. */
-	if (get_kernel_nofault(instr, (u32 *) fentry_ip - 1))
-		return fentry_ip;
+	/* We want to be extra safe in case entry ip is on the page edge,
+	 * but otherwise we need to avoid get_kernel_nofault()'s overhead.
+	 */
+	if ((fentry_ip & ~PAGE_MASK) < ENDBR_INSN_SIZE) {
+		if (get_kernel_nofault(instr, (u32 *)(fentry_ip - ENDBR_INSN_SIZE)))
+			return fentry_ip;
+	} else {
+		instr = *(u32 *)(fentry_ip - ENDBR_INSN_SIZE);
+	}
 	if (is_endbr(instr))
 		fentry_ip -= ENDBR_INSN_SIZE;
 	return fentry_ip;
