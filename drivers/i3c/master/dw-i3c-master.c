@@ -1034,8 +1034,49 @@ static void dw_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 static int dw_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	u32 sda_lvl, reset, status;
+	int ret;
 
+	ret = dw_i3c_master_enter_halt(master, true);
+	if (ret) {
+		dev_err(&master->base.dev,
+			"Failed to perform timed reset! Controller state %08x\n",
+			readl(master->regs + PRESENT_STATE));
+		return -EBUSY;
+	}
+
+	sda_lvl = FIELD_GET(SDA_LINE_SIGNAL_LEVEL,
+			    readl(master->regs + PRESENT_STATE));
+	if (sda_lvl == 0) {
+		dev_warn(&master->base.dev,
+			 "SDA stuck low! Try to recover the bus...\n");
+		/* Toggle SCL pulses to make SDA go high */
+		ret = master->platform_ops->bus_recovery(master);
+		if (ret)
+			goto sw_force_reset;
+	}
+
+	if (master->base.bus.context != I3C_BUS_CONTEXT_JESD403)
+		goto sw_force_reset;
+
+	reset = RESET_CTRL_BUS |
+		FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
+	writel(reset, master->regs + RESET_CTRL);
+
+	/* Resume the controller to send out the timed reset pattern */
+	dw_i3c_master_exit_halt(master);
+	ret = readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
+					(status & RESET_CTRL_BUS) == 0, 10,
+					1000000);
+	if (!ret)
+		return 0;
+
+	/* Should not reach here. Anyway, apply software force mode timed reset */
+	dw_i3c_master_enter_halt(master, true);
+
+sw_force_reset:
 	master->platform_ops->gen_target_reset_pattern(master);
+	dw_i3c_master_exit_halt(master);
 
 	return 0;
 }
