@@ -96,6 +96,7 @@
 
 #define RX_TX_DATA_PORT			0x14
 #define IBI_QUEUE_STATUS		0x18
+#define IBI_QUEUE_STATUS_RSP_NACK	BIT(31)
 #define IBI_QUEUE_STATUS_IBI_ID(x)	(((x) & GENMASK(15, 8)) >> 8)
 #define IBI_QUEUE_STATUS_DATA_LEN(x)	((x) & GENMASK(7, 0))
 #define IBI_QUEUE_IBI_ADDR(x)		(IBI_QUEUE_STATUS_IBI_ID(x) >> 1)
@@ -1963,7 +1964,9 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	struct i3c_ibi_slot *slot;
 	struct i3c_dev_desc *dev;
 	unsigned long flags;
+	u32 state;
 	u8 addr, len;
+	bool terminate_ibi = false;
 
 	addr = IBI_QUEUE_IBI_ADDR(status);
 	len = IBI_QUEUE_STATUS_DATA_LEN(status);
@@ -2001,6 +2004,7 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 		dev_dbg_ratelimited(&master->base.dev,
 				    "IBI payload len %d greater than max %d\n",
 				    len, dev->ibi->max_payload_len);
+		terminate_ibi = true;
 		goto err_drain;
 	}
 
@@ -2016,6 +2020,9 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 
 err_drain:
 	dw_i3c_master_drain_ibi_queue(master, len);
+	state = FIELD_GET(CM_TFR_STS, readl(master->regs + PRESENT_STATE));
+	if (terminate_ibi && state == CM_TFR_STS_MASTER_SERV_IBI)
+		master->platform_ops->gen_tbits_in(master);
 
 	spin_unlock_irqrestore(&master->devs_lock, flags);
 }
@@ -2028,14 +2035,29 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 {
 	unsigned int i, len, n_ibis;
 	u32 reg;
+	int ret;
 
 	reg = readl(master->regs + QUEUE_STATUS_LEVEL);
 	n_ibis = QUEUE_STATUS_IBI_STATUS_CNT(reg);
 	if (!n_ibis)
 		return;
 
+	if (n_ibis > 16) {
+		dev_err(&master->base.dev,
+			"The n_ibis %d surpasses the tolerance level for the IBI buffer\n",
+			n_ibis);
+		goto ibi_fifo_clear;
+	}
+
 	for (i = 0; i < n_ibis; i++) {
 		reg = readl(master->regs + IBI_QUEUE_STATUS);
+
+		if (reg & IBI_QUEUE_STATUS_RSP_NACK) {
+			dev_dbg_ratelimited(&master->base.dev,
+					    "Nacked IBI from non-requested dev addr %02lx\n",
+					    IBI_QUEUE_IBI_ADDR(reg));
+			goto ibi_fifo_clear;
+		}
 
 		if (IBI_TYPE_SIRQ(reg)) {
 			dw_i3c_master_handle_ibi_sir(master, reg);
@@ -2049,6 +2071,19 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 			dw_i3c_master_drain_ibi_queue(master, len);
 		}
 	}
+
+	return;
+
+ibi_fifo_clear:
+	dw_i3c_master_enter_halt(master, true);
+	writel(RESET_CTRL_IBI_QUEUE, master->regs + RESET_CTRL);
+	ret = readl_poll_timeout_atomic(master->regs + RESET_CTRL, reg, !reg,
+					10, 1000000);
+	if (ret)
+		dev_err(&master->base.dev,
+			"Timeout waiting for IBI FIFO reset\n");
+
+	dw_i3c_master_exit_halt(master);
 }
 
 static void dw_i3c_target_handle_ccc_update(struct dw_i3c_master *master)

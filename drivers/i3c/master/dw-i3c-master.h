@@ -115,6 +115,7 @@ struct dw_i3c_platform_ops {
 	void (*toggle_scl_in)(struct dw_i3c_master *i3c, int count);
 	void (*gen_internal_stop)(struct dw_i3c_master *i3c);
 	void (*gen_target_reset_pattern)(struct dw_i3c_master *i3c);
+	void (*gen_tbits_in)(struct dw_i3c_master *i3c);
 	int (*bus_recovery)(struct dw_i3c_master *i3c);
 
 	/* For target mode, pending read notification */

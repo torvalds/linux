@@ -76,12 +76,16 @@
 #define ADDR_HID_MASK				GENMASK(2, 0)
 #define ADDR_HID(x)				((x) & ADDR_HID_MASK)
 
+#define IBI_QUEUE_STATUS			0x18
+
 #define IBI_SIR_REQ_REJECT			0x30
 #define INTR_STATUS_EN				0x40
 #define INTR_SIGNAL_EN				0x44
 #define   INTR_IBI_THLD_STAT			BIT(2)
 
 #define PRESENT_STATE				0x54
+#define   CM_TFR_STS				GENMASK(13, 8)
+#define     CM_TFR_STS_MASTER_SERV_IBI		0xe
 #define   SDA_LINE_SIGNAL_LEVEL			BIT(1)
 #define   SCL_LINE_SIGNAL_LEVEL			BIT(0)
 
@@ -334,6 +338,46 @@ static void ast2600_i3c_gen_target_reset_pattern(struct dw_i3c_master *dw)
 			  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN, 0);
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
 			  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN, 0);
+}
+
+static bool ast2600_i3c_fsm_exit_serv_ibi(struct dw_i3c_master *dw)
+{
+	u32 state;
+
+	/*
+	 * Clear the IBI queue to enable the hardware to generate SCL and
+	 * begin detecting the T-bit low to stop reading IBI data.
+	 */
+	readl(dw->regs + IBI_QUEUE_STATUS);
+	state = FIELD_GET(CM_TFR_STS, readl(dw->regs + PRESENT_STATE));
+	if (state == CM_TFR_STS_MASTER_SERV_IBI)
+		return false;
+
+	return true;
+}
+
+static void ast2600_i3c_gen_tbits_in(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+	bool is_idle;
+	int ret;
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_EN, SDA_IN_SW_MODE_EN);
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_VAL, 0);
+	ret = readx_poll_timeout_atomic(ast2600_i3c_fsm_exit_serv_ibi, dw,
+					is_idle, is_idle, 0, 2000000);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_EN, 0);
+	if (ret)
+		dev_err(&dw->base.dev,
+			"Failed to exit the I3C fsm from %lx(MASTER_SERV_IBI): %d",
+			FIELD_GET(CM_TFR_STS, readl(dw->regs + PRESENT_STATE)),
+			ret);
 }
 
 static void ast2600_i3c_set_ibi_mdb(struct dw_i3c_master *dw, u8 mdb)
@@ -661,6 +705,7 @@ static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.toggle_scl_in = ast2600_i3c_toggle_scl_in,
 	.gen_internal_stop = ast2600_i3c_gen_internal_stop,
 	.gen_target_reset_pattern = ast2600_i3c_gen_target_reset_pattern,
+	.gen_tbits_in = ast2600_i3c_gen_tbits_in,
 	.bus_recovery = aspeed_i3c_bus_recovery,
 	.set_ibi_mdb = ast2600_i3c_set_ibi_mdb,
 	.reattach_i3c_dev = ast2600_i3c_reattach_i3c_dev,
