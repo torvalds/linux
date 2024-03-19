@@ -71,7 +71,9 @@ struct type_state_stack {
  * shortest path of basic blocks, it only maintains a single table.
  */
 struct type_state {
+	/* state of general purpose registers */
 	struct type_state_reg regs[TYPE_STATE_MAX_REGS];
+	/* state of stack location */
 	struct list_head stack_vars;
 };
 
@@ -85,6 +87,8 @@ void init_type_state(struct type_state *state, struct arch *arch __maybe_unused)
 void exit_type_state(struct type_state *state);
 void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 		      u64 addr, u64 insn_offset, struct die_var_type *var_types);
+void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
+		       struct disasm_line *dl);
 
 void init_type_state(struct type_state *state, struct arch *arch __maybe_unused)
 {
@@ -412,13 +416,13 @@ void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 		if (var->reg == DWARF_REG_FB) {
 			findnew_stack_state(state, var->offset, &mem_die);
 
-			pr_debug_dtp("var [%"PRIx64"] -%#x(stack) type=",
+			pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
 				     insn_offset, -var->offset);
 			pr_debug_type_name(&mem_die);
 		} else if (var->reg == fbreg) {
 			findnew_stack_state(state, var->offset - fb_offset, &mem_die);
 
-			pr_debug_dtp("var [%"PRIx64"] -%#x(stack) type=",
+			pr_debug_dtp("var [%"PRIx64"] -%#x(stack)",
 				     insn_offset, -var->offset + fb_offset);
 			pr_debug_type_name(&mem_die);
 		} else if (has_reg_type(state, var->reg) && var->offset == 0) {
@@ -428,11 +432,162 @@ void update_var_state(struct type_state *state, struct data_loc_info *dloc,
 			reg->type = mem_die;
 			reg->ok = true;
 
-			pr_debug_dtp("var [%"PRIx64"] reg%d type=",
+			pr_debug_dtp("var [%"PRIx64"] reg%d",
 				     insn_offset, var->reg);
 			pr_debug_type_name(&mem_die);
 		}
 	}
+}
+
+static void update_insn_state_x86(struct type_state *state,
+				  struct data_loc_info *dloc,
+				  struct disasm_line *dl)
+{
+	struct annotated_insn_loc loc;
+	struct annotated_op_loc *src = &loc.ops[INSN_OP_SOURCE];
+	struct annotated_op_loc *dst = &loc.ops[INSN_OP_TARGET];
+	struct type_state_reg *tsr;
+	Dwarf_Die type_die;
+	u32 insn_offset = dl->al.offset;
+	int fbreg = dloc->fbreg;
+	int fboff = 0;
+
+	if (annotate_get_insn_location(dloc->arch, dl, &loc) < 0)
+		return;
+
+	if (strncmp(dl->ins.name, "mov", 3))
+		return;
+
+	if (dloc->fb_cfa) {
+		u64 ip = dloc->ms->sym->start + dl->al.offset;
+		u64 pc = map__rip_2objdump(dloc->ms->map, ip);
+
+		if (die_get_cfa(dloc->di->dbg, pc, &fbreg, &fboff) < 0)
+			fbreg = -1;
+	}
+
+	/* Case 1. register to register transfers */
+	if (!src->mem_ref && !dst->mem_ref) {
+		if (!has_reg_type(state, dst->reg1))
+			return;
+
+		tsr = &state->regs[dst->reg1];
+		if (!has_reg_type(state, src->reg1) ||
+		    !state->regs[src->reg1].ok) {
+			tsr->ok = false;
+			return;
+		}
+
+		tsr->type = state->regs[src->reg1].type;
+		tsr->ok = true;
+
+		pr_debug_dtp("mov [%x] reg%d -> reg%d",
+			     insn_offset, src->reg1, dst->reg1);
+		pr_debug_type_name(&tsr->type);
+	}
+	/* Case 2. memory to register transers */
+	if (src->mem_ref && !dst->mem_ref) {
+		int sreg = src->reg1;
+
+		if (!has_reg_type(state, dst->reg1))
+			return;
+
+		tsr = &state->regs[dst->reg1];
+
+retry:
+		/* Check stack variables with offset */
+		if (sreg == fbreg) {
+			struct type_state_stack *stack;
+			int offset = src->offset - fboff;
+
+			stack = find_stack_state(state, offset);
+			if (stack == NULL) {
+				tsr->ok = false;
+				return;
+			} else if (!stack->compound) {
+				tsr->type = stack->type;
+				tsr->ok = true;
+			} else if (die_get_member_type(&stack->type,
+						       offset - stack->offset,
+						       &type_die)) {
+				tsr->type = type_die;
+				tsr->ok = true;
+			} else {
+				tsr->ok = false;
+				return;
+			}
+
+			pr_debug_dtp("mov [%x] -%#x(stack) -> reg%d",
+				     insn_offset, -offset, dst->reg1);
+			pr_debug_type_name(&tsr->type);
+		}
+		/* And then dereference the pointer if it has one */
+		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
+			 die_deref_ptr_type(&state->regs[sreg].type,
+					    src->offset, &type_die)) {
+			tsr->type = type_die;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] %#x(reg%d) -> reg%d",
+				     insn_offset, src->offset, sreg, dst->reg1);
+			pr_debug_type_name(&tsr->type);
+		}
+		/* Or try another register if any */
+		else if (src->multi_regs && sreg == src->reg1 &&
+			 src->reg1 != src->reg2) {
+			sreg = src->reg2;
+			goto retry;
+		}
+		/* It failed to get a type info, mark it as invalid */
+		else {
+			tsr->ok = false;
+		}
+	}
+	/* Case 3. register to memory transfers */
+	if (!src->mem_ref && dst->mem_ref) {
+		if (!has_reg_type(state, src->reg1) ||
+		    !state->regs[src->reg1].ok)
+			return;
+
+		/* Check stack variables with offset */
+		if (dst->reg1 == fbreg) {
+			struct type_state_stack *stack;
+			int offset = dst->offset - fboff;
+
+			stack = find_stack_state(state, offset);
+			if (stack) {
+				/*
+				 * The source register is likely to hold a type
+				 * of member if it's a compound type.  Do not
+				 * update the stack variable type since we can
+				 * get the member type later by using the
+				 * die_get_member_type().
+				 */
+				if (!stack->compound)
+					set_stack_state(stack, offset,
+							&state->regs[src->reg1].type);
+			} else {
+				findnew_stack_state(state, offset,
+						    &state->regs[src->reg1].type);
+			}
+
+			pr_debug_dtp("mov [%x] reg%d -> -%#x(stack)",
+				     insn_offset, src->reg1, -offset);
+			pr_debug_type_name(&state->regs[src->reg1].type);
+		}
+		/*
+		 * Ignore other transfers since it'd set a value in a struct
+		 * and won't change the type.
+		 */
+	}
+	/* Case 4. memory to memory transfers (not handled for now) */
+}
+
+void update_insn_state(struct type_state *state, struct data_loc_info *dloc,
+		       struct disasm_line *dl)
+{
+	if (arch__is(dloc->arch, "x86"))
+		update_insn_state_x86(state, dloc, dl);
 }
 
 /* The result will be saved in @type_die */
