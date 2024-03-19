@@ -33,6 +33,13 @@ enum xe_exec_queue_sched_prop {
 static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue *q,
 				      u64 extensions, int ext_number);
 
+static void __xe_exec_queue_free(struct xe_exec_queue *q)
+{
+	if (q->vm)
+		xe_vm_put(q->vm);
+	kfree(q);
+}
+
 static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 						   struct xe_vm *vm,
 						   u32 logical_mask,
@@ -74,6 +81,9 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	else
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
 
+	if (vm)
+		q->vm = xe_vm_get(vm);
+
 	if (extensions) {
 		/*
 		 * may set q->usm, must come before xe_lrc_init(),
@@ -81,13 +91,10 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 		 */
 		err = exec_queue_user_extensions(xe, q, extensions, 0);
 		if (err) {
-			kfree(q);
+			__xe_exec_queue_free(q);
 			return ERR_PTR(err);
 		}
 	}
-
-	if (vm)
-		q->vm = xe_vm_get(vm);
 
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
@@ -95,13 +102,6 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	}
 
 	return q;
-}
-
-static void __xe_exec_queue_free(struct xe_exec_queue *q)
-{
-	if (q->vm)
-		xe_vm_put(q->vm);
-	kfree(q);
 }
 
 static int __xe_exec_queue_init(struct xe_exec_queue *q)
