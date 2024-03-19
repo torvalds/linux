@@ -69,6 +69,17 @@ static inline void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 }
 #endif
 
+/*
+ * Polled completions must ensure they are coming from a poll queue, and
+ * hence are completed inside the usual poll handling loops.
+ */
+static inline void io_uring_cmd_iopoll_done(struct io_uring_cmd *ioucmd,
+					    ssize_t ret, ssize_t res2)
+{
+	lockdep_assert(in_task());
+	io_uring_cmd_done(ioucmd, ret, res2, 0);
+}
+
 /* users must follow the IOU_F_TWQ_LAZY_WAKE semantics */
 static inline void io_uring_cmd_do_in_task_lazy(struct io_uring_cmd *ioucmd,
 			void (*task_work_cb)(struct io_uring_cmd *, unsigned))
