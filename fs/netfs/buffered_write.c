@@ -30,21 +30,13 @@ static void netfs_cleanup_buffered_write(struct netfs_io_request *wreq);
 
 static void netfs_set_group(struct folio *folio, struct netfs_group *netfs_group)
 {
-	if (netfs_group && !folio_get_private(folio))
-		folio_attach_private(folio, netfs_get_group(netfs_group));
-}
+	void *priv = folio_get_private(folio);
 
-#if IS_ENABLED(CONFIG_FSCACHE)
-static void netfs_folio_start_fscache(bool caching, struct folio *folio)
-{
-	if (caching)
-		folio_start_fscache(folio);
+	if (netfs_group && (!priv || priv == NETFS_FOLIO_COPY_TO_CACHE))
+		folio_attach_private(folio, netfs_get_group(netfs_group));
+	else if (!netfs_group && priv == NETFS_FOLIO_COPY_TO_CACHE)
+		folio_detach_private(folio);
 }
-#else
-static void netfs_folio_start_fscache(bool caching, struct folio *folio)
-{
-}
-#endif
 
 /*
  * Decide how we should modify a folio.  We might be attempting to do
@@ -63,11 +55,12 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 						    bool maybe_trouble)
 {
 	struct netfs_folio *finfo = netfs_folio_info(folio);
+	struct netfs_group *group = netfs_folio_group(folio);
 	loff_t pos = folio_file_pos(folio);
 
 	_enter("");
 
-	if (netfs_folio_group(folio) != netfs_group)
+	if (group != netfs_group && group != NETFS_FOLIO_COPY_TO_CACHE)
 		return NETFS_FLUSH_CONTENT;
 
 	if (folio_test_uptodate(folio))
@@ -396,9 +389,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 				folio_clear_dirty_for_io(folio);
 			/* We make multiple writes to the folio... */
 			if (!folio_test_writeback(folio)) {
-				folio_wait_fscache(folio);
 				folio_start_writeback(folio);
-				folio_start_fscache(folio);
 				if (wreq->iter.count == 0)
 					trace_netfs_folio(folio, netfs_folio_trace_wthru);
 				else
@@ -528,6 +519,7 @@ EXPORT_SYMBOL(netfs_file_write_iter);
  */
 vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_group)
 {
+	struct netfs_group *group;
 	struct folio *folio = page_folio(vmf->page);
 	struct file *file = vmf->vma->vm_file;
 	struct inode *inode = file_inode(file);
@@ -550,7 +542,8 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 		goto out;
 	}
 
-	if (netfs_folio_group(folio) != netfs_group) {
+	group = netfs_folio_group(folio);
+	if (group != netfs_group && group != NETFS_FOLIO_COPY_TO_CACHE) {
 		folio_unlock(folio);
 		err = filemap_fdatawait_range(inode->i_mapping,
 					      folio_pos(folio),
@@ -606,8 +599,6 @@ static void netfs_kill_pages(struct address_space *mapping,
 
 		trace_netfs_folio(folio, netfs_folio_trace_kill);
 		folio_clear_uptodate(folio);
-		if (folio_test_fscache(folio))
-			folio_end_fscache(folio);
 		folio_end_writeback(folio);
 		folio_lock(folio);
 		generic_error_remove_folio(mapping, folio);
@@ -643,8 +634,6 @@ static void netfs_redirty_pages(struct address_space *mapping,
 		next = folio_next_index(folio);
 		trace_netfs_folio(folio, netfs_folio_trace_redirty);
 		filemap_dirty_folio(mapping, folio);
-		if (folio_test_fscache(folio))
-			folio_end_fscache(folio);
 		folio_end_writeback(folio);
 		folio_put(folio);
 	} while (index = next, index <= last);
@@ -700,7 +689,11 @@ static void netfs_pages_written_back(struct netfs_io_request *wreq)
 				if (!folio_test_dirty(folio)) {
 					folio_detach_private(folio);
 					gcount++;
-					trace_netfs_folio(folio, netfs_folio_trace_clear_g);
+					if (group == NETFS_FOLIO_COPY_TO_CACHE)
+						trace_netfs_folio(folio,
+								  netfs_folio_trace_end_copy);
+					else
+						trace_netfs_folio(folio, netfs_folio_trace_clear_g);
 				} else {
 					trace_netfs_folio(folio, netfs_folio_trace_redirtied);
 				}
@@ -724,8 +717,6 @@ static void netfs_pages_written_back(struct netfs_io_request *wreq)
 			trace_netfs_folio(folio, netfs_folio_trace_clear);
 		}
 	end_wb:
-		if (folio_test_fscache(folio))
-			folio_end_fscache(folio);
 		xas_advance(&xas, folio_next_index(folio) - 1);
 		folio_end_writeback(folio);
 	}
@@ -795,7 +786,6 @@ static void netfs_extend_writeback(struct address_space *mapping,
 				   long *_count,
 				   loff_t start,
 				   loff_t max_len,
-				   bool caching,
 				   size_t *_len,
 				   size_t *_top)
 {
@@ -846,8 +836,7 @@ static void netfs_extend_writeback(struct address_space *mapping,
 				break;
 			}
 			if (!folio_test_dirty(folio) ||
-			    folio_test_writeback(folio) ||
-			    folio_test_fscache(folio)) {
+			    folio_test_writeback(folio)) {
 				folio_unlock(folio);
 				folio_put(folio);
 				xas_reset(xas);
@@ -860,7 +849,8 @@ static void netfs_extend_writeback(struct address_space *mapping,
 			if ((const struct netfs_group *)priv != group) {
 				stop = true;
 				finfo = netfs_folio_info(folio);
-				if (finfo->netfs_group != group ||
+				if (!finfo ||
+				    finfo->netfs_group != group ||
 				    finfo->dirty_offset > 0) {
 					folio_unlock(folio);
 					folio_put(folio);
@@ -894,12 +884,14 @@ static void netfs_extend_writeback(struct address_space *mapping,
 
 		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 			folio = fbatch.folios[i];
-			trace_netfs_folio(folio, netfs_folio_trace_store_plus);
+			if (group == NETFS_FOLIO_COPY_TO_CACHE)
+				trace_netfs_folio(folio, netfs_folio_trace_copy_plus);
+			else
+				trace_netfs_folio(folio, netfs_folio_trace_store_plus);
 
 			if (!folio_clear_dirty_for_io(folio))
 				BUG();
 			folio_start_writeback(folio);
-			netfs_folio_start_fscache(caching, folio);
 			folio_unlock(folio);
 		}
 
@@ -925,14 +917,14 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 	struct netfs_inode *ctx = netfs_inode(mapping->host);
 	unsigned long long i_size = i_size_read(&ctx->inode);
 	size_t len, max_len;
-	bool caching = netfs_is_cache_enabled(ctx);
 	long count = wbc->nr_to_write;
 	int ret;
 
-	_enter(",%lx,%llx-%llx,%u", folio->index, start, end, caching);
+	_enter(",%lx,%llx-%llx", folio->index, start, end);
 
 	wreq = netfs_alloc_request(mapping, NULL, start, folio_size(folio),
-				   NETFS_WRITEBACK);
+				   group == NETFS_FOLIO_COPY_TO_CACHE ?
+				   NETFS_COPY_TO_CACHE : NETFS_WRITEBACK);
 	if (IS_ERR(wreq)) {
 		folio_unlock(folio);
 		return PTR_ERR(wreq);
@@ -941,7 +933,6 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 	if (!folio_clear_dirty_for_io(folio))
 		BUG();
 	folio_start_writeback(folio);
-	netfs_folio_start_fscache(caching, folio);
 
 	count -= folio_nr_pages(folio);
 
@@ -950,7 +941,10 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 	 * immediately lockable, is not dirty or is missing, or we reach the
 	 * end of the range.
 	 */
-	trace_netfs_folio(folio, netfs_folio_trace_store);
+	if (group == NETFS_FOLIO_COPY_TO_CACHE)
+		trace_netfs_folio(folio, netfs_folio_trace_copy);
+	else
+		trace_netfs_folio(folio, netfs_folio_trace_store);
 
 	len = wreq->len;
 	finfo = netfs_folio_info(folio);
@@ -973,7 +967,7 @@ static ssize_t netfs_write_back_from_locked_folio(struct address_space *mapping,
 
 		if (len < max_len)
 			netfs_extend_writeback(mapping, group, xas, &count, start,
-					       max_len, caching, &len, &wreq->upper_len);
+					       max_len, &len, &wreq->upper_len);
 	}
 
 cant_expand:
@@ -997,15 +991,18 @@ cant_expand:
 
 		iov_iter_xarray(&wreq->iter, ITER_SOURCE, &mapping->i_pages, start,
 				wreq->upper_len);
-		__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
-		ret = netfs_begin_write(wreq, true, netfs_write_trace_writeback);
+		if (group != NETFS_FOLIO_COPY_TO_CACHE) {
+			__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
+			ret = netfs_begin_write(wreq, true, netfs_write_trace_writeback);
+		} else {
+			ret = netfs_begin_write(wreq, true, netfs_write_trace_copy_to_cache);
+		}
 		if (ret == 0 || ret == -EIOCBQUEUED)
 			wbc->nr_to_write -= len / PAGE_SIZE;
 	} else {
 		_debug("write discard %zx @%llx [%llx]", len, start, i_size);
 
 		/* The dirty region was entirely beyond the EOF. */
-		fscache_clear_page_bits(mapping, start, len, caching);
 		netfs_pages_written_back(wreq);
 		ret = 0;
 	}
@@ -1058,9 +1055,11 @@ search_again:
 
 		/* Skip any dirty folio that's not in the group of interest. */
 		priv = folio_get_private(folio);
-		if ((const struct netfs_group *)priv != group) {
-			finfo = netfs_folio_info(folio);
-			if (finfo->netfs_group != group) {
+		if ((const struct netfs_group *)priv == NETFS_FOLIO_COPY_TO_CACHE) {
+			group = NETFS_FOLIO_COPY_TO_CACHE;
+		} else if ((const struct netfs_group *)priv != group) {
+			finfo = __netfs_folio_info(priv);
+			if (!finfo || finfo->netfs_group != group) {
 				folio_put(folio);
 				continue;
 			}
@@ -1099,14 +1098,10 @@ lock_again:
 		goto search_again;
 	}
 
-	if (folio_test_writeback(folio) ||
-	    folio_test_fscache(folio)) {
+	if (folio_test_writeback(folio)) {
 		folio_unlock(folio);
 		if (wbc->sync_mode != WB_SYNC_NONE) {
 			folio_wait_writeback(folio);
-#ifdef CONFIG_FSCACHE
-			folio_wait_fscache(folio);
-#endif
 			goto lock_again;
 		}
 
@@ -1265,7 +1260,8 @@ int netfs_launder_folio(struct folio *folio)
 
 	bvec_set_folio(&bvec, folio, len, offset);
 	iov_iter_bvec(&wreq->iter, ITER_SOURCE, &bvec, 1, len);
-	__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
+	if (group != NETFS_FOLIO_COPY_TO_CACHE)
+		__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
 	ret = netfs_begin_write(wreq, true, netfs_write_trace_launder);
 
 out_put:
@@ -1274,7 +1270,6 @@ out_put:
 	kfree(finfo);
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 out:
-	folio_wait_fscache(folio);
 	_leave(" = %d", ret);
 	return ret;
 }

@@ -168,7 +168,7 @@ static inline bool netfs_is_cache_enabled(struct netfs_inode *ctx)
  */
 static inline struct netfs_group *netfs_get_group(struct netfs_group *netfs_group)
 {
-	if (netfs_group)
+	if (netfs_group && netfs_group != NETFS_FOLIO_COPY_TO_CACHE)
 		refcount_inc(&netfs_group->ref);
 	return netfs_group;
 }
@@ -178,7 +178,9 @@ static inline struct netfs_group *netfs_get_group(struct netfs_group *netfs_grou
  */
 static inline void netfs_put_group(struct netfs_group *netfs_group)
 {
-	if (netfs_group && refcount_dec_and_test(&netfs_group->ref))
+	if (netfs_group &&
+	    netfs_group != NETFS_FOLIO_COPY_TO_CACHE &&
+	    refcount_dec_and_test(&netfs_group->ref))
 		netfs_group->free(netfs_group);
 }
 
@@ -187,7 +189,9 @@ static inline void netfs_put_group(struct netfs_group *netfs_group)
  */
 static inline void netfs_put_group_many(struct netfs_group *netfs_group, int nr)
 {
-	if (netfs_group && refcount_sub_and_test(nr, &netfs_group->ref))
+	if (netfs_group &&
+	    netfs_group != NETFS_FOLIO_COPY_TO_CACHE &&
+	    refcount_sub_and_test(nr, &netfs_group->ref))
 		netfs_group->free(netfs_group);
 }
 

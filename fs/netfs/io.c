@@ -99,8 +99,9 @@ static void netfs_rreq_completed(struct netfs_io_request *rreq, bool was_async)
 }
 
 /*
- * Deal with the completion of writing the data to the cache.  We have to clear
- * the PG_fscache bits on the folios involved and release the caller's ref.
+ * [DEPRECATED] Deal with the completion of writing the data to the cache.  We
+ * have to clear the PG_fscache bits on the folios involved and release the
+ * caller's ref.
  *
  * May be called in softirq mode and we inherit a ref from the caller.
  */
@@ -138,7 +139,7 @@ static void netfs_rreq_unmark_after_write(struct netfs_io_request *rreq,
 }
 
 static void netfs_rreq_copy_terminated(void *priv, ssize_t transferred_or_error,
-				       bool was_async)
+				       bool was_async) /* [DEPRECATED] */
 {
 	struct netfs_io_subrequest *subreq = priv;
 	struct netfs_io_request *rreq = subreq->rreq;
@@ -161,8 +162,8 @@ static void netfs_rreq_copy_terminated(void *priv, ssize_t transferred_or_error,
 }
 
 /*
- * Perform any outstanding writes to the cache.  We inherit a ref from the
- * caller.
+ * [DEPRECATED] Perform any outstanding writes to the cache.  We inherit a ref
+ * from the caller.
  */
 static void netfs_rreq_do_write_to_cache(struct netfs_io_request *rreq)
 {
@@ -222,7 +223,7 @@ static void netfs_rreq_do_write_to_cache(struct netfs_io_request *rreq)
 		netfs_rreq_unmark_after_write(rreq, false);
 }
 
-static void netfs_rreq_write_to_cache_work(struct work_struct *work)
+static void netfs_rreq_write_to_cache_work(struct work_struct *work) /* [DEPRECATED] */
 {
 	struct netfs_io_request *rreq =
 		container_of(work, struct netfs_io_request, work);
@@ -230,7 +231,7 @@ static void netfs_rreq_write_to_cache_work(struct work_struct *work)
 	netfs_rreq_do_write_to_cache(rreq);
 }
 
-static void netfs_rreq_write_to_cache(struct netfs_io_request *rreq)
+static void netfs_rreq_write_to_cache(struct netfs_io_request *rreq) /* [DEPRECATED] */
 {
 	rreq->work.func = netfs_rreq_write_to_cache_work;
 	if (!queue_work(system_unbound_wq, &rreq->work))
@@ -409,7 +410,8 @@ again:
 	clear_bit_unlock(NETFS_RREQ_IN_PROGRESS, &rreq->flags);
 	wake_up_bit(&rreq->flags, NETFS_RREQ_IN_PROGRESS);
 
-	if (test_bit(NETFS_RREQ_COPY_TO_CACHE, &rreq->flags))
+	if (test_bit(NETFS_RREQ_COPY_TO_CACHE, &rreq->flags) &&
+	    test_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags))
 		return netfs_rreq_write_to_cache(rreq);
 
 	netfs_rreq_completed(rreq, was_async);

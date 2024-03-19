@@ -143,6 +143,8 @@ struct netfs_inode {
 #define NETFS_ICTX_UNBUFFERED	1		/* I/O should not use the pagecache */
 #define NETFS_ICTX_WRITETHROUGH	2		/* Write-through caching */
 #define NETFS_ICTX_NO_WRITE_STREAMING	3	/* Don't engage in write-streaming */
+#define NETFS_ICTX_USE_PGPRIV2	31		/* [DEPRECATED] Use PG_private_2 to mark
+						 * write to cache on read */
 };
 
 /*
@@ -165,14 +167,23 @@ struct netfs_folio {
 	unsigned int		dirty_len;	/* Write-streaming dirty data length */
 };
 #define NETFS_FOLIO_INFO	0x1UL	/* OR'd with folio->private. */
+#define NETFS_FOLIO_COPY_TO_CACHE ((struct netfs_group *)0x356UL) /* Write to the cache only */
+
+static inline bool netfs_is_folio_info(const void *priv)
+{
+	return (unsigned long)priv & NETFS_FOLIO_INFO;
+}
+
+static inline struct netfs_folio *__netfs_folio_info(const void *priv)
+{
+	if (netfs_is_folio_info(priv))
+		return (struct netfs_folio *)((unsigned long)priv & ~NETFS_FOLIO_INFO);
+	return NULL;
+}
 
 static inline struct netfs_folio *netfs_folio_info(struct folio *folio)
 {
-	void *priv = folio_get_private(folio);
-
-	if ((unsigned long)priv & NETFS_FOLIO_INFO)
-		return (struct netfs_folio *)((unsigned long)priv & ~NETFS_FOLIO_INFO);
-	return NULL;
+	return __netfs_folio_info(folio_get_private(folio));
 }
 
 static inline struct netfs_group *netfs_folio_group(struct folio *folio)
@@ -230,6 +241,7 @@ enum netfs_io_origin {
 	NETFS_READAHEAD,		/* This read was triggered by readahead */
 	NETFS_READPAGE,			/* This read is a synchronous read */
 	NETFS_READ_FOR_WRITE,		/* This read is to prepare a write */
+	NETFS_COPY_TO_CACHE,		/* This write is to copy a read to the cache */
 	NETFS_WRITEBACK,		/* This write was triggered by writepages */
 	NETFS_WRITETHROUGH,		/* This write was made by netfs_perform_write() */
 	NETFS_LAUNDER_WRITE,		/* This is triggered by ->launder_folio() */
@@ -287,6 +299,8 @@ struct netfs_io_request {
 #define NETFS_RREQ_UPLOAD_TO_SERVER	8	/* Need to write to the server */
 #define NETFS_RREQ_NONBLOCK		9	/* Don't block if possible (O_NONBLOCK) */
 #define NETFS_RREQ_BLOCKED		10	/* We blocked */
+#define NETFS_RREQ_USE_PGPRIV2		31	/* [DEPRECATED] Use PG_private_2 to mark
+						 * write to cache on read */
 	const struct netfs_request_ops *netfs_ops;
 	void (*cleanup)(struct netfs_io_request *req);
 };
