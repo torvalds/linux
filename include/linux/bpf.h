@@ -1607,6 +1607,11 @@ struct bpf_tracing_link {
 	struct bpf_prog *tgt_prog;
 };
 
+struct bpf_raw_tp_link {
+	struct bpf_link link;
+	struct bpf_raw_event_map *btp;
+};
+
 struct bpf_link_primer {
 	struct bpf_link *link;
 	struct file *file;
