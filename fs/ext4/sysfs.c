@@ -30,6 +30,7 @@ typedef enum {
 	attr_first_error_time,
 	attr_last_error_time,
 	attr_clusters_in_group,
+	attr_mb_order,
 	attr_feature,
 	attr_pointer_ui,
 	attr_pointer_ul,
@@ -210,6 +211,8 @@ EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, inode_readahead,
 		 ext4_sb_info, s_inode_readahead_blks);
 EXT4_ATTR_OFFSET(mb_group_prealloc, 0644, clusters_in_group,
 		 ext4_sb_info, s_mb_group_prealloc);
+EXT4_ATTR_OFFSET(mb_best_avail_max_trim_order, 0644, mb_order,
+		 ext4_sb_info, s_mb_best_avail_max_trim_order);
 EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
@@ -225,7 +228,6 @@ EXT4_RW_ATTR_SBI_UI(warning_ratelimit_interval_ms, s_warning_ratelimit_state.int
 EXT4_RW_ATTR_SBI_UI(warning_ratelimit_burst, s_warning_ratelimit_state.burst);
 EXT4_RW_ATTR_SBI_UI(msg_ratelimit_interval_ms, s_msg_ratelimit_state.interval);
 EXT4_RW_ATTR_SBI_UI(msg_ratelimit_burst, s_msg_ratelimit_state.burst);
-EXT4_RW_ATTR_SBI_UI(mb_best_avail_max_trim_order, s_mb_best_avail_max_trim_order);
 #ifdef CONFIG_EXT4_DEBUG
 EXT4_RW_ATTR_SBI_UL(simulate_fail, s_simulate_fail);
 #endif
@@ -379,6 +381,7 @@ static ssize_t ext4_generic_attr_show(struct ext4_attr *a,
 	switch (a->attr_id) {
 	case attr_inode_readahead:
 	case attr_clusters_in_group:
+	case attr_mb_order:
 	case attr_pointer_ui:
 		if (a->attr_ptr == ptr_ext4_super_block_offset)
 			return sysfs_emit(buf, "%u\n", le32_to_cpup(ptr));
@@ -457,6 +460,14 @@ static ssize_t ext4_generic_attr_store(struct ext4_attr *a,
 			*((__le32 *) ptr) = cpu_to_le32(t);
 		else
 			*((unsigned int *) ptr) = t;
+		return len;
+	case attr_mb_order:
+		ret = kstrtouint(skip_spaces(buf), 0, &t);
+		if (ret)
+			return ret;
+		if (t > 64)
+			return -EINVAL;
+		*((unsigned int *) ptr) = t;
 		return len;
 	case attr_clusters_in_group:
 		ret = kstrtouint(skip_spaces(buf), 0, &t);
