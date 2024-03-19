@@ -915,7 +915,7 @@ static noinline int prepare_pages(struct inode *inode, struct page **pages,
 	unsigned long index = pos >> PAGE_SHIFT;
 	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
 	fgf_t fgp_flags = get_prepare_fgp_flags(nowait);
-	int err = 0;
+	int ret = 0;
 	int faili;
 
 	for (i = 0; i < num_pages; i++) {
@@ -925,28 +925,28 @@ again:
 		if (!pages[i]) {
 			faili = i - 1;
 			if (nowait)
-				err = -EAGAIN;
+				ret = -EAGAIN;
 			else
-				err = -ENOMEM;
+				ret = -ENOMEM;
 			goto fail;
 		}
 
-		err = set_page_extent_mapped(pages[i]);
-		if (err < 0) {
+		ret = set_page_extent_mapped(pages[i]);
+		if (ret < 0) {
 			faili = i;
 			goto fail;
 		}
 
 		if (i == 0)
-			err = prepare_uptodate_page(inode, pages[i], pos,
+			ret = prepare_uptodate_page(inode, pages[i], pos,
 						    force_uptodate);
-		if (!err && i == num_pages - 1)
-			err = prepare_uptodate_page(inode, pages[i],
+		if (!ret && i == num_pages - 1)
+			ret = prepare_uptodate_page(inode, pages[i],
 						    pos + write_bytes, false);
-		if (err) {
+		if (ret) {
 			put_page(pages[i]);
-			if (!nowait && err == -EAGAIN) {
-				err = 0;
+			if (!nowait && ret == -EAGAIN) {
+				ret = 0;
 				goto again;
 			}
 			faili = i - 1;
@@ -962,7 +962,7 @@ fail:
 		put_page(pages[faili]);
 		faili--;
 	}
-	return err;
+	return ret;
 
 }
 
