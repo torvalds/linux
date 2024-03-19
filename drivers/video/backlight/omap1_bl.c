@@ -39,9 +39,6 @@ static inline void omapbl_send_enable(int enable)
 
 static void omapbl_blank(struct omap_backlight *bl, int mode)
 {
-	if (bl->pdata->set_power)
-		bl->pdata->set_power(bl->dev, mode);
-
 	switch (mode) {
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
