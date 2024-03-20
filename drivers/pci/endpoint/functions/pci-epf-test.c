@@ -867,19 +867,6 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	return 0;
 }
 
-static void pci_epf_configure_bar(struct pci_epf *epf,
-				  const struct pci_epc_features *epc_features)
-{
-	struct pci_epf_bar *epf_bar;
-	int i;
-
-	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
-		epf_bar = &epf->bar[i];
-		if (epc_features->bar[i].only_64bit)
-			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
-	}
-}
-
 static int pci_epf_test_bind(struct pci_epf *epf)
 {
 	int ret;
@@ -904,7 +891,6 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	test_reg_bar = pci_epc_get_first_free_bar(epc_features);
 	if (test_reg_bar < 0)
 		return -EINVAL;
-	pci_epf_configure_bar(epf, epc_features);
 
 	epf_test->test_reg_bar = test_reg_bar;
 	epf_test->epc_features = epc_features;
