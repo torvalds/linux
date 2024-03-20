@@ -431,23 +431,24 @@ int gsi_common_tx_tre_optimization(struct gsi_common *gsi, u32 num_xfers, u32 nu
 
 /**
  * geni_gsi_ch_start() - gsi channel command to start the GSI RX and TX channels
- * @gsi: Base address of gsi common
+ * @chan: dma channel handle
  *
  * Return: Returns success or failure
  */
 int geni_gsi_ch_start(struct dma_chan *chan);
 
 /**
- * geni_gsi_ch_disconnect_doorbell() - gsi channel command to diconnect doorbell interrupt
- * @gsi: Base address of gsi common
+ * geni_gsi_disconnect_doorbell_stop_ch() - function to disconnect gsi doorbell and stop channel
+ * @chan: dma channel handle
  *
  * Return: Returns success or failure
  */
-int geni_gsi_ch_disconnect_doorbell(struct dma_chan *chan);
+int geni_gsi_disconnect_doorbell_stop_ch(struct dma_chan *chan, bool stop_ch);
 
 /**
  * geni_gsi_common_request_channel() - gsi common dma request channel
  * @gsi: Base address of gsi common
+ * @stop_ch: stop channel if set to true
  *
  * Return: Returns success or failure
  */
