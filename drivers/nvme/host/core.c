@@ -1803,9 +1803,6 @@ static void nvme_config_discard(struct nvme_ns *ns, struct queue_limits *lim)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 
-	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
-			NVME_DSM_MAX_RANGES);
-
 	if (ctrl->dmrsl && ctrl->dmrsl <= nvme_sect_to_lba(ns->head, UINT_MAX))
 		lim->max_hw_discard_sectors =
 			nvme_lba_to_sect(ns->head, ctrl->dmrsl);
