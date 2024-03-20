@@ -30,6 +30,7 @@
 #include "dcn30/dcn30_hwseq.h"
 #include "dcn31/dcn31_hwseq.h"
 #include "dcn32/dcn32_hwseq.h"
+#include "dcn401/dcn401_hwseq.h"
 #include "dcn32_init.h"
 
 static const struct hw_sequencer_funcs dcn32_funcs = {
@@ -162,6 +163,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
 	.reset_back_end_for_pipe = dcn20_reset_back_end_for_pipe,
+	.populate_mcm_luts = dcn401_populate_mcm_luts,
 };
 
 void dcn32_hw_sequencer_init_functions(struct dc *dc)

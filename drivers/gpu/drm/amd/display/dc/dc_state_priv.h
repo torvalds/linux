@@ -101,4 +101,8 @@ void dc_state_release_phantom_streams_and_planes(
 		const struct dc *dc,
 		struct dc_state *state);
 
+bool dc_state_is_fams2_in_use(
+		const struct dc *dc,
+		const struct dc_state *state);
+
 #endif /* _DC_STATE_PRIV_H_ */

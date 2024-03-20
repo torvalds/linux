@@ -30,6 +30,7 @@
 #include "basics/conversion.h"
 #include "dcn10/dcn10_cm_common.h"
 #include "dc.h"
+#include "dcn401/dcn401_mpc.h"
 
 #define REG(reg)\
 	mpc30->mpc_regs->reg
@@ -1017,6 +1018,8 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.power_on_mpc_mem_pwr = mpc3_power_on_ogam_lut,
 	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
 	.set_bg_color = mpc1_set_bg_color,
+	.set_movable_cm_location = mpc401_set_movable_cm_location,
+	.populate_lut = mpc401_populate_lut,
 };
 
 

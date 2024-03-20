@@ -29,6 +29,7 @@
 #include "core_status.h"
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
+#include "spl/dc_spl.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 #define MEMORY_TYPE_HBM 2
@@ -77,11 +78,9 @@ struct resource_create_funcs {
 
 	struct hpo_dp_stream_encoder *(*create_hpo_dp_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
-
 	struct hpo_dp_link_encoder *(*create_hpo_dp_link_encoder)(
 			uint8_t inst,
 			struct dc_context *ctx);
-
 	struct dce_hwseq *(*create_hwseq)(
 			struct dc_context *ctx);
 };
@@ -620,6 +619,11 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 
 bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
 
+/* Get hw programming parameters container from pipe context
+ * @pipe_ctx: pipe context
+ * @dscl_prog_data: struct to hold programmable hw reg values
+ */
+struct dscl_prog_data *resource_get_dscl_prog_data(struct pipe_ctx *pipe_ctx);
 /* Setup dc callbacks for dml2
  * @dc: the display core structure
  * @dml2_options: struct to hold callbacks

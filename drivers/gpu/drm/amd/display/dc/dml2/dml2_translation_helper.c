@@ -34,7 +34,6 @@
 void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
 	switch (dml2->v20.dml_core_ctx.project) {
-
 	case dml_project_dcn32:
 	case dml_project_dcn321:
 	default:
@@ -176,6 +175,69 @@ void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, stru
 		out->config_return_buffer_segment_size_in_kbytes = 64; /*required, but not exist,, hard coded in dml2_translate_ip_params*/
 		break;
 
+	case dml_project_dcn401:
+		// Hardcoded values for DCN4m
+		out->vblank_nom_default_us = 668;	//600;
+		out->rob_buffer_size_kbytes = 192;	//128;
+		out->config_return_buffer_size_in_kbytes = 1344;	//1280;
+		out->config_return_buffer_segment_size_in_kbytes = 64;
+		out->compressed_buffer_segment_size_in_kbytes = 64;
+		out->meta_fifo_size_in_kentries = 22;
+		out->dpte_buffer_size_in_pte_reqs_luma = 68;
+		out->dpte_buffer_size_in_pte_reqs_chroma = 36;
+		out->gpuvm_max_page_table_levels = 4;
+		out->pixel_chunk_size_kbytes = 8;
+		out->alpha_pixel_chunk_size_kbytes = 4;
+		out->min_pixel_chunk_size_bytes = 1024;
+		out->writeback_chunk_size_kbytes = 8;
+		out->line_buffer_size_bits = 1171920;
+		out->max_line_buffer_lines = 32;
+		out->writeback_interface_buffer_size_kbytes = 90;
+		//Number of pipes after DCN Pipe harvesting
+		out->max_num_dpp = dml2->config.dcn_pipe_count;
+		out->max_num_otg = dml2->config.dcn_pipe_count;
+		out->max_num_wb = 1;
+		out->max_dchub_pscl_bw_pix_per_clk = 4;
+		out->max_pscl_lb_bw_pix_per_clk = 2;
+		out->max_lb_vscl_bw_pix_per_clk = 4;
+		out->max_vscl_hscl_bw_pix_per_clk = 4;
+		out->max_hscl_ratio = 6;
+		out->max_vscl_ratio = 6;
+		out->max_hscl_taps = 8;
+		out->max_vscl_taps = 8;
+		out->dispclk_ramp_margin_percent = 1;
+		out->dppclk_delay_subtotal = 47;
+		out->dppclk_delay_scl = 50;
+		out->dppclk_delay_scl_lb_only = 16;
+		out->dppclk_delay_cnvc_formatter = 28;
+		out->dppclk_delay_cnvc_cursor = 6;
+		out->dispclk_delay_subtotal = 125;
+		out->cursor_buffer_size = 24;	//16
+		out->cursor_chunk_size = 2;
+		out->max_inter_dcn_tile_repeaters = 8;
+		out->writeback_max_hscl_ratio = 1;
+		out->writeback_max_vscl_ratio = 1;
+		out->writeback_min_hscl_ratio = 1;
+		out->writeback_min_vscl_ratio = 1;
+		out->writeback_max_hscl_taps = 1;
+		out->writeback_max_vscl_taps = 1;
+		out->writeback_line_buffer_buffer_size = 0;
+		out->num_dsc = 4;
+		out->maximum_dsc_bits_per_component = 12;
+		out->maximum_pixels_per_line_per_dsc_unit = 5760;
+		out->dsc422_native_support = true;
+		out->dcc_supported = true;
+		out->ptoi_supported = false;
+
+		out->gpuvm_enable = false;
+		out->hostvm_enable = false;
+		out->cursor_64bpp_support = true;	//false;
+		out->dynamic_metadata_vm_enabled = false;
+
+		out->max_num_hdmi_frl_outputs = 1;
+		out->max_num_dp2p0_outputs = 4;		//2;
+		out->max_num_dp2p0_streams = 4;
+		break;
 	}
 }
 
@@ -236,6 +298,20 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 		out->dispclk_dppclk_vco_speed_mhz = 3600;
 		break;
 
+	case dml_project_dcn401:
+		out->pct_ideal_fabric_bw_after_urgent = 76;			//67;
+		out->max_avg_sdp_bw_use_normal_percent = 75;		//80;
+		out->max_avg_fabric_bw_use_normal_percent = 57;		//60;
+
+		out->urgent_out_of_order_return_per_channel_pixel_only_bytes = 0;	//4096;
+		out->urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 0;	//4096;
+		out->urgent_out_of_order_return_per_channel_vm_only_bytes = 0;		//4096;
+
+		out->num_chans = 16;
+		out->round_trip_ping_latency_dcfclk_cycles = 1000;	//263;
+		out->smn_latency_us = 0;							//2 us
+		out->mall_allocated_for_dcn_mbytes = dml2->config.mall_cfg.max_cab_allocation_bytes / 1048576; // 64;
+		break;
 	}
 	/* ---Overrides if available--- */
 	if (dml2->config.bbox_overrides.dram_num_chan)
@@ -344,6 +420,41 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->in_states->state_array[1].fabricclk_mhz = 2250.0;
 		p->in_states->state_array[1].dcfclk_mhz = 1434.0;
 		p->in_states->state_array[1].dram_speed_mts = 1000 * transactions_per_mem_clock;
+		break;
+	case dml_project_dcn401:
+		p->in_states->num_states = 2;
+		transactions_per_mem_clock = 16;
+		p->in_states->state_array[0].socclk_mhz = 300;		//620.0;
+		p->in_states->state_array[0].dscclk_mhz = 666.667;	//716.667;
+		p->in_states->state_array[0].phyclk_mhz = 810;
+		p->in_states->state_array[0].phyclk_d18_mhz = 667;
+		p->in_states->state_array[0].phyclk_d32_mhz = 625;
+		p->in_states->state_array[0].dtbclk_mhz = 2000;		//1564.0;
+		p->in_states->state_array[0].fabricclk_mhz = 300;	//450.0;
+		p->in_states->state_array[0].dcfclk_mhz = 200;		//300.0;
+		p->in_states->state_array[0].dispclk_mhz = 2000;	//2150.0;
+		p->in_states->state_array[0].dppclk_mhz = 2000;		//2150.0;
+		p->in_states->state_array[0].dram_speed_mts = 97 * transactions_per_mem_clock; //100 *
+
+		p->in_states->state_array[0].urgent_latency_pixel_data_only_us = 4;
+		p->in_states->state_array[0].urgent_latency_pixel_mixed_with_vm_data_us = 0;
+		p->in_states->state_array[0].urgent_latency_vm_data_only_us = 0;
+		p->in_states->state_array[0].writeback_latency_us = 12;
+		p->in_states->state_array[0].urgent_latency_adjustment_fabric_clock_component_us = 1;
+		p->in_states->state_array[0].urgent_latency_adjustment_fabric_clock_reference_mhz = 1000;	//3000;
+		p->in_states->state_array[0].sr_exit_z8_time_us = 0;
+		p->in_states->state_array[0].sr_enter_plus_exit_z8_time_us = 0;
+		p->in_states->state_array[0].dram_clock_change_latency_us = 400;
+		p->in_states->state_array[0].use_ideal_dram_bw_strobe = true;
+		p->in_states->state_array[0].sr_exit_time_us = 15.70;	//42.97;
+		p->in_states->state_array[0].sr_enter_plus_exit_time_us = 20.20;	//49.94;
+		p->in_states->state_array[0].fclk_change_latency_us = 0;	//20;
+		p->in_states->state_array[0].usr_retraining_latency_us = 0;	//2;
+
+		p->in_states->state_array[1].socclk_mhz = 1600;		//1200.0;
+		p->in_states->state_array[1].fabricclk_mhz = 2500;	//2500.0;
+		p->in_states->state_array[1].dcfclk_mhz = 1800;		//1564.0;
+		p->in_states->state_array[1].dram_speed_mts = 1125 * transactions_per_mem_clock;
 		break;
 	}
 
@@ -771,6 +882,19 @@ static void populate_dml_surface_cfg_from_plane_state(enum dml_project_id dml2_p
 	default:
 		out->SurfaceTiling[location] = (enum dml_swizzle_mode)in->tiling_info.gfx9.swizzle;
 		break;
+	case dml_project_dcn401:
+		// Temporary use gfx11 swizzle in dml, until proper dml for DCN4x is integrated/implemented
+		switch (in->tiling_info.gfx_addr3.swizzle) {
+		case DC_ADDR3_SW_4KB_2D:
+		case DC_ADDR3_SW_64KB_2D:
+		case DC_ADDR3_SW_256KB_2D:
+		default:
+			out->SurfaceTiling[location] = dml_sw_64kb_r_x;
+			break;
+		case DC_ADDR3_SW_LINEAR:
+			out->SurfaceTiling[location] = dml_sw_linear;
+			break;
+		}
 	}
 
 	switch (in->format) {

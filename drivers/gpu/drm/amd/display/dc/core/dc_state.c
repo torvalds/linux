@@ -33,8 +33,10 @@
 #include "resource.h"
 #include "link_enc_cfg.h"
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_wrapper.h"
 #include "dml2/dml2_internal_types.h"
+#endif
 
 #define DC_LOGGER \
 	dc->ctx->logger
@@ -916,3 +918,17 @@ struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state
 	return stream;
 }
 
+bool dc_state_is_fams2_in_use(
+		const struct dc *dc,
+		const struct dc_state *state)
+{
+	bool is_fams2_in_use = false;
+
+	if (state)
+		is_fams2_in_use |= state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	if (dc->current_state)
+		is_fams2_in_use |= dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	return is_fams2_in_use;
+}

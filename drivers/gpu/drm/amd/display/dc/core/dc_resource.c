@@ -74,6 +74,10 @@
 #include "dcn321/dcn321_resource.h"
 #include "dcn35/dcn35_resource.h"
 #include "dcn351/dcn351_resource.h"
+#include "dcn401/dcn401_resource.h"
+#if defined(CONFIG_DRM_AMD_DC_FP)
+#include "dc_spl_translate.h"
+#endif
 
 #define VISUAL_CONFIRM_BASE_DEFAULT 3
 #define VISUAL_CONFIRM_BASE_MIN 1
@@ -199,6 +203,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_GC_11_0_4(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_51;
 		break;
+	case AMDGPU_FAMILY_GC_12_0_0:
+		if (ASICREV_IS_DCN401(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_4_01;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -308,6 +316,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_51:
 		res_pool = dcn351_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_4_01:
+		res_pool = dcn401_create_resource_pool(init_data, dc);
 		break;
 #endif /* CONFIG_DRM_AMD_DC_FP */
 	default:
@@ -1514,6 +1525,31 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
+	if (pipe_ctx->stream->ctx->dc->config.use_spl)	{
+#if defined(CONFIG_DRM_AMD_DC_FP)
+		struct spl_in *spl_in = &pipe_ctx->plane_res.spl_in;
+		struct spl_out *spl_out = &pipe_ctx->plane_res.spl_out;
+
+		if (plane_state->ctx->dce_version > DCE_VERSION_MAX)
+			pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_36BPP;
+		else
+			pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+
+		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
+		spl_out->scl_data.h_active = pipe_ctx->plane_res.scl_data.h_active;
+		spl_out->scl_data.v_active = pipe_ctx->plane_res.scl_data.v_active;
+
+		// Convert pipe_ctx to respective input params for SPL
+		translate_SPL_in_params_from_pipe_ctx(pipe_ctx, spl_in);
+		// Set SPL output parameters to dscl_prog_data to be used for hw registers
+		spl_out->dscl_prog_data = resource_get_dscl_prog_data(pipe_ctx);
+		// Calculate scaler parameters from SPL
+		res = spl_calculate_scaler_params(spl_in, spl_out);
+		// Convert respective out params from SPL to scaler data
+		translate_SPL_out_params_to_pipe_ctx(pipe_ctx, spl_out);
+#endif
+	} else {
+
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
 	/* depends on pixel format */
@@ -1593,8 +1629,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.scl_data.viewport.height = MIN_VIEWPORT_SIZE;
 	if (pipe_ctx->plane_res.scl_data.viewport.width < MIN_VIEWPORT_SIZE)
 		pipe_ctx->plane_res.scl_data.viewport.width = MIN_VIEWPORT_SIZE;
-
-
+	}
 	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
 			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
 			__func__,
@@ -5091,6 +5126,11 @@ bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_st
 		return true;
 
 	return false;
+}
+
+struct dscl_prog_data *resource_get_dscl_prog_data(struct pipe_ctx *pipe_ctx)
+{
+	return &pipe_ctx->plane_res.scl_data.dscl_prog_data;
 }
 
 void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options)

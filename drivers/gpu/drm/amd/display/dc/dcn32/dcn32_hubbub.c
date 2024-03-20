@@ -128,7 +128,7 @@ void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int d
 	}
 }
 
-static void dcn32_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
+void dcn32_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	unsigned int compbuf_size_segments = (compbuf_size_kb + DCN32_CRB_SEGMENT_SIZE_KB - 1) / DCN32_CRB_SEGMENT_SIZE_KB;

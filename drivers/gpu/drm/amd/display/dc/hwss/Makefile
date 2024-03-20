@@ -190,4 +190,9 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN351)
 
 ###############################################################################
 
+HWSS_DCN401 = dcn401_hwseq.o dcn401_init.o
+
+AMD_DAL_HWSS_DCN401 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn401/,$(HWSS_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN401)
 endif

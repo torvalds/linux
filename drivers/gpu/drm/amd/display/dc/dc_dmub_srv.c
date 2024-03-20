@@ -1595,3 +1595,179 @@ bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_com
 	return result;
 }
 
+void dc_dmub_srv_fams2_update_config(struct dc *dc,
+		struct dc_state *context,
+		bool enable)
+{
+	uint8_t num_cmds = 1;
+	uint32_t i;
+	union dmub_rb_cmd cmd[MAX_STREAMS + 1];
+	struct dmub_rb_cmd_fams2 *global_cmd = &cmd[0].fams2_config;
+
+	memset(cmd, 0, sizeof(union dmub_rb_cmd) * (MAX_STREAMS + 1));
+	/* fill in generic command header */
+	global_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	global_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+	global_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+
+	/* send global configuration parameters */
+	global_cmd->config.global.max_allow_delay_us = 100 * 1000; //100ms
+	global_cmd->config.global.lock_wait_time_us = 5000; //5ms
+
+	/* copy static feature configuration */
+	global_cmd->config.global.features.all = dc->debug.fams2_config.all;
+
+	/* apply feature configuration based on current driver state */
+	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
+	global_cmd->config.global.features.bits.enable = enable;
+
+	/* construct per-stream configs */
+	if (enable) {
+		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_stream_count; i++) {
+			struct dmub_rb_cmd_fams2 *stream_cmd = &cmd[i+1].fams2_config;
+
+			/* configure command header */
+			stream_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+			stream_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+			stream_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_cmd->header.multi_cmd_pending = 1;
+			/* copy stream static state */
+			memcpy(&stream_cmd->config.stream,
+					&context->bw_ctx.bw.dcn.fams2_stream_params[i],
+					sizeof(struct dmub_fams2_stream_static_state));
+		}
+	}
+
+	if (enable && context->bw_ctx.bw.dcn.fams2_stream_count) {
+		/* set multi pending for global, and unset for last stream cmd */
+		global_cmd->config.global.num_streams = context->bw_ctx.bw.dcn.fams2_stream_count;
+		global_cmd->header.multi_cmd_pending = 1;
+		cmd[context->bw_ctx.bw.dcn.fams2_stream_count].fams2_config.header.multi_cmd_pending = 0;
+		num_cmds += context->bw_ctx.bw.dcn.fams2_stream_count;
+	}
+
+	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void dc_dmub_srv_fams2_drr_update(struct dc *dc,
+		uint32_t tg_inst,
+		uint32_t vtotal_min,
+		uint32_t vtotal_max,
+		uint32_t vtotal_mid,
+		uint32_t vtotal_mid_frame_num,
+		bool program_manual_trigger)
+{
+	union dmub_rb_cmd cmd = { 0 };
+
+	cmd.fams2_drr_update.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	cmd.fams2_drr_update.header.sub_type = DMUB_CMD__FAMS2_DRR_UPDATE;
+	cmd.fams2_drr_update.dmub_optc_state_req.tg_inst = tg_inst;
+	cmd.fams2_drr_update.dmub_optc_state_req.v_total_max = vtotal_max;
+	cmd.fams2_drr_update.dmub_optc_state_req.v_total_min = vtotal_min;
+	cmd.fams2_drr_update.dmub_optc_state_req.v_total_mid = vtotal_mid;
+	cmd.fams2_drr_update.dmub_optc_state_req.v_total_mid_frame_num = vtotal_mid_frame_num;
+	cmd.fams2_drr_update.dmub_optc_state_req.program_manual_trigger = program_manual_trigger;
+
+	cmd.fams2_drr_update.header.payload_bytes = sizeof(cmd.fams2_drr_update) - sizeof(cmd.fams2_drr_update.header);
+
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void dc_dmub_srv_fams2_passthrough_flip(
+		struct dc *dc,
+		struct dc_state *state,
+		struct dc_stream_state *stream,
+		struct dc_surface_update *srf_updates,
+		int surface_count)
+{
+	int plane_index;
+	union dmub_rb_cmd cmds[MAX_PLANES];
+	struct dc_plane_address *address;
+	struct dc_plane_state *plane_state;
+	int num_cmds = 0;
+	struct dc_stream_status *stream_status = dc_stream_get_status(stream);
+
+	if (surface_count <= 0 || stream_status == NULL)
+		return;
+
+	memset(cmds, 0, sizeof(union dmub_rb_cmd) * MAX_PLANES);
+
+	/* build command for each surface update */
+	for (plane_index = 0; plane_index < surface_count; plane_index++) {
+		plane_state = srf_updates[plane_index].surface;
+		address = &plane_state->address;
+
+		/* skip if there is no address update for plane */
+		if (!srf_updates[plane_index].flip_addr)
+			continue;
+
+		/* build command header */
+		cmds[num_cmds].fams2_flip.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+		cmds[num_cmds].fams2_flip.header.sub_type = DMUB_CMD__FAMS2_FLIP;
+		cmds[num_cmds].fams2_flip.header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2_flip);
+
+		/* for chaining multiple commands, all but last command should set to 1 */
+		cmds[num_cmds].fams2_flip.header.multi_cmd_pending = 1;
+
+		/* set topology info */
+		cmds[num_cmds].fams2_flip.flip_info.pipe_mask = dc_plane_get_pipe_mask(state, plane_state);
+		if (stream_status)
+			cmds[num_cmds].fams2_flip.flip_info.otg_inst = stream_status->primary_otg_inst;
+
+		cmds[num_cmds].fams2_flip.flip_info.config.bits.is_immediate = plane_state->flip_immediate;
+
+		/* build address info for command */
+		switch (address->type) {
+		case PLN_ADDR_TYPE_GRAPHICS:
+			if (address->grph.addr.quad_part == 0) {
+				BREAK_TO_DEBUGGER();
+				break;
+			}
+
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_lo =
+					address->grph.meta_addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_hi =
+					(uint16_t)address->grph.meta_addr.high_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_lo =
+					address->grph.addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_hi =
+					(uint16_t)address->grph.addr.high_part;
+			break;
+		case PLN_ADDR_TYPE_VIDEO_PROGRESSIVE:
+			if (address->video_progressive.luma_addr.quad_part == 0 ||
+				address->video_progressive.chroma_addr.quad_part == 0) {
+				BREAK_TO_DEBUGGER();
+				break;
+			}
+
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_lo =
+					address->video_progressive.luma_meta_addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_hi =
+					(uint16_t)address->video_progressive.luma_meta_addr.high_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_c_lo =
+					address->video_progressive.chroma_meta_addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.meta_addr_c_hi =
+					(uint16_t)address->video_progressive.chroma_meta_addr.high_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_lo =
+					address->video_progressive.luma_addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_hi =
+					(uint16_t)address->video_progressive.luma_addr.high_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_c_lo =
+					address->video_progressive.chroma_addr.low_part;
+			cmds[num_cmds].fams2_flip.flip_info.addr_info.surf_addr_c_hi =
+					(uint16_t)address->video_progressive.chroma_addr.high_part;
+			break;
+		default:
+			// Should never be hit
+			BREAK_TO_DEBUGGER();
+			break;
+		}
+
+		num_cmds++;
+	}
+
+	if (num_cmds > 0)  {
+		cmds[num_cmds - 1].fams2_flip.header.multi_cmd_pending = 0;
+		dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmds, DM_DMUB_WAIT_TYPE_WAIT);
+	}
+}

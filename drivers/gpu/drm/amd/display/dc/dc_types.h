@@ -1172,6 +1172,83 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum dc_cm2_shaper_3dlut_setting {
+	DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL,
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER,
+	/* Bypassing Shaper will always bypass 3DLUT */
+	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT
+};
+
+enum dc_cm2_gpu_mem_layout {
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB,
+	DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR,
+	DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm2_gpu_mem_pixel_component_order {
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+};
+
+enum dc_cm2_gpu_mem_format {
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12MSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12LSB,
+	DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10
+};
+
+struct dc_cm2_gpu_mem_format_parameters {
+	enum dc_cm2_gpu_mem_format format;
+	union {
+		struct {
+			/* bias & scale for float only */
+			uint16_t bias;
+			uint16_t scale;
+		} float_params;
+	};
+};
+
+enum dc_cm2_gpu_mem_size {
+	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED
+};
+
+struct dc_cm2_gpu_mem_parameters {
+	struct dc_plane_address addr;
+	enum dc_cm2_gpu_mem_layout layout;
+	struct dc_cm2_gpu_mem_format_parameters format_params;
+	enum dc_cm2_gpu_mem_pixel_component_order component_order;
+	enum dc_cm2_gpu_mem_size  size;
+};
+
+enum dc_cm2_transfer_func_source {
+	DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM,
+	DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
+};
+
+struct dc_cm2_component_settings {
+	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting;
+	bool lut1d_enable;
+};
+
+/*
+ * All pointers in this struct must remain valid for as long as the 3DLUTs are used
+ */
+struct dc_cm2_func_luts {
+	const struct dc_transfer_func *shaper;
+	struct {
+		enum dc_cm2_transfer_func_source lut3d_src;
+		union {
+			const struct dc_3dlut *lut3d_func;
+			struct dc_cm2_gpu_mem_parameters gpu_mem_params;
+		};
+	} lut3d_data;
+	const struct dc_transfer_func *lut1d_func;
+};
+
+struct dc_cm2_parameters {
+	struct dc_cm2_component_settings component_settings;
+	struct dc_cm2_func_luts cm2_luts;
+};
+
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use
 	SUBVP_MAIN, // subvp in use, this stream is main stream

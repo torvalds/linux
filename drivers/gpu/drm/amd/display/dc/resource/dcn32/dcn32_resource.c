@@ -719,6 +719,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.force_disable_subvp = false,
 	.exit_idle_opt_for_cursor_updates = true,
 	.using_dml2 = false,
+	.using_dml21 = false, // TODO : Temporary for N-1 validation. Remove after N-1 is done.
 	.enable_single_display_2to1_odm_policy = true,
 
 	/* Must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions*/

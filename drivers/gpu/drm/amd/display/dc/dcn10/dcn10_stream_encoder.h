@@ -596,8 +596,8 @@ struct dcn10_stream_enc_registers {
 #define SE_REG_FIELD_LIST_DCN4_01_COMMON(type) \
 	type COMPRESSED_PIXEL_FORMAT;\
 	type DP_VID_N_INTERVAL;\
-	type DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE
-
+	type DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE;\
+	type DP_STEER_FIFO_ENABLE
 struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN1_0(uint8_t);
 	uint8_t HDMI_ACP_SEND;

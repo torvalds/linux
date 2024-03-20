@@ -151,6 +151,9 @@ MODULE_FIRMWARE(FIRMWARE_DCN_35_DMUB);
 #define FIRMWARE_DCN_351_DMUB "amdgpu/dcn_3_5_1_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
 
+#define FIRMWARE_DCN_401_DMUB "amdgpu/dcn_4_0_1_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
+
 /* Number of bytes in PSP header for firmware. */
 #define PSP_HEADER_BYTES 0x100
 
@@ -1223,6 +1226,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 1, 4):
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(4, 0, 1):
 		hw_params.dpia_supported = true;
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
 		break;
@@ -1781,8 +1785,10 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_debug_mask & DC_FORCE_SUBVP_MCLK_SWITCH)
 		adev->dm.dc->debug.force_subvp_mclk_switch = true;
 
-	if (amdgpu_dc_debug_mask & DC_ENABLE_DML2)
+	if (amdgpu_dc_debug_mask & DC_ENABLE_DML2) {
 		adev->dm.dc->debug.using_dml2 = true;
+		adev->dm.dc->debug.using_dml21 = true;
+	}
 
 	adev->dm.dc->debug.visual_confirm = amdgpu_dc_visual_confirm;
 
@@ -2059,6 +2065,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(4, 0, 1):
 			return 0;
 		default:
 			break;
@@ -2182,6 +2189,10 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 		dmub_asic = DMUB_ASIC_DCN35;
 		break;
+	case IP_VERSION(4, 0, 1):
+		dmub_asic = DMUB_ASIC_DCN401;
+		break;
+
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
@@ -4523,6 +4534,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(2, 1, 0):
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(4, 0, 1):
 		if (register_outbox_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -4545,6 +4557,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(4, 0, 1):
 			psr_feature_enabled = true;
 			break;
 		default:
@@ -4716,6 +4729,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(4, 0, 1):
 			if (dcn10_register_irq_handlers(dm->adev)) {
 				DRM_ERROR("DM: Failed to initialize IRQ\n");
 				goto fail;
@@ -4852,6 +4866,9 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 		fw_name_dmub = FIRMWARE_DCN_351_DMUB;
 		break;
+	case IP_VERSION(4, 0, 1):
+		fw_name_dmub = FIRMWARE_DCN_401_DMUB;
+		break;
 	default:
 		/* ASIC doesn't support DMUB. */
 		return 0;
@@ -4976,6 +4993,7 @@ static int dm_early_init(void *handle)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(4, 0, 1):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
 			adev->mode_info.num_dig = 4;
@@ -6023,6 +6041,7 @@ static bool is_freesync_video_mode(const struct drm_display_mode *mode,
 		return true;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 static void update_dsc_caps(struct amdgpu_dm_connector *aconnector,
 			    struct dc_sink *sink, struct dc_stream_state *stream,
 			    struct dsc_dec_dpcd_caps *dsc_caps)
@@ -6040,7 +6059,6 @@ static void update_dsc_caps(struct amdgpu_dm_connector *aconnector,
 				dsc_caps);
 	}
 }
-
 
 static void apply_dsc_policy_for_edp(struct amdgpu_dm_connector *aconnector,
 				    struct dc_sink *sink, struct dc_stream_state *stream,
@@ -6104,7 +6122,6 @@ static void apply_dsc_policy_for_edp(struct amdgpu_dm_connector *aconnector,
 		stream->timing.flags.DSC = 1;
 	}
 }
-
 
 static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 					struct dc_sink *sink, struct dc_stream_state *stream,
@@ -6183,6 +6200,7 @@ static void apply_dsc_policy_for_stream(struct amdgpu_dm_connector *aconnector,
 	if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_bits_per_pixel)
 		stream->timing.dsc_cfg.bits_per_pixel = aconnector->dsc_settings.dsc_bits_per_pixel;
 }
+#endif
 
 static struct dc_stream_state *
 create_stream_for_sink(struct drm_connector *connector,
@@ -6204,8 +6222,9 @@ create_stream_for_sink(struct drm_connector *connector,
 	int mode_refresh;
 	int preferred_refresh = 0;
 	enum color_transfer_func tf = TRANSFER_FUNC_UNKNOWN;
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	struct dsc_dec_dpcd_caps dsc_caps;
-
+#endif
 	struct dc_link *link = NULL;
 	struct dc_sink *sink = NULL;
 
@@ -6321,10 +6340,12 @@ create_stream_for_sink(struct drm_connector *connector,
 		stream->timing = *aconnector->timing_requested;
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	/* SST DSC determination policy */
 	update_dsc_caps(aconnector, sink, stream, &dsc_caps);
 	if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported)
 		apply_dsc_policy_for_stream(aconnector, sink, stream, &dsc_caps);
+#endif
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
@@ -10799,11 +10820,13 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	if (dc_resource_is_dsc_encoding_supported(dc)) {
 		ret = pre_validate_dsc(state, &dm_state, vars);
 		if (ret != 0)
 			goto fail;
 	}
+#endif
 
 	/* Run this here since we want to validate the streams we created */
 	ret = drm_atomic_helper_check_planes(dev, state);
@@ -10915,6 +10938,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			goto fail;
 		}
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 		if (dc_resource_is_dsc_encoding_supported(dc)) {
 			ret = compute_mst_dsc_configs_for_state(state, dm_state->context, vars);
 			if (ret) {
@@ -10923,6 +10947,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				goto fail;
 			}
 		}
+#endif
 
 		ret = dm_update_mst_vcpi_slots_for_dsc(state, dm_state->context, vars);
 		if (ret) {

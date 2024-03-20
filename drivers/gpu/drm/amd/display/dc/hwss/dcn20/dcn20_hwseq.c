@@ -204,7 +204,7 @@ static int find_free_gsl_group(const struct dc *dc)
  * gsl_0 <=> pipe_ctx->stream_res.gsl_group == 1
  * Using a magic value like -1 would require tracking all inits/resets
  */
- void dcn20_setup_gsl_group_as_lock(
+void dcn20_setup_gsl_group_as_lock(
 		const struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		bool enable)
@@ -1709,6 +1709,11 @@ static void dcn20_update_dchubp_dpp(
 				plane_state->color_space,
 				NULL);
 
+		if (dpp->funcs->set_cursor_matrix) {
+			dpp->funcs->set_cursor_matrix(dpp,
+				plane_state->color_space,
+				plane_state->cursor_csc_color_matrix);
+		}
 		if (dpp->funcs->dpp_program_bias_and_scale) {
 			//TODO :for CNVC set scale and bias registers if necessary
 			build_prescale_params(&bns_params, plane_state);
@@ -1908,6 +1913,10 @@ static void dcn20_program_pipe(
 		if (dc->res_pool->hubbub->funcs->program_det_size)
 			dc->res_pool->hubbub->funcs->program_det_size(
 				dc->res_pool->hubbub, pipe_ctx->plane_res.hubp->inst, pipe_ctx->det_buffer_size_kb);
+
+		if (dc->res_pool->hubbub->funcs->program_det_segments)
+			dc->res_pool->hubbub->funcs->program_det_segments(
+				dc->res_pool->hubbub, pipe_ctx->plane_res.hubp->inst, pipe_ctx->hubp_regs.det_size);
 	}
 
 	if (pipe_ctx->update_flags.raw || pipe_ctx->plane_state->update_flags.raw || pipe_ctx->stream->update_flags.raw)
@@ -1917,6 +1926,11 @@ static void dcn20_program_pipe(
 			|| pipe_ctx->plane_state->update_flags.bits.hdr_mult)
 		hws->funcs.set_hdr_multiplier(pipe_ctx);
 
+	if (hws->funcs.populate_mcm_luts) {
+		hws->funcs.populate_mcm_luts(dc, pipe_ctx, pipe_ctx->plane_state->mcm_luts,
+				pipe_ctx->plane_state->lut_bank_a);
+		pipe_ctx->plane_state->lut_bank_a = !pipe_ctx->plane_state->lut_bank_a;
+	}
 	if (pipe_ctx->update_flags.bits.enable ||
 	    pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
 	    pipe_ctx->plane_state->update_flags.bits.gamma_change ||
@@ -2073,6 +2087,8 @@ void dcn20_program_front_end_for_ctx(
 					(context->res_ctx.pipe_ctx[i].plane_state && dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[i]) == SUBVP_PHANTOM))) {
 				if (hubbub->funcs->program_det_size)
 					hubbub->funcs->program_det_size(hubbub, dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
+				if (dc->res_pool->hubbub->funcs->program_det_segments)
+					dc->res_pool->hubbub->funcs->program_det_segments(hubbub, dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
 			}
 			hws->funcs.plane_atomic_disconnect(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 			DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);

@@ -31,6 +31,7 @@
 #include "dml2_translation_helper.h"
 #include "dml2_mall_phantom.h"
 #include "dml2_dc_resource_mgmt.h"
+#include "dml21_wrapper.h"
 
 
 static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
@@ -699,6 +700,11 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
 		return false;
 	dml2_apply_debug_options(in_dc, dml2);
 
+	/* DML2.1 validation path */
+	if (dml2->architecture == dml2_architecture_21) {
+		out = dml21_validate(in_dc, context, dml2, fast_validate);
+		return out;
+	}
 
 	/* Use dml_validate_only for fast_validate path */
 	if (fast_validate)
@@ -715,6 +721,10 @@ static inline struct dml2_context *dml2_allocate_memory(void)
 
 static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
+	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
+        if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
+                dml21_reinit(in_dc, dml2, config);
+        }
 
 	// Store config options
 	(*dml2)->config = *config;
@@ -732,6 +742,9 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 	case DCN_VERSION_3_21:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn321;
 		break;
+	case DCN_VERSION_4_01:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn401;
+		break;
 	default:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_default;
 		break;
@@ -746,6 +759,12 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
+	DC_FP_START();
+	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
+		return dml21_create(in_dc, dml2, config);
+	}
+
 	// Allocate Mode Lib Ctx
 	*dml2 = dml2_allocate_memory();
 
@@ -754,6 +773,7 @@ bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options
 
 	dml2_init(in_dc, config, dml2);
 
+	DC_FP_END();
 	return true;
 }
 
@@ -775,6 +795,10 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 void dml2_copy(struct dml2_context *dst_dml2,
 	struct dml2_context *src_dml2)
 {
+	if (src_dml2->architecture == dml2_architecture_21) {
+		dml21_copy(dst_dml2, src_dml2);
+		return;
+	}
 	/* copy Mode Lib Ctx */
 	memcpy(dst_dml2, src_dml2, sizeof(struct dml2_context));
 }
@@ -782,6 +806,8 @@ void dml2_copy(struct dml2_context *dst_dml2,
 bool dml2_create_copy(struct dml2_context **dst_dml2,
 	struct dml2_context *src_dml2)
 {
+	if (src_dml2->architecture == dml2_architecture_21)
+		return dml21_create_copy(dst_dml2, src_dml2);
 	/* Allocate Mode Lib Ctx */
 	*dst_dml2 = dml2_allocate_memory();
 
@@ -798,6 +824,10 @@ void dml2_reinit(const struct dc *in_dc,
 				 const struct dml2_configuration_options *config,
 				 struct dml2_context **dml2)
 {
+	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
+        if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
+                dml21_reinit(in_dc, dml2, config);
+        }
 
 	dml2_init(in_dc, config, dml2);
 }

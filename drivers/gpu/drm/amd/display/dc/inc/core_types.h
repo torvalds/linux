@@ -39,6 +39,7 @@
 #include "panel_cntl.h"
 #include "dmub/inc/dmub_cmd.h"
 #include "pg_cntl.h"
+#include "spl/dc_spl.h"
 
 #define MAX_CLOCK_SOURCES 7
 #define MAX_SVP_PHANTOM_STREAMS 2
@@ -59,6 +60,9 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 /********** DAL Core*********************/
 #include "transform.h"
 #include "dpp.h"
+
+#include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2/dml21/inc/dml_top_types.h"
 
 struct resource_pool;
 struct dc_state;
@@ -159,6 +163,7 @@ struct resource_funcs {
 				struct dc *dc,
 				struct dc_state *new_ctx,
 				struct dc_stream_state *stream);
+
 	enum dc_status (*patch_unknown_plane_state)(
 			struct dc_plane_state *plane_state);
 
@@ -166,6 +171,7 @@ struct resource_funcs {
 			struct resource_context *res_ctx,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
+
 	void (*populate_dml_writeback_from_context)(
 			struct dc *dc,
 			struct resource_context *res_ctx,
@@ -176,6 +182,7 @@ struct resource_funcs {
 			struct dc_state *context,
 			display_e2e_pipe_params_st *pipes,
 			int pipe_cnt);
+
 	void (*update_bw_bounding_box)(
 			struct dc *dc,
 			struct clk_bw_params *bw_params);
@@ -292,7 +299,6 @@ struct resource_pool {
 	struct abm *abm;
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
-
 	struct dmub_replay *replay;
 
 	struct abm *multiple_abms[MAX_PIPES];
@@ -341,6 +347,13 @@ struct stream_resource {
 struct plane_resource {
 	/* scl_data is scratch space required to program a plane */
 	struct scaler_data scl_data;
+	/* Below pointers to hw objects are required to enable the plane */
+	/* spl_in and spl_out are the input and output structures for SPL
+	 * which are required when using Scaler Programming Library
+	 * these are scratch spaces needed when programming a plane
+	 */
+	struct spl_in spl_in;
+	struct spl_out spl_out;
 	/* Below pointers to hw objects are required to enable the plane */
 	struct hubp *hubp;
 	struct mem_input *mi;
@@ -440,6 +453,8 @@ struct pipe_ctx {
 	int det_buffer_size_kb;
 	bool unbounded_req;
 	unsigned int surface_size_in_mall_bytes;
+	struct dml2_dchub_per_pipe_register_set hubp_regs;
+	struct dml2_hubp_pipe_mcache_regs mcache_regs;
 
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
@@ -509,6 +524,10 @@ struct dcn_bw_output {
 	unsigned int mall_subvp_size_bytes;
 	unsigned int legacy_svp_drr_stream_index;
 	bool legacy_svp_drr_stream_index_valid;
+	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
+	struct dmub_fams2_stream_static_state fams2_stream_params[DML2_MAX_PLANES];
+	unsigned fams2_stream_count;
+	struct dml2_display_arb_regs arb_regs;
 };
 
 union bw_output {

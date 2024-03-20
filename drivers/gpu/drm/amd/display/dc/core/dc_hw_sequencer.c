@@ -554,6 +554,26 @@ void set_p_state_switch_method(
 	}
 }
 
+void get_fams2_visual_confirm_color(
+		struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx || !context || !dc->debug.fams2_config.bits.enable)
+		return;
+
+	/* driver only handles visual confirm when FAMS2 is disabled */
+	if (!dc_state_is_fams2_in_use(dc, context)) {
+		/* when FAMS2 is disabled, all pipes are grey */
+		color->color_g_y = color_value / 2;
+		color->color_b_cb = color_value / 2;
+		color->color_r_cr = color_value / 2;
+	}
+}
+
 void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_dmub_cmd *dc_dmub_cmd,
 		unsigned int dmub_cmd_count,
@@ -581,6 +601,13 @@ void hwss_build_fast_sequence(struct dc *dc,
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.subvp_immediate_flip =
 				plane->flip_immediate && stream_status->mall_stream_config.type == SUBVP_MAIN;
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
+		(*num_steps)++;
+	}
+	if (dc->hwss.fams2_global_control_lock_fast) {
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.dc = dc;
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.lock = true;
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].func = DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
 	if (dc->hwss.pipe_control_lock) {
@@ -706,6 +733,13 @@ void hwss_build_fast_sequence(struct dc *dc,
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
+	if (dc->hwss.fams2_global_control_lock_fast) {
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.dc = dc;
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.lock = false;
+		block_sequence[*num_steps].params.fams2_global_control_lock_fast_params.is_required = dc_state_is_fams2_in_use(dc, context);
+		block_sequence[*num_steps].func = DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST;
+		(*num_steps)++;
+	}
 
 	current_pipe = pipe_ctx;
 	while (current_pipe) {
@@ -801,6 +835,9 @@ void hwss_execute_sequence(struct dc *dc,
 		case DMUB_SUBVP_SAVE_SURF_ADDR:
 			hwss_subvp_save_surf_addr(params);
 			break;
+		case DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST:
+			dc->hwss.fams2_global_control_lock_fast(params);
+			break;
 		default:
 			ASSERT(false);
 			break;
@@ -839,6 +876,12 @@ void hwss_setup_dpp(union block_sequence_params *params)
 				plane_state->input_csc_color_matrix,
 				plane_state->color_space,
 				NULL);
+	}
+
+	if (dpp && dpp->funcs->set_cursor_matrix) {
+		dpp->funcs->set_cursor_matrix(dpp,
+			plane_state->color_space,
+			plane_state->cursor_csc_color_matrix);
 	}
 }
 

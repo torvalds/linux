@@ -96,6 +96,29 @@ enum mpcc_alpha_blend_mode {
 	MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA
 };
 
+enum mpcc_movable_cm_location {
+	MPCC_MOVABLE_CM_LOCATION_BEFORE,
+	MPCC_MOVABLE_CM_LOCATION_AFTER,
+};
+
+enum MCM_LUT_XABLE {
+	MCM_LUT_DISABLE,
+	MCM_LUT_DISABLED = MCM_LUT_DISABLE,
+	MCM_LUT_ENABLE,
+	MCM_LUT_ENABLED = MCM_LUT_ENABLE,
+};
+
+enum MCM_LUT_ID {
+	MCM_LUT_3DLUT,
+	MCM_LUT_1DLUT,
+	MCM_LUT_SHAPER
+};
+
+union mcm_lut_params {
+	const struct pwl_params *pwl;
+	const struct tetrahedral_params *lut3d;
+};
+
 /**
  * struct mpcc_blnd_cfg - MPCC blending configuration
  */
@@ -163,6 +186,7 @@ struct mpcc_blnd_cfg {
 struct mpc_grph_gamut_adjustment {
 	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
 	enum graphics_gamut_adjust_type gamut_adjust_type;
+	enum mpcc_gamut_remap_id mpcc_gamut_remap_block_id;
 };
 
 struct mpcc_sm_cfg {
@@ -537,13 +561,21 @@ struct mpc_funcs {
 	int (*release_rmu)(struct mpc *mpc, int mpcc_id);
 
 	unsigned int (*get_mpc_out_mux)(
-			struct mpc *mpc,
-			int opp_id);
+				struct mpc *mpc,
+				int opp_id);
 
 	void (*set_bg_color)(struct mpc *mpc,
 			struct tg_color *bg_color,
 			int mpcc_id);
 	void (*set_mpc_mem_lp_mode)(struct mpc *mpc);
+	void (*set_movable_cm_location)(struct mpc *mpc, enum mpcc_movable_cm_location location, int mpcc_id);
+	void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
+	void (*get_3dlut_fast_load_status)(struct mpc *mpc, int mpcc_id, uint32_t *done, uint32_t *soft_underflow, uint32_t *hard_underflow);
+	void (*populate_lut)(struct mpc *mpc, const enum MCM_LUT_ID id, const union mcm_lut_params params,
+			bool lut_bank_a, int mpcc_id);
+	void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id, bool lut_bank_a, int mpcc_id);
+	void (*program_lut_mode)(struct mpc *mpc, const enum MCM_LUT_ID id, const enum MCM_LUT_XABLE xable,
+			bool lut_bank_a, int mpcc_id);
 };
 
 #endif

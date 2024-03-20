@@ -161,4 +161,6 @@ void hubbub32_set_request_limit(struct hubbub *hubbub, int umc_count, int words_
 
 void hubbub32_get_mall_en(struct hubbub *hubbub, unsigned int *mall_in_use);
 
+void dcn32_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase);
+
 #endif

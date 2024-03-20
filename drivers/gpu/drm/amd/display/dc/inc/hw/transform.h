@@ -29,6 +29,7 @@
 #include "hw_shared.h"
 #include "dc_hw_types.h"
 #include "fixed31_32.h"
+#include "spl/dc_spl_types.h"
 
 #include "spl/dc_spl_types.h"
 
@@ -163,6 +164,8 @@ struct scaler_data {
 	struct sharpness_adj sharpness;
 	enum pixel_format format;
 	struct line_buffer_params lb_params;
+	// Below struct holds the scaler values to program hw registers
+	struct dscl_prog_data dscl_prog_data;
 };
 
 struct transform_funcs {
@@ -245,6 +248,15 @@ struct transform_funcs {
 			struct transform *xfm_base,
 			const struct dc_cursor_attributes *attr);
 
+	bool (*transform_program_blnd_lut)(
+			struct transform *xfm,
+			const struct pwl_params *params);
+	bool (*transform_program_shaper_lut)(
+			struct transform *xfm,
+			const struct pwl_params *params);
+	bool (*transform_program_3dlut)(
+			struct transform *xfm,
+			struct tetrahedral_params *params);
 };
 
 const uint16_t *get_filter_2tap_16p(void);

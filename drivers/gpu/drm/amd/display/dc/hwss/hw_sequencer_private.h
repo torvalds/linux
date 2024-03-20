@@ -176,6 +176,10 @@ struct hwseq_private_funcs {
 	void (*reset_back_end_for_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);
+	void (*populate_mcm_luts)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_cm2_func_luts mcm_luts,
+			bool lut_bank_a);
 };
 
 struct dce_hwseq {

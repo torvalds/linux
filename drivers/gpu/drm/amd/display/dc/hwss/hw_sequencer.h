@@ -141,6 +141,12 @@ struct subvp_save_surf_addr {
 	uint8_t subvp_index;
 };
 
+struct fams2_global_control_lock_fast_params {
+	struct dc *dc;
+	bool is_required;
+	bool lock;
+};
+
 union block_sequence_params {
 	struct update_plane_addr_params update_plane_addr_params;
 	struct subvp_pipe_control_lock_fast_params subvp_pipe_control_lock_fast_params;
@@ -159,6 +165,7 @@ union block_sequence_params {
 	struct set_output_csc_params set_output_csc_params;
 	struct set_ocsc_default_params set_ocsc_default_params;
 	struct subvp_save_surf_addr subvp_save_surf_addr;
+	struct fams2_global_control_lock_fast_params fams2_global_control_lock_fast_params;
 };
 
 enum block_sequence_func {
@@ -179,6 +186,8 @@ enum block_sequence_func {
 	MPC_SET_OUTPUT_CSC,
 	MPC_SET_OCSC_DEFAULT,
 	DMUB_SUBVP_SAVE_SURF_ADDR,
+	DMUB_FAMS2_GLOBAL_CONTROL_LOCK_FAST,
+
 };
 
 struct block_sequence {
@@ -430,6 +439,13 @@ struct hw_sequencer_funcs {
 	bool (*is_pipe_topology_transition_seamless)(struct dc *dc,
 			const struct dc_state *cur_ctx,
 			const struct dc_state *new_ctx);
+	void (*fams2_global_control_lock)(struct dc *dc,
+			struct dc_state *context,
+			bool lock);
+	void (*fams2_update_config)(struct dc *dc,
+			struct dc_state *context,
+			bool enable);
+	void (*fams2_global_control_lock_fast)(union block_sequence_params *params);
 	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
 };
 
@@ -460,6 +476,12 @@ void get_mpctree_visual_confirm_color(
 		struct tg_color *color);
 
 void get_subvp_visual_confirm_color(
+	struct pipe_ctx *pipe_ctx,
+	struct tg_color *color);
+
+void get_fams2_visual_confirm_color(
+	struct dc *dc,
+	struct dc_state *context,
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
 
