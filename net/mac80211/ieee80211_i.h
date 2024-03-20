@@ -1161,6 +1161,8 @@ struct ieee80211_sub_if_data {
 	struct wiphy_work activate_links_work;
 	u16 desired_active_links;
 
+	u16 restart_active_links;
+
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *subdir_stations;
