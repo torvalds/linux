@@ -823,6 +823,10 @@
 };
 #endif
 
+&disp_intf {
+	status = "okay";
+};
+
 &rtc {
 	status = "okay";
 };

@@ -653,6 +653,13 @@
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		disp_intf: disp_intf {
+			compatible = "aspeed,ast2700-disp-intf", "syscon";
+			reg = <0x0 0x12c1d000 0x0 0x40>;
+			syscon = <&syscon0>;
+			status = "disabled";
+		};
+
 		rtc: rtc@12c0f000 {
 			compatible = "aspeed,ast2700-rtc";
 			reg = <0 0x12c0f000 0 0x18>;
