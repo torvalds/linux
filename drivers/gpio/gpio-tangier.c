@@ -195,7 +195,8 @@ static int tng_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 
 static void tng_irq_ack(struct irq_data *d)
 {
-	struct tng_gpio *priv = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tng_gpio *priv = gpiochip_get_data(gc);
 	irq_hw_number_t gpio = irqd_to_hwirq(d);
 	void __iomem *gisr;
 	u8 shift;
@@ -227,7 +228,8 @@ static void tng_irq_unmask_mask(struct tng_gpio *priv, u32 gpio, bool unmask)
 
 static void tng_irq_mask(struct irq_data *d)
 {
-	struct tng_gpio *priv = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tng_gpio *priv = gpiochip_get_data(gc);
 	irq_hw_number_t gpio = irqd_to_hwirq(d);
 
 	tng_irq_unmask_mask(priv, gpio, false);
@@ -236,7 +238,8 @@ static void tng_irq_mask(struct irq_data *d)
 
 static void tng_irq_unmask(struct irq_data *d)
 {
-	struct tng_gpio *priv = irq_data_get_irq_chip_data(d);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct tng_gpio *priv = gpiochip_get_data(gc);
 	irq_hw_number_t gpio = irqd_to_hwirq(d);
 
 	gpiochip_enable_irq(&priv->chip, gpio);
