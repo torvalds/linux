@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-rtla
-rtla-static
+rv
+rv-static
 fixdep
 feature
 FEATURE-DUMP

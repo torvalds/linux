@@ -33,3 +33,9 @@
         to wait on the timerlat_fd. Once the workload is awakes, it goes to sleep again
         adding so the measurement for the kernel-to-user and user-to-kernel to the tracer
         output.
+
+**-U**, **--user-load**
+
+        Set timerlat to run without workload, waiting for the user to dispatch a per-cpu
+        task that waits for a new period on the tracing/osnoise/per_cpu/cpu$ID/timerlat_fd.
+        See linux/tools/rtla/sample/timerlat_load.py for an example of user-load code.
