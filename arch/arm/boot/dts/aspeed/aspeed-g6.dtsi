@@ -612,6 +612,12 @@
 				status = "disabled";
 			};
 
+			disp_intf: disp_intf {
+				compatible = "aspeed,ast2600-disp-intf", "syscon";
+				syscon = <&syscon>;
+				status = "disabled";
+			};
+
 			xdma: xdma@1e6e7000 {
 				compatible = "aspeed,ast2600-xdma";
 				reg = <0x1e6e7000 0x100>;
