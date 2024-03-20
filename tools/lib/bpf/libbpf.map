@@ -410,6 +410,8 @@ LIBBPF_1.3.0 {
 
 LIBBPF_1.4.0 {
 	global:
+		bpf_program__attach_raw_tracepoint_opts;
+		bpf_raw_tracepoint_open_opts;
 		bpf_token_create;
 		btf__new_split;
 		btf_ext__raw_data;
