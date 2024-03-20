@@ -2434,8 +2434,6 @@ mt7530_setup(struct dsa_switch *ds)
 		     SYS_CTRL_PHY_RST | SYS_CTRL_SW_RST |
 		     SYS_CTRL_REG_RST);
 
-	mt7530_pll_setup(priv);
-
 	/* Lower Tx driving for TRGMII path */
 	for (i = 0; i < NUM_TRGMII_CTRL; i++)
 		mt7530_write(priv, MT7530_TRGMII_TD_ODT(i),
@@ -2452,6 +2450,9 @@ mt7530_setup(struct dsa_switch *ds)
 	mt7530_write(priv, MT7530_MHWTRAP, val);
 
 	priv->p6_interface = PHY_INTERFACE_MODE_NA;
+
+	if ((val & HWTRAP_XTAL_MASK) == HWTRAP_XTAL_40MHZ)
+		mt7530_pll_setup(priv);
 
 	mt753x_trap_frames(priv);
 
