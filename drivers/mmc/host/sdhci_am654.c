@@ -141,8 +141,8 @@ static const struct timing_data td[] = {
 
 struct sdhci_am654_data {
 	struct regmap *base;
-	int otap_del_sel[ARRAY_SIZE(td)];
-	int itap_del_sel[ARRAY_SIZE(td)];
+	u32 otap_del_sel[ARRAY_SIZE(td)];
+	u32 itap_del_sel[ARRAY_SIZE(td)];
 	u32 itap_del_ena[ARRAY_SIZE(td)];
 	int clkbuf_sel;
 	int trm_icp;
