@@ -86,7 +86,8 @@ struct xe_sched_job *xe_bb_create_migration_job(struct xe_exec_queue *q,
 	};
 
 	xe_gt_assert(q->gt, second_idx <= bb->len);
-	xe_gt_assert(q->gt, q->vm->flags & XE_VM_FLAG_MIGRATION);
+	xe_gt_assert(q->gt, xe_sched_job_is_migration(q));
+	xe_gt_assert(q->gt, q->width == 1);
 
 	return __xe_bb_create_job(q, bb, addr);
 }
