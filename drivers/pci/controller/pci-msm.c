@@ -1186,6 +1186,9 @@ struct msm_pcie_dev_t {
 	struct aer_stats *aer_stats;
 	void (*rumi_init)(struct msm_pcie_dev_t *pcie_dev);
 
+	u32 *filtered_bdfs;
+	u32 bdf_count;
+
 	u32 phy_debug_reg_len;
 	u32 *phy_debug_reg;
 
@@ -3554,8 +3557,9 @@ static int msm_pcie_oper_conf(struct pci_bus *bus, u32 devfn, int oper,
 	struct msm_pcie_dev_t *dev;
 	void __iomem *config_base;
 	bool rc = false;
-	u32 rc_idx;
-	int rv = 0;
+	u32 rc_idx, *filtered_bdf;
+	int rv = 0, i;
+	u32 bdf = BDF_OFFSET(bus->number, devfn);
 
 	dev = PCIE_BUS_PRIV_DATA(bus);
 
@@ -3606,6 +3610,19 @@ static int msm_pcie_oper_conf(struct pci_bus *bus, u32 devfn, int oper,
 			*val = ~0;
 			rv = PCIBIOS_DEVICE_NOT_FOUND;
 			goto unlock;
+	}
+
+	/* 32-bit BDF filtering */
+	if (dev->bdf_count) {
+		i = dev->bdf_count;
+		filtered_bdf = dev->filtered_bdfs;
+		while (i--) {
+			if (*filtered_bdf == bdf) {
+				*val = ~0;
+				goto unlock;
+			}
+			filtered_bdf++;
+		}
 	}
 
 	if (!rc)
@@ -8149,7 +8166,7 @@ static void msm_pcie_get_pinctrl(struct msm_pcie_dev_t *pcie_dev,
 static int msm_pcie_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	int rc_idx = -1;
+	int rc_idx = -1, size;
 	struct msm_pcie_dev_t *pcie_dev;
 	struct device_node *of_node;
 
@@ -8236,6 +8253,24 @@ static int msm_pcie_probe(struct platform_device *pdev)
 	msm_pcie_sysfs_init(pcie_dev);
 
 	pcie_dev->drv_ready = true;
+
+	of_get_property(pdev->dev.of_node, "qcom,filtered-bdfs", &size);
+	if (size) {
+		pcie_dev->filtered_bdfs = devm_kzalloc(&pdev->dev, size,
+						       GFP_KERNEL);
+		if (!pcie_dev->filtered_bdfs) {
+			mutex_unlock(&pcie_drv.drv_lock);
+			return -ENOMEM;
+		}
+		pcie_dev->bdf_count = size / sizeof(*pcie_dev->filtered_bdfs);
+
+		ret = of_property_read_u32_array(pdev->dev.of_node,
+						 "qcom,filtered-bdfs",
+						 pcie_dev->filtered_bdfs,
+						 pcie_dev->bdf_count);
+		if (ret)
+			pcie_dev->bdf_count = 0;
+	}
 
 	if (pcie_dev->boot_option & MSM_PCIE_NO_PROBE_ENUMERATION) {
 		PCIE_DBG(pcie_dev,
