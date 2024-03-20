@@ -39,6 +39,7 @@ gdsc-regulator.ko
 stub-regulator.ko
 pinctrl-msm.ko
 pinctrl-niobe.ko
+qcom-dload-mode.ko
 qcom_cpu_vendor_hooks.ko
 qcom_hwspinlock.ko
 smem.ko
