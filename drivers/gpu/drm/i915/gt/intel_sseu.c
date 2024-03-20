@@ -214,13 +214,8 @@ static void xehp_sseu_info_init(struct intel_gt *gt)
 	int num_compute_regs, num_geometry_regs;
 	int eu;
 
-	if (IS_PONTEVECCHIO(gt->i915)) {
-		num_geometry_regs = 0;
-		num_compute_regs = 2;
-	} else {
-		num_geometry_regs = 1;
-		num_compute_regs = 1;
-	}
+	num_geometry_regs = 1;
+	num_compute_regs = 1;
 
 	/*
 	 * The concept of slice has been removed in Xe_HP.  To be compatible

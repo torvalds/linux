@@ -350,17 +350,6 @@ static void dg2_init_clock_gating(struct drm_i915_private *i915)
 			 SGSI_SIDECLK_DIS);
 }
 
-static void pvc_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_14012385139:pvc */
-	if (IS_PVC_BD_STEP(i915, STEP_A0, STEP_B0))
-		intel_uncore_rmw(&i915->uncore, XEHP_CLOCK_GATE_DIS, 0, SGR_DIS);
-
-	/* Wa_22010954014:pvc */
-	if (IS_PVC_BD_STEP(i915, STEP_A0, STEP_B0))
-		intel_uncore_rmw(&i915->uncore, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
-}
-
 static void cnp_init_clock_gating(struct drm_i915_private *i915)
 {
 	if (!HAS_PCH_CNP(i915))
@@ -722,7 +711,6 @@ static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = 
 	.init_clock_gating = platform##_init_clock_gating,		\
 }
 
-CG_FUNCS(pvc);
 CG_FUNCS(dg2);
 CG_FUNCS(cfl);
 CG_FUNCS(skl);
@@ -756,9 +744,7 @@ CG_FUNCS(nop);
  */
 void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 {
-	if (IS_PONTEVECCHIO(i915))
-		i915->clock_gating_funcs = &pvc_clock_gating_funcs;
-	else if (IS_DG2(i915))
+	if (IS_DG2(i915))
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		i915->clock_gating_funcs = &cfl_clock_gating_funcs;

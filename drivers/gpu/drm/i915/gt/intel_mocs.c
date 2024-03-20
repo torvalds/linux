@@ -53,7 +53,6 @@ struct drm_i915_mocs_table {
 
 /* Helper defines */
 #define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
-#define PVC_NUM_MOCS_ENTRIES	3
 #define MTL_NUM_MOCS_ENTRIES	16
 
 /* (e)LLC caching options */
@@ -379,17 +378,6 @@ static const struct drm_i915_mocs_entry dg2_mocs_table[] = {
 	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
 };
 
-static const struct drm_i915_mocs_entry pvc_mocs_table[] = {
-	/* Error */
-	MOCS_ENTRY(0, 0, L3_3_WB),
-
-	/* UC */
-	MOCS_ENTRY(1, 0, L3_1_UC),
-
-	/* WB */
-	MOCS_ENTRY(2, 0, L3_3_WB),
-};
-
 static const struct drm_i915_mocs_entry mtl_mocs_table[] = {
 	/* Error - Reserved for Non-Use */
 	MOCS_ENTRY(0,
@@ -476,13 +464,6 @@ static unsigned int get_mocs_settings(struct drm_i915_private *i915,
 		table->n_entries = MTL_NUM_MOCS_ENTRIES;
 		table->uc_index = 9;
 		table->unused_entries_index = 1;
-	} else if (IS_PONTEVECCHIO(i915)) {
-		table->size = ARRAY_SIZE(pvc_mocs_table);
-		table->table = pvc_mocs_table;
-		table->n_entries = PVC_NUM_MOCS_ENTRIES;
-		table->uc_index = 1;
-		table->wb_index = 2;
-		table->unused_entries_index = 2;
 	} else if (IS_DG2(i915)) {
 		table->size = ARRAY_SIZE(dg2_mocs_table);
 		table->table = dg2_mocs_table;

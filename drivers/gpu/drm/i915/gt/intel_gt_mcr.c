@@ -69,27 +69,6 @@ static const struct intel_mmio_range dg2_lncf_steering_table[] = {
 	{},
 };
 
-/*
- * We have several types of MCR registers on PVC where steering to (0,0)
- * will always provide us with a non-terminated value.  We'll stick them
- * all in the same table for simplicity.
- */
-static const struct intel_mmio_range pvc_instance0_steering_table[] = {
-	{ 0x004000, 0x004AFF },		/* HALF-BSLICE */
-	{ 0x008800, 0x00887F },		/* CC */
-	{ 0x008A80, 0x008AFF },		/* TILEPSMI */
-	{ 0x00B000, 0x00B0FF },		/* HALF-BSLICE */
-	{ 0x00B100, 0x00B3FF },		/* L3BANK */
-	{ 0x00C800, 0x00CFFF },		/* HALF-BSLICE */
-	{ 0x00D800, 0x00D8FF },		/* HALF-BSLICE */
-	{ 0x00DD00, 0x00DDFF },		/* BSLICE */
-	{ 0x00E900, 0x00E9FF },		/* HALF-BSLICE */
-	{ 0x00EC00, 0x00EEFF },		/* HALF-BSLICE */
-	{ 0x00F000, 0x00FFFF },		/* HALF-BSLICE */
-	{ 0x024180, 0x0241FF },		/* HALF-BSLICE */
-	{},
-};
-
 static const struct intel_mmio_range xelpg_instance0_steering_table[] = {
 	{ 0x000B00, 0x000BFF },         /* SQIDI */
 	{ 0x001000, 0x001FFF },         /* SQIDI */
@@ -173,8 +152,6 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 		gt->steering_table[INSTANCE0] = xelpg_instance0_steering_table;
 		gt->steering_table[L3BANK] = xelpg_l3bank_steering_table;
 		gt->steering_table[DSS] = xelpg_dss_steering_table;
-	} else if (IS_PONTEVECCHIO(i915)) {
-		gt->steering_table[INSTANCE0] = pvc_instance0_steering_table;
 	} else if (IS_DG2(i915)) {
 		gt->steering_table[MSLICE] = dg2_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
@@ -805,8 +782,6 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 		for (int i = 0; i < NUM_STEERING_TYPES; i++)
 			if (gt->steering_table[i])
 				report_steering_type(p, gt, i, dump_table);
-	} else if (IS_PONTEVECCHIO(gt->i915)) {
-		report_steering_type(p, gt, INSTANCE0, dump_table);
 	} else if (HAS_MSLICE_STEERING(gt->i915)) {
 		report_steering_type(p, gt, MSLICE, dump_table);
 		report_steering_type(p, gt, LNCF, dump_table);
@@ -826,10 +801,7 @@ void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 				   unsigned int *group, unsigned int *instance)
 {
-	if (IS_PONTEVECCHIO(gt->i915)) {
-		*group = dss / GEN_DSS_PER_CSLICE;
-		*instance = dss % GEN_DSS_PER_CSLICE;
-	} else if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55)) {
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55)) {
 		*group = dss / GEN_DSS_PER_GSLICE;
 		*instance = dss % GEN_DSS_PER_GSLICE;
 	} else {

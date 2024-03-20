@@ -1,0 +1,18 @@
+diff a/drivers/gpu/drm/i915/gt/intel_workarounds.c b/drivers/gpu/drm/i915/gt/intel_workarounds.c	(rejected hunks)
+@@ -2844,14 +2767,13 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
+ 
+ 	if (IS_GFX_GT_IP_STEP(gt, IP_VER(12, 70), STEP_A0, STEP_B0) ||
+ 	    IS_GFX_GT_IP_STEP(gt, IP_VER(12, 71), STEP_A0, STEP_B0) ||
+-	    IS_PONTEVECCHIO(i915) ||
+ 	    IS_DG2(i915)) {
+ 		/* Wa_22014226127 */
+ 		wa_mcr_write_or(wal, LSC_CHICKEN_BIT_0, DISABLE_D8_D16_COASLESCE);
+ 	}
+ 
+-	if (IS_PONTEVECCHIO(i915) || IS_DG2(i915))
+-		/* Wa_14015227452:dg2,pvc */
++	if (IS_DG2(i915))
++		/* Wa_14015227452 */
+ 		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, XEHP_DIS_BBL_SYSPIPE);
+ 
+ 	if (IS_DG2(i915)) {

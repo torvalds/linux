@@ -86,7 +86,6 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_ALDERLAKE_S(dev_priv) IS_PLATFORM(dev_priv, XE_ALDERLAKE_S)
 #define IS_ALDERLAKE_P(dev_priv) IS_PLATFORM(dev_priv, XE_ALDERLAKE_P)
 #define IS_DG2(dev_priv)	IS_PLATFORM(dev_priv, XE_DG2)
-#define IS_PONTEVECCHIO(dev_priv) IS_PLATFORM(dev_priv, XE_PVC)
 #define IS_METEORLAKE(dev_priv) IS_PLATFORM(dev_priv, XE_METEORLAKE)
 #define IS_LUNARLAKE(dev_priv) IS_PLATFORM(dev_priv, XE_LUNARLAKE)
 
@@ -129,9 +128,6 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_DG2_GRAPHICS_STEP(xe, variant, first, last) \
 	((xe)->info.subplatform == XE_SUBPLATFORM_DG2_ ## variant && \
 	 IS_GRAPHICS_STEP(xe, first, last))
-
-/* XXX: No basedie stepping support yet */
-#define IS_PVC_BD_STEP(xe, first, last) (!WARN_ON(1) && IS_PONTEVECCHIO(xe))
 
 #define IS_TIGERLAKE_DISPLAY_STEP(xe, first, last) (IS_TIGERLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
 #define IS_ROCKETLAKE_DISPLAY_STEP(xe, first, last) (IS_ROCKETLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
