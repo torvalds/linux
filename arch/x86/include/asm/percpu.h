@@ -230,6 +230,17 @@ do {									\
 })
 
 /*
+ * raw_cpu_xchg() can use a load-store since
+ * it is not required to be IRQ-safe.
+ */
+#define raw_percpu_xchg_op(_var, _nval)					\
+({									\
+	typeof(_var) pxo_old__ = raw_cpu_read(_var);			\
+	raw_cpu_write(_var, _nval);					\
+	pxo_old__;							\
+})
+
+/*
  * this_cpu_xchg() is implemented using cmpxchg without a lock prefix.
  * xchg is expensive due to the implied lock prefix. The processor
  * cannot prefetch cachelines if xchg is used.
@@ -499,18 +510,6 @@ do {									\
 #define raw_cpu_or_1(pcp, val)		percpu_to_op(1, , "or", (pcp), val)
 #define raw_cpu_or_2(pcp, val)		percpu_to_op(2, , "or", (pcp), val)
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(4, , "or", (pcp), val)
-
-/*
- * raw_cpu_xchg() can use a load-store since it is not required to be
- * IRQ-safe.
- */
-#define raw_percpu_xchg_op(var, nval)					\
-({									\
-	typeof(var) pxo_ret__ = raw_cpu_read(var);			\
-	raw_cpu_write(var, (nval));					\
-	pxo_ret__;							\
-})
-
 #define raw_cpu_xchg_1(pcp, val)	raw_percpu_xchg_op(pcp, val)
 #define raw_cpu_xchg_2(pcp, val)	raw_percpu_xchg_op(pcp, val)
 #define raw_cpu_xchg_4(pcp, val)	raw_percpu_xchg_op(pcp, val)
