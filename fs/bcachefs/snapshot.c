@@ -91,18 +91,20 @@ static int bch2_snapshot_tree_create(struct btree_trans *trans,
 
 /* Snapshot nodes: */
 
-static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
+static bool __bch2_snapshot_is_ancestor_early(struct snapshot_table *t, u32 id, u32 ancestor)
 {
-	struct snapshot_table *t;
-
-	rcu_read_lock();
-	t = rcu_dereference(c->snapshots);
-
 	while (id && id < ancestor)
 		id = __snapshot_t(t, id)->parent;
+	return id == ancestor;
+}
+
+static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
+{
+	rcu_read_lock();
+	bool ret = __bch2_snapshot_is_ancestor_early(rcu_dereference(c->snapshots), id, ancestor);
 	rcu_read_unlock();
 
-	return id == ancestor;
+	return ret;
 }
 
 static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ancestor)
@@ -120,13 +122,15 @@ static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ances
 
 bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
-	struct snapshot_table *t;
 	bool ret;
 
-	EBUG_ON(c->recovery_pass_done <= BCH_RECOVERY_PASS_check_snapshots);
-
 	rcu_read_lock();
-	t = rcu_dereference(c->snapshots);
+	struct snapshot_table *t = rcu_dereference(c->snapshots);
+
+	if (unlikely(c->recovery_pass_done <= BCH_RECOVERY_PASS_check_snapshots)) {
+		ret = __bch2_snapshot_is_ancestor_early(t, id, ancestor);
+		goto out;
+	}
 
 	while (id && id < ancestor - IS_ANCESTOR_BITMAP)
 		id = get_ancestor_below(t, id, ancestor);
@@ -134,11 +138,11 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	if (id && id < ancestor) {
 		ret = test_bit(ancestor - id - 1, __snapshot_t(t, id)->is_ancestor);
 
-		EBUG_ON(ret != bch2_snapshot_is_ancestor_early(c, id, ancestor));
+		EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
 	} else {
 		ret = id == ancestor;
 	}
-
+out:
 	rcu_read_unlock();
 
 	return ret;
@@ -547,7 +551,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 			"snapshot tree points to missing subvolume:\n  %s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, st.s_c), buf.buf)) ||
-	    fsck_err_on(!bch2_snapshot_is_ancestor_early(c,
+	    fsck_err_on(!bch2_snapshot_is_ancestor(c,
 						le32_to_cpu(subvol.snapshot),
 						root_id),
 			c, snapshot_tree_to_wrong_subvol,

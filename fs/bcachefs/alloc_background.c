@@ -532,13 +532,13 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		u8 gen = bch2_alloc_to_v4(k, &a)->gen;
 		unsigned offset;
 		struct bpos pos = alloc_gens_pos(iter.pos, &offset);
+		int ret2 = 0;
 
 		if (have_bucket_gens_key && bkey_cmp(iter.pos, pos)) {
-			ret = commit_do(trans, NULL, NULL,
-					BCH_TRANS_COMMIT_no_enospc,
-				bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0));
-			if (ret)
-				break;
+			ret2 =  bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0) ?:
+				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+			if (ret2)
+				goto iter_err;
 			have_bucket_gens_key = false;
 		}
 
@@ -549,7 +549,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		}
 
 		g.v.gens[offset] = gen;
-		0;
+iter_err:
+		ret2;
 	}));
 
 	if (have_bucket_gens_key && !ret)
@@ -852,7 +853,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 					bucket_journal_seq);
 			if (ret) {
 				bch2_fs_fatal_error(c,
-					"error setting bucket_needs_journal_commit: %i", ret);
+					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret));
 				return ret;
 			}
 		}
