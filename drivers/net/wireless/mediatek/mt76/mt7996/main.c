@@ -238,7 +238,11 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 	mt7996_init_bitrate_mask(vif);
 
 	mt7996_mcu_add_bss_info(phy, vif, true);
-	mt7996_mcu_add_sta(dev, vif, NULL, true);
+	/* defer the first STA_REC of BMC entry to BSS_CHANGED_BSSID for STA
+	 * interface, since firmware only records BSSID when the entry is new
+	 */
+	if (vif->type != NL80211_IFTYPE_STATION)
+		mt7996_mcu_add_sta(dev, vif, NULL, true, true);
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
@@ -256,7 +260,7 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	int idx = msta->wcid.idx;
 
-	mt7996_mcu_add_sta(dev, vif, NULL, false);
+	mt7996_mcu_add_sta(dev, vif, NULL, false, false);
 	mt7996_mcu_add_bss_info(phy, vif, false);
 
 	if (vif == phy->monitor_vif)
@@ -599,7 +603,8 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 	    (changed & BSS_CHANGED_ASSOC && vif->cfg.assoc) ||
 	    (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon)) {
 		mt7996_mcu_add_bss_info(phy, vif, true);
-		mt7996_mcu_add_sta(dev, vif, NULL, true);
+		mt7996_mcu_add_sta(dev, vif, NULL, true,
+				   !!(changed & BSS_CHANGED_BSSID));
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT)
@@ -688,7 +693,7 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7996_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	ret = mt7996_mcu_add_sta(dev, vif, sta, true);
+	ret = mt7996_mcu_add_sta(dev, vif, sta, true, true);
 	if (ret)
 		return ret;
 
@@ -702,7 +707,7 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	int i;
 
-	mt7996_mcu_add_sta(dev, vif, sta, false);
+	mt7996_mcu_add_sta(dev, vif, sta, false, false);
 
 	mt7996_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
