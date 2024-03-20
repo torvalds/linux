@@ -705,8 +705,6 @@ static const struct intel_device_info adl_p_info = {
 		I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.__runtime.graphics.ip.ver = 12, \
-	.__runtime.graphics.ip.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	TGL_CACHELEVEL, \
 	.dma_mask_size = 46, \
@@ -730,15 +728,12 @@ static const struct intel_device_info adl_p_info = {
 	.__runtime.ppgtt_size = 48, \
 	.__runtime.ppgtt_type = INTEL_PPGTT_FULL
 
-#define XE_HPM_FEATURES \
-	.__runtime.media.ip.ver = 12, \
-	.__runtime.media.ip.rel = 50
-
 #define DG2_FEATURES \
 	XE_HP_FEATURES, \
-	XE_HPM_FEATURES, \
 	DGFX_FEATURES, \
+	.__runtime.graphics.ip.ver = 12, \
 	.__runtime.graphics.ip.rel = 55, \
+	.__runtime.media.ip.ver = 12, \
 	.__runtime.media.ip.rel = 55, \
 	PLATFORM(INTEL_DG2), \
 	.has_64k_pages = 1, \
@@ -773,9 +768,10 @@ static const struct intel_device_info ats_m_info = {
 __maybe_unused
 static const struct intel_device_info pvc_info = {
 	XE_HPC_FEATURES,
-	XE_HPM_FEATURES,
 	DGFX_FEATURES,
+	.__runtime.graphics.ip.ver = 12,
 	.__runtime.graphics.ip.rel = 60,
+	.__runtime.media.ip.ver = 12,
 	.__runtime.media.ip.rel = 60,
 	PLATFORM(INTEL_PONTEVECCHIO),
 	.has_flat_ccs = 0,
