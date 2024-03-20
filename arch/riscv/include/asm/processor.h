@@ -14,12 +14,17 @@
 
 #include <asm/ptrace.h>
 
+/*
+ * addr is a hint to the maximum userspace address that mmap should provide, so
+ * this macro needs to return the largest address space available so that
+ * mmap_end < addr, being mmap_end the top of that address space.
+ * See Documentation/arch/riscv/vm-layout.rst for more details.
+ */
 #define arch_get_mmap_end(addr, len, flags)			\
 ({								\
 	unsigned long mmap_end;					\
 	typeof(addr) _addr = (addr);				\
-	if ((_addr) == 0 ||					\
-	    (IS_ENABLED(CONFIG_COMPAT) && is_compat_task()) ||	\
+	if ((_addr) == 0 || is_compat_task() ||			\
 	    ((_addr + len) > BIT(VA_BITS - 1)))			\
 		mmap_end = STACK_TOP_MAX;			\
 	else							\
@@ -33,8 +38,7 @@
 	typeof(addr) _addr = (addr);				\
 	typeof(base) _base = (base);				\
 	unsigned long rnd_gap = DEFAULT_MAP_WINDOW - (_base);	\
-	if ((_addr) == 0 ||					\
-	    (IS_ENABLED(CONFIG_COMPAT) && is_compat_task()) ||	\
+	if ((_addr) == 0 || is_compat_task() || 		\
 	    ((_addr + len) > BIT(VA_BITS - 1)))			\
 		mmap_base = (_base);				\
 	else							\
