@@ -833,64 +833,6 @@ done_merging:
 		page_reporting_notify_free(order);
 }
 
-/**
- * split_free_page() -- split a free page at split_pfn_offset
- * @free_page:		the original free page
- * @order:		the order of the page
- * @split_pfn_offset:	split offset within the page
- *
- * Return -ENOENT if the free page is changed, otherwise 0
- *
- * It is used when the free page crosses two pageblocks with different migratetypes
- * at split_pfn_offset within the page. The split free page will be put into
- * separate migratetype lists afterwards. Otherwise, the function achieves
- * nothing.
- */
-int split_free_page(struct page *free_page,
-			unsigned int order, unsigned long split_pfn_offset)
-{
-	struct zone *zone = page_zone(free_page);
-	unsigned long free_page_pfn = page_to_pfn(free_page);
-	unsigned long pfn;
-	unsigned long flags;
-	int free_page_order;
-	int mt;
-	int ret = 0;
-
-	if (split_pfn_offset == 0)
-		return ret;
-
-	spin_lock_irqsave(&zone->lock, flags);
-
-	if (!PageBuddy(free_page) || buddy_order(free_page) != order) {
-		ret = -ENOENT;
-		goto out;
-	}
-
-	mt = get_pfnblock_migratetype(free_page, free_page_pfn);
-	if (likely(!is_migrate_isolate(mt)))
-		__mod_zone_freepage_state(zone, -(1UL << order), mt);
-
-	del_page_from_free_list(free_page, zone, order);
-	for (pfn = free_page_pfn;
-	     pfn < free_page_pfn + (1UL << order);) {
-		int mt = get_pfnblock_migratetype(pfn_to_page(pfn), pfn);
-
-		free_page_order = min_t(unsigned int,
-					pfn ? __ffs(pfn) : order,
-					__fls(split_pfn_offset));
-		__free_one_page(pfn_to_page(pfn), pfn, zone, free_page_order,
-				mt, FPI_NONE);
-		pfn += 1UL << free_page_order;
-		split_pfn_offset -= (1UL << free_page_order);
-		/* we have done the first part, now switch to second part */
-		if (split_pfn_offset == 0)
-			split_pfn_offset = (1UL << order) - (pfn - free_page_pfn);
-	}
-out:
-	spin_unlock_irqrestore(&zone->lock, flags);
-	return ret;
-}
 /*
  * A bad page could be due to a number of fields. Instead of multiple branches,
  * try and check multiple fields with one check. The caller must do a detailed
@@ -1674,8 +1616,8 @@ static bool prep_move_freepages_block(struct zone *zone, struct page *page,
 	return true;
 }
 
-int move_freepages_block(struct zone *zone, struct page *page,
-			 int migratetype)
+static int move_freepages_block(struct zone *zone, struct page *page,
+				int migratetype)
 {
 	unsigned long start_pfn, end_pfn;
 
@@ -1685,6 +1627,123 @@ int move_freepages_block(struct zone *zone, struct page *page,
 
 	return move_freepages(zone, start_pfn, end_pfn, migratetype);
 }
+
+#ifdef CONFIG_MEMORY_ISOLATION
+/* Look for a buddy that straddles start_pfn */
+static unsigned long find_large_buddy(unsigned long start_pfn)
+{
+	int order = 0;
+	struct page *page;
+	unsigned long pfn = start_pfn;
+
+	while (!PageBuddy(page = pfn_to_page(pfn))) {
+		/* Nothing found */
+		if (++order > MAX_PAGE_ORDER)
+			return start_pfn;
+		pfn &= ~0UL << order;
+	}
+
+	/*
+	 * Found a preceding buddy, but does it straddle?
+	 */
+	if (pfn + (1 << buddy_order(page)) > start_pfn)
+		return pfn;
+
+	/* Nothing found */
+	return start_pfn;
+}
+
+/* Split a multi-block free page into its individual pageblocks */
+static void split_large_buddy(struct zone *zone, struct page *page,
+			      unsigned long pfn, int order)
+{
+	unsigned long end_pfn = pfn + (1 << order);
+
+	VM_WARN_ON_ONCE(order <= pageblock_order);
+	VM_WARN_ON_ONCE(pfn & (pageblock_nr_pages - 1));
+
+	/* Caller removed page from freelist, buddy info cleared! */
+	VM_WARN_ON_ONCE(PageBuddy(page));
+
+	while (pfn != end_pfn) {
+		int mt = get_pfnblock_migratetype(page, pfn);
+
+		__free_one_page(page, pfn, zone, pageblock_order, mt, FPI_NONE);
+		pfn += pageblock_nr_pages;
+		page = pfn_to_page(pfn);
+	}
+}
+
+/**
+ * move_freepages_block_isolate - move free pages in block for page isolation
+ * @zone: the zone
+ * @page: the pageblock page
+ * @migratetype: migratetype to set on the pageblock
+ *
+ * This is similar to move_freepages_block(), but handles the special
+ * case encountered in page isolation, where the block of interest
+ * might be part of a larger buddy spanning multiple pageblocks.
+ *
+ * Unlike the regular page allocator path, which moves pages while
+ * stealing buddies off the freelist, page isolation is interested in
+ * arbitrary pfn ranges that may have overlapping buddies on both ends.
+ *
+ * This function handles that. Straddling buddies are split into
+ * individual pageblocks. Only the block of interest is moved.
+ *
+ * Returns %true if pages could be moved, %false otherwise.
+ */
+bool move_freepages_block_isolate(struct zone *zone, struct page *page,
+				  int migratetype)
+{
+	unsigned long start_pfn, end_pfn, pfn;
+	int nr_moved, mt;
+
+	if (!prep_move_freepages_block(zone, page, &start_pfn, &end_pfn,
+				       NULL, NULL))
+		return false;
+
+	/* No splits needed if buddies can't span multiple blocks */
+	if (pageblock_order == MAX_PAGE_ORDER)
+		goto move;
+
+	/* We're a tail block in a larger buddy */
+	pfn = find_large_buddy(start_pfn);
+	if (pfn != start_pfn) {
+		struct page *buddy = pfn_to_page(pfn);
+		int order = buddy_order(buddy);
+		int mt = get_pfnblock_migratetype(buddy, pfn);
+
+		if (!is_migrate_isolate(mt))
+			__mod_zone_freepage_state(zone, -(1UL << order), mt);
+		del_page_from_free_list(buddy, zone, order);
+		set_pageblock_migratetype(page, migratetype);
+		split_large_buddy(zone, buddy, pfn, order);
+		return true;
+	}
+
+	/* We're the starting block of a larger buddy */
+	if (PageBuddy(page) && buddy_order(page) > pageblock_order) {
+		int mt = get_pfnblock_migratetype(page, pfn);
+		int order = buddy_order(page);
+
+		if (!is_migrate_isolate(mt))
+			__mod_zone_freepage_state(zone, -(1UL << order), mt);
+		del_page_from_free_list(page, zone, order);
+		set_pageblock_migratetype(page, migratetype);
+		split_large_buddy(zone, page, pfn, order);
+		return true;
+	}
+move:
+	mt = get_pfnblock_migratetype(page, start_pfn);
+	nr_moved = move_freepages(zone, start_pfn, end_pfn, migratetype);
+	if (!is_migrate_isolate(mt))
+		__mod_zone_freepage_state(zone, -nr_moved, mt);
+	else if (!is_migrate_isolate(migratetype))
+		__mod_zone_freepage_state(zone, nr_moved, migratetype);
+	return true;
+}
+#endif /* CONFIG_MEMORY_ISOLATION */
 
 static void change_pageblock_range(struct page *pageblock_page,
 					int start_order, int migratetype)
@@ -6365,7 +6424,6 @@ int alloc_contig_range_noprof(unsigned long start, unsigned long end,
 		       unsigned migratetype, gfp_t gfp_mask)
 {
 	unsigned long outer_start, outer_end;
-	int order;
 	int ret = 0;
 
 	struct compact_control cc = {
@@ -6438,29 +6496,7 @@ int alloc_contig_range_noprof(unsigned long start, unsigned long end,
 	 * We don't have to hold zone->lock here because the pages are
 	 * isolated thus they won't get removed from buddy.
 	 */
-
-	order = 0;
-	outer_start = start;
-	while (!PageBuddy(pfn_to_page(outer_start))) {
-		if (++order > MAX_PAGE_ORDER) {
-			outer_start = start;
-			break;
-		}
-		outer_start &= ~0UL << order;
-	}
-
-	if (outer_start != start) {
-		order = buddy_order(pfn_to_page(outer_start));
-
-		/*
-		 * outer_start page could be small order buddy page and
-		 * it doesn't include start page. Adjust outer_start
-		 * in this case to report failed page properly
-		 * on tracepoint in test_pages_isolated()
-		 */
-		if (outer_start + (1UL << order) <= start)
-			outer_start = start;
-	}
+	outer_start = find_large_buddy(start);
 
 	/* Make sure the range is really isolated. */
 	if (test_pages_isolated(outer_start, end, 0)) {
