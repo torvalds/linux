@@ -306,8 +306,8 @@ the parent and which should be copied or isolated:
 
 
 For example, if `CLONE_FILES | CLONE_VM | CLONE_FS` is used by the
-caller than effectively a new thread is created. If these flags are
-not used than a new process is created.
+caller then effectively a new thread is created. If these flags are
+not used then a new process is created.
 
 Namespaces and "containers"
 ---------------------------
