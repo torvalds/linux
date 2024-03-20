@@ -399,11 +399,8 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	 * The flag should get set in 100us according to the HW team, but
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
-	if (intel_wait_for_register_fw(&dev_priv->uncore,
-				       BXT_PORT_CL1CM_DW0(phy),
-				       PHY_RESERVED | PHY_POWER_GOOD,
-				       PHY_POWER_GOOD,
-				       1))
+	if (intel_de_wait_fw(dev_priv, BXT_PORT_CL1CM_DW0(phy),
+			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1))
 		drm_err(&dev_priv->drm, "timeout during PHY%d power on\n",
 			phy);
 
