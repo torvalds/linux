@@ -48,24 +48,24 @@ intel_de_rmw(struct drm_i915_private *i915, i915_reg_t reg, u32 clear, u32 set)
 }
 
 static inline int
-intel_de_wait_for_register(struct drm_i915_private *i915, i915_reg_t reg,
-			   u32 mask, u32 value, unsigned int timeout)
+intel_de_wait(struct drm_i915_private *i915, i915_reg_t reg,
+	      u32 mask, u32 value, unsigned int timeout)
 {
 	return intel_wait_for_register(&i915->uncore, reg, mask, value, timeout);
 }
 
 static inline int
-intel_de_wait_for_register_fw(struct drm_i915_private *i915, i915_reg_t reg,
-			      u32 mask, u32 value, unsigned int timeout)
+intel_de_wait_fw(struct drm_i915_private *i915, i915_reg_t reg,
+		 u32 mask, u32 value, unsigned int timeout)
 {
 	return intel_wait_for_register_fw(&i915->uncore, reg, mask, value, timeout);
 }
 
 static inline int
-__intel_de_wait_for_register(struct drm_i915_private *i915, i915_reg_t reg,
-			     u32 mask, u32 value,
-			     unsigned int fast_timeout_us,
-			     unsigned int slow_timeout_ms, u32 *out_value)
+intel_de_wait_custom(struct drm_i915_private *i915, i915_reg_t reg,
+		     u32 mask, u32 value,
+		     unsigned int fast_timeout_us,
+		     unsigned int slow_timeout_ms, u32 *out_value)
 {
 	return __intel_wait_for_register(&i915->uncore, reg, mask, value,
 					 fast_timeout_us, slow_timeout_ms, out_value);
@@ -75,14 +75,14 @@ static inline int
 intel_de_wait_for_set(struct drm_i915_private *i915, i915_reg_t reg,
 		      u32 mask, unsigned int timeout)
 {
-	return intel_de_wait_for_register(i915, reg, mask, mask, timeout);
+	return intel_de_wait(i915, reg, mask, mask, timeout);
 }
 
 static inline int
 intel_de_wait_for_clear(struct drm_i915_private *i915, i915_reg_t reg,
 			u32 mask, unsigned int timeout)
 {
-	return intel_de_wait_for_register(i915, reg, mask, 0, timeout);
+	return intel_de_wait(i915, reg, mask, 0, timeout);
 }
 
 /*

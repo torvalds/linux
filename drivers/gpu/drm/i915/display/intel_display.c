@@ -383,8 +383,7 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	if (intel_de_wait_for_register(dev_priv, dpll_reg,
-				       port_mask, expected_mask, 1000))
+	if (intel_de_wait(dev_priv, dpll_reg, port_mask, expected_mask, 1000))
 		drm_WARN(&dev_priv->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 dig_port->base.base.base.id, dig_port->base.base.name,

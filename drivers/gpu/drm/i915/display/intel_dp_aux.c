@@ -61,9 +61,8 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	u32 status;
 	int ret;
 
-	ret = __intel_de_wait_for_register(i915, ch_ctl,
-					   DP_AUX_CH_CTL_SEND_BUSY, 0,
-					   2, timeout_ms, &status);
+	ret = intel_de_wait_custom(i915, ch_ctl, DP_AUX_CH_CTL_SEND_BUSY, 0,
+				   2, timeout_ms, &status);
 
 	if (ret == -ETIMEDOUT)
 		drm_err(&i915->drm,

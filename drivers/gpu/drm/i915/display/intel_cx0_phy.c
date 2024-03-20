@@ -151,12 +151,12 @@ static int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	if (__intel_de_wait_for_register(i915,
-					 XELPDP_PORT_P2M_MSGBUS_STATUS(i915, port, lane),
-					 XELPDP_PORT_P2M_RESPONSE_READY,
-					 XELPDP_PORT_P2M_RESPONSE_READY,
-					 XELPDP_MSGBUS_TIMEOUT_FAST_US,
-					 XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
+	if (intel_de_wait_custom(i915,
+				 XELPDP_PORT_P2M_MSGBUS_STATUS(i915, port, lane),
+				 XELPDP_PORT_P2M_RESPONSE_READY,
+				 XELPDP_PORT_P2M_RESPONSE_READY,
+				 XELPDP_MSGBUS_TIMEOUT_FAST_US,
+				 XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
 		drm_dbg_kms(&i915->drm, "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
 
@@ -2545,9 +2545,9 @@ static void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 		     intel_cx0_get_powerdown_update(lane_mask));
 
 	/* Update Timeout Value */
-	if (__intel_de_wait_for_register(i915, buf_ctl2_reg,
-					 intel_cx0_get_powerdown_update(lane_mask), 0,
-					 XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, buf_ctl2_reg,
+				 intel_cx0_get_powerdown_update(lane_mask), 0,
+				 XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to bring out of Lane reset after %dus.\n",
 			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
 }
@@ -2605,19 +2605,19 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 					   XELPDP_LANE_PHY_CURRENT_STATUS(1))
 					: XELPDP_LANE_PHY_CURRENT_STATUS(0);
 
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_BUF_CTL1(i915, port),
-					 XELPDP_PORT_BUF_SOC_PHY_READY,
-					 XELPDP_PORT_BUF_SOC_PHY_READY,
-					 XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_BUF_CTL1(i915, port),
+				 XELPDP_PORT_BUF_SOC_PHY_READY,
+				 XELPDP_PORT_BUF_SOC_PHY_READY,
+				 XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to bring out of SOC reset after %dus.\n",
 			 phy_name(phy), XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US);
 
 	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL2(i915, port), lane_pipe_reset,
 		     lane_pipe_reset);
 
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_BUF_CTL2(i915, port),
-					 lane_phy_current_status, lane_phy_current_status,
-					 XELPDP_PORT_RESET_START_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_BUF_CTL2(i915, port),
+				 lane_phy_current_status, lane_phy_current_status,
+				 XELPDP_PORT_RESET_START_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to bring out of Lane reset after %dus.\n",
 			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
 
@@ -2625,10 +2625,10 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 		     intel_cx0_get_pclk_refclk_request(owned_lane_mask),
 		     intel_cx0_get_pclk_refclk_request(lane_mask));
 
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(i915, port),
-					 intel_cx0_get_pclk_refclk_ack(owned_lane_mask),
-					 intel_cx0_get_pclk_refclk_ack(lane_mask),
-					 XELPDP_REFCLK_ENABLE_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_CLOCK_CTL(i915, port),
+				 intel_cx0_get_pclk_refclk_ack(owned_lane_mask),
+				 intel_cx0_get_pclk_refclk_ack(lane_mask),
+				 XELPDP_REFCLK_ENABLE_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "PHY %c failed to request refclk after %dus.\n",
 			 phy_name(phy), XELPDP_REFCLK_ENABLE_TIMEOUT_US);
 
@@ -2778,10 +2778,10 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 		     intel_cx0_get_pclk_pll_request(maxpclk_lane));
 
 	/* 10. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK> == "1". */
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
-					 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
-					 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
-					 XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
+				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
+				 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
+				 XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "Port %c PLL not locked after %dus.\n",
 			 phy_name(phy), XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US);
 
@@ -2869,10 +2869,10 @@ static void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	intel_de_write(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port), val);
 
 	/* 5. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "1". */
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
-					 XELPDP_TBT_CLOCK_ACK,
-					 XELPDP_TBT_CLOCK_ACK,
-					 100, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
+				 XELPDP_TBT_CLOCK_ACK,
+				 XELPDP_TBT_CLOCK_ACK,
+				 100, 0, NULL))
 		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL not locked after 100us.\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
@@ -2931,10 +2931,10 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 	/*
 	 * 5. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK**> == "0".
 	 */
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
-					 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
-					 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES), 0,
-					 XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
+				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
+				 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES), 0,
+				 XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US, 0, NULL))
 		drm_warn(&i915->drm, "Port %c PLL not unlocked after %dus.\n",
 			 phy_name(phy), XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US);
 
@@ -2969,8 +2969,8 @@ static void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 		     XELPDP_TBT_CLOCK_REQUEST, 0);
 
 	/* 3. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "0". */
-	if (__intel_de_wait_for_register(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
-					 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
+	if (intel_de_wait_custom(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
+				 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
 		drm_warn(&i915->drm, "[ENCODER:%d:%s][%c] PHY PLL not unlocked after 10us.\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 

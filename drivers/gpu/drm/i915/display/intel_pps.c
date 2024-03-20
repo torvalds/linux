@@ -605,8 +605,7 @@ static void wait_panel_status(struct intel_dp *intel_dp,
 		    intel_de_read(dev_priv, pp_stat_reg),
 		    intel_de_read(dev_priv, pp_ctrl_reg));
 
-	if (intel_de_wait_for_register(dev_priv, pp_stat_reg,
-				       mask, value, 5000))
+	if (intel_de_wait(dev_priv, pp_stat_reg, mask, value, 5000))
 		drm_err(&dev_priv->drm,
 			"[ENCODER:%d:%s] %s panel status timeout: PP_STATUS: 0x%08x PP_CONTROL: 0x%08x\n",
 			dig_port->base.base.base.id, dig_port->base.base.name,
