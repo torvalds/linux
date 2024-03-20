@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_QCOM_VIDEO_CC_PINEAPPLE_H
@@ -39,5 +39,6 @@
 #define VIDEO_CC_MVS1C_CLK_ARES					5
 #define VCODEC_VIDEO_CC_MVS1C_BCR				6
 #define VIDEO_CC_XO_CLK_ARES					7
+#define VIDEO_CC_MVS0_CLK_ARES					8
 
 #endif
