@@ -57,6 +57,19 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 	spin_unlock(&kvm->gpc_lock);
 }
 
+static bool kvm_gpc_is_valid_len(gpa_t gpa, unsigned long uhva,
+				 unsigned long len)
+{
+	unsigned long offset = kvm_is_error_gpa(gpa) ? offset_in_page(uhva) :
+						       offset_in_page(gpa);
+
+	/*
+	 * The cached access must fit within a single page. The 'len' argument
+	 * to activate() and refresh() exists only to enforce that.
+	 */
+	return offset + len <= PAGE_SIZE;
+}
+
 bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len)
 {
 	struct kvm_memslots *slots = kvm_memslots(gpc->kvm);
@@ -74,7 +87,7 @@ bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len)
 	if (kvm_is_error_hva(gpc->uhva))
 		return false;
 
-	if (offset_in_page(gpc->uhva) + len > PAGE_SIZE)
+	if (!kvm_gpc_is_valid_len(gpc->gpa, gpc->uhva, len))
 		return false;
 
 	if (!gpc->valid)
@@ -247,13 +260,7 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned l
 	if (WARN_ON_ONCE(kvm_is_error_gpa(gpa) == kvm_is_error_hva(uhva)))
 		return -EINVAL;
 
-	/*
-	 * The cached acces must fit within a single page. The 'len' argument
-	 * exists only to enforce that.
-	 */
-	page_offset = kvm_is_error_gpa(gpa) ? offset_in_page(uhva) :
-					      offset_in_page(gpa);
-	if (page_offset + len > PAGE_SIZE)
+	if (!kvm_gpc_is_valid_len(gpa, uhva, len))
 		return -EINVAL;
 
 	lockdep_assert_held(&gpc->refresh_lock);
@@ -270,6 +277,8 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned l
 	old_uhva = PAGE_ALIGN_DOWN(gpc->uhva);
 
 	if (kvm_is_error_gpa(gpa)) {
+		page_offset = offset_in_page(uhva);
+
 		gpc->gpa = INVALID_GPA;
 		gpc->memslot = NULL;
 		gpc->uhva = PAGE_ALIGN_DOWN(uhva);
@@ -278,6 +287,8 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned l
 			hva_change = true;
 	} else {
 		struct kvm_memslots *slots = kvm_memslots(gpc->kvm);
+
+		page_offset = offset_in_page(gpa);
 
 		if (gpc->gpa != gpa || gpc->generation != slots->generation ||
 		    kvm_is_error_hva(gpc->uhva)) {
