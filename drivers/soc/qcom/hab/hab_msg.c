@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -737,7 +737,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 				pchan->name, ret, payload_type, sizebytes);
 			break;
 		}
-		wake_up_interruptible(&dev->openq);
+		wake_up(&dev->openq);
 		break;
 
 	case HAB_PAYLOAD_TYPE_INIT_CANCEL:

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 
@@ -144,9 +144,18 @@ int hab_open_listen(struct uhab_context *ctx,
 		struct hab_device *dev,
 		struct hab_open_request *listen,
 		struct hab_open_request **recv_request,
-		int ms_timeout)
+		int ms_timeout,
+		unsigned int flags)
 {
 	int ret = 0;
+
+	unsigned int uninterruptible = 0;
+
+	/* This flag is for HAB clients in kernel space only, to avoid calling any
+	 * unexpected uninterruptible habmm_socket_open() since it is not killable.
+	 */
+	if (ctx->kernel)
+		uninterruptible = (flags & HABMM_SOCKET_OPEN_FLAGS_UNINTERRUPTIBLE);
 
 	if (!ctx || !listen || !recv_request) {
 		pr_err("listen failed ctx %pK listen %pK request %pK\n",
@@ -170,14 +179,23 @@ int hab_open_listen(struct uhab_context *ctx,
 		} else if (ret > 0)
 			ret = 0; /* condition met */
 	} else { /* fe case */
-		ret = wait_event_interruptible(dev->openq,
+		if (uninterruptible) { /* fe uinterruptible case */
+			wait_event(dev->openq,
 			hab_open_request_find(ctx, dev, listen, recv_request));
-		if (ctx->closing) {
-			pr_warn("local closing during open ret %d\n", ret);
-			ret = -ENODEV;
-		} else if (-ERESTARTSYS == ret) {
-			pr_warn("local interrupted ret %d\n", ret);
-			ret = -EINTR;
+			if (ctx->closing) {
+				pr_warn("local closing during open ret %d\n", ret);
+				ret = -ENODEV;
+			}
+		} else { /* fe interruptible case  */
+			ret = wait_event_interruptible(dev->openq,
+				hab_open_request_find(ctx, dev, listen, recv_request));
+			if (ctx->closing) {
+				pr_warn("local closing during open ret %d\n", ret);
+				ret = -ENODEV;
+			} else if (-ERESTARTSYS == ret) {
+				pr_warn("local interrupted ret %d\n", ret);
+				ret = -EINTR;
+			}
 		}
 	}
 
@@ -253,7 +271,7 @@ int hab_open_receive_cancel(struct physical_channel *pchan,
 		dev->openq_cnt++;
 		hab_spin_unlock(&dev->openlock, irqs_disabled);
 
-		wake_up_interruptible(&dev->openq);
+		wake_up(&dev->openq);
 	}
 
 	return 0;
