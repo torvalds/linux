@@ -251,7 +251,7 @@ static enum phy icl_aux_pw_to_phy(struct drm_i915_private *i915,
 	 * as HDMI-only and routed to a combo PHY, the encoder either won't be
 	 * present at all or it will not have an aux_ch assigned.
 	 */
-	return dig_port ? intel_port_to_phy(i915, dig_port->base.port) : PHY_NONE;
+	return dig_port ? intel_encoder_to_phy(&dig_port->base) : PHY_NONE;
 }
 
 static void hsw_wait_for_power_well_enable(struct drm_i915_private *dev_priv,

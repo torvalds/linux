@@ -3378,7 +3378,6 @@ static int icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 				struct intel_crtc *crtc,
 				struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct icl_port_dpll *port_dpll =
@@ -3397,8 +3396,7 @@ static int icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 
 
 	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_MG_PHY];
-	dpll_id = icl_tc_port_to_pll_id(intel_port_to_tc(i915,
-							 encoder->port));
+	dpll_id = icl_tc_port_to_pll_id(intel_encoder_to_tc(encoder));
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
 						BIT(dpll_id));
@@ -3424,15 +3422,12 @@ static int icl_compute_dplls(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc,
 			     struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
-	if (intel_phy_is_combo(i915, phy))
+	if (intel_encoder_is_combo(encoder))
 		return icl_compute_combo_phy_dpll(state, crtc);
-	else if (intel_phy_is_tc(i915, phy))
+	else if (intel_encoder_is_tc(encoder))
 		return icl_compute_tc_phy_dplls(state, crtc);
 
-	MISSING_CASE(phy);
+	MISSING_CASE(encoder->port);
 
 	return 0;
 }
@@ -3441,15 +3436,12 @@ static int icl_get_dplls(struct intel_atomic_state *state,
 			 struct intel_crtc *crtc,
 			 struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
-	if (intel_phy_is_combo(i915, phy))
+	if (intel_encoder_is_combo(encoder))
 		return icl_get_combo_phy_dpll(state, crtc, encoder);
-	else if (intel_phy_is_tc(i915, phy))
+	else if (intel_encoder_is_tc(encoder))
 		return icl_get_tc_phy_dplls(state, crtc, encoder);
 
-	MISSING_CASE(phy);
+	MISSING_CASE(encoder->port);
 
 	return -EINVAL;
 }

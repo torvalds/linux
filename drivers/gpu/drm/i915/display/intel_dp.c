@@ -443,11 +443,9 @@ static int dg2_max_source_rate(struct intel_dp *intel_dp)
 
 static int icl_max_source_rate(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
-	if (intel_phy_is_combo(dev_priv, phy) && !intel_dp_is_edp(intel_dp))
+	if (intel_encoder_is_combo(encoder) && !intel_dp_is_edp(intel_dp))
 		return 540000;
 
 	return 810000;
@@ -463,11 +461,9 @@ static int ehl_max_source_rate(struct intel_dp *intel_dp)
 
 static int mtl_max_source_rate(struct intel_dp *intel_dp)
 {
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		return 810000;
 
 	return 2000000;
@@ -6596,7 +6592,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
-	enum phy phy = intel_port_to_phy(dev_priv, port);
 	int type;
 
 	/* Initialize the work for modeset in case of link train failure */
@@ -6621,7 +6616,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		 * Currently we don't support eDP on TypeC ports, although in
 		 * theory it could work on TypeC legacy ports.
 		 */
-		drm_WARN_ON(dev, intel_phy_is_tc(dev_priv, phy));
+		drm_WARN_ON(dev, intel_encoder_is_tc(intel_encoder));
 		type = DRM_MODE_CONNECTOR_eDP;
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 

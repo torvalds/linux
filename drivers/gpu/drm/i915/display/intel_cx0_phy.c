@@ -423,7 +423,6 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
 	u8 owned_lane_mask;
 	intel_wakeref_t wakeref;
 	int n_entries, ln;
@@ -442,7 +441,7 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 		return;
 	}
 
-	if (intel_is_c10phy(i915, phy)) {
+	if (intel_encoder_is_c10phy(encoder)) {
 		intel_cx0_rmw(i915, encoder->port, owned_lane_mask, PHY_C10_VDR_CONTROL(1),
 			      0, C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
 		intel_cx0_rmw(i915, encoder->port, owned_lane_mask, PHY_C10_VDR_CMN(3),
@@ -483,7 +482,7 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 		      0, PHY_C10_VDR_OVRD_TX1 | PHY_C10_VDR_OVRD_TX2,
 		      MB_WRITE_COMMITTED);
 
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_cx0_rmw(i915, encoder->port, owned_lane_mask, PHY_C10_VDR_CONTROL(1),
 			      0, C10_VDR_CTRL_UPDATE_CFG, MB_WRITE_COMMITTED);
 
@@ -2046,10 +2045,8 @@ static int intel_c20_phy_check_hdmi_link_rate(int clock)
 int intel_cx0_phy_check_hdmi_link_rate(struct intel_hdmi *hdmi, int clock)
 {
 	struct intel_digital_port *dig_port = hdmi_to_dig_port(hdmi);
-	struct drm_i915_private *i915 = intel_hdmi_to_i915(hdmi);
-	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
 
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(&dig_port->base))
 		return intel_c10_phy_check_hdmi_link_rate(clock);
 	return intel_c20_phy_check_hdmi_link_rate(clock);
 }
@@ -2097,10 +2094,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
 			    struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		return intel_c10pll_calc_state(crtc_state, encoder);
 	return intel_c20pll_calc_state(crtc_state, encoder);
 }
@@ -2652,7 +2646,7 @@ static void intel_cx0_program_phy_lane(struct drm_i915_private *i915,
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
 	enum port port = encoder->port;
 
-	if (intel_is_c10phy(i915, intel_port_to_phy(i915, port)))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_cx0_rmw(i915, port, owned_lane_mask,
 			      PHY_C10_VDR_CONTROL(1), 0,
 			      C10_VDR_CTRL_MSGBUS_ACCESS,
@@ -2681,7 +2675,7 @@ static void intel_cx0_program_phy_lane(struct drm_i915_private *i915,
 			      MB_WRITE_COMMITTED);
 	}
 
-	if (intel_is_c10phy(i915, intel_port_to_phy(i915, port)))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_cx0_rmw(i915, port, owned_lane_mask,
 			      PHY_C10_VDR_CONTROL(1), 0,
 			      C10_VDR_CTRL_UPDATE_CFG,
@@ -2744,7 +2738,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	 */
 
 	/* 5. Program PHY internal PLL internal registers. */
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_c10_pll_program(i915, crtc_state, encoder);
 	else
 		intel_c20_pll_program(i915, crtc_state, encoder);
@@ -2902,7 +2896,7 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
-	bool is_c10 = intel_is_c10phy(i915, phy);
+	bool is_c10 = intel_encoder_is_c10phy(encoder);
 	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
 
 	/* 1. Change owned PHY lane power to Disable state. */
@@ -3052,10 +3046,7 @@ static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
 void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 				   struct intel_cx0pll_state *pll_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
 	else
 		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
@@ -3064,10 +3055,7 @@ void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_cx0pll_state *pll_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(i915, encoder->port);
-
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		return intel_c10pll_calc_port_clock(encoder, &pll_state->c10);
 
 	return intel_c20pll_calc_port_clock(encoder, &pll_state->c20);
@@ -3133,7 +3121,6 @@ void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
 	struct intel_cx0pll_state mpll_hw_state = {};
-	enum phy phy;
 
 	if (DISPLAY_VER(i915) < 14)
 		return;
@@ -3147,14 +3134,13 @@ void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 		return;
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
-	phy = intel_port_to_phy(i915, encoder->port);
 
 	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
 		return;
 
 	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
 
-	if (intel_is_c10phy(i915, phy))
+	if (intel_encoder_is_c10phy(encoder))
 		intel_c10pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c10);
 	else
 		intel_c20pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c20);
