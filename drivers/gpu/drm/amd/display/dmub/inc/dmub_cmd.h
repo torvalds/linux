@@ -150,10 +150,6 @@
 #define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
 #endif
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 /**
  * OS/FW agnostic udelay
  */
@@ -486,10 +482,6 @@ struct dmub_visual_confirm_color {
 	uint16_t color_b_cb;
 	uint16_t panel_inst;
 };
-
-#if defined(__cplusplus)
-}
-#endif
 
 //==============================================================================
 //</DMUB_TYPES>=================================================================
@@ -1582,6 +1574,223 @@ struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 {
 	struct dmub_cmd_fw_assisted_mclk_switch_config_v2 config_data;
 };
 
+struct dmub_flip_addr_info {
+	uint32_t surf_addr_lo;
+	uint32_t surf_addr_c_lo;
+	uint32_t meta_addr_lo;
+	uint32_t meta_addr_c_lo;
+	uint16_t surf_addr_hi;
+	uint16_t surf_addr_c_hi;
+	uint16_t meta_addr_hi;
+	uint16_t meta_addr_c_hi;
+};
+
+struct dmub_fams2_flip_info {
+	union {
+		struct {
+			uint8_t is_immediate: 1;
+		} bits;
+		uint8_t all;
+	} config;
+	uint8_t otg_inst;
+	uint8_t pipe_mask;
+	uint8_t pad;
+	struct dmub_flip_addr_info addr_info;
+};
+
+struct dmub_rb_cmd_fams2_flip {
+	struct dmub_cmd_header header;
+	struct dmub_fams2_flip_info flip_info;
+};
+
+struct dmub_optc_state_v2 {
+	uint32_t v_total_min;
+	uint32_t v_total_max;
+	uint32_t v_total_mid;
+	uint32_t v_total_mid_frame_num;
+	uint8_t program_manual_trigger;
+	uint8_t tg_inst;
+	uint8_t pad[2];
+};
+
+struct dmub_optc_position {
+	uint32_t vpos;
+	uint32_t hpos;
+	uint32_t frame;
+};
+
+struct dmub_rb_cmd_fams2_drr_update {
+	struct dmub_cmd_header header;
+	struct dmub_optc_state_v2 dmub_optc_state_req;
+};
+
+/* HW and FW global configuration data for FAMS2 */
+/* FAMS2 types and structs */
+enum fams2_stream_type {
+	FAMS2_STREAM_TYPE_NONE = 0,
+	FAMS2_STREAM_TYPE_VBLANK = 1,
+	FAMS2_STREAM_TYPE_VACTIVE = 2,
+	FAMS2_STREAM_TYPE_DRR = 3,
+	FAMS2_STREAM_TYPE_SUBVP = 4,
+};
+
+/* dynamic stream state */
+struct dmub_fams2_legacy_stream_dynamic_state {
+	uint8_t force_allow_at_vblank;
+	uint8_t pad[3];
+};
+
+struct dmub_fams2_subvp_stream_dynamic_state {
+	uint16_t viewport_start_hubp_vline;
+	uint16_t viewport_height_hubp_vlines;
+	uint16_t viewport_start_c_hubp_vline;
+	uint16_t viewport_height_c_hubp_vlines;
+	uint16_t phantom_viewport_height_hubp_vlines;
+	uint16_t phantom_viewport_height_c_hubp_vlines;
+	uint16_t microschedule_start_otg_vline;
+	uint16_t mall_start_otg_vline;
+	uint16_t mall_start_hubp_vline;
+	uint16_t mall_start_c_hubp_vline;
+	uint8_t force_allow_at_vblank_only;
+	uint8_t pad[3];
+};
+
+struct dmub_fams2_drr_stream_dynamic_state {
+	uint16_t stretched_vtotal;
+	uint8_t use_cur_vtotal;
+	uint8_t pad;
+};
+
+struct dmub_fams2_stream_dynamic_state {
+	uint64_t ref_tick;
+	uint32_t cur_vtotal;
+	uint16_t adjusted_allow_end_otg_vline;
+	uint8_t pad[2];
+	struct dmub_optc_position ref_otg_pos;
+	struct dmub_optc_position target_otg_pos;
+	union {
+		struct dmub_fams2_legacy_stream_dynamic_state legacy;
+		struct dmub_fams2_subvp_stream_dynamic_state subvp;
+		struct dmub_fams2_drr_stream_dynamic_state drr;
+	} sub_state;
+};
+
+/* static stream state */
+struct dmub_fams2_legacy_stream_static_state {
+	uint8_t vactive_det_fill_delay_otg_vlines;
+	uint8_t programming_delay_otg_vlines;
+};
+
+struct dmub_fams2_subvp_stream_static_state {
+	uint16_t vratio_numerator;
+	uint16_t vratio_denominator;
+	uint16_t phantom_vtotal;
+	uint16_t phantom_vactive;
+	union {
+		struct {
+			uint8_t is_multi_planar : 1;
+			uint8_t is_yuv420 : 1;
+		} bits;
+		uint8_t all;
+	} config;
+	uint8_t programming_delay_otg_vlines;
+	uint8_t prefetch_to_mall_otg_vlines;
+	uint8_t phantom_otg_inst;
+	uint8_t phantom_pipe_mask;
+	uint8_t phantom_plane_pipe_masks[DMUB_MAX_PHANTOM_PLANES]; // phantom pipe mask per plane (for flip passthrough)
+};
+
+struct dmub_fams2_drr_stream_static_state {
+	uint16_t nom_stretched_vtotal;
+	uint8_t programming_delay_otg_vlines;
+	uint8_t only_stretch_if_required;
+	uint8_t pad[2];
+};
+
+struct dmub_fams2_stream_static_state {
+	enum fams2_stream_type type;
+	uint32_t otg_vline_time_ns;
+	uint32_t otg_vline_time_ticks;
+	uint16_t htotal;
+	uint16_t vtotal; // nominal vtotal
+	uint16_t vblank_start;
+	uint16_t vblank_end;
+	uint16_t max_vtotal;
+	uint16_t allow_start_otg_vline;
+	uint16_t allow_end_otg_vline;
+	uint16_t drr_keepout_otg_vline; // after this vline, vtotal cannot be changed
+	uint8_t scheduling_delay_otg_vlines; // min time to budget for ready to microschedule start
+	uint8_t contention_delay_otg_vlines; // time to budget for contention on execution
+	uint8_t vline_int_ack_delay_otg_vlines; // min time to budget for vertical interrupt firing
+	uint8_t allow_to_target_delay_otg_vlines; // time from allow vline to target vline
+	union {
+		struct {
+			uint8_t is_drr: 1; // stream is DRR enabled
+			uint8_t clamp_vtotal_min: 1; // clamp vtotal to min instead of nominal
+			uint8_t min_ttu_vblank_usable: 1; // if min ttu vblank is above wm, no force pstate is needed in blank
+		} bits;
+		uint8_t all;
+	} config;
+	uint8_t otg_inst;
+	uint8_t pipe_mask; // pipe mask for the whole config
+	uint8_t num_planes;
+	uint8_t plane_pipe_masks[DMUB_MAX_PLANES]; // pipe mask per plane (for flip passthrough)
+	uint8_t pad[DMUB_MAX_PLANES % 4];
+	union {
+		struct dmub_fams2_legacy_stream_static_state legacy;
+		struct dmub_fams2_subvp_stream_static_state subvp;
+		struct dmub_fams2_drr_stream_static_state drr;
+	} sub_state;
+};
+
+/**
+ * enum dmub_fams2_allow_delay_check_mode - macroscheduler mode for breaking on excessive
+ * p-state request to allow latency
+ */
+enum dmub_fams2_allow_delay_check_mode {
+	/* No check for request to allow delay */
+	FAMS2_ALLOW_DELAY_CHECK_NONE = 0,
+	/* Check for request to allow delay */
+	FAMS2_ALLOW_DELAY_CHECK_FROM_START = 1,
+	/* Check for prepare to allow delay */
+	FAMS2_ALLOW_DELAY_CHECK_FROM_PREPARE = 2,
+};
+
+union dmub_fams2_global_feature_config {
+	struct {
+		uint32_t enable: 1;
+		uint32_t enable_ppt_check: 1;
+		uint32_t enable_stall_recovery: 1;
+		uint32_t enable_debug: 1;
+		uint32_t enable_offload_flip: 1;
+		uint32_t enable_visual_confirm: 1;
+		uint32_t allow_delay_check_mode: 2;
+		uint32_t reserved: 24;
+	} bits;
+	uint32_t all;
+};
+
+struct dmub_cmd_fams2_global_config {
+	uint32_t max_allow_delay_us; // max delay to assert allow from uclk change begin
+	uint32_t lock_wait_time_us; // time to forecast acquisition of lock
+	uint32_t num_streams;
+	union dmub_fams2_global_feature_config features;
+	uint8_t pad[3];
+};
+
+union dmub_cmd_fams2_config {
+	struct dmub_cmd_fams2_global_config global;
+	struct dmub_fams2_stream_static_state stream;
+};
+
+/**
+ * DMUB rb command definition for FAMS2 (merged SubVP, FPO, Legacy)
+ */
+struct dmub_rb_cmd_fams2 {
+	struct dmub_cmd_header header;
+	union dmub_cmd_fams2_config config;
+};
+
 /**
  * enum dmub_cmd_idle_opt_type - Idle optimization command type.
  */
@@ -2263,6 +2472,9 @@ enum dmub_cmd_fams_type {
 	 * on (for any SubVP cases that use a DRR display)
 	 */
 	DMUB_CMD__FAMS_SET_MANUAL_TRIGGER = 3,
+	DMUB_CMD__FAMS2_CONFIG = 4,
+	DMUB_CMD__FAMS2_DRR_UPDATE = 5,
+	DMUB_CMD__FAMS2_FLIP = 6,
 };
 
 /**
@@ -3547,6 +3759,7 @@ enum hw_lock_client {
 	 * Replay is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_REPLAY		= 4,
+	HW_LOCK_CLIENT_FAMS2 = 5,
 	/**
 	 * Invalid client.
 	 */
@@ -4722,7 +4935,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
 	struct dmub_rb_cmd_assr_enable assr_enable;
+	struct dmub_rb_cmd_fams2 fams2_config;
 
+	struct dmub_rb_cmd_fams2_drr_update fams2_drr_update;
+
+	struct dmub_rb_cmd_fams2_flip fams2_flip;
 };
 
 /**
@@ -4758,10 +4975,6 @@ union dmub_rb_out_cmd {
 //==============================================================================
 //< DMUB_RB>====================================================================
 //==============================================================================
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /**
  * struct dmub_rb_init_params - Initialization params for DMUB ringbuffer
@@ -5038,10 +5251,6 @@ static inline void dmub_rb_get_return_data(struct dmub_rb *rb,
 
 	dmub_memcpy(cmd, rd_ptr, DMUB_RB_CMD_SIZE);
 }
-
-#if defined(__cplusplus)
-}
-#endif
 
 //==============================================================================
 //</DMUB_RB>====================================================================
