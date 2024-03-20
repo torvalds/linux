@@ -337,7 +337,7 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 	num_remain = req_entries;
 
 	if (!num_remain)
-		goto skip_replenish;
+		goto out;
 
 	/* Get the descriptor from free list */
 	if (list_empty(used_list)) {
@@ -389,22 +389,14 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 		ath12k_hal_rx_buf_addr_info_set(desc, paddr, cookie, mgr);
 	}
 
-skip_replenish:
-	ath12k_hal_srng_access_end(ab, srng);
-
-	if (!list_empty(used_list))
-		ath12k_dp_rx_enqueue_free(dp, used_list);
-
-	spin_unlock_bh(&srng->lock);
-
-	return req_entries - num_remain;
+	goto out;
 
 fail_dma_unmap:
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
 			 DMA_FROM_DEVICE);
 fail_free_skb:
 	dev_kfree_skb_any(skb);
-
+out:
 	ath12k_hal_srng_access_end(ab, srng);
 
 	if (!list_empty(used_list))
