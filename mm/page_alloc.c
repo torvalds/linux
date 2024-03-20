@@ -2493,7 +2493,7 @@ void free_unref_folios(struct folio_batch *folios)
 	unsigned long __maybe_unused UP_flags;
 	struct per_cpu_pages *pcp = NULL;
 	struct zone *locked_zone = NULL;
-	int i, j, migratetype;
+	int i, j;
 
 	/* Prepare folios for freeing */
 	for (i = 0, j = 0; i < folios->nr; i++) {
@@ -2505,14 +2505,15 @@ void free_unref_folios(struct folio_batch *folios)
 			folio_undo_large_rmappable(folio);
 		if (!free_pages_prepare(&folio->page, order))
 			continue;
-
 		/*
-		 * Free isolated folios and orders not handled on the PCP
-		 * directly to the allocator, see comment in free_unref_page.
+		 * Free orders not handled on the PCP directly to the
+		 * allocator.
 		 */
-		migratetype = get_pfnblock_migratetype(&folio->page, pfn);
-		if (!pcp_allowed_order(order) ||
-		    is_migrate_isolate(migratetype)) {
+		if (!pcp_allowed_order(order)) {
+			int migratetype;
+
+			migratetype = get_pfnblock_migratetype(&folio->page,
+							       pfn);
 			free_one_page(folio_zone(folio), &folio->page, pfn,
 					order, migratetype, FPI_NONE);
 			continue;
@@ -2529,15 +2530,29 @@ void free_unref_folios(struct folio_batch *folios)
 		struct zone *zone = folio_zone(folio);
 		unsigned long pfn = folio_pfn(folio);
 		unsigned int order = (unsigned long)folio->private;
+		int migratetype;
 
 		folio->private = NULL;
 		migratetype = get_pfnblock_migratetype(&folio->page, pfn);
 
 		/* Different zone requires a different pcp lock */
-		if (zone != locked_zone) {
+		if (zone != locked_zone ||
+		    is_migrate_isolate(migratetype)) {
 			if (pcp) {
 				pcp_spin_unlock(pcp);
 				pcp_trylock_finish(UP_flags);
+				locked_zone = NULL;
+				pcp = NULL;
+			}
+
+			/*
+			 * Free isolated pages directly to the
+			 * allocator, see comment in free_unref_page.
+			 */
+			if (is_migrate_isolate(migratetype)) {
+				free_one_page(zone, &folio->page, pfn,
+					      order, migratetype, FPI_NONE);
+				continue;
 			}
 
 			/*
@@ -2550,7 +2565,6 @@ void free_unref_folios(struct folio_batch *folios)
 				pcp_trylock_finish(UP_flags);
 				free_one_page(zone, &folio->page, pfn,
 					      order, migratetype, FPI_NONE);
-				locked_zone = NULL;
 				continue;
 			}
 			locked_zone = zone;
