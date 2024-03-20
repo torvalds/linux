@@ -609,7 +609,7 @@ struct iwl_lari_config_change_cmd_v6 {
 
 /**
  * struct iwl_lari_config_change_cmd_v7 - change LARI configuration
- * This structure is used also for lari cmd version 8.
+ * This structure is used also for lari cmd version 8 and 9.
  * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
  *     different predefined FW config operation.
  * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
@@ -619,6 +619,8 @@ struct iwl_lari_config_change_cmd_v6 {
  * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
  *     per country, one to indicate whether to override and the other to
  *     indicate allow/disallow unii4 channels.
+ *     For LARI cmd version 4 to 8 - bits 0:3 are supported.
+ *     For LARI cmd version 9 - bits 0:5 are supported.
  * @chan_state_active_bitmap: Bitmap to enable different bands per country
  *     or region.
  *     Each bit represents a country or region, and a band to activate
@@ -642,6 +644,7 @@ struct iwl_lari_config_change_cmd_v7 {
 } __packed;
 /* LARI_CHANGE_CONF_CMD_S_VER_7 */
 /* LARI_CHANGE_CONF_CMD_S_VER_8 */
+/* LARI_CHANGE_CONF_CMD_S_VER_9 */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK	BIT(4)

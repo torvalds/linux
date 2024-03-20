@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 
 #ifndef __fw_regulatory_h__
@@ -131,6 +131,23 @@ enum iwl_dsm_values_indonesia {
 	DSM_VALUE_INDONESIA_RESERVED,
 	DSM_VALUE_INDONESIA_MAX
 };
+
+enum iwl_dsm_unii4_bitmap {
+	DSM_VALUE_UNII4_US_OVERRIDE_MSK		= BIT(0),
+	DSM_VALUE_UNII4_US_EN_MSK		= BIT(1),
+	DSM_VALUE_UNII4_ETSI_OVERRIDE_MSK	= BIT(2),
+	DSM_VALUE_UNII4_ETSI_EN_MSK		= BIT(3),
+	DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK	= BIT(4),
+	DSM_VALUE_UNII4_CANADA_EN_MSK		= BIT(5),
+};
+
+#define DSM_UNII4_ALLOW_BITMAP_CMD_V8 (DSM_VALUE_UNII4_US_OVERRIDE_MSK | \
+				       DSM_VALUE_UNII4_US_EN_MSK | \
+				       DSM_VALUE_UNII4_ETSI_OVERRIDE_MSK | \
+				       DSM_VALUE_UNII4_ETSI_EN_MSK)
+#define DSM_UNII4_ALLOW_BITMAP (DSM_UNII4_ALLOW_BITMAP_CMD_V8 | \
+				DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK | \
+				DSM_VALUE_UNII4_CANADA_EN_MSK)
 
 enum iwl_dsm_values_rfi {
 	DSM_VALUE_RFI_DLVR_DISABLE	= BIT(0),
