@@ -3,6 +3,17 @@
 #include <dt-bindings/reset/aspeed,ast1700-reset.h>
 
 / {
+	aliases {
+		i3c104 = &ltpi0_i3c4;
+		i3c105 = &ltpi0_i3c5;
+		i3c106 = &ltpi0_i3c6;
+		i3c107 = &ltpi0_i3c7;
+		i3c108 = &ltpi0_i3c8;
+		i3c109 = &ltpi0_i3c9;
+		i3c110 = &ltpi0_i3c10;
+		i3c111 = &ltpi0_i3c11;
+	};
+
 	ltpi0_bus: ltpi0_bus@30000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
