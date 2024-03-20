@@ -29,12 +29,21 @@
 #define INTEL_CX0_LANE1		BIT(1)
 #define INTEL_CX0_BOTH_LANES	(INTEL_CX0_LANE1 | INTEL_CX0_LANE0)
 
+/* Prefer intel_encoder_is_c10phy() */
 bool intel_is_c10phy(struct drm_i915_private *i915, enum phy phy)
 {
 	if ((IS_LUNARLAKE(i915) || IS_METEORLAKE(i915)) && phy < PHY_C)
 		return true;
 
 	return false;
+}
+
+bool intel_encoder_is_c10phy(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_encoder_to_phy(encoder);
+
+	return intel_is_c10phy(i915, phy);
 }
 
 static int lane_mask_to_lane(u8 lane_mask)

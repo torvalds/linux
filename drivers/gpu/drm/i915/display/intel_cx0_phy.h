@@ -23,6 +23,7 @@ struct intel_encoder;
 struct intel_hdmi;
 
 bool intel_is_c10phy(struct drm_i915_private *dev_priv, enum phy phy);
+bool intel_encoder_is_c10phy(struct intel_encoder *encoder);
 void intel_mtl_pll_enable(struct intel_encoder *encoder,
 			  const struct intel_crtc_state *crtc_state);
 void intel_mtl_pll_disable(struct intel_encoder *encoder);
