@@ -1358,24 +1358,11 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			 * range.
 			 */
 			extent_clear_unlock_delalloc(inode, start, end,
-				     locked_page,
+				     NULL,
 				     EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
 				     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
 				     PAGE_START_WRITEBACK | PAGE_END_WRITEBACK);
-			/*
-			 * locked_page is locked by the caller of
-			 * writepage_delalloc(), not locked by
-			 * __process_pages_contig().
-			 *
-			 * We can't let __process_pages_contig() to unlock it,
-			 * as it doesn't have any subpage::writers recorded.
-			 *
-			 * Here we manually unlock the page, since the caller
-			 * can't determine if it's an inline extent or a
-			 * compressed extent.
-			 */
-			unlock_page(locked_page);
 			ret = 1;
 			goto done;
 		} else if (ret < 0) {
