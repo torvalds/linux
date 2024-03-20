@@ -1674,8 +1674,14 @@ static void
 ath9k_set_moredata(struct ath_softc *sc, struct ath_buf *bf, bool val)
 {
 	struct ieee80211_hdr *hdr;
-	u16 mask = cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	u16 mask_val = mask * val;
+	__le16 mask, mask_val;
+
+	mask = cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
+	if (val)
+		mask_val = mask;
+	else
+		mask_val = 0;
 
 	hdr = (struct ieee80211_hdr *) bf->bf_mpdu->data;
 	if ((hdr->frame_control & mask) != mask_val) {
