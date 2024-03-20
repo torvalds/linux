@@ -44,9 +44,11 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 	}
 }
 
-void intel_snps_phy_update_psr_power_state(struct drm_i915_private *i915,
-					   enum phy phy, bool enable)
+void intel_snps_phy_update_psr_power_state(struct intel_encoder *encoder,
+					   bool enable)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
 	u32 val;
 
 	if (!intel_phy_is_snps(i915, phy))
