@@ -60,10 +60,6 @@ struct wmi_tlv {
 #define WLAN_SCAN_MAX_HINT_BSSID         10
 #define MAX_RNR_BSS                    5
 
-#define WLAN_SCAN_MAX_HINT_S_SSID        10
-#define WLAN_SCAN_MAX_HINT_BSSID         10
-#define MAX_RNR_BSS                    5
-
 #define WLAN_SCAN_PARAMS_MAX_SSID    16
 #define WLAN_SCAN_PARAMS_MAX_BSSID   4
 #define WLAN_SCAN_PARAMS_MAX_IE_LEN  512
@@ -5749,8 +5745,6 @@ struct wmi_debug_log_config_cmd_fixed_param {
 	u32 dbg_log_param;
 	u32 value;
 } __packed;
-
-#define WMI_MAX_MEM_REQS 32
 
 #define MAX_RADIOS 3
 
