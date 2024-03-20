@@ -292,7 +292,7 @@ static u32 i915_perf_stream_paranoid = true;
 #define OAREPORT_REASON_CTX_SWITCH     (1<<3)
 #define OAREPORT_REASON_CLK_RATIO      (1<<5)
 
-#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+#define HAS_MI_SET_PREDICATE(i915) (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 
 /* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
  *
@@ -817,7 +817,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 
 		if (oa_report_ctx_invalid(stream, report) &&
-		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 50)) {
+		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 55)) {
 			ctx_id = INVALID_CTX_ID;
 			oa_context_id_squash(stream, report32);
 		}
@@ -1419,7 +1419,7 @@ static int gen12_get_render_context_id(struct i915_perf_stream *stream)
 
 		mask = ((1U << GEN12_GUC_SW_CTX_ID_WIDTH) - 1) <<
 			(GEN12_GUC_SW_CTX_ID_SHIFT - 32);
-	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(stream->engine->i915) >= IP_VER(12, 55)) {
 		ctx_id = (XEHP_MAX_CONTEXT_HW_ID - 1) <<
 			(XEHP_SW_CTX_ID_SHIFT - 32);
 
@@ -4122,7 +4122,7 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			props->hold_preemption = !!value;
 			break;
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
-			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
+			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 55)) {
 				drm_dbg(&perf->i915->drm,
 					"SSEU config not supported on gfx %x\n",
 					GRAPHICS_VER_FULL(perf->i915));

@@ -286,7 +286,7 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 
 	/* Wa_22012773006:gen11,gen12 < XeHP */
 	if (GRAPHICS_VER(gt->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 50))
+	    GRAPHICS_VER_FULL(gt->i915) < IP_VER(12, 55))
 		flags |= GUC_WA_POLLCS;
 
 	/* Wa_14014475959 */

@@ -639,7 +639,7 @@ static void init_l3cc_table(struct intel_gt *gt,
 
 	intel_gt_mcr_lock(gt, &flags);
 	for_each_l3cc(l3cc, table, i)
-		if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55))
 			intel_gt_mcr_multicast_write_fw(gt, XEHP_LNCFCMOCS(i), l3cc);
 		else
 			intel_uncore_write_fw(gt->uncore, GEN9_LNCFCMOCS(i), l3cc);

@@ -184,7 +184,7 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 		 * steering.
 		 */
 	} else if (GRAPHICS_VER(i915) >= 11 &&
-		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
+		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 55)) {
 		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
 		gt->info.l3bank_mask =
 			~intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
@@ -829,7 +829,7 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 	if (IS_PONTEVECCHIO(gt->i915)) {
 		*group = dss / GEN_DSS_PER_CSLICE;
 		*instance = dss % GEN_DSS_PER_CSLICE;
-	} else if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50)) {
+	} else if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 55)) {
 		*group = dss / GEN_DSS_PER_GSLICE;
 		*instance = dss % GEN_DSS_PER_GSLICE;
 	} else {

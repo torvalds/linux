@@ -2714,7 +2714,7 @@ void intel_uncore_prune_engine_fw_domains(struct intel_uncore *uncore,
 		 * the forcewake domain if any of the other engines
 		 * in the same media slice are present.
 		 */
-		if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50) && i % 2 == 0) {
+		if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 55) && i % 2 == 0) {
 			if ((i + 1 < I915_MAX_VCS) && HAS_ENGINE(gt, _VCS(i + 1)))
 				continue;
 

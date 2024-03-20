@@ -642,7 +642,7 @@ void intel_sseu_info_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 		xehp_sseu_info_init(gt);
 	else if (GRAPHICS_VER(i915) >= 12)
 		gen12_sseu_info_init(gt);
@@ -851,7 +851,7 @@ void intel_sseu_print_topology(struct drm_i915_private *i915,
 {
 	if (sseu->max_slices == 0)
 		drm_printf(p, "Unavailable\n");
-	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 		sseu_print_xehp_topology(sseu, p);
 	else
 		sseu_print_hsw_topology(sseu, p);
