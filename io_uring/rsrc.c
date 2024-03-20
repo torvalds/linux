@@ -13,6 +13,7 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "alloc_cache.h"
 #include "openclose.h"
 #include "rsrc.h"
 
@@ -169,7 +170,7 @@ static void io_rsrc_put_work(struct io_rsrc_node *node)
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache))
+	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, node))
 		kfree(node);
 }
 
@@ -197,12 +198,9 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_rsrc_node *ref_node;
-	struct io_cache_entry *entry;
 
-	entry = io_alloc_cache_get(&ctx->rsrc_node_cache);
-	if (entry) {
-		ref_node = container_of(entry, struct io_rsrc_node, cache);
-	} else {
+	ref_node = io_alloc_cache_get(&ctx->rsrc_node_cache);
+	if (!ref_node) {
 		ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
 		if (!ref_node)
 			return NULL;

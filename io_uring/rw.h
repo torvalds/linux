@@ -3,10 +3,7 @@
 #include <linux/pagemap.h>
 
 struct io_async_rw {
-	union {
-		size_t			bytes_done;
-		struct io_cache_entry	cache;
-	};
+	size_t				bytes_done;
 	struct iov_iter			iter;
 	struct iov_iter_state		iter_state;
 	struct iovec			fast_iov;
@@ -28,4 +25,4 @@ void io_rw_fail(struct io_kiocb *req);
 void io_req_rw_complete(struct io_kiocb *req, struct io_tw_state *ts);
 int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags);
-void io_rw_cache_free(struct io_cache_entry *entry);
+void io_rw_cache_free(const void *entry);

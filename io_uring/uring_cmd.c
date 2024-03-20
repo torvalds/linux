@@ -11,18 +11,17 @@
 #include <asm/ioctls.h>
 
 #include "io_uring.h"
+#include "alloc_cache.h"
 #include "rsrc.h"
 #include "uring_cmd.h"
 
 static struct uring_cache *io_uring_async_get(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_cache_entry *entry;
 	struct uring_cache *cache;
 
-	entry = io_alloc_cache_get(&ctx->uring_cache);
-	if (entry) {
-		cache = container_of(entry, struct uring_cache, cache);
+	cache = io_alloc_cache_get(&ctx->uring_cache);
+	if (cache) {
 		req->flags |= REQ_F_ASYNC_DATA;
 		req->async_data = cache;
 		return cache;
@@ -39,7 +38,7 @@ static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		return;
-	if (io_alloc_cache_put(&req->ctx->uring_cache, &cache->cache)) {
+	if (io_alloc_cache_put(&req->ctx->uring_cache, cache)) {
 		ioucmd->sqe = NULL;
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
@@ -354,8 +353,3 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_sock);
 #endif
-
-void io_uring_cache_free(struct io_cache_entry *entry)
-{
-	kfree(container_of(entry, struct uring_cache, cache));
-}

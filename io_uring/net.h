@@ -3,23 +3,15 @@
 #include <linux/net.h>
 #include <linux/uio.h>
 
-#include "alloc_cache.h"
-
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
-	union {
-		struct iovec			fast_iov;
-		struct {
-			struct io_cache_entry	cache;
-			/* entry size of ->free_iov, if valid */
-			int			free_iov_nr;
-		};
-	};
+	struct iovec			fast_iov;
 	/* points to an allocated iov, if NULL we use fast_iov instead */
 	struct iovec			*free_iov;
+	int				free_iov_nr;
+	int				namelen;
 	__kernel_size_t			controllen;
 	__kernel_size_t			payloadlen;
-	int				namelen;
 	struct sockaddr __user		*uaddr;
 	struct msghdr			msg;
 	struct sockaddr_storage		addr;
@@ -57,9 +49,9 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags);
 int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 void io_send_zc_cleanup(struct io_kiocb *req);
 
-void io_netmsg_cache_free(struct io_cache_entry *entry);
+void io_netmsg_cache_free(const void *entry);
 #else
-static inline void io_netmsg_cache_free(struct io_cache_entry *entry)
+static inline void io_netmsg_cache_free(const void *entry)
 {
 }
 #endif

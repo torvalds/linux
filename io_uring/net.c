@@ -137,7 +137,7 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 
 	/* Let normal cleanup path reap it if we fail adding to the cache */
 	iov = hdr->free_iov;
-	if (io_alloc_cache_put(&req->ctx->netmsg_cache, &hdr->cache)) {
+	if (io_alloc_cache_put(&req->ctx->netmsg_cache, hdr)) {
 		if (iov)
 			kasan_mempool_poison_object(iov);
 		req->async_data = NULL;
@@ -148,12 +148,10 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_cache_entry *entry;
 	struct io_async_msghdr *hdr;
 
-	entry = io_alloc_cache_get(&ctx->netmsg_cache);
-	if (entry) {
-		hdr = container_of(entry, struct io_async_msghdr, cache);
+	hdr = io_alloc_cache_get(&ctx->netmsg_cache);
+	if (hdr) {
 		if (hdr->free_iov) {
 			kasan_mempool_unpoison_object(hdr->free_iov,
 				hdr->free_iov_nr * sizeof(struct iovec));
@@ -1490,11 +1488,10 @@ out:
 	return IOU_OK;
 }
 
-void io_netmsg_cache_free(struct io_cache_entry *entry)
+void io_netmsg_cache_free(const void *entry)
 {
-	struct io_async_msghdr *kmsg;
+	struct io_async_msghdr *kmsg = (struct io_async_msghdr *) entry;
 
-	kmsg = container_of(entry, struct io_async_msghdr, cache);
 	if (kmsg->free_iov) {
 		kasan_mempool_unpoison_object(kmsg->free_iov,
 				kmsg->free_iov_nr * sizeof(struct iovec));

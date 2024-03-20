@@ -2,8 +2,6 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#include "alloc_cache.h"
-
 #define IO_NODE_ALLOC_CACHE_MAX 32
 
 #define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
@@ -36,10 +34,7 @@ struct io_rsrc_data {
 };
 
 struct io_rsrc_node {
-	union {
-		struct io_cache_entry		cache;
-		struct io_ring_ctx		*ctx;
-	};
+	struct io_ring_ctx		*ctx;
 	int				refs;
 	bool				empty;
 	u16				type;

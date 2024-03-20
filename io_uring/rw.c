@@ -18,6 +18,7 @@
 #include "io_uring.h"
 #include "opdef.h"
 #include "kbuf.h"
+#include "alloc_cache.h"
 #include "rsrc.h"
 #include "poll.h"
 #include "rw.h"
@@ -154,7 +155,7 @@ static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 		return;
 	}
 	iov = rw->free_iovec;
-	if (io_alloc_cache_put(&req->ctx->rw_cache, &rw->cache)) {
+	if (io_alloc_cache_put(&req->ctx->rw_cache, rw)) {
 		if (iov)
 			kasan_mempool_poison_object(iov);
 		req->async_data = NULL;
@@ -200,12 +201,10 @@ static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 static int io_rw_alloc_async(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_cache_entry *entry;
 	struct io_async_rw *rw;
 
-	entry = io_alloc_cache_get(&ctx->rw_cache);
-	if (entry) {
-		rw = container_of(entry, struct io_async_rw, cache);
+	rw = io_alloc_cache_get(&ctx->rw_cache);
+	if (rw) {
 		if (rw->free_iovec) {
 			kasan_mempool_unpoison_object(rw->free_iovec,
 				rw->free_iov_nr * sizeof(struct iovec));
@@ -1168,11 +1167,10 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	return nr_events;
 }
 
-void io_rw_cache_free(struct io_cache_entry *entry)
+void io_rw_cache_free(const void *entry)
 {
-	struct io_async_rw *rw;
+	struct io_async_rw *rw = (struct io_async_rw *) entry;
 
-	rw = container_of(entry, struct io_async_rw, cache);
 	if (rw->free_iovec) {
 		kasan_mempool_unpoison_object(rw->free_iovec,
 				rw->free_iov_nr * sizeof(struct iovec));

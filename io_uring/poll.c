@@ -14,6 +14,7 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "alloc_cache.h"
 #include "refs.h"
 #include "napi.h"
 #include "opdef.h"
@@ -686,17 +687,15 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 					     unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_cache_entry *entry;
 	struct async_poll *apoll;
 
 	if (req->flags & REQ_F_POLLED) {
 		apoll = req->apoll;
 		kfree(apoll->double_poll);
 	} else if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		entry = io_alloc_cache_get(&ctx->apoll_cache);
-		if (entry == NULL)
+		apoll = io_alloc_cache_get(&ctx->apoll_cache);
+		if (!apoll)
 			goto alloc_apoll;
-		apoll = container_of(entry, struct async_poll, cache);
 		apoll->poll.retries = APOLL_MAX_RETRY;
 	} else {
 alloc_apoll:
@@ -1054,9 +1053,4 @@ out:
 	/* complete update request, we're done with it */
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
-}
-
-void io_apoll_cache_free(struct io_cache_entry *entry)
-{
-	kfree(container_of(entry, struct async_poll, cache));
 }
