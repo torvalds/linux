@@ -1212,6 +1212,13 @@ static void ethqos_handle_phy_interrupt(struct qcom_ethqos *ethqos)
 		ETHQOSDBG("MICREL PHY Intr EN Reg (%#x) = %#x\n",
 			  DWC_ETH_QOS_MICREL_PHY_INTCS, micrel_intr_status);
 
+		/**
+		 * Call ack interrupt to clear the WOL
+		 * interrupt status fields
+		 */
+		if (priv->phydev->drv->config_intr)
+			priv->phydev->drv->config_intr(priv->phydev);
+
 		/* Interrupt received for link state change */
 		if (phy_intr_status & LINK_STATE_MASK) {
 			if (micrel_intr_status & MICREL_LINK_UP_INTR_STATUS)
