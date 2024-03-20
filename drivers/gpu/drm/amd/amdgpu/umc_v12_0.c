@@ -268,7 +268,7 @@ static void umc_v12_0_mca_addr_to_pa(struct amdgpu_device *adev,
 static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					    struct ras_err_data *err_data, uint64_t err_addr,
 					    uint32_t ch_inst, uint32_t umc_inst,
-					    uint32_t node_inst)
+					    uint32_t node_inst, uint32_t socket_id)
 {
 	uint32_t col, row, row_xor, bank, channel_index;
 	uint64_t soc_pa, retired_page, column;
@@ -280,6 +280,7 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	addr_in.ma.ch_inst = ch_inst;
 	addr_in.ma.umc_inst = umc_inst;
 	addr_in.ma.node_inst = node_inst;
+	addr_in.ma.socket_id = socket_id;
 
 	if (psp_ras_query_address(&adev->psp, &addr_in, &addr_out))
 		/* fallback to old path if fail to get pa from psp */
@@ -331,6 +332,7 @@ static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 	struct ras_err_data *err_data = (struct ras_err_data *)data;
 	uint64_t umc_reg_offset =
 		get_umc_v12_0_reg_offset(adev, node_inst, umc_inst, ch_inst);
+	uint32_t socket_id = 0;
 
 	mc_umc_status_addr =
 		SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_STATUST0);
@@ -357,8 +359,13 @@ static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 
 		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
+		if (!adev->aid_mask &&
+		    adev->smuio.funcs &&
+		    adev->smuio.funcs->get_socket_id)
+			socket_id = adev->smuio.funcs->get_socket_id(adev);
+
 		umc_v12_0_convert_error_address(adev, err_data, err_addr,
-					ch_inst, umc_inst, node_inst);
+					ch_inst, umc_inst, node_inst, socket_id);
 	}
 
 	/* clear umc status */
@@ -456,7 +463,8 @@ static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *ade
 					err_data, err_addr,
 					MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
 					MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
-					err_info->mcm_info.die_id);
+					err_info->mcm_info.die_id,
+					err_info->mcm_info.socket_id);
 			}
 
 			/* Delete error address node from list and free memory */
