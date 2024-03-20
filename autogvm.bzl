@@ -38,6 +38,7 @@ def define_autogvm():
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/md/dm-bow.ko",
+        "drivers/media/platform/msm/npu/virtio_npu.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
         "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
