@@ -662,11 +662,11 @@ static bool can_cow_file_range_inline(struct btrfs_inode *inode,
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
  */
-static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
-					  u64 size, size_t compressed_size,
-					  int compress_type,
-					  struct folio *compressed_folio,
-					  bool update_i_size)
+static noinline int __cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
+					    u64 size, size_t compressed_size,
+					    int compress_type,
+					    struct folio *compressed_folio,
+					    bool update_i_size)
 {
 	struct btrfs_drop_extents_args drop_args = { 0 };
 	struct btrfs_root *root = inode->root;
@@ -734,6 +734,33 @@ out:
 	btrfs_qgroup_free_data(inode, NULL, 0, PAGE_SIZE, NULL);
 	btrfs_free_path(path);
 	btrfs_end_transaction(trans);
+	return ret;
+}
+
+static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
+					  u64 end,
+					  size_t compressed_size,
+					  int compress_type,
+					  struct folio *compressed_folio,
+					  bool update_i_size, bool locked)
+{
+	unsigned long clear_flags = EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
+		EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING;
+	u64 size = min_t(u64, i_size_read(&inode->vfs_inode), end + 1);
+	int ret;
+
+	ret = __cow_file_range_inline(inode, offset, size, compressed_size,
+				      compress_type, compressed_folio,
+				      update_i_size);
+	if (ret > 0)
+		return ret;
+
+	if (locked)
+		clear_flags |= EXTENT_LOCKED;
+
+	extent_clear_unlock_delalloc(inode, offset, end, NULL, clear_flags,
+				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
+				     PAGE_END_WRITEBACK);
 	return ret;
 }
 
@@ -1005,36 +1032,15 @@ again:
 	 * extent for the subpage case.
 	 */
 	if (total_in < actual_end)
-		ret = cow_file_range_inline(inode, start, actual_end, 0,
-					    BTRFS_COMPRESS_NONE, NULL, false);
+		ret = cow_file_range_inline(inode, start, end, 0,
+					    BTRFS_COMPRESS_NONE, NULL, false,
+					    false);
 	else
-		ret = cow_file_range_inline(inode, start, actual_end,
-					    total_compressed, compress_type,
-					    folios[0], false);
+		ret = cow_file_range_inline(inode, start, end, total_compressed,
+					    compress_type, folios[0], false, false);
 	if (ret <= 0) {
-		unsigned long clear_flags = EXTENT_DELALLOC |
-			EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
-			EXTENT_DO_ACCOUNTING;
-
 		if (ret < 0)
 			mapping_set_error(mapping, -EIO);
-
-		/*
-		 * inline extent creation worked or returned error,
-		 * we don't need to create any more async work items.
-		 * Unlock and free up our temp pages.
-		 *
-		 * We use DO_ACCOUNTING here because we need the
-		 * delalloc_release_metadata to be done _after_ we drop
-		 * our outstanding extent for clearing delalloc for this
-		 * range.
-		 */
-		extent_clear_unlock_delalloc(inode, start, end,
-					     NULL,
-					     clear_flags,
-					     PAGE_UNLOCK |
-					     PAGE_START_WRITEBACK |
-					     PAGE_END_WRITEBACK);
 		goto free_pages;
 	}
 
@@ -1344,29 +1350,21 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	inode_should_defrag(inode, start, end, num_bytes, SZ_64K);
 
 	if (!no_inline) {
-		u64 actual_end = min_t(u64, i_size_read(&inode->vfs_inode),
-				       end + 1);
-
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(inode, start, actual_end, 0,
-					    BTRFS_COMPRESS_NONE, NULL, false);
-		if (ret == 0) {
+		ret = cow_file_range_inline(inode, start, end, 0,
+					    BTRFS_COMPRESS_NONE, NULL, false,
+					    true);
+		if (ret <= 0) {
 			/*
-			 * We use DO_ACCOUNTING here because we need the
-			 * delalloc_release_metadata to be run _after_ we drop
-			 * our outstanding extent for clearing delalloc for this
-			 * range.
+			 * We succeeded, return 1 so the caller knows we're done
+			 * with this page and already handled the IO.
+			 *
+			 * If there was an error then cow_file_range_inline() has
+			 * already done the cleanup.
 			 */
-			extent_clear_unlock_delalloc(inode, start, end,
-				     NULL,
-				     EXTENT_LOCKED | EXTENT_DELALLOC |
-				     EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
-				     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
-				     PAGE_START_WRITEBACK | PAGE_END_WRITEBACK);
-			ret = 1;
+			if (ret == 0)
+				ret = 1;
 			goto done;
-		} else if (ret < 0) {
-			goto out_unlock;
 		}
 	}
 
@@ -10273,9 +10271,9 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	/* Try an inline extent first. */
 	if (encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0) {
-		ret = cow_file_range_inline(inode, start, encoded->len,
-					    orig_count, compression, folios[0],
-					    true);
+		ret = __cow_file_range_inline(inode, start, encoded->len,
+					      orig_count, compression, folios[0],
+					      true);
 		if (ret <= 0) {
 			if (ret == 0)
 				ret = orig_count;
