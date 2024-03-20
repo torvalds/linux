@@ -3284,12 +3284,6 @@ static int ts_get_and_handle_kernel_record(struct hl_device *hdev, struct hl_ctx
 
 	/* In case the node already registered, need to unregister first then re-use */
 	if (req_offset_record->ts_reg_info.in_use) {
-		dev_dbg(data->buf->mmg->dev,
-				"Requested record %p is in use on irq: %u ts addr: %p, unregister first then put on irq: %u\n",
-				req_offset_record,
-				req_offset_record->ts_reg_info.interrupt->interrupt_id,
-				req_offset_record->ts_reg_info.timestamp_kernel_addr,
-				data->interrupt->interrupt_id);
 		/*
 		 * Since interrupt here can be different than the one the node currently registered
 		 * on, and we don't want to lock two lists while we're doing unregister, so
@@ -3345,10 +3339,6 @@ static int _hl_interrupt_ts_reg_ioctl(struct hl_device *hdev, struct hl_ctx *ctx
 		goto put_cq_cb;
 	}
 
-	dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, handle: 0x%llx, ts offset: %llu, cq_offset: %llu\n",
-					data->interrupt->interrupt_id, data->ts_handle,
-					data->ts_offset, data->cq_offset);
-
 	data->buf = hl_mmap_mem_buf_get(data->mmg, data->ts_handle);
 	if (!data->buf) {
 		rc = -EINVAL;
@@ -3369,9 +3359,6 @@ static int _hl_interrupt_ts_reg_ioctl(struct hl_device *hdev, struct hl_ctx *ctx
 	 */
 	if (*pend->cq_kernel_addr >= data->target_value) {
 		spin_unlock_irqrestore(&data->interrupt->ts_list_lock, flags);
-
-		dev_dbg(hdev->dev, "Target value already reached release ts record: pend: %p, offset: %llu, interrupt: %u\n",
-				pend, data->ts_offset, data->interrupt->interrupt_id);
 
 		pend->ts_reg_info.in_use = 0;
 		*status = HL_WAIT_CS_STATUS_COMPLETED;
