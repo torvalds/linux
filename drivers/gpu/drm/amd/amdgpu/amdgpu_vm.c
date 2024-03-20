@@ -682,7 +682,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		ring->funcs->emit_wreg;
 
 	if (adev->gfx.enable_cleaner_shader &&
-	    ring->funcs->emit_cleaner_shader)
+	    ring->funcs->emit_cleaner_shader &&
+	    job->enforce_isolation)
 		ring->funcs->emit_cleaner_shader(ring);
 
 	if (!vm_flush_needed && !gds_switch_needed && !need_pipe_sync)

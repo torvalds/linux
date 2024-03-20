@@ -296,6 +296,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 				       num_ibs[i], &p->jobs[i]);
 		if (ret)
 			goto free_all_kdata;
+		p->jobs[i]->enforce_isolation = p->adev->enforce_isolation[fpriv->xcp_id];
 	}
 	p->gang_leader = p->jobs[p->gang_leader_idx];
 
