@@ -96,7 +96,8 @@ struct xe_sched_job *xe_bb_create_job(struct xe_exec_queue *q,
 {
 	u64 addr = xe_sa_bo_gpu_addr(bb->bo);
 
-	xe_gt_assert(q->gt, !(q->vm && q->vm->flags & XE_VM_FLAG_MIGRATION));
+	xe_gt_assert(q->gt, !xe_sched_job_is_migration(q));
+	xe_gt_assert(q->gt, q->width == 1);
 	return __xe_bb_create_job(q, bb, &addr);
 }
 
