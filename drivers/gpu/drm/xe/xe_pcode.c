@@ -74,7 +74,7 @@ static int pcode_mailbox_rw(struct xe_gt *gt, u32 mbox, u32 *data0, u32 *data1,
 	xe_mmio_write32(gt, PCODE_MAILBOX, PCODE_READY | mbox);
 
 	err = xe_mmio_wait32(gt, PCODE_MAILBOX, PCODE_READY, 0,
-			     timeout_ms * 1000, NULL, atomic);
+			     timeout_ms * USEC_PER_MSEC, NULL, atomic);
 	if (err)
 		return err;
 
