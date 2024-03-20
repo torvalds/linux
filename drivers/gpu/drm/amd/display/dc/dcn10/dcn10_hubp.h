@@ -692,6 +692,7 @@ struct dcn_hubp_state {
 	uint32_t primary_meta_addr_hi;
 	uint32_t uclk_pstate_force;
 	uint32_t hubp_cntl;
+	uint32_t flip_control;
 };
 
 struct dcn10_hubp {

@@ -1383,6 +1383,9 @@ void optc1_read_otg_state(struct optc *optc1,
 
 	REG_GET(OTG_VERTICAL_INTERRUPT2_POSITION,
 			OTG_VERTICAL_INTERRUPT2_LINE_START, &s->vertical_interrupt2_line);
+
+	s->otg_master_update_lock = REG_READ(OTG_MASTER_UPDATE_LOCK);
+	s->otg_double_buffer_control = REG_READ(OTG_DOUBLE_BUFFER_CONTROL);
 }
 
 bool optc1_get_otg_active_size(struct timing_generator *optc,

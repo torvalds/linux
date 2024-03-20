@@ -93,6 +93,8 @@ struct dcn_otg_state {
 	uint32_t vertical_interrupt1_line;
 	uint32_t vertical_interrupt2_en;
 	uint32_t vertical_interrupt2_line;
+	uint32_t otg_master_update_lock;
+	uint32_t otg_double_buffer_control;
 };
 
 void optc1_read_otg_state(struct optc *optc1, struct dcn_otg_state *s);
