@@ -39,13 +39,13 @@ aspects, all of which might be essential in your present case.]*
 developers**, execute just the *preparations* and *segment 1*; while doing so,
 consider the newest Linux kernel you regularly use to be the 'working' kernel.
 In the following example that's assumed to be 6.0.13, which is why the sources
-of v6.0 will be used to prepare the .config file.
+of 6.0 will be used to prepare the .config file.
 
 **In case you face a regression**, follow the steps at least till the end of
 *segment 2*. Then you can submit a preliminary report -- or continue with
 *segment 3*, which describes how to perform a bisection needed for a
 full-fledged regression report. In the following example 6.0.13 is assumed to be
-the 'working' kernel and 6.1.5 to be the first 'broken', which is why v6.0
+the 'working' kernel and 6.1.5 to be the first 'broken', which is why 6.0
 will be considered the 'good' release and used to prepare the .config file.
 
 * **Preparations**: set up everything to build your own kernels::
@@ -99,7 +99,8 @@ will be considered the 'good' release and used to prepare the .config file.
        # * Note: on Arch Linux, its derivatives and a few other distributions
        #   the following commands will do nothing at all or only part of the
        #   job. See the step-by-step guide for further details.
-       command -v installkernel && sudo make modules_install install
+       sudo make modules_install
+       command -v installkernel && sudo make install
        # * Check how much space your self-built kernel actually needs, which
        #   enables you to make better estimates later:
        du -ch /boot/*$(make -s kernelrelease)* | tail -n 1
@@ -112,6 +113,7 @@ will be considered the 'good' release and used to prepare the .config file.
        #   checking if the output of the next two commands matches:
        tail -n 1 ~/kernels-built
        uname -r
+       cat /proc/sys/kernel/tainted
 
   c) Check if the problem occurs with this kernel as well.
 
@@ -230,9 +232,10 @@ developers are obliged to act upon.
  :ref:`Supplementary tasks: cleanup during and after following this guide.<introclosure_bissbs>`
 
 The steps in each segment illustrate the important aspects of the process, while
-a comprehensive reference section holds additional details. The latter sometimes
-also outlines alternative approaches, pitfalls, as well as problems that might
-occur at the particular step -- and how to get things rolling again.
+a comprehensive reference section holds additional details for almost all of the
+steps. The reference section sometimes also outlines alternative approaches,
+pitfalls, as well as problems that might occur at the particular step -- and how
+to get things rolling again.
 
 For further details on how to report Linux kernel issues or regressions check
 out Documentation/admin-guide/reporting-issues.rst, which works in conjunction
@@ -283,23 +286,23 @@ Preparations: set up everything to build your own kernels
   Do you follow this guide to verify if a bug is present in the code developers
   care for? Then consider the mainline release your 'working' kernel (the newest
   one you regularly use) is based on to be the 'good' version; if your 'working'
-  kernel for example is '6.0.11', then your 'good' kernel is 'v6.0'.
+  kernel for example is 6.0.11, then your 'good' kernel is 6.0.
 
   In case you face a regression, it depends on the version range where the
   regression was introduced:
 
   * Something which used to work in Linux 6.0 broke when switching to Linux
-    6.1-rc1? Then henceforth regard 'v6.0' as the last known 'good' version
-    and 'v6.1-rc1' as the first 'bad' one.
+    6.1-rc1? Then henceforth regard 6.0 as the last known 'good' version
+    and 6.1-rc1 as the first 'bad' one.
 
   * Some function stopped working when updating from 6.0.11 to 6.1.4? Then for
-    the time being consider 'v6.0' as the last 'good' version and 'v6.1.4' as
+    the time being consider 6.0 as the last 'good' version and 6.1.4 as
     the 'bad' one. Note, at this point it is merely assumed that 6.0 is fine;
     this assumption will be checked in segment 2.
 
   * A feature you used in 6.0.11 does not work at all or worse in 6.1.13? In
     that case you want to bisect within a stable/longterm series: consider
-    'v6.0.11' as the last known 'good' version and 'v6.0.13' as the first 'bad'
+    6.0.11 as the last known 'good' version and 6.0.13 as the first 'bad'
     one. Note, in this case you still want to compile and test a mainline kernel
     as explained in segment 1: the outcome will determine if you need to report
     your issue to the regular developers or the stable team.
@@ -349,7 +352,7 @@ Preparations: set up everything to build your own kernels
   internet connections.*
 
   Execute the following command to retrieve a fresh mainline codebase while
-  preparing things to add stable/longterm branches later::
+  preparing things to add branches for stable/longterm series later::
 
     git clone -o mainline --no-checkout \
       https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git ~/linux/
@@ -368,14 +371,19 @@ Preparations: set up everything to build your own kernels
   identifier using ``uname -r``.
 
   Afterwards check out the source code for the version earlier established as
-  'good' (in this example this is assumed to be 6.0) and create a .config file::
+  'good'. In the following example command this is assumed to be 6.0; note that
+  the version number in this and all later Git commands needs to be prefixed
+  with a 'v'::
 
     git checkout --detach v6.0
+
+  Now create a build configuration file::
+
     make olddefconfig
 
-  The second command will try to locate the build configuration file for the
-  running kernel and then adjust it for the needs of the kernel sources you
-  checked out. While doing so, it will print a few lines you need to check.
+  The kernel build scripts then will try to locate the build configuration file
+  for the running kernel and then adjust it for the needs of the kernel sources
+  you checked out. While doing so, it will print a few lines you need to check.
 
   Look out for a line starting with '# using defaults found in'. It should be
   followed by a path to a file in '/boot/' that contains the release identifier
@@ -520,44 +528,32 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
 
 * Install your newly built kernel.
 
-  Before doing so, consider checking if there is still enough room for it::
+  Before doing so, consider checking if there is still enough space for it::
 
     df -h /boot/ /lib/modules/
 
-  150 MByte in /boot/ and 200 in /lib/modules/ usually suffice. Those are rough
-  estimates assuming the worst case. How much your kernels actually require will
-  be determined later.
+  For now assume 150 MByte in /boot/ and 200 in /lib/modules/ will suffice; how
+  much your kernels actually require will be determined later during this guide.
 
-  Now install the kernel, which will be saved in parallel to the kernels from
-  your Linux distribution::
+  Now install the kernel's modules and its image, which will be stored in
+  parallel to the your Linux distribution's kernels::
 
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
 
-  On many commodity Linux distributions this will take care of everything
-  required to boot your kernel. You might want to ensure that's the case by
-  checking if your boot loader's configuration was updated; furthermore ensure
-  an initramfs (also known as initrd) exists, which on many distributions can be
-  achieved by running ``ls -l /boot/init*$(make -s kernelrelease)*``. Those
-  steps are recommended, as there are quite a few Linux distribution where above
-  command is insufficient:
+  The second command ideally will take care of three steps required at this
+  point: copying the kernel's image to /boot/, generating an initramfs, and
+  adding an entry for both to the boot loader's configuration.
 
-  * On Arch Linux, its derivatives, many immutable Linux distributions, and a
-    few others the above command does nothing at, as they lack 'installkernel'
-    executable.
+  Sadly some distributions (among them Arch Linux, its derivatives, and many
+  immutable Linux distributions) will perform none or only some of those tasks.
+  You therefore want to check if all of them were taken care of and manually
+  perform those that were not. The reference section provides further details on
+  that; your distribution's documentation might help, too.
 
-  * Some distributions install the kernel, but don't add an entry for your
-    kernel in your boot loader's configuration -- the kernel thus won't show up
-    in the boot menu.
-
-  * Some distributions add a boot loader menu entry, but don't create an
-    initramfs on installation -- in that case your kernel most likely will be
-    unable to mount the root partition during bootup.
-
-  If any of that applies to you, see the reference section for further guidance.
-  Once you figured out what to do, consider writing down the necessary
-  installation steps: if you will build more kernels as described in
-  segment 2 and 3, you will have to execute these commands every time that
-  ``command -v installkernel [...]`` comes up again.
+  Once you figured out the steps needed at this point, consider writing them
+  down: if you will build more kernels as described in segment 2 and 3, you will
+  have to perform those again after executing ``command -v installkernel [...]``.
 
   [:ref:`details<install_bisref>`]
 
@@ -583,31 +579,40 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   Remember the identifier momentarily, as it will help you pick the right kernel
   from the boot menu upon restarting.
 
-.. _recheckbroken_bissbs:
-
-* Reboot into the kernel you just built and check if the feature that is
-  expected to be broken really is.
-
-  Start by making sure the kernel you booted is the one you just built. When
-  unsure, check if the output of these commands show the exact same release
-  identifier::
+* Reboot into your newly built kernel. To ensure your actually started the one
+  you just built, you might want to verify if the output of these commands
+  matches::
 
     tail -n 1 ~/kernels-built
     uname -r
 
- Now verify if the feature that causes trouble works with your newly built
- kernel. If things work while investigating a regression, check the reference
- section for further details.
+.. _tainted_bissbs:
+
+* Check if the kernel marked itself as 'tainted'::
+
+    cat /proc/sys/kernel/tainted
+
+  If that command does not return '0', check the reference section, as the cause
+  for this might interfere with your testing.
+
+  [:ref:`details<tainted_bisref>`]
+
+.. _recheckbroken_bissbs:
+
+* Verify if your bug occurs with the newly built kernel. If it does not, check
+  out the instructions in the reference section to ensure nothing went sideways
+  during your tests.
 
   [:ref:`details<recheckbroken_bisref>`]
 
 .. _recheckstablebroken_bissbs:
 
-* Are you facing a problem within a stable/longterm release, but failed to
-  reproduce it with the mainline kernel you just built? Then check if the latest
-  codebase for the particular series might already fix the problem. To do so,
-  add the stable series Git branch for your 'good' kernel (again, this here is
-  assumed to be 6.0) and check out the latest version::
+* Are you facing a problem within a stable/longterm series, but failed to
+  reproduce it with the mainline kernel you just built? One that according to
+  the `front page of kernel.org <https://kernel.org/>`_ is still supported? Then
+  check if the latest codebase for the particular series might already fix the
+  problem. To do so, add the stable series Git branch for your 'good' kernel
+  (again, this here is assumed to be 6.0) and check out the latest version::
 
     cd ~/linux/
     git remote set-branches --add stable linux-6.0.y
@@ -622,22 +627,26 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
-  Now verify if you booted the kernel you intended to start, to then check if
-  everything works fine with this kernel::
+  Confirm you booted the kernel you intended to start and check its tainted
+  status::
 
     tail -n 1 ~/kernels-built
     uname -r
+    cat /proc/sys/kernel/tainted
+
+  Now verify if this kernel is showing the problem.
 
   [:ref:`details<recheckstablebroken_bisref>`]
 
 Do you follow this guide to verify if a problem is present in the code
 currently supported by Linux kernel developers? Then you are done at this
 point. If you later want to remove the kernel you just built, check out
-:ref:`Supplementary tasks: cleanup during and after following this guide.<introclosure_bissbs>`.
+:ref:`Supplementary tasks: cleanup during and after following this guide<introclosure_bissbs>`.
 
 In case you face a regression, move on and execute at least the next segment
 as well.
@@ -670,12 +679,13 @@ otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
   When the system booted, you may want to verify once again that the
-  kernel you started is the one you just built:
+  kernel you started is the one you just built::
 
     tail -n 1 ~/kernels-built
     uname -r
@@ -698,7 +708,7 @@ configuration created earlier this works a lot faster than many people assume:
 overall on average it will often just take about 10 to 15 minutes to compile
 each kernel on commodity x86 machines.
 
-* In case your 'bad' version is a stable/longterm release (say v6.1.5), add its
+* In case your 'bad' version is a stable/longterm release (say 6.1.5), add its
   stable branch, unless you already did so earlier::
 
     cd ~/linux/
@@ -727,7 +737,8 @@ each kernel on commodity x86 machines.
     make -j $(nproc --all)
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -843,7 +854,8 @@ each kernel on commodity x86 machines.
     make -j $(nproc --all) &&
     # * Check if the free space suffices holding another kernel:
     df -h /boot/ /lib/modules/
-    command -v installkernel && sudo make modules_install install
+    sudo make modules_install
+    command -v installkernel && sudo make install
     Make -s kernelrelease | tee -a ~/kernels-built
     reboot
 
@@ -1126,12 +1138,12 @@ Git clone of Linus' mainline repository. There is nothing more to say about
 that -- but there are two alternatives ways to retrieve the sources that might
 work better for you:
 
- * If you have an unreliable internet connection, consider
-   :ref:`using a 'Git bundle'<sources_bundle_bisref>`.
+* If you have an unreliable internet connection, consider
+  :ref:`using a 'Git bundle'<sources_bundle_bisref>`.
 
- * If downloading the complete repository would take too long or requires too
-   much storage space, consider :ref:`using a 'shallow
-   clone'<sources_shallow_bisref>`.
+* If downloading the complete repository would take too long or requires too
+  much storage space, consider :ref:`using a 'shallow
+  clone'<sources_shallow_bisref>`.
 
 .. _sources_bundle_bisref:
 
@@ -1183,23 +1195,23 @@ branches as explained in the step-by-step guide.
 
 Note, shallow clones have a few peculiar characteristics:
 
- * For bisections the history needs to be deepened a few mainline versions
-   farther than it seems necessary, as explained above already. That's because
-   Git otherwise will be unable to revert or describe most of the commits within
-   a range (say v6.1..v6.2), as they are internally based on earlier kernels
-   releases (like v6.0-rc2 or 5.19-rc3).
+* For bisections the history needs to be deepened a few mainline versions
+  farther than it seems necessary, as explained above already. That's because
+  Git otherwise will be unable to revert or describe most of the commits within
+  a range (say 6.1..6.2), as they are internally based on earlier kernels
+  releases (like 6.0-rc2 or 5.19-rc3).
 
- * This document in most places uses ``git fetch`` with ``--shallow-exclude=``
-   to specify the earliest version you care about (or to be precise: its git
-   tag). You alternatively can use the parameter ``--shallow-since=`` to specify
-   an absolute (say ``'2023-07-15'``) or relative (``'12 months'``) date to
-   define the depth of the history you want to download. When using them while
-   bisecting mainline, ensure to deepen the history to at least 7 months before
-   the release of the mainline release your 'good' kernel is based on.
+* This document in most places uses ``git fetch`` with ``--shallow-exclude=``
+  to specify the earliest version you care about (or to be precise: its git
+  tag). You alternatively can use the parameter ``--shallow-since=`` to specify
+  an absolute (say ``'2023-07-15'``) or relative (``'12 months'``) date to
+  define the depth of the history you want to download. When using them while
+  bisecting mainline, ensure to deepen the history to at least 7 months before
+  the release of the mainline release your 'good' kernel is based on.
 
- * Be warned, when deepening your clone you might encounter an error like
-   'fatal: error in object: unshallow cafecaca0c0dacafecaca0c0dacafecaca0c0da'.
-   In that case run ``git repack -d`` and try again.
+* Be warned, when deepening your clone you might encounter an error like
+  'fatal: error in object: unshallow cafecaca0c0dacafecaca0c0dacafecaca0c0da'.
+  In that case run ``git repack -d`` and try again.
 
 [:ref:`back to step-by-step guide <sources_bissbs>`]
 [:ref:`back to section intro <sources_bisref>`]
@@ -1223,23 +1235,23 @@ locate the right build configuration.*
 
 Two things can easily go wrong when creating a .config file as advised:
 
- * The oldconfig target will use a .config file from your build directory, if
-   one is already present there (e.g. '~/linux/.config'). That's totally fine if
-   that's what you intend (see next step), but in all other cases you want to
-   delete it. This for example is important in case you followed this guide
-   further, but due to problems come back here to redo the configuration from
-   scratch.
+* The oldconfig target will use a .config file from your build directory, if
+  one is already present there (e.g. '~/linux/.config'). That's totally fine if
+  that's what you intend (see next step), but in all other cases you want to
+  delete it. This for example is important in case you followed this guide
+  further, but due to problems come back here to redo the configuration from
+  scratch.
 
- * Sometimes olddefconfig is unable to locate the .config file for your running
-   kernel and will use defaults, as briefly outlined in the guide. In that case
-   check if your distribution ships the configuration somewhere and manually put
-   it in the right place (e.g. '~/linux/.config') if it does. On distributions
-   where /proc/config.gz exists this can be achieved using this command::
+* Sometimes olddefconfig is unable to locate the .config file for your running
+  kernel and will use defaults, as briefly outlined in the guide. In that case
+  check if your distribution ships the configuration somewhere and manually put
+  it in the right place (e.g. '~/linux/.config') if it does. On distributions
+  where /proc/config.gz exists this can be achieved using this command::
 
-     zcat /proc/config.gz > .config
+    zcat /proc/config.gz > .config
 
-   Once you put it there, run ``make olddefconfig`` again to adjust it to the
-   needs of the kernel about to be built.
+  Once you put it there, run ``make olddefconfig`` again to adjust it to the
+  needs of the kernel about to be built.
 
 Note, the olddefconfig target will set any undefined build options to their
 default value. If you prefer to set such configuration options manually, use
@@ -1252,7 +1264,7 @@ restrictions).
 
 Occasionally odd things happen when trying to use a config file prepared for one
 kernel (say 6.1) on an older mainline release -- especially if it is much older
-(say v5.15). That's one of the reasons why the previous step in the guide told
+(say 5.15). That's one of the reasons why the previous step in the guide told
 you to boot the kernel where everything works. If you manually add a .config
 file you thus want to ensure it's from the working kernel and not from a one
 that shows the regression.
@@ -1381,16 +1393,16 @@ when following this guide on a few commodity distributions.
 
 **Debian:**
 
- * Remove a stale reference to a certificate file that would cause your build to
-   fail::
+* Remove a stale reference to a certificate file that would cause your build to
+  fail::
 
-    ./scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
+   ./scripts/config --set-str SYSTEM_TRUSTED_KEYS ''
 
-   Alternatively, download the needed certificate and make that configuration
-   option point to it, as `the Debian handbook explains in more detail
-   <https://debian-handbook.info/browse/stable/sect.kernel-compilation.html>`_
-   -- or generate your own, as explained in
-   Documentation/admin-guide/module-signing.rst.
+  Alternatively, download the needed certificate and make that configuration
+  option point to it, as `the Debian handbook explains in more detail
+  <https://debian-handbook.info/browse/stable/sect.kernel-compilation.html>`_
+  -- or generate your own, as explained in
+  Documentation/admin-guide/module-signing.rst.
 
 [:ref:`back to step-by-step guide <configmods_bissbs>`]
 
@@ -1402,12 +1414,12 @@ Individual adjustments
   *If you want to influence the other aspects of the configuration, do so
   now.* [:ref:`... <configmods_bissbs>`]
 
-You at this point can use a command like ``make menuconfig`` to enable or
-disable certain features using a text-based user interface; to use a graphical
-configuration utility, call the make target ``xconfig`` or ``gconfig`` instead.
-All of them require development libraries from toolkits they are based on
-(ncurses, Qt5, Gtk2); an error message will tell you if something required is
-missing.
+At this point you can use a command like ``make menuconfig`` or ``make nconfig``
+to enable or disable certain features using a text-based user interface; to use
+a graphical configuration utility, run ``make xconfig`` instead. Both of them
+require development libraries from toolkits they are rely on (ncurses
+respectively Qt5 or Qt6); an error message will tell you if something required
+is missing.
 
 [:ref:`back to step-by-step guide <configmods_bissbs>`]
 
@@ -1484,10 +1496,10 @@ highly recommended for these reasons:
 
 .. _checkoutmaster_bisref:
 
-Checkout the latest Linux codebase
-----------------------------------
+Check out the latest Linux codebase
+-----------------------------------
 
-  *Checkout the latest Linux codebase.*
+  *Check out the latest Linux codebase.*
   [:ref:`... <introlatestcheck_bissbs>`]
 
 In case you later want to recheck if an ever newer codebase might fix the
@@ -1515,7 +1527,7 @@ When a build error occurs, it might be caused by some aspect of your machine's
 setup that often can be fixed quickly; other times though the problem lies in
 the code and can only be fixed by a developer. A close examination of the
 failure messages coupled with some research on the internet will often tell you
-which of the two it is. To perform such a investigation, restart the build
+which of the two it is. To perform such investigation, restart the build
 process like this::
 
   make V=1
@@ -1538,10 +1550,10 @@ often one of the hits will provide a solution for your problem, too. If you
 do not find anything that matches your problem, try again from a different angle
 by modifying your search terms or using another line from the error messages.
 
-In the end, most trouble you are to run into has likely been encountered and
+In the end, most issues you run into have likely been encountered and
 reported by others already. That includes issues where the cause is not your
-system, but lies the code. If you run into one of those, you might thus find a
-solution (e.g. a patch) or workaround for your problem, too.
+system, but lies in the code. If you run into one of those, you might thus find a
+solution (e.g. a patch) or workaround for your issue, too.
 
 Package your kernel up
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1551,11 +1563,11 @@ The step-by-step guide uses the default make targets (e.g. 'bzImage' and
 steps of the guide then install. You instead can also directly build everything
 and directly package it up by using one of the following targets:
 
- * ``make -j $(nproc --all) bindeb-pkg`` to generate a deb package
+* ``make -j $(nproc --all) bindeb-pkg`` to generate a deb package
 
- * ``make -j $(nproc --all) binrpm-pkg`` to generate a rpm package
+* ``make -j $(nproc --all) binrpm-pkg`` to generate a rpm package
 
- * ``make -j $(nproc --all) tarbz2-pkg`` to generate a bz2 compressed tarball
+* ``make -j $(nproc --all) tarbz2-pkg`` to generate a bz2 compressed tarball
 
 This is just a selection of available make targets for this purpose, see
 ``make help`` for others. You can also use these targets after running
@@ -1580,39 +1592,38 @@ Put the kernel in place
   *Install the kernel you just built.* [:ref:`... <install_bissbs>`]
 
 What you need to do after executing the command in the step-by-step guide
-depends on the existence and the implementation of an ``installkernel``
-executable. Many commodity Linux distributions ship such a kernel installer in
-'/sbin/' that does everything needed, hence there is nothing left for you
-except rebooting. But some distributions contain an installkernel that does
-only part of the job -- and a few lack it completely and leave all the work to
-you.
+depends on the existence and the implementation of ``/sbin/installkernel``
+executable on your distribution.
 
-If ``installkernel`` is found, the kernel's build system will delegate the
-actual installation of your kernel's image and related files to this executable.
-On almost all Linux distributions it will store the image as '/boot/vmlinuz-
-<kernelrelease identifier>' and put a 'System.map-<kernelrelease
-identifier>' alongside it. Your kernel will thus be installed in parallel to any
-existing ones, unless you already have one with exactly the same release name.
+If installkernel is found, the kernel's build system will delegate the actual
+installation of your kernel image to this executable, which then performs some
+or all of these tasks:
 
-Installkernel on many distributions will afterwards generate an 'initramfs'
-(often also called 'initrd'), which commodity distributions rely on for booting;
-hence be sure to keep the order of the two make targets used in the step-by-step
-guide, as things will go sideways if you install your kernel's image before its
-modules. Often installkernel will then add your kernel to the bootloader
-configuration, too. You have to take care of one or both of these tasks
-yourself, if your distributions installkernel doesn't handle them.
+* On almost all Linux distributions installkernel will store your kernel's
+  image in /boot/, usually as '/boot/vmlinuz-<kernelrelease_id>'; often it will
+  put a 'System.map-<kernelrelease_id>' alongside it.
 
-A few distributions like Arch Linux and its derivatives totally lack an
-installkernel executable. On those just install the modules using the kernel's
-build system and then install the image and the System.map file manually::
+* On most distributions installkernel will then generate an 'initramfs'
+  (sometimes also called 'initrd'), which usually are stored as
+  '/boot/initramfs-<kernelrelease_id>.img' or
+  '/boot/initrd-<kernelrelease_id>'. Commodity distributions rely on this file
+  for booting, hence ensure to execute the make target 'modules_install' first,
+  as your distribution's initramfs generator otherwise will be unable to find
+  the modules that go into the image.
 
-   sudo make modules_install
+* On some distributions installkernel will then add an entry for your kernel
+  to your bootloader's configuration.
+
+You have to take care of some or all of the tasks yourself, if your
+distribution lacks a installkernel script or does only handle part of them.
+Consult the distribution's documentation for details. If in doubt, install the
+kernel manually::
+
    sudo install -m 0600 $(make -s image_name) /boot/vmlinuz-$(make -s kernelrelease)
    sudo install -m 0600 System.map /boot/System.map-$(make -s kernelrelease)
 
-If your distribution boots with the help of an initramfs, now generate one for
-your kernel using the tools your distribution provides for this process.
-Afterwards add your kernel to your bootloader configuration and reboot.
+Now generate your initramfs using the tools your distribution provides for this
+process. Afterwards add your kernel to your bootloader configuration and reboot.
 
 [:ref:`back to step-by-step guide <install_bissbs>`]
 
@@ -1637,20 +1648,39 @@ need to look in different places.
 
 [:ref:`back to step-by-step guide <storagespace_bissbs>`]
 
+.. _tainted_bisref:
+
+Check if your newly built kernel considers itself 'tainted'
+-----------------------------------------------------------
+
+  *Check if the kernel marked itself as 'tainted'.*
+  [:ref:`... <tainted_bissbs>`]
+
+Linux marks itself as tainted when something happens that potentially leads to
+follow-up errors that look totally unrelated. That is why developers might
+ignore or react scantly to reports from tainted kernels -- unless of course the
+kernel set the flag right when the reported bug occurred.
+
+That's why you want check why a kernel is tainted as explained in
+Documentation/admin-guide/tainted-kernels.rst; doing so is also in your own
+interest, as your testing might be flawed otherwise.
+
+[:ref:`back to step-by-step guide <tainted_bissbs>`]
+
 .. _recheckbroken_bisref:
 
-Check the kernel built from the latest codebase
------------------------------------------------
+Check the kernel built from a recent mainline codebase
+------------------------------------------------------
 
-  *Reboot into the kernel you just built and check if the feature that regressed
-  is really broken there.* [:ref:`... <recheckbroken_bissbs>`]
+  *Verify if your bug occurs with the newly built kernel.*
+  [:ref:`... <recheckbroken_bissbs>`]
 
-There are a couple of reasons why the regression you face might not show up with
-your own kernel built from the latest codebase. These are the most frequent:
+There are a couple of reasons why your bug or regression might not show up with
+the kernel you built from the latest codebase. These are the most frequent:
 
-* The cause for the regression was fixed meanwhile.
+* The bug was fixed meanwhile.
 
-* The regression with the broken kernel was caused by a change in the build
+* What you suspected to be a regression was caused by a change in the build
   configuration the provider of your kernel carried out.
 
 * Your problem might be a race condition that does not show up with your kernel;
@@ -1702,9 +1732,9 @@ it's possible that the thing that regressed might never have worked in vanilla
 builds of the 'good' version in the first place.
 
 There is a third reason for those that noticed a regression between
-stable/longterm kernels of different series (e.g. v6.0.13..v6.1.5): it will
+stable/longterm kernels of different series (e.g. 6.0.13..6.1.5): it will
 ensure the kernel version you assumed to be 'good' earlier in the process (e.g.
-v6.0) actually is working.
+6.0) actually is working.
 
 [:ref:`back to step-by-step guide <introworkingcheck_bissbs>`]
 
@@ -1720,6 +1750,9 @@ In case the feature that broke with newer kernels does not work with your first
 self-built kernel, find and resolve the cause before moving on. There are a
 multitude of reasons why this might happen. Some ideas where to look:
 
+* Check the taint status and the output of ``dmesg``, maybe something unrelated
+  went wrong.
+
 * Maybe localmodconfig did something odd and disabled the module required to
   test the feature? Then you might want to recreate a .config file based on the
   one from the last working kernel and skip trimming it down; manually disabling
@@ -1734,8 +1767,8 @@ multitude of reasons why this might happen. Some ideas where to look:
 
 Note, if you found and fixed problems with the .config file, you want to use it
 to build another kernel from the latest codebase, as your earlier tests with
-mainline and the latest version from an affected stable/longterm series most
-likely has been flawed.
+mainline and the latest version from an affected stable/longterm series were most
+likely flawed.
 
 [:ref:`back to step-by-step guide <recheckworking_bissbs>`]
 
@@ -1748,8 +1781,8 @@ Start the bisection
   'good' and 'bad'.* [:ref:`... <bisectstart_bissbs>`]
 
 This will start the bisection process; the last of the commands will make Git
-checkout a commit round about half-way between the 'good' and the 'bad' changes
-for your to test.
+check out a commit round about half-way between the 'good' and the 'bad' changes
+for you to test.
 
 [:ref:`back to step-by-step guide <bisectstart_bissbs>`]
 
@@ -1774,7 +1807,7 @@ There are two things worth of note here:
 * Those slightly odd looking version identifiers can happen during bisections,
   because the Linux kernel subsystems prepare their changes for a new mainline
   release (say 6.2) before its predecessor (e.g. 6.1) is finished. They thus
-  base them on a somewhat earlier point like v6.1-rc1 or even v6.0 -- and then
+  base them on a somewhat earlier point like 6.1-rc1 or even 6.0 -- and then
   get merged for 6.2 without rebasing nor squashing them once 6.1 is out. This
   leads to those slightly odd looking version identifiers coming up during
   bisections.
@@ -1790,7 +1823,7 @@ Bisection checkpoint
   [:ref:`... <bisecttest_bissbs>`]
 
 Ensure what you tell Git is accurate: getting it wrong just one time will bring
-the rest of the bisection totally of course, hence all testing after that point
+the rest of the bisection totally off course, hence all testing after that point
 will be for nothing.
 
 [:ref:`back to step-by-step guide <bisecttest_bissbs>`]
@@ -1811,7 +1844,7 @@ instead of testing ten or more kernels you might only have to build a few to
 resolve things.
 
 The .config file is put aside, as there is a decent chance that developers might
-ask for it after you reported the regression.
+ask for it after you report the regression.
 
 [:ref:`back to step-by-step guide <bisectlog_bissbs>`]
 
@@ -1861,7 +1894,7 @@ simply remove its modules directory in /lib/modules/.
 
 The other place is /boot/, where typically two up to five files will be placed
 during installation of a kernel. All of them usually contain the release name in
-their file name, but how many files and their exact name depends somewhat on
+their file name, but how many files and their exact names depend somewhat on
 your distribution's installkernel executable and its initramfs generator. On
 some distributions the ``kernel-install remove...`` command mentioned in the
 step-by-step guide will delete all of these files for you while also removing
