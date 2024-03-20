@@ -66,7 +66,14 @@ const struct _kvm_stats_desc kvm_vm_stats_desc[] = {
 	STATS_DESC_COUNTER(VM, inject_pfault_done),
 	STATS_DESC_COUNTER(VM, inject_service_signal),
 	STATS_DESC_COUNTER(VM, inject_virtio),
-	STATS_DESC_COUNTER(VM, aen_forward)
+	STATS_DESC_COUNTER(VM, aen_forward),
+	STATS_DESC_COUNTER(VM, gmap_shadow_reuse),
+	STATS_DESC_COUNTER(VM, gmap_shadow_create),
+	STATS_DESC_COUNTER(VM, gmap_shadow_r1_entry),
+	STATS_DESC_COUNTER(VM, gmap_shadow_r2_entry),
+	STATS_DESC_COUNTER(VM, gmap_shadow_r3_entry),
+	STATS_DESC_COUNTER(VM, gmap_shadow_sg_entry),
+	STATS_DESC_COUNTER(VM, gmap_shadow_pg_entry),
 };
 
 const struct kvm_stats_header kvm_vm_stats_header = {
@@ -4307,10 +4314,6 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 
 	vcpu_load(vcpu);
 
-	if (test_fp_ctl(fpu->fpc)) {
-		ret = -EINVAL;
-		goto out;
-	}
 	vcpu->run->s.regs.fpc = fpu->fpc;
 	if (MACHINE_HAS_VX)
 		convert_fp_to_vx((__vector128 *) vcpu->run->s.regs.vrs,
@@ -4318,7 +4321,6 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	else
 		memcpy(vcpu->run->s.regs.fprs, &fpu->fprs, sizeof(fpu->fprs));
 
-out:
 	vcpu_put(vcpu);
 	return ret;
 }

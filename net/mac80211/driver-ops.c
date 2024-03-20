@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Intel Deutschland GmbH
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  */
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -510,10 +510,13 @@ int drv_change_vif_links(struct ieee80211_local *local,
 	if (ret)
 		return ret;
 
-	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
-		link = rcu_access_pointer(sdata->link[link_id]);
+	if (!local->in_reconfig) {
+		for_each_set_bit(link_id, &links_to_add,
+				 IEEE80211_MLD_MAX_NUM_LINKS) {
+			link = rcu_access_pointer(sdata->link[link_id]);
 
-		ieee80211_link_debugfs_drv_add(link);
+			ieee80211_link_debugfs_drv_add(link);
+		}
 	}
 
 	return 0;
@@ -560,6 +563,10 @@ int drv_change_sta_links(struct ieee80211_local *local,
 
 	if (ret)
 		return ret;
+
+	/* during reconfig don't add it to debugfs again */
+	if (local->in_reconfig)
+		return 0;
 
 	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link_sta = rcu_dereference_protected(info->link[link_id],

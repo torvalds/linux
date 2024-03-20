@@ -61,9 +61,9 @@ struct aa_sk_ctx {
 						     LSM_AUDIT_DATA_NONE, \
 						     AA_CLASS_NET,        \
 			  OP);						  \
-	NAME.u.net = &(NAME ## _net);					  \
-	aad(&NAME)->net.type = (T);					  \
-	aad(&NAME)->net.protocol = (P)
+	NAME.common.u.net = &(NAME ## _net);				  \
+	NAME.net.type = (T);						  \
+	NAME.net.protocol = (P)
 
 #define DEFINE_AUDIT_SK(NAME, OP, SK)					\
 	DEFINE_AUDIT_NET(NAME, OP, SK, (SK)->sk_family, (SK)->sk_type,	\
@@ -90,21 +90,24 @@ struct aa_secmark {
 extern struct aa_sfs_entry aa_sfs_entry_network[];
 
 void audit_net_cb(struct audit_buffer *ab, void *va);
-int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,
+int aa_profile_af_perm(struct aa_profile *profile,
+		       struct apparmor_audit_data *ad,
 		       u32 request, u16 family, int type);
-int aa_af_perm(struct aa_label *label, const char *op, u32 request, u16 family,
+int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
+	       const char *op, u32 request, u16 family,
 	       int type, int protocol);
 static inline int aa_profile_af_sk_perm(struct aa_profile *profile,
-					struct common_audit_data *sa,
+					struct apparmor_audit_data *ad,
 					u32 request,
 					struct sock *sk)
 {
-	return aa_profile_af_perm(profile, sa, request, sk->sk_family,
+	return aa_profile_af_perm(profile, ad, request, sk->sk_family,
 				  sk->sk_type);
 }
 int aa_sk_perm(const char *op, u32 request, struct sock *sk);
 
-int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
+int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
+		      const char *op, u32 request,
 		      struct socket *sock);
 
 int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,

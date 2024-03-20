@@ -497,7 +497,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 	link->dc->link_srv->enable_hpd_filter(link, enable);
 }
 
-bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
+bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
 {
 	return dc->link_srv->validate_dpia_bandwidth(streams, count);
 }

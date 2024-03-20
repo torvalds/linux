@@ -1214,7 +1214,7 @@ static int cmp_join_stat(const struct verif_stats_join *s1,
 			 enum stat_id id, enum stat_variant var, bool asc)
 {
 	const char *str1 = NULL, *str2 = NULL;
-	double v1, v2;
+	double v1 = 0.0, v2 = 0.0;
 	int cmp = 0;
 
 	fetch_join_stat_value(s1, id, var, &str1, &v1);

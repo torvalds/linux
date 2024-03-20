@@ -389,6 +389,8 @@ int security_file_permission(struct file *file, int mask);
 int security_file_alloc(struct file *file);
 void security_file_free(struct file *file);
 int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+int security_file_ioctl_compat(struct file *file, unsigned int cmd,
+			       unsigned long arg);
 int security_mmap_file(struct file *file, unsigned long prot,
 			unsigned long flags);
 int security_mmap_addr(unsigned long addr);
@@ -983,6 +985,13 @@ static inline void security_file_free(struct file *file)
 
 static inline int security_file_ioctl(struct file *file, unsigned int cmd,
 				      unsigned long arg)
+{
+	return 0;
+}
+
+static inline int security_file_ioctl_compat(struct file *file,
+					     unsigned int cmd,
+					     unsigned long arg)
 {
 	return 0;
 }

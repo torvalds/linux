@@ -30,18 +30,20 @@ struct aa_sfs_entry aa_sfs_entry_rlimit[] = {
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
 	audit_log_format(ab, " rlimit=%s value=%lu",
-			 rlim_names[aad(sa)->rlim.rlim], aad(sa)->rlim.max);
-	if (aad(sa)->peer) {
+			 rlim_names[ad->rlim.rlim], ad->rlim.max);
+	if (ad->peer) {
 		audit_log_format(ab, " peer=");
-		aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+		aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 				FLAGS_NONE, GFP_ATOMIC);
 	}
 }
 
 /**
  * audit_resource - audit setting resource limit
+ * @subj_cred: cred setting the resource
  * @profile: profile being enforced  (NOT NULL)
  * @resource: rlimit being auditing
  * @value: value being set
@@ -49,22 +51,24 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @info: info being auditing
  * @error: error value
  *
- * Returns: 0 or sa->error else other error code on failure
+ * Returns: 0 or ad->error else other error code on failure
  */
-static int audit_resource(struct aa_profile *profile, unsigned int resource,
+static int audit_resource(const struct cred *subj_cred,
+			  struct aa_profile *profile, unsigned int resource,
 			  unsigned long value, struct aa_label *peer,
 			  const char *info, int error)
 {
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_RLIMITS,
 			  OP_SETRLIMIT);
 
-	aad(&sa)->rlim.rlim = resource;
-	aad(&sa)->rlim.max = value;
-	aad(&sa)->peer = peer;
-	aad(&sa)->info = info;
-	aad(&sa)->error = error;
+	ad.subj_cred = subj_cred;
+	ad.rlim.rlim = resource;
+	ad.rlim.max = value;
+	ad.peer = peer;
+	ad.info = info;
+	ad.error = error;
 
-	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &sa, audit_cb);
+	return aa_audit(AUDIT_APPARMOR_AUTO, profile, &ad, audit_cb);
 }
 
 /**
@@ -81,7 +85,8 @@ int aa_map_resource(int resource)
 	return rlim_map[resource];
 }
 
-static int profile_setrlimit(struct aa_profile *profile, unsigned int resource,
+static int profile_setrlimit(const struct cred *subj_cred,
+			     struct aa_profile *profile, unsigned int resource,
 			     struct rlimit *new_rlim)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
@@ -91,22 +96,24 @@ static int profile_setrlimit(struct aa_profile *profile, unsigned int resource,
 	if (rules->rlimits.mask & (1 << resource) && new_rlim->rlim_max >
 	    rules->rlimits.limits[resource].rlim_max)
 		e = -EACCES;
-	return audit_resource(profile, resource, new_rlim->rlim_max, NULL, NULL,
-			      e);
+	return audit_resource(subj_cred, profile, resource, new_rlim->rlim_max,
+			      NULL, NULL, e);
 }
 
 /**
  * aa_task_setrlimit - test permission to set an rlimit
- * @label - label confining the task  (NOT NULL)
- * @task - task the resource is being set on
- * @resource - the resource being set
- * @new_rlim - the new resource limit  (NOT NULL)
+ * @subj_cred: cred setting the limit
+ * @label: label confining the task  (NOT NULL)
+ * @task: task the resource is being set on
+ * @resource: the resource being set
+ * @new_rlim: the new resource limit  (NOT NULL)
  *
  * Control raising the processes hard limit.
  *
  * Returns: 0 or error code if setting resource failed
  */
-int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
+int aa_task_setrlimit(const struct cred *subj_cred, struct aa_label *label,
+		      struct task_struct *task,
 		      unsigned int resource, struct rlimit *new_rlim)
 {
 	struct aa_profile *profile;
@@ -125,14 +132,15 @@ int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
 	 */
 
 	if (label != peer &&
-	    aa_capable(label, CAP_SYS_RESOURCE, CAP_OPT_NOAUDIT) != 0)
+	    aa_capable(subj_cred, label, CAP_SYS_RESOURCE, CAP_OPT_NOAUDIT) != 0)
 		error = fn_for_each(label, profile,
-				audit_resource(profile, resource,
+				audit_resource(subj_cred, profile, resource,
 					       new_rlim->rlim_max, peer,
 					       "cap_sys_resource", -EACCES));
 	else
 		error = fn_for_each_confined(label, profile,
-				profile_setrlimit(profile, resource, new_rlim));
+				profile_setrlimit(subj_cred, profile, resource,
+						  new_rlim));
 	aa_put_label(peer);
 
 	return error;

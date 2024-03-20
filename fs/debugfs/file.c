@@ -84,6 +84,14 @@ int debugfs_file_get(struct dentry *dentry)
 	struct debugfs_fsdata *fsd;
 	void *d_fsd;
 
+	/*
+	 * This could only happen if some debugfs user erroneously calls
+	 * debugfs_file_get() on a dentry that isn't even a file, let
+	 * them know about it.
+	 */
+	if (WARN_ON(!d_is_reg(dentry)))
+		return -EINVAL;
+
 	d_fsd = READ_ONCE(dentry->d_fsdata);
 	if (!((unsigned long)d_fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)) {
 		fsd = d_fsd;
@@ -939,7 +947,7 @@ static ssize_t debugfs_write_file_str(struct file *file, const char __user *user
 	new[pos + count] = '\0';
 	strim(new);
 
-	rcu_assign_pointer(*(char **)file->private_data, new);
+	rcu_assign_pointer(*(char __rcu **)file->private_data, new);
 	synchronize_rcu();
 	kfree(old);
 

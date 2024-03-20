@@ -31,6 +31,13 @@ enum {
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 
 	/*
+	 * Requeue the task_work to restart operations on this request. The
+	 * actual value isn't important, should just be not an otherwise
+	 * valid error code, yet less than -MAX_ERRNO and valid internally.
+	 */
+	IOU_REQUEUE		= -3072,
+
+	/*
 	 * Intended only when both IO_URING_F_MULTISHOT is passed
 	 * to indicate to the poll runner that multishot should be
 	 * removed and the result is set on req->cqe.res.
@@ -85,6 +92,9 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
+
+void *io_mem_alloc(size_t size);
+void io_mem_free(void *ptr);
 
 #if defined(CONFIG_PROVE_LOCKING)
 static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)

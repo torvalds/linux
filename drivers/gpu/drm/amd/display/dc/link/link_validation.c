@@ -346,23 +346,61 @@ enum dc_status link_validate_mode_timing(
 	return DC_OK;
 }
 
+/*
+ * This function calculates the bandwidth required for the stream timing
+ * and aggregates the stream bandwidth for the respective dpia link
+ *
+ * @stream: pointer to the dc_stream_state struct instance
+ * @num_streams: number of streams to be validated
+ *
+ * return: true if validation is succeeded
+ */
 bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const unsigned int num_streams)
 {
-	bool ret = true;
-	int bw_needed[MAX_DPIA_NUM];
-	struct dc_link *link[MAX_DPIA_NUM];
+	int bw_needed[MAX_DPIA_NUM] = {0};
+	struct dc_link *dpia_link[MAX_DPIA_NUM] = {0};
+	int num_dpias = 0;
 
-	if (!num_streams || num_streams > MAX_DPIA_NUM)
-		return ret;
+	for (unsigned int i = 0; i < num_streams; ++i) {
+		if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT) {
+			/* new dpia sst stream, check whether it exceeds max dpia */
+			if (num_dpias >= MAX_DPIA_NUM)
+				return false;
 
-	for (uint8_t i = 0; i < num_streams; ++i) {
+			dpia_link[num_dpias] = stream[i].link;
+			bw_needed[num_dpias] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
+					dc_link_get_highest_encoding_format(dpia_link[num_dpias]));
+			num_dpias++;
+		} else if (stream[i].signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+			uint8_t j = 0;
+			/* check whether its a known dpia link */
+			for (; j < num_dpias; ++j) {
+				if (dpia_link[j] == stream[i].link)
+					break;
+			}
 
-		link[i] = stream[i].link;
-		bw_needed[i] = dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
-				dc_link_get_highest_encoding_format(link[i]));
+			if (j == num_dpias) {
+				/* new dpia mst stream, check whether it exceeds max dpia */
+				if (num_dpias >= MAX_DPIA_NUM)
+					return false;
+				else {
+					dpia_link[j] = stream[i].link;
+					num_dpias++;
+				}
+			}
+
+			bw_needed[j] += dc_bandwidth_in_kbps_from_timing(&stream[i].timing,
+				dc_link_get_highest_encoding_format(dpia_link[j]));
+		}
 	}
 
-	ret = dpia_validate_usb4_bw(link, bw_needed, num_streams);
+	/* Include dp overheads */
+	for (uint8_t i = 0; i < num_dpias; ++i) {
+		int dp_overhead = 0;
 
-	return ret;
+		dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(dpia_link[i]);
+		bw_needed[i] += dp_overhead;
+	}
+
+	return dpia_validate_usb4_bw(dpia_link, bw_needed, num_dpias);
 }

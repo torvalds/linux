@@ -51,7 +51,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 
 /**
  * audit_caps - audit a capability
- * @sa: audit data
+ * @as: audit data
  * @profile: profile being tested for confinement (NOT NULL)
  * @cap: capability tested
  * @error: error code returned by test
@@ -59,9 +59,9 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * Do auditing of capability and handle, audit/complain/kill modes switching
  * and duplicate message elimination.
  *
- * Returns: 0 or sa->error on success,  error code on failure
+ * Returns: 0 or ad->error on success,  error code on failure
  */
-static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
+static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile,
 		      int cap, int error)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
@@ -69,7 +69,7 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
 
-	aad(sa)->error = error;
+	ad->error = error;
 
 	if (likely(!error)) {
 		/* test if auditing is being forced */
@@ -101,7 +101,7 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
 	}
 	put_cpu_var(audit_cache);
 
-	return aa_audit(type, profile, sa, audit_cb);
+	return aa_audit(type, profile, ad, audit_cb);
 }
 
 /**
@@ -109,12 +109,12 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
  * @profile: profile being enforced    (NOT NULL, NOT unconfined)
  * @cap: capability to test if allowed
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
- * @sa: audit data (MAY BE NULL indicating no auditing)
+ * @ad: audit data (MAY BE NULL indicating no auditing)
  *
  * Returns: 0 if allowed else -EPERM
  */
 static int profile_capable(struct aa_profile *profile, int cap,
-			   unsigned int opts, struct common_audit_data *sa)
+			   unsigned int opts, struct apparmor_audit_data *ad)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
@@ -132,14 +132,15 @@ static int profile_capable(struct aa_profile *profile, int cap,
 		/* audit the cap request in complain mode but note that it
 		 * should be optional.
 		 */
-		aad(sa)->info = "optional: no audit";
+		ad->info = "optional: no audit";
 	}
 
-	return audit_caps(sa, profile, cap, error);
+	return audit_caps(ad, profile, cap, error);
 }
 
 /**
  * aa_capable - test permission to use capability
+ * @subj_cread: cred we are testing capability against
  * @label: label being tested for capability (NOT NULL)
  * @cap: capability to be tested
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
@@ -148,15 +149,17 @@ static int profile_capable(struct aa_profile *profile, int cap,
  *
  * Returns: 0 on success, or else an error code.
  */
-int aa_capable(struct aa_label *label, int cap, unsigned int opts)
+int aa_capable(const struct cred *subj_cred, struct aa_label *label,
+	       int cap, unsigned int opts)
 {
 	struct aa_profile *profile;
 	int error = 0;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_CAP, AA_CLASS_CAP, OP_CAPABLE);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_CAP, AA_CLASS_CAP, OP_CAPABLE);
 
-	sa.u.cap = cap;
+	ad.subj_cred = subj_cred;
+	ad.common.u.cap = cap;
 	error = fn_for_each_confined(label, profile,
-			profile_capable(profile, cap, opts, &sa));
+			profile_capable(profile, cap, opts, &ad));
 
 	return error;
 }

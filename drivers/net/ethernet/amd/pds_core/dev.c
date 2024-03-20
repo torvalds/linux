@@ -55,6 +55,9 @@ int pdsc_err_to_errno(enum pds_core_status_code code)
 
 bool pdsc_is_fw_running(struct pdsc *pdsc)
 {
+	if (!pdsc->info_regs)
+		return false;
+
 	pdsc->fw_status = ioread8(&pdsc->info_regs->fw_status);
 	pdsc->last_fw_time = jiffies;
 	pdsc->last_hb = ioread32(&pdsc->info_regs->fw_heartbeat);
@@ -175,13 +178,17 @@ int pdsc_devcmd_locked(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 {
 	int err;
 
+	if (!pdsc->cmd_regs)
+		return -ENXIO;
+
 	memcpy_toio(&pdsc->cmd_regs->cmd, cmd, sizeof(*cmd));
 	pdsc_devcmd_dbell(pdsc);
 	err = pdsc_devcmd_wait(pdsc, cmd->opcode, max_seconds);
-	memcpy_fromio(comp, &pdsc->cmd_regs->comp, sizeof(*comp));
 
 	if ((err == -ENXIO || err == -ETIMEDOUT) && pdsc->wq)
 		queue_work(pdsc->wq, &pdsc->health_work);
+	else
+		memcpy_fromio(comp, &pdsc->cmd_regs->comp, sizeof(*comp));
 
 	return err;
 }
@@ -254,10 +261,14 @@ static int pdsc_identify(struct pdsc *pdsc)
 	struct pds_core_drv_identity drv = {};
 	size_t sz;
 	int err;
+	int n;
 
 	drv.drv_type = cpu_to_le32(PDS_DRIVER_LINUX);
-	snprintf(drv.driver_ver_str, sizeof(drv.driver_ver_str),
-		 "%s %s", PDS_CORE_DRV_NAME, utsname()->release);
+	/* Catching the return quiets a Wformat-truncation complaint */
+	n = snprintf(drv.driver_ver_str, sizeof(drv.driver_ver_str),
+		     "%s %s", PDS_CORE_DRV_NAME, utsname()->release);
+	if (n > sizeof(drv.driver_ver_str))
+		dev_dbg(pdsc->dev, "release name truncated, don't care\n");
 
 	/* Next let's get some info about the device
 	 * We use the devcmd_lock at this level in order to
@@ -296,13 +307,6 @@ static int pdsc_identify(struct pdsc *pdsc)
 			 (u8)pdsc->dev_info.fw_version[3]);
 
 	return 0;
-}
-
-int pdsc_dev_reinit(struct pdsc *pdsc)
-{
-	pdsc_init_devinfo(pdsc);
-
-	return pdsc_identify(pdsc);
 }
 
 int pdsc_dev_init(struct pdsc *pdsc)

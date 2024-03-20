@@ -486,31 +486,6 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
 	alloc_bulk(c, c->unit_size <= 256 ? 4 : 1, cpu_to_node(cpu), false);
 }
 
-static int check_obj_size(struct bpf_mem_cache *c, unsigned int idx)
-{
-	struct llist_node *first;
-	unsigned int obj_size;
-
-	/* For per-cpu allocator, the size of free objects in free list doesn't
-	 * match with unit_size and now there is no way to get the size of
-	 * per-cpu pointer saved in free object, so just skip the checking.
-	 */
-	if (c->percpu_size)
-		return 0;
-
-	first = c->free_llist.first;
-	if (!first)
-		return 0;
-
-	obj_size = ksize(first);
-	if (obj_size != c->unit_size) {
-		WARN_ONCE(1, "bpf_mem_cache[%u]: unexpected object size %u, expect %u\n",
-			  idx, obj_size, c->unit_size);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /* When size != 0 bpf_mem_cache for each cpu.
  * This is typical bpf hash map use case when all elements have equal size.
  *
@@ -521,10 +496,12 @@ static int check_obj_size(struct bpf_mem_cache *c, unsigned int idx)
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 {
 	static u16 sizes[NUM_CACHES] = {96, 192, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
-	int cpu, i, err, unit_size, percpu_size = 0;
 	struct bpf_mem_caches *cc, __percpu *pcc;
 	struct bpf_mem_cache *c, __percpu *pc;
 	struct obj_cgroup *objcg = NULL;
+	int cpu, i, unit_size, percpu_size = 0;
+
+	ma->percpu = percpu;
 
 	if (size) {
 		pc = __alloc_percpu_gfp(sizeof(*pc), 8, GFP_KERNEL);
@@ -562,7 +539,6 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	pcc = __alloc_percpu_gfp(sizeof(*cc), 8, GFP_KERNEL);
 	if (!pcc)
 		return -ENOMEM;
-	err = 0;
 #ifdef CONFIG_MEMCG_KMEM
 	objcg = get_obj_cgroup_from_current();
 #endif
@@ -575,28 +551,12 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			c->tgt = c;
 
 			init_refill_work(c);
-			/* Another bpf_mem_cache will be used when allocating
-			 * c->unit_size in bpf_mem_alloc(), so doesn't prefill
-			 * for the bpf_mem_cache because these free objects will
-			 * never be used.
-			 */
-			if (i != bpf_mem_cache_idx(c->unit_size))
-				continue;
 			prefill_mem_cache(c, cpu);
-			err = check_obj_size(c, i);
-			if (err)
-				goto out;
 		}
 	}
 
-out:
 	ma->caches = pcc;
-	/* refill_work is either zeroed or initialized, so it is safe to
-	 * call irq_work_sync().
-	 */
-	if (err)
-		bpf_mem_alloc_destroy(ma);
-	return err;
+	return 0;
 }
 
 static void drain_mem_cache(struct bpf_mem_cache *c)
@@ -860,7 +820,7 @@ void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 	void *ret;
 
 	if (!size)
-		return ZERO_SIZE_PTR;
+		return NULL;
 
 	idx = bpf_mem_cache_idx(size + LLIST_NODE_SZ);
 	if (idx < 0)
@@ -872,13 +832,15 @@ void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 
 void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 {
+	struct bpf_mem_cache *c;
 	int idx;
 
 	if (!ptr)
 		return;
 
-	idx = bpf_mem_cache_idx(ksize(ptr - LLIST_NODE_SZ));
-	if (idx < 0)
+	c = *(void **)(ptr - LLIST_NODE_SZ);
+	idx = bpf_mem_cache_idx(c->unit_size);
+	if (WARN_ON_ONCE(idx < 0))
 		return;
 
 	unit_free(this_cpu_ptr(ma->caches)->cache + idx, ptr);
@@ -886,13 +848,15 @@ void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 
 void notrace bpf_mem_free_rcu(struct bpf_mem_alloc *ma, void *ptr)
 {
+	struct bpf_mem_cache *c;
 	int idx;
 
 	if (!ptr)
 		return;
 
-	idx = bpf_mem_cache_idx(ksize(ptr - LLIST_NODE_SZ));
-	if (idx < 0)
+	c = *(void **)(ptr - LLIST_NODE_SZ);
+	idx = bpf_mem_cache_idx(c->unit_size);
+	if (WARN_ON_ONCE(idx < 0))
 		return;
 
 	unit_free_rcu(this_cpu_ptr(ma->caches)->cache + idx, ptr);
@@ -958,41 +922,11 @@ void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 		memcg = get_memcg(c);
 		old_memcg = set_active_memcg(memcg);
 		ret = __alloc(c, NUMA_NO_NODE, GFP_KERNEL | __GFP_NOWARN | __GFP_ACCOUNT);
+		if (ret)
+			*(struct bpf_mem_cache **)ret = c;
 		set_active_memcg(old_memcg);
 		mem_cgroup_put(memcg);
 	}
 
 	return !ret ? NULL : ret + LLIST_NODE_SZ;
 }
-
-static __init int bpf_mem_cache_adjust_size(void)
-{
-	unsigned int size;
-
-	/* Adjusting the indexes in size_index() according to the object_size
-	 * of underlying slab cache, so bpf_mem_alloc() will select a
-	 * bpf_mem_cache with unit_size equal to the object_size of
-	 * the underlying slab cache.
-	 *
-	 * The maximal value of KMALLOC_MIN_SIZE and __kmalloc_minalign() is
-	 * 256-bytes, so only do adjustment for [8-bytes, 192-bytes].
-	 */
-	for (size = 192; size >= 8; size -= 8) {
-		unsigned int kmalloc_size, index;
-
-		kmalloc_size = kmalloc_size_roundup(size);
-		if (kmalloc_size == size)
-			continue;
-
-		if (kmalloc_size <= 192)
-			index = size_index[(kmalloc_size - 1) / 8];
-		else
-			index = fls(kmalloc_size - 1) - 1;
-		/* Only overwrite if necessary */
-		if (size_index[(size - 1) / 8] != index)
-			size_index[(size - 1) / 8] = index;
-	}
-
-	return 0;
-}
-subsys_initcall(bpf_mem_cache_adjust_size);

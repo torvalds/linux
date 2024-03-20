@@ -2016,7 +2016,7 @@ mt7996_mcu_beacon_cont(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 			bcn->bcc_ie_pos = cpu_to_le16(offset - 3);
 	}
 
-	buf = (u8 *)bcn + sizeof(*bcn) - MAX_BEACON_SIZE;
+	buf = (u8 *)bcn + sizeof(*bcn);
 	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0,
 			      BSS_CHANGED_BEACON);
 
@@ -2034,26 +2034,22 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 	struct sk_buff *skb, *rskb;
 	struct tlv *tlv;
 	struct bss_bcn_content_tlv *bcn;
+	int len;
 
 	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->mt76,
-					  MT7996_BEACON_UPDATE_SIZE);
+					  MT7996_MAX_BSS_OFFLOAD_SIZE);
 	if (IS_ERR(rskb))
 		return PTR_ERR(rskb);
 
-	tlv = mt7996_mcu_add_uni_tlv(rskb,
-				     UNI_BSS_INFO_BCN_CONTENT, sizeof(*bcn));
-	bcn = (struct bss_bcn_content_tlv *)tlv;
-	bcn->enable = en;
-
-	if (!en)
-		goto out;
-
 	skb = ieee80211_beacon_get_template(hw, vif, &offs, 0);
-	if (!skb)
+	if (!skb) {
+		dev_kfree_skb(rskb);
 		return -EINVAL;
+	}
 
-	if (skb->len > MAX_BEACON_SIZE - MT_TXD_SIZE) {
+	if (skb->len > MT7996_MAX_BEACON_SIZE) {
 		dev_err(dev->mt76.dev, "Bcn size limit exceed\n");
+		dev_kfree_skb(rskb);
 		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -2061,11 +2057,18 @@ int mt7996_mcu_add_beacon(struct ieee80211_hw *hw,
 	info = IEEE80211_SKB_CB(skb);
 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->mt76->band_idx);
 
+	len = sizeof(*bcn) + MT_TXD_SIZE + skb->len;
+	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_BCN_CONTENT, len);
+	bcn = (struct bss_bcn_content_tlv *)tlv;
+	bcn->enable = en;
+	if (!en)
+		goto out;
+
 	mt7996_mcu_beacon_cont(dev, vif, rskb, skb, bcn, &offs);
 	/* TODO: subtag - 11v MBSSID */
 	mt7996_mcu_beacon_cntdwn(vif, rskb, skb, &offs);
-	dev_kfree_skb(skb);
 out:
+	dev_kfree_skb(skb);
 	return mt76_mcu_skb_send_msg(&phy->dev->mt76, rskb,
 				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
 }
@@ -2086,9 +2089,13 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	struct sk_buff *rskb, *skb = NULL;
 	struct tlv *tlv;
 	u8 *buf, interval;
+	int len;
+
+	if (vif->bss_conf.nontransmitted)
+		return 0;
 
 	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->mt76,
-					  MT7996_INBAND_FRAME_SIZE);
+					  MT7996_MAX_BSS_OFFLOAD_SIZE);
 	if (IS_ERR(rskb))
 		return PTR_ERR(rskb);
 
@@ -2102,11 +2109,14 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif);
 	}
 
-	if (!skb)
+	if (!skb) {
+		dev_kfree_skb(rskb);
 		return -EINVAL;
+	}
 
-	if (skb->len > MAX_INBAND_FRAME_SIZE - MT_TXD_SIZE) {
+	if (skb->len > MT7996_MAX_BEACON_SIZE) {
 		dev_err(dev->mt76.dev, "inband discovery size limit exceed\n");
+		dev_kfree_skb(rskb);
 		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -2116,7 +2126,9 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	info->band = band;
 	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->mt76->band_idx);
 
-	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_OFFLOAD, sizeof(*discov));
+	len = sizeof(*discov) + MT_TXD_SIZE + skb->len;
+
+	tlv = mt7996_mcu_add_uni_tlv(rskb, UNI_BSS_INFO_OFFLOAD, len);
 
 	discov = (struct bss_inband_discovery_tlv *)tlv;
 	discov->tx_mode = OFFLOAD_TX_MODE_SU;
@@ -2127,7 +2139,7 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	discov->enable = true;
 	discov->wcid = cpu_to_le16(MT7996_WTBL_RESERVED);
 
-	buf = (u8 *)tlv + sizeof(*discov) - MAX_INBAND_FRAME_SIZE;
+	buf = (u8 *)tlv + sizeof(*discov);
 
 	mt7996_mac_write_txwi(dev, (__le32 *)buf, skb, wcid, NULL, 0, 0, changed);
 
@@ -2679,7 +2691,7 @@ int mt7996_mcu_set_tx(struct mt7996_dev *dev, struct ieee80211_vif *vif)
 
 		e = (struct edca *)tlv;
 		e->set = WMM_PARAM_SET;
-		e->queue = ac + mvif->mt76.wmm_idx * MT7996_MAX_WMM_SETS;
+		e->queue = ac;
 		e->aifs = q->aifs;
 		e->txop = cpu_to_le16(q->txop);
 
@@ -2960,10 +2972,10 @@ int mt7996_mcu_set_chan_info(struct mt7996_phy *phy, u16 tag)
 		.channel_band = ch_band[chandef->chan->band],
 	};
 
-	if (tag == UNI_CHANNEL_RX_PATH ||
-	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
+	if (phy->mt76->hw->conf.flags & IEEE80211_CONF_MONITOR)
 		req.switch_reason = CH_SWITCH_NORMAL;
-	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
+	else if (phy->mt76->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL ||
+		 phy->mt76->hw->conf.flags & IEEE80211_CONF_IDLE)
 		req.switch_reason = CH_SWITCH_SCAN_BYPASS_DPD;
 	else if (!cfg80211_reg_can_beacon(phy->mt76->hw->wiphy, chandef,
 					  NL80211_IFTYPE_AP))
@@ -3307,8 +3319,8 @@ int mt7996_mcu_set_txbf(struct mt7996_dev *dev, u8 action)
 
 		tlv = mt7996_mcu_add_uni_tlv(skb, action, sizeof(*req_mod_en));
 		req_mod_en = (struct bf_mod_en_ctrl *)tlv;
-		req_mod_en->bf_num = 2;
-		req_mod_en->bf_bitmap = GENMASK(0, 0);
+		req_mod_en->bf_num = 3;
+		req_mod_en->bf_bitmap = GENMASK(2, 0);
 		break;
 	}
 	default:
@@ -3548,7 +3560,9 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 			       int cmd)
 {
 	struct {
-		u8 _rsv[4];
+		/* fixed field */
+		u8 bss;
+		u8 _rsv[3];
 
 		__le16 tag;
 		__le16 len;
@@ -3566,7 +3580,7 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 		u8 exponent;
 		u8 is_ap;
 		u8 agrt_params;
-		u8 __rsv2[135];
+		u8 __rsv2[23];
 	} __packed req = {
 		.tag = cpu_to_le16(UNI_CMD_TWT_ARGT_UPDATE),
 		.len = cpu_to_le16(sizeof(req) - 4),
@@ -3576,6 +3590,7 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 		.flowid = flow->id,
 		.peer_id = cpu_to_le16(flow->wcid),
 		.duration = flow->duration,
+		.bss = mvif->mt76.idx,
 		.bss_idx = mvif->mt76.idx,
 		.start_tsf = cpu_to_le64(flow->tsf),
 		.mantissa = flow->mantissa,

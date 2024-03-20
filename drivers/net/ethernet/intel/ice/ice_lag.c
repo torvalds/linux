@@ -537,6 +537,50 @@ resume_traffic:
 }
 
 /**
+ * ice_lag_build_netdev_list - populate the lag struct's netdev list
+ * @lag: local lag struct
+ * @ndlist: pointer to netdev list to populate
+ */
+static void ice_lag_build_netdev_list(struct ice_lag *lag,
+				      struct ice_lag_netdev_list *ndlist)
+{
+	struct ice_lag_netdev_list *nl;
+	struct net_device *tmp_nd;
+
+	INIT_LIST_HEAD(&ndlist->node);
+	rcu_read_lock();
+	for_each_netdev_in_bond_rcu(lag->upper_netdev, tmp_nd) {
+		nl = kzalloc(sizeof(*nl), GFP_ATOMIC);
+		if (!nl)
+			break;
+
+		nl->netdev = tmp_nd;
+		list_add(&nl->node, &ndlist->node);
+	}
+	rcu_read_unlock();
+	lag->netdev_head = &ndlist->node;
+}
+
+/**
+ * ice_lag_destroy_netdev_list - free lag struct's netdev list
+ * @lag: pointer to local lag struct
+ * @ndlist: pointer to lag struct netdev list
+ */
+static void ice_lag_destroy_netdev_list(struct ice_lag *lag,
+					struct ice_lag_netdev_list *ndlist)
+{
+	struct ice_lag_netdev_list *entry, *n;
+
+	rcu_read_lock();
+	list_for_each_entry_safe(entry, n, &ndlist->node, node) {
+		list_del(&entry->node);
+		kfree(entry);
+	}
+	rcu_read_unlock();
+	lag->netdev_head = NULL;
+}
+
+/**
  * ice_lag_move_single_vf_nodes - Move Tx scheduling nodes for single VF
  * @lag: primary interface LAG struct
  * @oldport: lport of previous interface
@@ -564,7 +608,6 @@ ice_lag_move_single_vf_nodes(struct ice_lag *lag, u8 oldport, u8 newport,
 void ice_lag_move_new_vf_nodes(struct ice_vf *vf)
 {
 	struct ice_lag_netdev_list ndlist;
-	struct list_head *tmp, *n;
 	u8 pri_port, act_port;
 	struct ice_lag *lag;
 	struct ice_vsi *vsi;
@@ -588,38 +631,15 @@ void ice_lag_move_new_vf_nodes(struct ice_vf *vf)
 	pri_port = pf->hw.port_info->lport;
 	act_port = lag->active_port;
 
-	if (lag->upper_netdev) {
-		struct ice_lag_netdev_list *nl;
-		struct net_device *tmp_nd;
-
-		INIT_LIST_HEAD(&ndlist.node);
-		rcu_read_lock();
-		for_each_netdev_in_bond_rcu(lag->upper_netdev, tmp_nd) {
-			nl = kzalloc(sizeof(*nl), GFP_KERNEL);
-			if (!nl)
-				break;
-
-			nl->netdev = tmp_nd;
-			list_add(&nl->node, &ndlist.node);
-		}
-		rcu_read_unlock();
-	}
-
-	lag->netdev_head = &ndlist.node;
+	if (lag->upper_netdev)
+		ice_lag_build_netdev_list(lag, &ndlist);
 
 	if (ice_is_feature_supported(pf, ICE_F_SRIOV_LAG) &&
 	    lag->bonded && lag->primary && pri_port != act_port &&
 	    !list_empty(lag->netdev_head))
 		ice_lag_move_single_vf_nodes(lag, pri_port, act_port, vsi->idx);
 
-	list_for_each_safe(tmp, n, &ndlist.node) {
-		struct ice_lag_netdev_list *entry;
-
-		entry = list_entry(tmp, struct ice_lag_netdev_list, node);
-		list_del(&entry->node);
-		kfree(entry);
-	}
-	lag->netdev_head = NULL;
+	ice_lag_destroy_netdev_list(lag, &ndlist);
 
 new_vf_unlock:
 	mutex_unlock(&pf->lag_mutex);
@@ -644,6 +664,29 @@ static void ice_lag_move_vf_nodes(struct ice_lag *lag, u8 oldport, u8 newport)
 		if (pf->vsi[i] && (pf->vsi[i]->type == ICE_VSI_VF ||
 				   pf->vsi[i]->type == ICE_VSI_SWITCHDEV_CTRL))
 			ice_lag_move_single_vf_nodes(lag, oldport, newport, i);
+}
+
+/**
+ * ice_lag_move_vf_nodes_cfg - move vf nodes outside LAG netdev event context
+ * @lag: local lag struct
+ * @src_prt: lport value for source port
+ * @dst_prt: lport value for destination port
+ *
+ * This function is used to move nodes during an out-of-netdev-event situation,
+ * primarily when the driver needs to reconfigure or recreate resources.
+ *
+ * Must be called while holding the lag_mutex to avoid lag events from
+ * processing while out-of-sync moves are happening.  Also, paired moves,
+ * such as used in a reset flow, should both be called under the same mutex
+ * lock to avoid changes between start of reset and end of reset.
+ */
+void ice_lag_move_vf_nodes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt)
+{
+	struct ice_lag_netdev_list ndlist;
+
+	ice_lag_build_netdev_list(lag, &ndlist);
+	ice_lag_move_vf_nodes(lag, src_prt, dst_prt);
+	ice_lag_destroy_netdev_list(lag, &ndlist);
 }
 
 #define ICE_LAG_SRIOV_CP_RECIPE		10
@@ -1529,18 +1572,12 @@ static void ice_lag_chk_disabled_bond(struct ice_lag *lag, void *ptr)
  */
 static void ice_lag_disable_sriov_bond(struct ice_lag *lag)
 {
-	struct ice_lag_netdev_list *entry;
 	struct ice_netdev_priv *np;
-	struct net_device *netdev;
 	struct ice_pf *pf;
 
-	list_for_each_entry(entry, lag->netdev_head, node) {
-		netdev = entry->netdev;
-		np = netdev_priv(netdev);
-		pf = np->vsi->back;
-
-		ice_clear_feature_support(pf, ICE_F_SRIOV_LAG);
-	}
+	np = netdev_priv(lag->netdev);
+	pf = np->vsi->back;
+	ice_clear_feature_support(pf, ICE_F_SRIOV_LAG);
 }
 
 /**
@@ -1672,7 +1709,7 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
 
 		rcu_read_lock();
 		for_each_netdev_in_bond_rcu(upper_netdev, tmp_nd) {
-			nd_list = kzalloc(sizeof(*nd_list), GFP_KERNEL);
+			nd_list = kzalloc(sizeof(*nd_list), GFP_ATOMIC);
 			if (!nd_list)
 				break;
 
@@ -1926,6 +1963,8 @@ int ice_init_lag(struct ice_pf *pf)
 	int n, err;
 
 	ice_lag_init_feature_support_flag(pf);
+	if (!ice_is_feature_supported(pf, ICE_F_SRIOV_LAG))
+		return 0;
 
 	pf->lag = kzalloc(sizeof(*lag), GFP_KERNEL);
 	if (!pf->lag)
@@ -2028,7 +2067,6 @@ void ice_lag_rebuild(struct ice_pf *pf)
 {
 	struct ice_lag_netdev_list ndlist;
 	struct ice_lag *lag, *prim_lag;
-	struct list_head *tmp, *n;
 	u8 act_port, loc_port;
 
 	if (!pf->lag || !pf->lag->bonded)
@@ -2040,21 +2078,7 @@ void ice_lag_rebuild(struct ice_pf *pf)
 	if (lag->primary) {
 		prim_lag = lag;
 	} else {
-		struct ice_lag_netdev_list *nl;
-		struct net_device *tmp_nd;
-
-		INIT_LIST_HEAD(&ndlist.node);
-		rcu_read_lock();
-		for_each_netdev_in_bond_rcu(lag->upper_netdev, tmp_nd) {
-			nl = kzalloc(sizeof(*nl), GFP_KERNEL);
-			if (!nl)
-				break;
-
-			nl->netdev = tmp_nd;
-			list_add(&nl->node, &ndlist.node);
-		}
-		rcu_read_unlock();
-		lag->netdev_head = &ndlist.node;
+		ice_lag_build_netdev_list(lag, &ndlist);
 		prim_lag = ice_lag_find_primary(lag);
 	}
 
@@ -2084,13 +2108,7 @@ void ice_lag_rebuild(struct ice_pf *pf)
 
 	ice_clear_rdma_cap(pf);
 lag_rebuild_out:
-	list_for_each_safe(tmp, n, &ndlist.node) {
-		struct ice_lag_netdev_list *entry;
-
-		entry = list_entry(tmp, struct ice_lag_netdev_list, node);
-		list_del(&entry->node);
-		kfree(entry);
-	}
+	ice_lag_destroy_netdev_list(lag, &ndlist);
 	mutex_unlock(&pf->lag_mutex);
 }
 

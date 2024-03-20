@@ -2050,7 +2050,7 @@ static int prueth_probe(struct platform_device *pdev)
 				       &prueth->shram);
 	if (ret) {
 		dev_err(dev, "unable to get PRUSS SHRD RAM2: %d\n", ret);
-		pruss_put(prueth->pruss);
+		goto put_pruss;
 	}
 
 	prueth->sram_pool = of_gen_pool_get(np, "sram", 0);
@@ -2092,10 +2092,7 @@ static int prueth_probe(struct platform_device *pdev)
 	prueth->iep1 = icss_iep_get_idx(np, 1);
 	if (IS_ERR(prueth->iep1)) {
 		ret = dev_err_probe(dev, PTR_ERR(prueth->iep1), "iep1 get failed\n");
-		icss_iep_put(prueth->iep0);
-		prueth->iep0 = NULL;
-		prueth->iep1 = NULL;
-		goto free_pool;
+		goto put_iep0;
 	}
 
 	if (prueth->pdata.quirk_10m_link_issue) {
@@ -2185,6 +2182,12 @@ netdev_exit:
 exit_iep:
 	if (prueth->pdata.quirk_10m_link_issue)
 		icss_iep_exit_fw(prueth->iep1);
+	icss_iep_put(prueth->iep1);
+
+put_iep0:
+	icss_iep_put(prueth->iep0);
+	prueth->iep0 = NULL;
+	prueth->iep1 = NULL;
 
 free_pool:
 	gen_pool_free(prueth->sram_pool,
@@ -2192,6 +2195,8 @@ free_pool:
 
 put_mem:
 	pruss_release_mem_region(prueth->pruss, &prueth->shram);
+
+put_pruss:
 	pruss_put(prueth->pruss);
 
 put_cores:

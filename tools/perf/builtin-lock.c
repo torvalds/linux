@@ -524,6 +524,7 @@ bool match_callstack_filter(struct machine *machine, u64 *callstack)
 	struct map *kmap;
 	struct symbol *sym;
 	u64 ip;
+	const char *arch = perf_env__arch(machine->env);
 
 	if (list_empty(&callstack_filters))
 		return true;
@@ -531,7 +532,21 @@ bool match_callstack_filter(struct machine *machine, u64 *callstack)
 	for (int i = 0; i < max_stack_depth; i++) {
 		struct callstack_filter *filter;
 
-		if (!callstack || !callstack[i])
+		/*
+		 * In powerpc, the callchain saved by kernel always includes
+		 * first three entries as the NIP (next instruction pointer),
+		 * LR (link register), and the contents of LR save area in the
+		 * second stack frame. In certain scenarios its possible to have
+		 * invalid kernel instruction addresses in either LR or the second
+		 * stack frame's LR. In that case, kernel will store that address as
+		 * zero.
+		 *
+		 * The below check will continue to look into callstack,
+		 * incase first or second callstack index entry has 0
+		 * address for powerpc.
+		 */
+		if (!callstack || (!callstack[i] && (strcmp(arch, "powerpc") ||
+						(i != 1 && i != 2))))
 			break;
 
 		ip = callstack[i];

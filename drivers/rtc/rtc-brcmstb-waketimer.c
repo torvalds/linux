@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright © 2014-2017 Broadcom
+ * Copyright © 2014-2023 Broadcom
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -34,6 +34,7 @@ struct brcmstb_waketmr {
 	u32 rate;
 	unsigned long rtc_alarm;
 	bool alarm_en;
+	bool alarm_expired;
 };
 
 #define BRCMSTB_WKTMR_EVENT		0x00
@@ -64,6 +65,11 @@ static inline void brcmstb_waketmr_clear_alarm(struct brcmstb_waketmr *timer)
 	writel_relaxed(reg - 1, timer->base + BRCMSTB_WKTMR_ALARM);
 	writel_relaxed(WKTMR_ALARM_EVENT, timer->base + BRCMSTB_WKTMR_EVENT);
 	(void)readl_relaxed(timer->base + BRCMSTB_WKTMR_EVENT);
+	if (timer->alarm_expired) {
+		timer->alarm_expired = false;
+		/* maintain call balance */
+		enable_irq(timer->alarm_irq);
+	}
 }
 
 static void brcmstb_waketmr_set_alarm(struct brcmstb_waketmr *timer,
@@ -105,10 +111,17 @@ static irqreturn_t brcmstb_alarm_irq(int irq, void *data)
 		return IRQ_HANDLED;
 
 	if (timer->alarm_en) {
-		if (!device_may_wakeup(timer->dev))
+		if (device_may_wakeup(timer->dev)) {
+			disable_irq_nosync(irq);
+			timer->alarm_expired = true;
+		} else {
 			writel_relaxed(WKTMR_ALARM_EVENT,
 				       timer->base + BRCMSTB_WKTMR_EVENT);
+		}
 		rtc_update_irq(timer->rtc, 1, RTC_IRQF | RTC_AF);
+	} else {
+		writel_relaxed(WKTMR_ALARM_EVENT,
+			       timer->base + BRCMSTB_WKTMR_EVENT);
 	}
 
 	return IRQ_HANDLED;
@@ -221,8 +234,14 @@ static int brcmstb_waketmr_alarm_enable(struct device *dev,
 		    !brcmstb_waketmr_is_pending(timer))
 			return -EINVAL;
 		timer->alarm_en = true;
-		if (timer->alarm_irq)
+		if (timer->alarm_irq) {
+			if (timer->alarm_expired) {
+				timer->alarm_expired = false;
+				/* maintain call balance */
+				enable_irq(timer->alarm_irq);
+			}
 			enable_irq(timer->alarm_irq);
+		}
 	} else if (!enabled && timer->alarm_en) {
 		if (timer->alarm_irq)
 			disable_irq(timer->alarm_irq);
@@ -352,6 +371,17 @@ static int brcmstb_waketmr_suspend(struct device *dev)
 	return brcmstb_waketmr_prepare_suspend(timer);
 }
 
+static int brcmstb_waketmr_suspend_noirq(struct device *dev)
+{
+	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
+
+	/* Catch any alarms occurring prior to noirq */
+	if (timer->alarm_expired && device_may_wakeup(dev))
+		return -EBUSY;
+
+	return 0;
+}
+
 static int brcmstb_waketmr_resume(struct device *dev)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(dev);
@@ -368,10 +398,17 @@ static int brcmstb_waketmr_resume(struct device *dev)
 
 	return ret;
 }
+#else
+#define brcmstb_waketmr_suspend		NULL
+#define brcmstb_waketmr_suspend_noirq	NULL
+#define brcmstb_waketmr_resume		NULL
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(brcmstb_waketmr_pm_ops,
-			 brcmstb_waketmr_suspend, brcmstb_waketmr_resume);
+static const struct dev_pm_ops brcmstb_waketmr_pm_ops = {
+	.suspend	= brcmstb_waketmr_suspend,
+	.suspend_noirq	= brcmstb_waketmr_suspend_noirq,
+	.resume		= brcmstb_waketmr_resume,
+};
 
 static const __maybe_unused struct of_device_id brcmstb_waketmr_of_match[] = {
 	{ .compatible = "brcm,brcmstb-waketimer" },

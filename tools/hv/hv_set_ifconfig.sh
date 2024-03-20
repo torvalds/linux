@@ -53,7 +53,7 @@
 #                       or "manual" if no boot-time protocol should be used)
 #
 # address1=ipaddr1/plen
-# address=ipaddr2/plen
+# address2=ipaddr2/plen
 #
 # gateway=gateway1;gateway2
 #
@@ -61,7 +61,7 @@
 #
 # [ipv6]
 # address1=ipaddr1/plen
-# address2=ipaddr1/plen
+# address2=ipaddr2/plen
 #
 # gateway=gateway1;gateway2
 #

@@ -229,7 +229,7 @@ alternative_has_cap_likely(const unsigned long cpucap)
 	compiletime_assert(cpucap < ARM64_NCAPS,
 			   "cpucap must be < ARM64_NCAPS");
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE_CB("b	%l[l_no]", %[cpucap], alt_cb_patch_nops)
 	:
 	: [cpucap] "i" (cpucap)
@@ -247,7 +247,7 @@ alternative_has_cap_unlikely(const unsigned long cpucap)
 	compiletime_assert(cpucap < ARM64_NCAPS,
 			   "cpucap must be < ARM64_NCAPS");
 
-	asm_volatile_goto(
+	asm goto(
 	ALTERNATIVE("nop", "b	%l[l_yes]", %[cpucap])
 	:
 	: [cpucap] "i" (cpucap)

@@ -286,9 +286,31 @@ static bool tcf_ct_flow_is_outdated(const struct flow_offload *flow)
 	       !test_bit(NF_FLOW_HW_ESTABLISHED, &flow->flags);
 }
 
+static void tcf_ct_flow_table_get_ref(struct tcf_ct_flow_table *ct_ft);
+
+static void tcf_ct_nf_get(struct nf_flowtable *ft)
+{
+	struct tcf_ct_flow_table *ct_ft =
+		container_of(ft, struct tcf_ct_flow_table, nf_ft);
+
+	tcf_ct_flow_table_get_ref(ct_ft);
+}
+
+static void tcf_ct_flow_table_put(struct tcf_ct_flow_table *ct_ft);
+
+static void tcf_ct_nf_put(struct nf_flowtable *ft)
+{
+	struct tcf_ct_flow_table *ct_ft =
+		container_of(ft, struct tcf_ct_flow_table, nf_ft);
+
+	tcf_ct_flow_table_put(ct_ft);
+}
+
 static struct nf_flowtable_type flowtable_ct = {
 	.gc		= tcf_ct_flow_is_outdated,
 	.action		= tcf_ct_flow_table_fill_actions,
+	.get		= tcf_ct_nf_get,
+	.put		= tcf_ct_nf_put,
 	.owner		= THIS_MODULE,
 };
 
@@ -337,9 +359,13 @@ err_alloc:
 	return err;
 }
 
+static void tcf_ct_flow_table_get_ref(struct tcf_ct_flow_table *ct_ft)
+{
+	refcount_inc(&ct_ft->ref);
+}
+
 static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 {
-	struct flow_block_cb *block_cb, *tmp_cb;
 	struct tcf_ct_flow_table *ct_ft;
 	struct flow_block *block;
 
@@ -347,13 +373,9 @@ static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 			     rwork);
 	nf_flow_table_free(&ct_ft->nf_ft);
 
-	/* Remove any remaining callbacks before cleanup */
 	block = &ct_ft->nf_ft.flow_block;
 	down_write(&ct_ft->nf_ft.flow_block_lock);
-	list_for_each_entry_safe(block_cb, tmp_cb, &block->cb_list, list) {
-		list_del(&block_cb->list);
-		flow_block_cb_free(block_cb);
-	}
+	WARN_ON(!list_empty(&block->cb_list));
 	up_write(&ct_ft->nf_ft.flow_block_lock);
 	kfree(ct_ft);
 
@@ -374,6 +396,17 @@ static void tcf_ct_flow_tc_ifidx(struct flow_offload *entry,
 {
 	entry->tuplehash[dir].tuple.xmit_type = FLOW_OFFLOAD_XMIT_TC;
 	entry->tuplehash[dir].tuple.tc.iifidx = act_ct_ext->ifindex[dir];
+}
+
+static void tcf_ct_flow_ct_ext_ifidx_update(struct flow_offload *entry)
+{
+	struct nf_conn_act_ct_ext *act_ct_ext;
+
+	act_ct_ext = nf_conn_act_ct_ext_find(entry->ct);
+	if (act_ct_ext) {
+		tcf_ct_flow_tc_ifidx(entry, act_ct_ext, FLOW_OFFLOAD_DIR_ORIGINAL);
+		tcf_ct_flow_tc_ifidx(entry, act_ct_ext, FLOW_OFFLOAD_DIR_REPLY);
+	}
 }
 
 static void tcf_ct_flow_table_add(struct tcf_ct_flow_table *ct_ft,
@@ -671,6 +704,8 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	else
 		ctinfo = IP_CT_ESTABLISHED_REPLY;
 
+	nf_conn_act_ct_ext_fill(skb, ct, ctinfo);
+	tcf_ct_flow_ct_ext_ifidx_update(flow);
 	flow_offload_refresh(nf_ft, flow, force_refresh);
 	if (!test_bit(IPS_ASSURED_BIT, &ct->status)) {
 		/* Process this flow in SW to allow promoting to ASSURED */
@@ -816,7 +851,6 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 	if (err || !frag)
 		return err;
 
-	skb_get(skb);
 	err = nf_ct_handle_fragments(net, skb, zone, family, &proto, &mru);
 	if (err)
 		return err;
@@ -960,12 +994,8 @@ TC_INDIRECT_SCOPE int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	nh_ofs = skb_network_offset(skb);
 	skb_pull_rcsum(skb, nh_ofs);
 	err = tcf_ct_handle_fragments(net, skb, family, p->zone, &defrag);
-	if (err == -EINPROGRESS) {
-		retval = TC_ACT_STOLEN;
-		goto out_clear;
-	}
 	if (err)
-		goto drop;
+		goto out_frag;
 
 	err = nf_ct_skb_network_trim(skb, family);
 	if (err)
@@ -1030,7 +1060,7 @@ do_nat:
 		tcf_ct_act_set_labels(ct, p->labels, p->labels_mask);
 
 		if (!nf_ct_is_confirmed(ct))
-			nf_conn_act_ct_ext_add(ct);
+			nf_conn_act_ct_ext_add(skb, ct, ctinfo);
 
 		/* This will take care of sending queued events
 		 * even if the connection is already confirmed.
@@ -1051,6 +1081,11 @@ out_clear:
 	if (defrag)
 		qdisc_skb_cb(skb)->pkt_len = skb->len;
 	return retval;
+
+out_frag:
+	if (err != -EINPROGRESS)
+		tcf_action_inc_drop_qstats(&c->common);
+	return TC_ACT_CONSUMED;
 
 drop:
 	tcf_action_inc_drop_qstats(&c->common);
@@ -1521,6 +1556,9 @@ static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
+
+		if (tcf_ct_helper(act))
+			return -EOPNOTSUPP;
 
 		entry->id = FLOW_ACTION_CT;
 		entry->ct.action = tcf_ct_action(act);

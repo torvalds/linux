@@ -108,14 +108,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
  * same context as task->real_cred.
  */
 struct cred {
-	atomic_t	usage;
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	atomic_t	subscribers;	/* number of processes subscribed */
-	void		*put_addr;
-	unsigned	magic;
-#define CRED_MAGIC	0x43736564
-#define CRED_MAGIC_DEAD	0x44656144
-#endif
+	atomic_long_t	usage;
 	kuid_t		uid;		/* real UID of the task */
 	kgid_t		gid;		/* real GID of the task */
 	kuid_t		suid;		/* saved UID of the task */
@@ -171,46 +164,6 @@ extern int cred_fscmp(const struct cred *, const struct cred *);
 extern void __init cred_init(void);
 extern int set_cred_ucounts(struct cred *);
 
-/*
- * check for validity of credentials
- */
-#ifdef CONFIG_DEBUG_CREDENTIALS
-extern void __noreturn __invalid_creds(const struct cred *, const char *, unsigned);
-extern void __validate_process_creds(struct task_struct *,
-				     const char *, unsigned);
-
-extern bool creds_are_invalid(const struct cred *cred);
-
-static inline void __validate_creds(const struct cred *cred,
-				    const char *file, unsigned line)
-{
-	if (unlikely(creds_are_invalid(cred)))
-		__invalid_creds(cred, file, line);
-}
-
-#define validate_creds(cred)				\
-do {							\
-	__validate_creds((cred), __FILE__, __LINE__);	\
-} while(0)
-
-#define validate_process_creds()				\
-do {								\
-	__validate_process_creds(current, __FILE__, __LINE__);	\
-} while(0)
-
-extern void validate_creds_for_do_exit(struct task_struct *);
-#else
-static inline void validate_creds(const struct cred *cred)
-{
-}
-static inline void validate_creds_for_do_exit(struct task_struct *tsk)
-{
-}
-static inline void validate_process_creds(void)
-{
-}
-#endif
-
 static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 {
 	return cap_issubset(cred->cap_ambient,
@@ -227,7 +180,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
  */
 static inline struct cred *get_new_cred(struct cred *cred)
 {
-	atomic_inc(&cred->usage);
+	atomic_long_inc(&cred->usage);
 	return cred;
 }
 
@@ -249,7 +202,6 @@ static inline const struct cred *get_cred(const struct cred *cred)
 	struct cred *nonconst_cred = (struct cred *) cred;
 	if (!cred)
 		return cred;
-	validate_creds(cred);
 	nonconst_cred->non_rcu = 0;
 	return get_new_cred(nonconst_cred);
 }
@@ -259,9 +211,8 @@ static inline const struct cred *get_cred_rcu(const struct cred *cred)
 	struct cred *nonconst_cred = (struct cred *) cred;
 	if (!cred)
 		return NULL;
-	if (!atomic_inc_not_zero(&nonconst_cred->usage))
+	if (!atomic_long_inc_not_zero(&nonconst_cred->usage))
 		return NULL;
-	validate_creds(cred);
 	nonconst_cred->non_rcu = 0;
 	return cred;
 }
@@ -282,8 +233,7 @@ static inline void put_cred(const struct cred *_cred)
 	struct cred *cred = (struct cred *) _cred;
 
 	if (cred) {
-		validate_creds(cred);
-		if (atomic_dec_and_test(&(cred)->usage))
+		if (atomic_long_dec_and_test(&(cred)->usage))
 			__put_cred(cred);
 	}
 }

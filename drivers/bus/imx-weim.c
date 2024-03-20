@@ -117,7 +117,7 @@ static int imx_weim_gpr_setup(struct platform_device *pdev)
 		i++;
 	}
 
-	if (i == 0 || i % 4)
+	if (i == 0)
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(gprvals); i++) {

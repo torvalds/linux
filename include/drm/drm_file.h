@@ -229,6 +229,18 @@ struct drm_file {
 	bool is_master;
 
 	/**
+	 * @supports_virtualized_cursor_plane:
+	 *
+	 * This client is capable of handling the cursor plane with the
+	 * restrictions imposed on it by the virtualized drivers.
+	 *
+	 * This implies that the cursor plane has to behave like a cursor
+	 * i.e. track cursor movement. It also requires setting of the
+	 * hotspot properties by the client on the cursor plane.
+	 */
+	bool supports_virtualized_cursor_plane;
+
+	/**
 	 * @master:
 	 *
 	 * Master this node is currently associated with. Protected by struct
@@ -256,8 +268,15 @@ struct drm_file {
 	/** @master_lookup_lock: Serializes @master. */
 	spinlock_t master_lookup_lock;
 
-	/** @pid: Process that opened this file. */
-	struct pid *pid;
+	/**
+	 * @pid: Process that is using this file.
+	 *
+	 * Must only be dereferenced under a rcu_read_lock or equivalent.
+	 *
+	 * Updates are guarded with dev->filelist_mutex and reference must be
+	 * dropped after a RCU grace period to accommodate lockless readers.
+	 */
+	struct pid __rcu *pid;
 
 	/** @client_id: A unique id for fdinfo */
 	u64 client_id;
@@ -419,6 +438,8 @@ static inline bool drm_is_accel_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_ACCEL;
 }
+
+void drm_file_update_pid(struct drm_file *);
 
 int drm_open(struct inode *inode, struct file *filp);
 int drm_open_helper(struct file *filp, struct drm_minor *minor);

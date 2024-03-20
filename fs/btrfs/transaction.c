@@ -37,8 +37,6 @@
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
-#define BTRFS_ROOT_TRANS_TAG 0
-
 /*
  * Transaction states and transitions
  *
@@ -1823,7 +1821,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	key.offset = (u64)-1;
-	pending->snap = btrfs_get_new_fs_root(fs_info, objectid, pending->anon_dev);
+	pending->snap = btrfs_get_new_fs_root(fs_info, objectid, &pending->anon_dev);
 	if (IS_ERR(pending->snap)) {
 		ret = PTR_ERR(pending->snap);
 		pending->snap = NULL;

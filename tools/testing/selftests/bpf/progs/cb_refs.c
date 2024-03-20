@@ -33,6 +33,7 @@ int underflow_prog(void *ctx)
 	if (!p)
 		return 0;
 	bpf_for_each_map_elem(&array_map, cb1, &p, 0);
+	bpf_kfunc_call_test_release(p);
 	return 0;
 }
 

@@ -177,7 +177,7 @@ static void icss_iep_set_counter(struct icss_iep *iep, u64 ns)
 	if (iep->plat_data->flags & ICSS_IEP_64BIT_COUNTER_SUPPORT)
 		writel(upper_32_bits(ns), iep->base +
 		       iep->plat_data->reg_offs[ICSS_IEP_COUNT_REG1]);
-	writel(upper_32_bits(ns), iep->base + iep->plat_data->reg_offs[ICSS_IEP_COUNT_REG0]);
+	writel(lower_32_bits(ns), iep->base + iep->plat_data->reg_offs[ICSS_IEP_COUNT_REG0]);
 }
 
 static void icss_iep_update_to_next_boundary(struct icss_iep *iep, u64 start_ns);

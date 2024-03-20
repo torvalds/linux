@@ -347,7 +347,7 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	if (flush)
-		iwl_mvm_flush_sta(mvm, int_sta, true);
+		iwl_mvm_flush_sta(mvm, int_sta->sta_id, int_sta->tfd_queue_msk);
 
 	iwl_mvm_mld_disable_txq(mvm, BIT(int_sta->sta_id), queuptr, tid);
 
@@ -705,8 +705,10 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			rcu_dereference_protected(mvm_sta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
 
-		if (WARN_ON(!link_conf || !mvm_link_sta))
+		if (WARN_ON(!link_conf || !mvm_link_sta)) {
+			ret = -EINVAL;
 			goto err;
+		}
 
 		ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, link_sta, link_conf,
 					  mvm_link_sta);

@@ -361,6 +361,12 @@ void mlx5_core_uplink_netdev_event_replay(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_core_uplink_netdev_event_replay);
 
+void mlx5_core_mp_event_replay(struct mlx5_core_dev *dev, u32 event, void *data)
+{
+	mlx5_blocking_notifier_call_chain(dev, event, data);
+}
+EXPORT_SYMBOL(mlx5_core_mp_event_replay);
+
 int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
 			    enum mlx5_cap_mode cap_mode)
 {

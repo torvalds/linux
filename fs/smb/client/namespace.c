@@ -117,6 +117,18 @@ cifs_build_devname(char *nodename, const char *prepath)
 	return dev;
 }
 
+static bool is_dfs_mount(struct dentry *dentry)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	bool ret;
+
+	spin_lock(&tcon->tc_lock);
+	ret = !!tcon->origin_fullpath;
+	spin_unlock(&tcon->tc_lock);
+	return ret;
+}
+
 /* Return full path out of a dentry set for automount */
 static char *automount_fullpath(struct dentry *dentry, void *page)
 {
@@ -156,6 +168,21 @@ static char *automount_fullpath(struct dentry *dentry, void *page)
 	return s;
 }
 
+static void fs_context_set_ids(struct smb3_fs_context *ctx)
+{
+	kuid_t uid = current_fsuid();
+	kgid_t gid = current_fsgid();
+
+	if (ctx->multiuser) {
+		if (!ctx->uid_specified)
+			ctx->linux_uid = uid;
+		if (!ctx->gid_specified)
+			ctx->linux_gid = gid;
+	}
+	if (!ctx->cruid_specified)
+		ctx->cred_uid = uid;
+}
+
 /*
  * Create a vfsmount that we can automount
  */
@@ -193,6 +220,7 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	tmp.leaf_fullpath = NULL;
 	tmp.UNC = tmp.prepath = NULL;
 	tmp.dfs_root_ses = NULL;
+	fs_context_set_ids(&tmp);
 
 	rc = smb3_fs_context_dup(ctx, &tmp);
 	if (rc) {
@@ -212,8 +240,9 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 		ctx->source = NULL;
 		goto out;
 	}
-	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s\n",
-		 __func__, ctx->source, ctx->UNC, ctx->prepath);
+	ctx->dfs_automount = is_dfs_mount(mntpt);
+	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s dfs_automount=%d\n",
+		 __func__, ctx->source, ctx->UNC, ctx->prepath, ctx->dfs_automount);
 
 	mnt = fc_mount(fc);
 out:

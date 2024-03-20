@@ -63,8 +63,8 @@
 #define ADIS16475_MAX_SCAN_DATA		20
 /* spi max speed in brust mode */
 #define ADIS16475_BURST_MAX_SPEED	1000000
-#define ADIS16475_LSB_DEC_MASK		BIT(0)
-#define ADIS16475_LSB_FIR_MASK		BIT(1)
+#define ADIS16475_LSB_DEC_MASK		0
+#define ADIS16475_LSB_FIR_MASK		1
 
 enum {
 	ADIS16475_SYNC_DIRECT = 1,
@@ -1244,6 +1244,59 @@ static int adis16475_config_irq_pin(struct adis16475 *st)
 	return 0;
 }
 
+
+static int adis16475_probe(struct spi_device *spi)
+{
+	struct iio_dev *indio_dev;
+	struct adis16475 *st;
+	int ret;
+
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
+
+	st = iio_priv(indio_dev);
+
+	st->info = spi_get_device_match_data(spi);
+	if (!st->info)
+		return -EINVAL;
+
+	ret = adis_init(&st->adis, indio_dev, spi, &st->info->adis_data);
+	if (ret)
+		return ret;
+
+	indio_dev->name = st->info->name;
+	indio_dev->channels = st->info->channels;
+	indio_dev->num_channels = st->info->num_channels;
+	indio_dev->info = &adis16475_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	ret = __adis_initial_startup(&st->adis);
+	if (ret)
+		return ret;
+
+	ret = adis16475_config_irq_pin(st);
+	if (ret)
+		return ret;
+
+	ret = adis16475_config_sync_mode(st);
+	if (ret)
+		return ret;
+
+	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev,
+						 adis16475_trigger_handler);
+	if (ret)
+		return ret;
+
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return ret;
+
+	adis16475_debugfs_init(indio_dev);
+
+	return 0;
+}
+
 static const struct of_device_id adis16475_of_match[] = {
 	{ .compatible = "adi,adis16470",
 		.data = &adis16475_chip_info[ADIS16470] },
@@ -1289,57 +1342,30 @@ static const struct of_device_id adis16475_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, adis16475_of_match);
 
-static int adis16475_probe(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev;
-	struct adis16475 *st;
-	int ret;
-
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (!indio_dev)
-		return -ENOMEM;
-
-	st = iio_priv(indio_dev);
-
-	st->info = device_get_match_data(&spi->dev);
-	if (!st->info)
-		return -EINVAL;
-
-	ret = adis_init(&st->adis, indio_dev, spi, &st->info->adis_data);
-	if (ret)
-		return ret;
-
-	indio_dev->name = st->info->name;
-	indio_dev->channels = st->info->channels;
-	indio_dev->num_channels = st->info->num_channels;
-	indio_dev->info = &adis16475_info;
-	indio_dev->modes = INDIO_DIRECT_MODE;
-
-	ret = __adis_initial_startup(&st->adis);
-	if (ret)
-		return ret;
-
-	ret = adis16475_config_irq_pin(st);
-	if (ret)
-		return ret;
-
-	ret = adis16475_config_sync_mode(st);
-	if (ret)
-		return ret;
-
-	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev,
-						 adis16475_trigger_handler);
-	if (ret)
-		return ret;
-
-	ret = devm_iio_device_register(&spi->dev, indio_dev);
-	if (ret)
-		return ret;
-
-	adis16475_debugfs_init(indio_dev);
-
-	return 0;
-}
+static const struct spi_device_id adis16475_ids[] = {
+	{ "adis16470", (kernel_ulong_t)&adis16475_chip_info[ADIS16470] },
+	{ "adis16475-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16475_1] },
+	{ "adis16475-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16475_2] },
+	{ "adis16475-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16475_3] },
+	{ "adis16477-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16477_1] },
+	{ "adis16477-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16477_2] },
+	{ "adis16477-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16477_3] },
+	{ "adis16465-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16465_1] },
+	{ "adis16465-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16465_2] },
+	{ "adis16465-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16465_3] },
+	{ "adis16467-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16467_1] },
+	{ "adis16467-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16467_2] },
+	{ "adis16467-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16467_3] },
+	{ "adis16500", (kernel_ulong_t)&adis16475_chip_info[ADIS16500] },
+	{ "adis16505-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16505_1] },
+	{ "adis16505-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16505_2] },
+	{ "adis16505-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16505_3] },
+	{ "adis16507-1", (kernel_ulong_t)&adis16475_chip_info[ADIS16507_1] },
+	{ "adis16507-2", (kernel_ulong_t)&adis16475_chip_info[ADIS16507_2] },
+	{ "adis16507-3", (kernel_ulong_t)&adis16475_chip_info[ADIS16507_3] },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, adis16475_ids);
 
 static struct spi_driver adis16475_driver = {
 	.driver = {
@@ -1347,6 +1373,7 @@ static struct spi_driver adis16475_driver = {
 		.of_match_table = adis16475_of_match,
 	},
 	.probe = adis16475_probe,
+	.id_table = adis16475_ids,
 };
 module_spi_driver(adis16475_driver);
 

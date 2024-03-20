@@ -327,7 +327,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 
 	maps__for_each_entry(thread__maps(ui->thread), map_node) {
 		struct map *map = map_node->map;
-		u64 start = map__start(map);
+		u64 start = map__start(map) - map__pgoff(map);
 
 		if (map__dso(map) == dso && start < base_addr)
 			base_addr = start;

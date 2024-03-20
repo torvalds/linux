@@ -553,14 +553,45 @@ static int ssd130x_update_rect(struct ssd130x_device *ssd130x,
 static void ssd130x_clear_screen(struct ssd130x_device *ssd130x,
 				 struct ssd130x_plane_state *ssd130x_state)
 {
-	struct drm_rect fullscreen = {
-		.x1 = 0,
-		.x2 = ssd130x->width,
-		.y1 = 0,
-		.y2 = ssd130x->height,
-	};
+	unsigned int page_height = ssd130x->device_info->page_height;
+	unsigned int pages = DIV_ROUND_UP(ssd130x->height, page_height);
+	u8 *data_array = ssd130x_state->data_array;
+	unsigned int width = ssd130x->width;
+	int ret, i;
 
-	ssd130x_update_rect(ssd130x, ssd130x_state, &fullscreen);
+	if (!ssd130x->page_address_mode) {
+		memset(data_array, 0, width * pages);
+
+		/* Set address range for horizontal addressing mode */
+		ret = ssd130x_set_col_range(ssd130x, ssd130x->col_offset, width);
+		if (ret < 0)
+			return;
+
+		ret = ssd130x_set_page_range(ssd130x, ssd130x->page_offset, pages);
+		if (ret < 0)
+			return;
+
+		/* Write out update in one go if we aren't using page addressing mode */
+		ssd130x_write_data(ssd130x, data_array, width * pages);
+	} else {
+		/*
+		 * In page addressing mode, the start address needs to be reset,
+		 * and each page then needs to be written out separately.
+		 */
+		memset(data_array, 0, width);
+
+		for (i = 0; i < pages; i++) {
+			ret = ssd130x_set_page_pos(ssd130x,
+						   ssd130x->page_offset + i,
+						   ssd130x->col_offset);
+			if (ret < 0)
+				return;
+
+			ret = ssd130x_write_data(ssd130x, data_array, width);
+			if (ret < 0)
+				return;
+		}
+	}
 }
 
 static int ssd130x_fb_blit_rect(struct drm_plane_state *state,

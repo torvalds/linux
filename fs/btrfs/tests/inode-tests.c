@@ -34,7 +34,11 @@ static void insert_extent(struct btrfs_root *root, u64 start, u64 len,
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = start;
 
-	btrfs_setup_item_for_insert(root, &path, &key, value_len);
+	/*
+	 * Passing a NULL trans handle is fine here, we have a dummy root eb
+	 * and the tree is a single node (level 0).
+	 */
+	btrfs_setup_item_for_insert(NULL, root, &path, &key, value_len);
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 	btrfs_set_file_extent_generation(leaf, fi, 1);
 	btrfs_set_file_extent_type(leaf, fi, type);
@@ -64,7 +68,11 @@ static void insert_inode_item_key(struct btrfs_root *root)
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 
-	btrfs_setup_item_for_insert(root, &path, &key, value_len);
+	/*
+	 * Passing a NULL trans handle is fine here, we have a dummy root eb
+	 * and the tree is a single node (level 0).
+	 */
+	btrfs_setup_item_for_insert(NULL, root, &path, &key, value_len);
 }
 
 /*

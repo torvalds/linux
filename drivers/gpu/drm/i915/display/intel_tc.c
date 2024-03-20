@@ -58,7 +58,7 @@ struct intel_tc_port {
 	struct delayed_work link_reset_work;
 	int link_refcount;
 	bool legacy_port:1;
-	char port_name[8];
+	const char *port_name;
 	enum tc_port_mode mode;
 	enum tc_port_mode init_mode;
 	enum phy_fia phy_fia;
@@ -1841,8 +1841,12 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	else
 		tc->phy_ops = &icl_tc_phy_ops;
 
-	snprintf(tc->port_name, sizeof(tc->port_name),
-		 "%c/TC#%d", port_name(port), tc_port + 1);
+	tc->port_name = kasprintf(GFP_KERNEL, "%c/TC#%d", port_name(port),
+				  tc_port + 1);
+	if (!tc->port_name) {
+		kfree(tc);
+		return -ENOMEM;
+	}
 
 	mutex_init(&tc->lock);
 	/* TODO: Combine the two works */
@@ -1863,6 +1867,7 @@ void intel_tc_port_cleanup(struct intel_digital_port *dig_port)
 {
 	intel_tc_port_suspend(dig_port);
 
+	kfree(dig_port->tc->port_name);
 	kfree(dig_port->tc);
 	dig_port->tc = NULL;
 }

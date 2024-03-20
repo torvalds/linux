@@ -302,7 +302,6 @@ struct dc_stream_state {
 	bool vblank_synchronized;
 	bool fpo_in_use;
 	struct mall_stream_config mall_stream_config;
-	bool skip_edp_power_down;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255

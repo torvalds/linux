@@ -371,14 +371,18 @@ static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, s32 end_old,
 static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
 				s32 end_new, s32 curr, const bool probe_pass)
 {
-	const s32 off_min = S16_MIN, off_max = S16_MAX;
+	s64 off_min, off_max, off;
 	s32 delta = end_new - end_old;
-	s32 off;
 
-	if (insn->code == (BPF_JMP32 | BPF_JA))
+	if (insn->code == (BPF_JMP32 | BPF_JA)) {
 		off = insn->imm;
-	else
+		off_min = S32_MIN;
+		off_max = S32_MAX;
+	} else {
 		off = insn->off;
+		off_min = S16_MIN;
+		off_max = S16_MAX;
+	}
 
 	if (curr < pos && curr + off + 1 >= end_old)
 		off += delta;
@@ -623,7 +627,11 @@ static __always_inline int bpf_tree_comp(void *key, struct latch_tree_node *n)
 
 	if (val < ksym->start)
 		return -1;
-	if (val >= ksym->end)
+	/* Ensure that we detect return addresses as part of the program, when
+	 * the final instruction is a call for a program part of the stack
+	 * trace. Therefore, do val > ksym->end instead of val >= ksym->end.
+	 */
+	if (val > ksym->end)
 		return  1;
 
 	return 0;

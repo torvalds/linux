@@ -73,7 +73,6 @@
 #define HZIP_AXI_SHUTDOWN_ENABLE	BIT(14)
 #define HZIP_WR_PORT			BIT(11)
 
-#define HZIP_DEV_ALG_MAX_LEN		256
 #define HZIP_ALG_ZLIB_BIT		GENMASK(1, 0)
 #define HZIP_ALG_GZIP_BIT		GENMASK(3, 2)
 #define HZIP_ALG_DEFLATE_BIT		GENMASK(5, 4)
@@ -106,6 +105,14 @@
 #define HZIP_CLOCK_GATED_EN		(HZIP_CORE_GATED_EN | \
 					 HZIP_CORE_GATED_OOO_EN)
 
+/* zip comp high performance */
+#define HZIP_HIGH_PERF_OFFSET		0x301208
+
+enum {
+	HZIP_HIGH_COMP_RATE,
+	HZIP_HIGH_COMP_PERF,
+};
+
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
 
@@ -119,23 +126,18 @@ struct zip_dfx_item {
 	u32 offset;
 };
 
-struct zip_dev_alg {
-	u32 alg_msk;
-	const char *algs;
-};
-
-static const struct zip_dev_alg zip_dev_algs[] = { {
+static const struct qm_dev_alg zip_dev_algs[] = { {
 		.alg_msk = HZIP_ALG_ZLIB_BIT,
-		.algs = "zlib\n",
+		.alg = "zlib\n",
 	}, {
 		.alg_msk = HZIP_ALG_GZIP_BIT,
-		.algs = "gzip\n",
+		.alg = "gzip\n",
 	}, {
 		.alg_msk = HZIP_ALG_DEFLATE_BIT,
-		.algs = "deflate\n",
+		.alg = "deflate\n",
 	}, {
 		.alg_msk = HZIP_ALG_LZ77_BIT,
-		.algs = "lz77_zstd\n",
+		.alg = "lz77_zstd\n",
 	},
 };
 
@@ -246,6 +248,26 @@ static struct hisi_qm_cap_info zip_basic_cap_info[] = {
 	{ZIP_CAP_MAX, 0x317c, 0, GENMASK(0, 0), 0x0, 0x0, 0x0}
 };
 
+enum zip_pre_store_cap_idx {
+	ZIP_CORE_NUM_CAP_IDX = 0x0,
+	ZIP_CLUSTER_COMP_NUM_CAP_IDX,
+	ZIP_CLUSTER_DECOMP_NUM_CAP_IDX,
+	ZIP_DECOMP_ENABLE_BITMAP_IDX,
+	ZIP_COMP_ENABLE_BITMAP_IDX,
+	ZIP_DRV_ALG_BITMAP_IDX,
+	ZIP_DEV_ALG_BITMAP_IDX,
+};
+
+static const u32 zip_pre_store_caps[] = {
+	ZIP_CORE_NUM_CAP,
+	ZIP_CLUSTER_COMP_NUM_CAP,
+	ZIP_CLUSTER_DECOMP_NUM_CAP,
+	ZIP_DECOMP_ENABLE_BITMAP,
+	ZIP_COMP_ENABLE_BITMAP,
+	ZIP_DRV_ALG_BITMAP,
+	ZIP_DEV_ALG_BITMAP,
+};
+
 enum {
 	HZIP_COMP_CORE0,
 	HZIP_COMP_CORE1,
@@ -351,6 +373,37 @@ static int hzip_diff_regs_show(struct seq_file *s, void *unused)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(hzip_diff_regs);
+
+static int perf_mode_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	u32 n;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtou32(val, 10, &n);
+	if (ret != 0 || (n != HZIP_HIGH_COMP_PERF &&
+			 n != HZIP_HIGH_COMP_RATE))
+		return -EINVAL;
+
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops zip_com_perf_ops = {
+	.set = perf_mode_set,
+	.get = param_get_int,
+};
+
+/*
+ * perf_mode = 0 means enable high compression rate mode,
+ * perf_mode = 1 means enable high compression performance mode.
+ * These two modes only apply to the compression direction.
+ */
+static u32 perf_mode = HZIP_HIGH_COMP_RATE;
+module_param_cb(perf_mode, &zip_com_perf_ops, &perf_mode, 0444);
+MODULE_PARM_DESC(perf_mode, "ZIP high perf mode 0(default), 1(enable)");
+
 static const struct kernel_param_ops zip_uacce_mode_ops = {
 	.set = uacce_mode_set,
 	.get = param_get_int,
@@ -364,8 +417,11 @@ static u32 uacce_mode = UACCE_MODE_NOUACCE;
 module_param_cb(uacce_mode, &zip_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
+static bool pf_q_num_flag;
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
+	pf_q_num_flag = true;
+
 	return q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_ZIP_PF);
 }
 
@@ -406,40 +462,33 @@ bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)
 {
 	u32 cap_val;
 
-	cap_val = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_DRV_ALG_BITMAP, qm->cap_ver);
+	cap_val = qm->cap_tables.dev_cap_table[ZIP_DRV_ALG_BITMAP_IDX].cap_val;
 	if ((alg & cap_val) == alg)
 		return true;
 
 	return false;
 }
 
-static int hisi_zip_set_qm_algs(struct hisi_qm *qm)
+static int hisi_zip_set_high_perf(struct hisi_qm *qm)
 {
-	struct device *dev = &qm->pdev->dev;
-	char *algs, *ptr;
-	u32 alg_mask;
-	int i;
+	u32 val;
+	int ret;
 
-	if (!qm->use_sva)
-		return 0;
+	val = readl_relaxed(qm->io_base + HZIP_HIGH_PERF_OFFSET);
+	if (perf_mode == HZIP_HIGH_COMP_PERF)
+		val |= HZIP_HIGH_COMP_PERF;
+	else
+		val &= ~HZIP_HIGH_COMP_PERF;
 
-	algs = devm_kzalloc(dev, HZIP_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
-	if (!algs)
-		return -ENOMEM;
+	/* Set perf mode */
+	writel(val, qm->io_base + HZIP_HIGH_PERF_OFFSET);
+	ret = readl_relaxed_poll_timeout(qm->io_base + HZIP_HIGH_PERF_OFFSET,
+					 val, val == perf_mode, HZIP_DELAY_1_US,
+					 HZIP_POLL_TIMEOUT_US);
+	if (ret)
+		pci_err(qm->pdev, "failed to set perf mode\n");
 
-	alg_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_DEV_ALG_BITMAP, qm->cap_ver);
-
-	for (i = 0; i < ARRAY_SIZE(zip_dev_algs); i++)
-		if (alg_mask & zip_dev_algs[i].alg_msk)
-			strcat(algs, zip_dev_algs[i].algs);
-
-	ptr = strrchr(algs, '\n');
-	if (ptr)
-		*ptr = '\0';
-
-	qm->uacce->algs = algs;
-
-	return 0;
+	return ret;
 }
 
 static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
@@ -538,10 +587,8 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 	}
 
 	/* let's open all compression/decompression cores */
-	dcomp_bm = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-				       ZIP_DECOMP_ENABLE_BITMAP, qm->cap_ver);
-	comp_bm = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
-				      ZIP_COMP_ENABLE_BITMAP, qm->cap_ver);
+	dcomp_bm = qm->cap_tables.dev_cap_table[ZIP_DECOMP_ENABLE_BITMAP_IDX].cap_val;
+	comp_bm = qm->cap_tables.dev_cap_table[ZIP_COMP_ENABLE_BITMAP_IDX].cap_val;
 	writel(HZIP_DECOMP_CHECK_ENABLE | dcomp_bm | comp_bm, base + HZIP_CLOCK_GATE_CTRL);
 
 	/* enable sqc,cqc writeback */
@@ -768,9 +815,8 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 	char buf[HZIP_BUF_SIZE];
 	int i;
 
-	zip_core_num = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CORE_NUM_CAP, qm->cap_ver);
-	zip_comp_core_num = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CLUSTER_COMP_NUM_CAP,
-						qm->cap_ver);
+	zip_core_num = qm->cap_tables.dev_cap_table[ZIP_CORE_NUM_CAP_IDX].cap_val;
+	zip_comp_core_num = qm->cap_tables.dev_cap_table[ZIP_CLUSTER_COMP_NUM_CAP_IDX].cap_val;
 
 	for (i = 0; i < zip_core_num; i++) {
 		if (i < zip_comp_core_num)
@@ -912,7 +958,7 @@ static int hisi_zip_show_last_regs_init(struct hisi_qm *qm)
 	u32 zip_core_num;
 	int i, j, idx;
 
-	zip_core_num = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CORE_NUM_CAP, qm->cap_ver);
+	zip_core_num = qm->cap_tables.dev_cap_table[ZIP_CORE_NUM_CAP_IDX].cap_val;
 
 	debug->last_words = kcalloc(core_dfx_regs_num * zip_core_num + com_dfx_regs_num,
 				    sizeof(unsigned int), GFP_KERNEL);
@@ -968,9 +1014,9 @@ static void hisi_zip_show_last_dfx_regs(struct hisi_qm *qm)
 				 hzip_com_dfx_regs[i].name, debug->last_words[i], val);
 	}
 
-	zip_core_num = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CORE_NUM_CAP, qm->cap_ver);
-	zip_comp_core_num = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_CLUSTER_COMP_NUM_CAP,
-						qm->cap_ver);
+	zip_core_num = qm->cap_tables.dev_cap_table[ZIP_CORE_NUM_CAP_IDX].cap_val;
+	zip_comp_core_num = qm->cap_tables.dev_cap_table[ZIP_CLUSTER_COMP_NUM_CAP_IDX].cap_val;
+
 	for (i = 0; i < zip_core_num; i++) {
 		if (i < zip_comp_core_num)
 			scnprintf(buf, sizeof(buf), "Comp_core-%d", i);
@@ -1111,6 +1157,10 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	if (ret)
 		return ret;
 
+	ret = hisi_zip_set_high_perf(qm);
+	if (ret)
+		return ret;
+
 	hisi_zip_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);
@@ -1122,8 +1172,31 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	return ret;
 }
 
+static int zip_pre_store_cap_reg(struct hisi_qm *qm)
+{
+	struct hisi_qm_cap_record *zip_cap;
+	struct pci_dev *pdev = qm->pdev;
+	size_t i, size;
+
+	size = ARRAY_SIZE(zip_pre_store_caps);
+	zip_cap = devm_kzalloc(&pdev->dev, sizeof(*zip_cap) * size, GFP_KERNEL);
+	if (!zip_cap)
+		return -ENOMEM;
+
+	for (i = 0; i < size; i++) {
+		zip_cap[i].type = zip_pre_store_caps[i];
+		zip_cap[i].cap_val = hisi_qm_get_hw_info(qm, zip_basic_cap_info,
+				     zip_pre_store_caps[i], qm->cap_ver);
+	}
+
+	qm->cap_tables.dev_cap_table = zip_cap;
+
+	return 0;
+}
+
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	u64 alg_msk;
 	int ret;
 
 	qm->pdev = pdev;
@@ -1139,6 +1212,8 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = pf_q_num;
 		qm->debug.curr_qm_qp_num = pf_q_num;
 		qm->qm_list = &zip_devices;
+		if (pf_q_num_flag)
+			set_bit(QM_MODULE_PARAM, &qm->misc_ctl);
 	} else if (qm->fun_type == QM_HW_VF && qm->ver == QM_HW_V1) {
 		/*
 		 * have no way to get qm configure in VM in v1 hardware,
@@ -1157,7 +1232,16 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return ret;
 	}
 
-	ret = hisi_zip_set_qm_algs(qm);
+	/* Fetch and save the value of capability registers */
+	ret = zip_pre_store_cap_reg(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to pre-store capability registers!\n");
+		hisi_qm_uninit(qm);
+		return ret;
+	}
+
+	alg_msk = qm->cap_tables.dev_cap_table[ZIP_DEV_ALG_BITMAP_IDX].cap_val;
+	ret = hisi_qm_set_algs(qm, alg_msk, zip_dev_algs, ARRAY_SIZE(zip_dev_algs));
 	if (ret) {
 		pci_err(qm->pdev, "Failed to set zip algs!\n");
 		hisi_qm_uninit(qm);

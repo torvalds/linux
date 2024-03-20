@@ -47,20 +47,32 @@ EXPORT_SYMBOL(mtk_vcodec_write_vdecsys);
 
 int mtk_vcodec_mem_alloc(void *priv, struct mtk_vcodec_mem *mem)
 {
+	enum mtk_instance_type inst_type = *((unsigned int *)priv);
+	struct platform_device *plat_dev;
 	unsigned long size = mem->size;
-	struct mtk_vcodec_dec_ctx *ctx = priv;
-	struct device *dev = &ctx->dev->plat_dev->dev;
+	int id;
 
-	mem->va = dma_alloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
+	if (inst_type == MTK_INST_ENCODER) {
+		struct mtk_vcodec_enc_ctx *enc_ctx = priv;
+
+		plat_dev = enc_ctx->dev->plat_dev;
+		id = enc_ctx->id;
+	} else {
+		struct mtk_vcodec_dec_ctx *dec_ctx = priv;
+
+		plat_dev = dec_ctx->dev->plat_dev;
+		id = dec_ctx->id;
+	}
+
+	mem->va = dma_alloc_coherent(&plat_dev->dev, size, &mem->dma_addr, GFP_KERNEL);
 	if (!mem->va) {
-		mtk_v4l2_vdec_err(ctx, "%s dma_alloc size=%ld failed!", dev_name(dev), size);
+		mtk_v4l2_err(plat_dev, "%s dma_alloc size=%ld failed!",
+			     dev_name(&plat_dev->dev), size);
 		return -ENOMEM;
 	}
 
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - dma     = 0x%lx", ctx->id,
-			  (unsigned long)mem->dma_addr);
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_debug(plat_dev, 3, "[%d] - va = %p dma = 0x%lx size = 0x%lx", id, mem->va,
+		       (unsigned long)mem->dma_addr, size);
 
 	return 0;
 }
@@ -68,21 +80,33 @@ EXPORT_SYMBOL(mtk_vcodec_mem_alloc);
 
 void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem)
 {
+	enum mtk_instance_type inst_type = *((unsigned int *)priv);
+	struct platform_device *plat_dev;
 	unsigned long size = mem->size;
-	struct mtk_vcodec_dec_ctx *ctx = priv;
-	struct device *dev = &ctx->dev->plat_dev->dev;
+	int id;
+
+	if (inst_type == MTK_INST_ENCODER) {
+		struct mtk_vcodec_enc_ctx *enc_ctx = priv;
+
+		plat_dev = enc_ctx->dev->plat_dev;
+		id = enc_ctx->id;
+	} else {
+		struct mtk_vcodec_dec_ctx *dec_ctx = priv;
+
+		plat_dev = dec_ctx->dev->plat_dev;
+		id = dec_ctx->id;
+	}
 
 	if (!mem->va) {
-		mtk_v4l2_vdec_err(ctx, "%s dma_free size=%ld failed!", dev_name(dev), size);
+		mtk_v4l2_err(plat_dev, "%s dma_free size=%ld failed!",
+			     dev_name(&plat_dev->dev), size);
 		return;
 	}
 
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - va      = %p", ctx->id, mem->va);
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]  - dma     = 0x%lx", ctx->id,
-			  (unsigned long)mem->dma_addr);
-	mtk_v4l2_vdec_dbg(3, ctx, "[%d]    size = 0x%lx", ctx->id, size);
+	mtk_v4l2_debug(plat_dev, 3, "[%d] - va = %p dma = 0x%lx size = 0x%lx", id, mem->va,
+		       (unsigned long)mem->dma_addr, size);
 
-	dma_free_coherent(dev, size, mem->va, mem->dma_addr);
+	dma_free_coherent(&plat_dev->dev, size, mem->va, mem->dma_addr);
 	mem->va = NULL;
 	mem->dma_addr = 0;
 	mem->size = 0;

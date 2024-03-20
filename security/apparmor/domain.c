@@ -31,6 +31,7 @@
 
 /**
  * may_change_ptraced_domain - check if can change profile on ptraced task
+ * @cred: cred of task changing domain
  * @to_label: profile to change to  (NOT NULL)
  * @info: message if there is an error
  *
@@ -39,28 +40,34 @@
  *
  * Returns: %0 or error if change not allowed
  */
-static int may_change_ptraced_domain(struct aa_label *to_label,
+static int may_change_ptraced_domain(const struct cred *to_cred,
+				     struct aa_label *to_label,
 				     const char **info)
 {
 	struct task_struct *tracer;
 	struct aa_label *tracerl = NULL;
+	const struct cred *tracer_cred = NULL;
+
 	int error = 0;
 
 	rcu_read_lock();
 	tracer = ptrace_parent(current);
-	if (tracer)
+	if (tracer) {
 		/* released below */
 		tracerl = aa_get_task_label(tracer);
-
+		tracer_cred = get_task_cred(tracer);
+	}
 	/* not ptraced */
 	if (!tracer || unconfined(tracerl))
 		goto out;
 
-	error = aa_may_ptrace(tracerl, to_label, PTRACE_MODE_ATTACH);
+	error = aa_may_ptrace(tracer_cred, tracerl, to_cred, to_label,
+			      PTRACE_MODE_ATTACH);
 
 out:
 	rcu_read_unlock();
 	aa_put_label(tracerl);
+	put_cred(tracer_cred);
 
 	if (error)
 		*info = "ptrace prevents transition";
@@ -619,7 +626,8 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 	return new;
 }
 
-static struct aa_label *profile_transition(struct aa_profile *profile,
+static struct aa_label *profile_transition(const struct cred *subj_cred,
+					   struct aa_profile *profile,
 					   const struct linux_binprm *bprm,
 					   char *buffer, struct path_cond *cond,
 					   bool *secure_exec)
@@ -709,7 +717,8 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	}
 
 audit:
-	aa_audit_file(profile, &perms, OP_EXEC, MAY_EXEC, name, target, new,
+	aa_audit_file(subj_cred, profile, &perms, OP_EXEC, MAY_EXEC, name,
+		      target, new,
 		      cond->uid, info, error);
 	if (!new || nonewprivs) {
 		aa_put_label(new);
@@ -719,7 +728,8 @@ audit:
 	return new;
 }
 
-static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
+static int profile_onexec(const struct cred *subj_cred,
+			  struct aa_profile *profile, struct aa_label *onexec,
 			  bool stack, const struct linux_binprm *bprm,
 			  char *buffer, struct path_cond *cond,
 			  bool *secure_exec)
@@ -787,13 +797,15 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	}
 
 audit:
-	return aa_audit_file(profile, &perms, OP_EXEC, AA_MAY_ONEXEC, xname,
+	return aa_audit_file(subj_cred, profile, &perms, OP_EXEC,
+			     AA_MAY_ONEXEC, xname,
 			     NULL, onexec, cond->uid, info, error);
 }
 
 /* ensure none ns domain transitions are correctly applied with onexec */
 
-static struct aa_label *handle_onexec(struct aa_label *label,
+static struct aa_label *handle_onexec(const struct cred *subj_cred,
+				      struct aa_label *label,
 				      struct aa_label *onexec, bool stack,
 				      const struct linux_binprm *bprm,
 				      char *buffer, struct path_cond *cond,
@@ -810,26 +822,28 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 
 	if (!stack) {
 		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(profile, onexec, stack,
+				profile_onexec(subj_cred, profile, onexec, stack,
 					       bprm, buffer, cond, unsafe));
 		if (error)
 			return ERR_PTR(error);
 		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
 				aa_get_newest_label(onexec),
-				profile_transition(profile, bprm, buffer,
+				profile_transition(subj_cred, profile, bprm,
+						   buffer,
 						   cond, unsafe));
 
 	} else {
 		/* TODO: determine how much we want to loosen this */
 		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(profile, onexec, stack, bprm,
+				profile_onexec(subj_cred, profile, onexec, stack, bprm,
 					       buffer, cond, unsafe));
 		if (error)
 			return ERR_PTR(error);
 		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
 				aa_label_merge(&profile->label, onexec,
 					       GFP_KERNEL),
-				profile_transition(profile, bprm, buffer,
+				profile_transition(subj_cred, profile, bprm,
+						   buffer,
 						   cond, unsafe));
 	}
 
@@ -838,7 +852,8 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 
 	/* TODO: get rid of GLOBAL_ROOT_UID */
 	error = fn_for_each_in_ns(label, profile,
-			aa_audit_file(profile, &nullperms, OP_CHANGE_ONEXEC,
+			aa_audit_file(subj_cred, profile, &nullperms,
+				      OP_CHANGE_ONEXEC,
 				      AA_MAY_ONEXEC, bprm->filename, NULL,
 				      onexec, GLOBAL_ROOT_UID,
 				      "failed to build target label", -ENOMEM));
@@ -857,6 +872,7 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	struct aa_task_ctx *ctx;
 	struct aa_label *label, *new = NULL;
+	const struct cred *subj_cred;
 	struct aa_profile *profile;
 	char *buffer = NULL;
 	const char *info = NULL;
@@ -869,6 +885,7 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 		file_inode(bprm->file)->i_mode
 	};
 
+	subj_cred = current_cred();
 	ctx = task_ctx(current);
 	AA_BUG(!cred_label(bprm->cred));
 	AA_BUG(!ctx);
@@ -895,11 +912,12 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 
 	/* Test for onexec first as onexec override other x transitions. */
 	if (ctx->onexec)
-		new = handle_onexec(label, ctx->onexec, ctx->token,
+		new = handle_onexec(subj_cred, label, ctx->onexec, ctx->token,
 				    bprm, buffer, &cond, &unsafe);
 	else
 		new = fn_label_build(label, profile, GFP_KERNEL,
-				profile_transition(profile, bprm, buffer,
+				profile_transition(subj_cred, profile, bprm,
+						   buffer,
 						   &cond, &unsafe));
 
 	AA_BUG(!new);
@@ -934,7 +952,7 @@ int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 
 	if (bprm->unsafe & (LSM_UNSAFE_PTRACE)) {
 		/* TODO: test needs to be profile of label to new */
-		error = may_change_ptraced_domain(new, &info);
+		error = may_change_ptraced_domain(bprm->cred, new, &info);
 		if (error)
 			goto audit;
 	}
@@ -971,7 +989,8 @@ done:
 
 audit:
 	error = fn_for_each(label, profile,
-			aa_audit_file(profile, &nullperms, OP_EXEC, MAY_EXEC,
+			aa_audit_file(current_cred(), profile, &nullperms,
+				      OP_EXEC, MAY_EXEC,
 				      bprm->filename, NULL, new,
 				      vfsuid_into_kuid(vfsuid), info, error));
 	aa_put_label(new);
@@ -987,7 +1006,8 @@ audit:
  *
  * Returns: label for hat transition OR ERR_PTR.  Does NOT return NULL
  */
-static struct aa_label *build_change_hat(struct aa_profile *profile,
+static struct aa_label *build_change_hat(const struct cred *subj_cred,
+					 struct aa_profile *profile,
 					 const char *name, bool sibling)
 {
 	struct aa_profile *root, *hat = NULL;
@@ -1019,7 +1039,8 @@ static struct aa_label *build_change_hat(struct aa_profile *profile,
 	aa_put_profile(root);
 
 audit:
-	aa_audit_file(profile, &nullperms, OP_CHANGE_HAT, AA_MAY_CHANGEHAT,
+	aa_audit_file(subj_cred, profile, &nullperms, OP_CHANGE_HAT,
+		      AA_MAY_CHANGEHAT,
 		      name, hat ? hat->base.hname : NULL,
 		      hat ? &hat->label : NULL, GLOBAL_ROOT_UID, info,
 		      error);
@@ -1035,7 +1056,8 @@ audit:
  *
  * Returns: label for hat transition or ERR_PTR. Does not return NULL
  */
-static struct aa_label *change_hat(struct aa_label *label, const char *hats[],
+static struct aa_label *change_hat(const struct cred *subj_cred,
+				   struct aa_label *label, const char *hats[],
 				   int count, int flags)
 {
 	struct aa_profile *profile, *root, *hat = NULL;
@@ -1111,7 +1133,8 @@ fail:
 		 */
 		/* TODO: get rid of GLOBAL_ROOT_UID */
 		if (count > 1 || COMPLAIN_MODE(profile)) {
-			aa_audit_file(profile, &nullperms, OP_CHANGE_HAT,
+			aa_audit_file(subj_cred, profile, &nullperms,
+				      OP_CHANGE_HAT,
 				      AA_MAY_CHANGEHAT, name, NULL, NULL,
 				      GLOBAL_ROOT_UID, info, error);
 		}
@@ -1120,7 +1143,8 @@ fail:
 
 build:
 	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-				   build_change_hat(profile, name, sibling),
+				   build_change_hat(subj_cred, profile, name,
+						    sibling),
 				   aa_get_label(&profile->label));
 	if (!new) {
 		info = "label build failed";
@@ -1150,7 +1174,7 @@ build:
  */
 int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 {
-	const struct cred *cred;
+	const struct cred *subj_cred;
 	struct aa_task_ctx *ctx = task_ctx(current);
 	struct aa_label *label, *previous, *new = NULL, *target = NULL;
 	struct aa_profile *profile;
@@ -1159,8 +1183,8 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 	int error = 0;
 
 	/* released below */
-	cred = get_current_cred();
-	label = aa_get_newest_cred_label(cred);
+	subj_cred = get_current_cred();
+	label = aa_get_newest_cred_label(subj_cred);
 	previous = aa_get_newest_label(ctx->previous);
 
 	/*
@@ -1180,7 +1204,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 	}
 
 	if (count) {
-		new = change_hat(label, hats, count, flags);
+		new = change_hat(subj_cred, label, hats, count, flags);
 		AA_BUG(!new);
 		if (IS_ERR(new)) {
 			error = PTR_ERR(new);
@@ -1189,7 +1213,8 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 			goto out;
 		}
 
-		error = may_change_ptraced_domain(new, &info);
+		/* target cred is the same as current except new label */
+		error = may_change_ptraced_domain(subj_cred, new, &info);
 		if (error)
 			goto fail;
 
@@ -1242,7 +1267,7 @@ out:
 	aa_put_label(new);
 	aa_put_label(previous);
 	aa_put_label(label);
-	put_cred(cred);
+	put_cred(subj_cred);
 
 	return error;
 
@@ -1252,7 +1277,7 @@ kill:
 
 fail:
 	fn_for_each_in_ns(label, profile,
-		aa_audit_file(profile, &perms, OP_CHANGE_HAT,
+		aa_audit_file(subj_cred, profile, &perms, OP_CHANGE_HAT,
 			      AA_MAY_CHANGEHAT, NULL, NULL, target,
 			      GLOBAL_ROOT_UID, info, error));
 
@@ -1261,6 +1286,7 @@ fail:
 
 
 static int change_profile_perms_wrapper(const char *op, const char *name,
+					const struct cred *subj_cred,
 					struct aa_profile *profile,
 					struct aa_label *target, bool stack,
 					u32 request, struct aa_perms *perms)
@@ -1275,7 +1301,8 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 					     rules->file.start[AA_CLASS_FILE],
 					     perms);
 	if (error)
-		error = aa_audit_file(profile, perms, op, request, name,
+		error = aa_audit_file(subj_cred, profile, perms, op, request,
+				      name,
 				      NULL, target, GLOBAL_ROOT_UID, info,
 				      error);
 
@@ -1304,6 +1331,7 @@ int aa_change_profile(const char *fqname, int flags)
 	const char *auditname = fqname;		/* retain leading & if stack */
 	bool stack = flags & AA_CHANGE_STACK;
 	struct aa_task_ctx *ctx = task_ctx(current);
+	const struct cred *subj_cred = get_current_cred();
 	int error = 0;
 	char *op;
 	u32 request;
@@ -1381,6 +1409,7 @@ int aa_change_profile(const char *fqname, int flags)
 	 */
 	error = fn_for_each_in_ns(label, profile,
 			change_profile_perms_wrapper(op, auditname,
+						     subj_cred,
 						     profile, target, stack,
 						     request, &perms));
 	if (error)
@@ -1391,7 +1420,7 @@ int aa_change_profile(const char *fqname, int flags)
 
 check:
 	/* check if tracing task is allowed to trace target domain */
-	error = may_change_ptraced_domain(target, &info);
+	error = may_change_ptraced_domain(subj_cred, target, &info);
 	if (error && !fn_for_each_in_ns(label, profile,
 					COMPLAIN_MODE(profile)))
 		goto audit;
@@ -1451,7 +1480,8 @@ check:
 
 audit:
 	error = fn_for_each_in_ns(label, profile,
-			aa_audit_file(profile, &perms, op, request, auditname,
+			aa_audit_file(subj_cred,
+				      profile, &perms, op, request, auditname,
 				      NULL, new ? new : target,
 				      GLOBAL_ROOT_UID, info, error));
 
@@ -1459,6 +1489,7 @@ out:
 	aa_put_label(new);
 	aa_put_label(target);
 	aa_put_label(label);
+	put_cred(subj_cred);
 
 	return error;
 }

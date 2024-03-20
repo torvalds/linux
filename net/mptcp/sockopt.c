@@ -95,6 +95,7 @@ static void mptcp_sol_socket_sync_intval(struct mptcp_sock *msk, int optname, in
 		case SO_SNDBUFFORCE:
 			ssk->sk_userlocks |= SOCK_SNDBUF_LOCK;
 			WRITE_ONCE(ssk->sk_sndbuf, sk->sk_sndbuf);
+			mptcp_subflow_ctx(ssk)->cached_sndbuf = sk->sk_sndbuf;
 			break;
 		case SO_RCVBUF:
 		case SO_RCVBUFFORCE:
@@ -737,8 +738,11 @@ static int mptcp_setsockopt_v4_set_tos(struct mptcp_sock *msk, int optname,
 	val = inet_sk(sk)->tos;
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+		bool slow;
 
+		slow = lock_sock_fast(ssk);
 		__ip_sock_set_tos(ssk, val);
+		unlock_sock_fast(ssk, slow);
 	}
 	release_sock(sk);
 
@@ -1415,8 +1419,10 @@ static void sync_socket_options(struct mptcp_sock *msk, struct sock *ssk)
 
 	if (sk->sk_userlocks & tx_rx_locks) {
 		ssk->sk_userlocks |= sk->sk_userlocks & tx_rx_locks;
-		if (sk->sk_userlocks & SOCK_SNDBUF_LOCK)
+		if (sk->sk_userlocks & SOCK_SNDBUF_LOCK) {
 			WRITE_ONCE(ssk->sk_sndbuf, sk->sk_sndbuf);
+			mptcp_subflow_ctx(ssk)->cached_sndbuf = sk->sk_sndbuf;
+		}
 		if (sk->sk_userlocks & SOCK_RCVBUF_LOCK)
 			WRITE_ONCE(ssk->sk_rcvbuf, sk->sk_rcvbuf);
 	}

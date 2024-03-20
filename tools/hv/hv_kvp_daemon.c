@@ -1421,7 +1421,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error)
 		goto setval_error;
 
-	if (new_val->addr_family == ADDR_FAMILY_IPV6) {
+	if (new_val->addr_family & ADDR_FAMILY_IPV6) {
 		error = fprintf(nmfile, "\n[ipv6]\n");
 		if (error < 0)
 			goto setval_error;
@@ -1455,14 +1455,18 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	if (error < 0)
 		goto setval_error;
 
-	error = fprintf(nmfile, "gateway=%s\n", (char *)new_val->gate_way);
-	if (error < 0)
-		goto setval_error;
+	/* we do not want ipv4 addresses in ipv6 section and vice versa */
+	if (is_ipv6 != is_ipv4((char *)new_val->gate_way)) {
+		error = fprintf(nmfile, "gateway=%s\n", (char *)new_val->gate_way);
+		if (error < 0)
+			goto setval_error;
+	}
 
-	error = fprintf(nmfile, "dns=%s\n", (char *)new_val->dns_addr);
-	if (error < 0)
-		goto setval_error;
-
+	if (is_ipv6 != is_ipv4((char *)new_val->dns_addr)) {
+		error = fprintf(nmfile, "dns=%s\n", (char *)new_val->dns_addr);
+		if (error < 0)
+			goto setval_error;
+	}
 	fclose(nmfile);
 	fclose(ifcfg_file);
 

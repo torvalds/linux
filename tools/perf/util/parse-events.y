@@ -79,7 +79,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
 %type <str> PE_DRV_CFG_TERM
-%type <str> name_or_raw name_or_legacy
+%type <str> name_or_raw
 %destructor { free ($$); } <str>
 %type <term> event_term
 %destructor { parse_events_term__delete ($$); } <term>
@@ -104,6 +104,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <list_evsel> groups
 %destructor { free_list_evsel ($$); } <list_evsel>
 %type <tracepoint_name> tracepoint_name
+%destructor { free ($$.sys); free ($$.event); } <tracepoint_name>
 %type <hardware_term> PE_TERM_HW
 %destructor { free ($$.str); } <hardware_term>
 
@@ -679,8 +680,6 @@ event_term
 
 name_or_raw: PE_RAW | PE_NAME | PE_LEGACY_CACHE
 
-name_or_legacy: PE_NAME | PE_LEGACY_CACHE
-
 event_term:
 PE_RAW
 {
@@ -695,7 +694,7 @@ PE_RAW
 	$$ = term;
 }
 |
-name_or_raw '=' name_or_legacy
+name_or_raw '=' name_or_raw
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_USER, $1, $3, &@1, &@3);
@@ -775,7 +774,7 @@ PE_TERM_HW
 	$$ = term;
 }
 |
-PE_TERM '=' name_or_legacy
+PE_TERM '=' name_or_raw
 {
 	struct parse_events_term *term;
 	int err = parse_events_term__str(&term, (enum parse_events__term_type)$1,

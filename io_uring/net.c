@@ -60,6 +60,7 @@ struct io_sr_msg {
 	unsigned			len;
 	unsigned			done_io;
 	unsigned			msg_flags;
+	unsigned			nr_multishot_loops;
 	u16				flags;
 	/* initialised and used only by !msg send variants */
 	u16				addr_len;
@@ -69,6 +70,13 @@ struct io_sr_msg {
 	/* used only for send zerocopy */
 	struct io_kiocb 		*notif;
 };
+
+/*
+ * Number of times we'll try and do receives if there's more data. If we
+ * exceed this limit, then add us to the back of the queue and retry from
+ * there. This helps fairness between flooding clients.
+ */
+#define MULTISHOT_MAX_RETRY	32
 
 static inline bool io_check_multishot(struct io_kiocb *req,
 				      unsigned int issue_flags)
@@ -611,6 +619,7 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
 	sr->done_io = 0;
+	sr->nr_multishot_loops = 0;
 	return 0;
 }
 
@@ -645,23 +654,35 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		return true;
 	}
 
-	if (!mshot_finished) {
-		if (io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
-					*ret, cflags | IORING_CQE_F_MORE)) {
-			io_recv_prep_retry(req);
-			/* Known not-empty or unknown state, retry */
-			if (cflags & IORING_CQE_F_SOCK_NONEMPTY ||
-			    msg->msg_inq == -1)
-				return false;
-			if (issue_flags & IO_URING_F_MULTISHOT)
-				*ret = IOU_ISSUE_SKIP_COMPLETE;
-			else
-				*ret = -EAGAIN;
-			return true;
-		}
-		/* Otherwise stop multishot but use the current result. */
-	}
+	if (mshot_finished)
+		goto finish;
 
+	/*
+	 * Fill CQE for this receive and see if we should keep trying to
+	 * receive from this socket.
+	 */
+	if (io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
+				*ret, cflags | IORING_CQE_F_MORE)) {
+		struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+		int mshot_retry_ret = IOU_ISSUE_SKIP_COMPLETE;
+
+		io_recv_prep_retry(req);
+		/* Known not-empty or unknown state, retry */
+		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || msg->msg_inq == -1) {
+			if (sr->nr_multishot_loops++ < MULTISHOT_MAX_RETRY)
+				return false;
+			/* mshot retries exceeded, force a requeue */
+			sr->nr_multishot_loops = 0;
+			mshot_retry_ret = IOU_REQUEUE;
+		}
+		if (issue_flags & IO_URING_F_MULTISHOT)
+			*ret = mshot_retry_ret;
+		else
+			*ret = -EAGAIN;
+		return true;
+	}
+	/* Otherwise stop multishot but use the current result. */
+finish:
 	io_req_set_res(req, *ret, cflags);
 
 	if (issue_flags & IO_URING_F_MULTISHOT)
@@ -902,6 +923,7 @@ retry_multishot:
 		if (!buf)
 			return -ENOBUFS;
 		sr->buf = buf;
+		sr->len = len;
 	}
 
 	ret = import_ubuf(ITER_DEST, sr->buf, len, &msg.msg_iter);
@@ -1350,7 +1372,7 @@ retry:
 			 * has already been done
 			 */
 			if (issue_flags & IO_URING_F_MULTISHOT)
-				ret = IOU_ISSUE_SKIP_COMPLETE;
+				return IOU_ISSUE_SKIP_COMPLETE;
 			return ret;
 		}
 		if (ret == -ERESTARTSYS)
@@ -1375,7 +1397,8 @@ retry:
 				ret, IORING_CQE_F_MORE))
 		goto retry;
 
-	return -ECANCELED;
+	io_req_set_res(req, ret, 0);
+	return IOU_STOP_MULTISHOT;
 }
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -1461,16 +1484,6 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
-	if (connect->in_progress) {
-		struct socket *socket;
-
-		ret = -ENOTSOCK;
-		socket = sock_from_file(req->file);
-		if (socket)
-			ret = sock_error(socket->sk);
-		goto out;
-	}
-
 	if (req_has_async_data(req)) {
 		io = req->async_data;
 	} else {
@@ -1490,9 +1503,7 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 	    && force_nonblock) {
 		if (ret == -EINPROGRESS) {
 			connect->in_progress = true;
-			return -EAGAIN;
-		}
-		if (ret == -ECONNABORTED) {
+		} else if (ret == -ECONNABORTED) {
 			if (connect->seen_econnaborted)
 				goto out;
 			connect->seen_econnaborted = true;
@@ -1505,6 +1516,16 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 		}
 		memcpy(req->async_data, &__io, sizeof(__io));
 		return -EAGAIN;
+	}
+	if (connect->in_progress) {
+		/*
+		 * At least bluetooth will return -EBADFD on a re-connect
+		 * attempt, and it's (supposedly) also valid to get -EISCONN
+		 * which means the previous result is good. For both of these,
+		 * grab the sock_error() and use that for the completion.
+		 */
+		if (ret == -EBADFD || ret == -EISCONN)
+			ret = sock_error(sock_from_file(req->file)->sk);
 	}
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;

@@ -241,6 +241,39 @@ int hid_bpf_reconnect(struct hid_device *hdev)
 	return 0;
 }
 
+static int do_hid_bpf_attach_prog(struct hid_device *hdev, int prog_fd, struct bpf_prog *prog,
+				  __u32 flags)
+{
+	int fd, err, prog_type;
+
+	prog_type = hid_bpf_get_prog_attach_type(prog);
+	if (prog_type < 0)
+		return prog_type;
+
+	if (prog_type >= HID_BPF_PROG_TYPE_MAX)
+		return -EINVAL;
+
+	if (prog_type == HID_BPF_PROG_TYPE_DEVICE_EVENT) {
+		err = hid_bpf_allocate_event_data(hdev);
+		if (err)
+			return err;
+	}
+
+	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, prog, flags);
+	if (fd < 0)
+		return fd;
+
+	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
+		err = hid_bpf_reconnect(hdev);
+		if (err) {
+			close_fd(fd);
+			return err;
+		}
+	}
+
+	return fd;
+}
+
 /**
  * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
  *
@@ -257,16 +290,11 @@ noinline int
 hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 {
 	struct hid_device *hdev;
+	struct bpf_prog *prog;
 	struct device *dev;
-	int fd, err, prog_type = hid_bpf_get_prog_attach_type(prog_fd);
+	int err, fd;
 
 	if (!hid_bpf_ops)
-		return -EINVAL;
-
-	if (prog_type < 0)
-		return prog_type;
-
-	if (prog_type >= HID_BPF_PROG_TYPE_MAX)
 		return -EINVAL;
 
 	if ((flags & ~HID_BPF_FLAG_MASK))
@@ -278,25 +306,29 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 
 	hdev = to_hid_device(dev);
 
-	if (prog_type == HID_BPF_PROG_TYPE_DEVICE_EVENT) {
-		err = hid_bpf_allocate_event_data(hdev);
-		if (err)
-			return err;
+	/*
+	 * take a ref on the prog itself, it will be released
+	 * on errors or when it'll be detached
+	 */
+	prog = bpf_prog_get(prog_fd);
+	if (IS_ERR(prog)) {
+		err = PTR_ERR(prog);
+		goto out_dev_put;
 	}
 
-	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
-	if (fd < 0)
-		return fd;
-
-	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
-		err = hid_bpf_reconnect(hdev);
-		if (err) {
-			close_fd(fd);
-			return err;
-		}
+	fd = do_hid_bpf_attach_prog(hdev, prog_fd, prog, flags);
+	if (fd < 0) {
+		err = fd;
+		goto out_prog_put;
 	}
 
 	return fd;
+
+ out_prog_put:
+	bpf_prog_put(prog);
+ out_dev_put:
+	put_device(dev);
+	return err;
 }
 
 /**
@@ -323,8 +355,10 @@ hid_bpf_allocate_context(unsigned int hid_id)
 	hdev = to_hid_device(dev);
 
 	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
-	if (!ctx_kern)
+	if (!ctx_kern) {
+		put_device(dev);
 		return NULL;
+	}
 
 	ctx_kern->ctx.hid = hdev;
 
@@ -341,10 +375,15 @@ noinline void
 hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
+	struct hid_device *hid;
 
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	hid = (struct hid_device *)ctx_kern->ctx.hid; /* ignore const */
 
 	kfree(ctx_kern);
+
+	/* get_device() is called by bus_find_device() */
+	put_device(&hid->dev);
 }
 
 /**

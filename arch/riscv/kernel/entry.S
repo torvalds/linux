@@ -10,9 +10,13 @@
 #include <asm/asm.h>
 #include <asm/csr.h>
 #include <asm/unistd.h>
+#include <asm/page.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/errata_list.h>
+#include <linux/sizes.h>
+
+	.section .irqentry.text, "ax"
 
 SYM_CODE_START(handle_exception)
 	/*
@@ -170,67 +174,15 @@ SYM_CODE_END(ret_from_exception)
 
 #ifdef CONFIG_VMAP_STACK
 SYM_CODE_START_LOCAL(handle_kernel_stack_overflow)
-	/*
-	 * Takes the psuedo-spinlock for the shadow stack, in case multiple
-	 * harts are concurrently overflowing their kernel stacks.  We could
-	 * store any value here, but since we're overflowing the kernel stack
-	 * already we only have SP to use as a scratch register.  So we just
-	 * swap in the address of the spinlock, as that's definately non-zero.
-	 *
-	 * Pairs with a store_release in handle_bad_stack().
-	 */
-1:	la sp, spin_shadow_stack
-	REG_AMOSWAP_AQ sp, sp, (sp)
-	bnez sp, 1b
+	/* we reach here from kernel context, sscratch must be 0 */
+	csrrw x31, CSR_SCRATCH, x31
+	asm_per_cpu sp, overflow_stack, x31
+	li x31, OVERFLOW_STACK_SIZE
+	add sp, sp, x31
+	/* zero out x31 again and restore x31 */
+	xor x31, x31, x31
+	csrrw x31, CSR_SCRATCH, x31
 
-	la sp, shadow_stack
-	addi sp, sp, SHADOW_OVERFLOW_STACK_SIZE
-
-	//save caller register to shadow stack
-	addi sp, sp, -(PT_SIZE_ON_STACK)
-	REG_S x1,  PT_RA(sp)
-	REG_S x5,  PT_T0(sp)
-	REG_S x6,  PT_T1(sp)
-	REG_S x7,  PT_T2(sp)
-	REG_S x10, PT_A0(sp)
-	REG_S x11, PT_A1(sp)
-	REG_S x12, PT_A2(sp)
-	REG_S x13, PT_A3(sp)
-	REG_S x14, PT_A4(sp)
-	REG_S x15, PT_A5(sp)
-	REG_S x16, PT_A6(sp)
-	REG_S x17, PT_A7(sp)
-	REG_S x28, PT_T3(sp)
-	REG_S x29, PT_T4(sp)
-	REG_S x30, PT_T5(sp)
-	REG_S x31, PT_T6(sp)
-
-	la ra, restore_caller_reg
-	tail get_overflow_stack
-
-restore_caller_reg:
-	//save per-cpu overflow stack
-	REG_S a0, -8(sp)
-	//restore caller register from shadow_stack
-	REG_L x1,  PT_RA(sp)
-	REG_L x5,  PT_T0(sp)
-	REG_L x6,  PT_T1(sp)
-	REG_L x7,  PT_T2(sp)
-	REG_L x10, PT_A0(sp)
-	REG_L x11, PT_A1(sp)
-	REG_L x12, PT_A2(sp)
-	REG_L x13, PT_A3(sp)
-	REG_L x14, PT_A4(sp)
-	REG_L x15, PT_A5(sp)
-	REG_L x16, PT_A6(sp)
-	REG_L x17, PT_A7(sp)
-	REG_L x28, PT_T3(sp)
-	REG_L x29, PT_T4(sp)
-	REG_L x30, PT_T5(sp)
-	REG_L x31, PT_T6(sp)
-
-	//load per-cpu overflow stack
-	REG_L sp, -8(sp)
 	addi sp, sp, -(PT_SIZE_ON_STACK)
 
 	//save context to overflow stack

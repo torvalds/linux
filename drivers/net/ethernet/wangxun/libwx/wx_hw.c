@@ -1677,10 +1677,12 @@ int wx_sw_init(struct wx *wx)
 		wx->subsystem_device_id = pdev->subsystem_device;
 	} else {
 		err = wx_flash_read_dword(wx, 0xfffdc, &ssid);
-		if (!err)
-			wx->subsystem_device_id = swab16((u16)ssid);
+		if (err < 0) {
+			wx_err(wx, "read of internal subsystem device id failed\n");
+			return err;
+		}
 
-		return err;
+		wx->subsystem_device_id = swab16((u16)ssid);
 	}
 
 	wx->mac_table = kcalloc(wx->mac.num_rar_entries,

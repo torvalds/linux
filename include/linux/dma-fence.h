@@ -499,6 +499,21 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 }
 
 /**
+ * dma_fence_is_later_or_same - return true if f1 is later or same as f2
+ * @f1: the first fence from the same context
+ * @f2: the second fence from the same context
+ *
+ * Returns true if f1 is chronologically later than f2 or the same fence. Both
+ * fences must be from the same context, since a seqno is not re-used across
+ * contexts.
+ */
+static inline bool dma_fence_is_later_or_same(struct dma_fence *f1,
+					      struct dma_fence *f2)
+{
+	return f1 == f2 || dma_fence_is_later(f1, f2);
+}
+
+/**
  * dma_fence_later - return the chronologically later fence
  * @f1:	the first fence from the same context
  * @f2:	the second fence from the same context

@@ -28,8 +28,21 @@
  * instantiated by the core.
  */
 
+/*
+ * All changes to the interleave configuration occur with this lock held
+ * for write.
+ */
+DECLARE_RWSEM(cxl_region_rwsem);
+
 static DEFINE_IDA(cxl_port_ida);
 static DEFINE_XARRAY(cxl_root_buses);
+
+int cxl_num_decoders_committed(struct cxl_port *port)
+{
+	lockdep_assert_held(&cxl_region_rwsem);
+
+	return port->commit_end + 1;
+}
 
 static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -159,14 +172,10 @@ static ssize_t target_list_show(struct device *dev,
 {
 	struct cxl_switch_decoder *cxlsd = to_cxl_switch_decoder(dev);
 	ssize_t offset;
-	unsigned int seq;
 	int rc;
 
-	do {
-		seq = read_seqbegin(&cxlsd->target_lock);
-		rc = emit_target_list(cxlsd, buf);
-	} while (read_seqretry(&cxlsd->target_lock, seq));
-
+	guard(rwsem_read)(&cxl_region_rwsem);
+	rc = emit_target_list(cxlsd, buf);
 	if (rc < 0)
 		return rc;
 	offset = rc;
@@ -213,9 +222,9 @@ static ssize_t dpa_resource_show(struct device *dev, struct device_attribute *at
 			    char *buf)
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
-	u64 base = cxl_dpa_resource_start(cxled);
 
-	return sysfs_emit(buf, "%#llx\n", base);
+	guard(rwsem_read)(&cxl_dpa_rwsem);
+	return sysfs_emit(buf, "%#llx\n", (u64)cxl_dpa_resource_start(cxled));
 }
 static DEVICE_ATTR_RO(dpa_resource);
 
@@ -691,14 +700,14 @@ err:
 	return ERR_PTR(rc);
 }
 
-static int cxl_setup_comp_regs(struct device *dev, struct cxl_register_map *map,
+static int cxl_setup_comp_regs(struct device *host, struct cxl_register_map *map,
 			       resource_size_t component_reg_phys)
 {
 	if (component_reg_phys == CXL_RESOURCE_NONE)
 		return 0;
 
 	*map = (struct cxl_register_map) {
-		.dev = dev,
+		.host = host,
 		.reg_type = CXL_REGLOC_RBI_COMPONENT,
 		.resource = component_reg_phys,
 		.max_size = CXL_COMPONENT_REG_BLOCK_SIZE,
@@ -716,13 +725,23 @@ static int cxl_port_setup_regs(struct cxl_port *port,
 				   component_reg_phys);
 }
 
-static int cxl_dport_setup_regs(struct cxl_dport *dport,
+static int cxl_dport_setup_regs(struct device *host, struct cxl_dport *dport,
 				resource_size_t component_reg_phys)
 {
+	int rc;
+
 	if (dev_is_platform(dport->dport_dev))
 		return 0;
-	return cxl_setup_comp_regs(dport->dport_dev, &dport->comp_map,
-				   component_reg_phys);
+
+	/*
+	 * use @dport->dport_dev for the context for error messages during
+	 * register probing, and fixup @host after the fact, since @host may be
+	 * NULL.
+	 */
+	rc = cxl_setup_comp_regs(dport->dport_dev, &dport->comp_map,
+				 component_reg_phys);
+	dport->comp_map.host = host;
+	return rc;
 }
 
 static struct cxl_port *__devm_cxl_add_port(struct device *host,
@@ -983,7 +1002,16 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	if (!dport)
 		return ERR_PTR(-ENOMEM);
 
-	if (rcrb != CXL_RESOURCE_NONE) {
+	dport->dport_dev = dport_dev;
+	dport->port_id = port_id;
+	dport->port = port;
+
+	if (rcrb == CXL_RESOURCE_NONE) {
+		rc = cxl_dport_setup_regs(&port->dev, dport,
+					  component_reg_phys);
+		if (rc)
+			return ERR_PTR(rc);
+	} else {
 		dport->rcrb.base = rcrb;
 		component_reg_phys = __rcrb_to_component(dport_dev, &dport->rcrb,
 							 CXL_RCRB_DOWNSTREAM);
@@ -992,20 +1020,20 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 			return ERR_PTR(-ENXIO);
 		}
 
+		/*
+		 * RCH @dport is not ready to map until associated with its
+		 * memdev
+		 */
+		rc = cxl_dport_setup_regs(NULL, dport, component_reg_phys);
+		if (rc)
+			return ERR_PTR(rc);
+
 		dport->rch = true;
 	}
 
 	if (component_reg_phys != CXL_RESOURCE_NONE)
 		dev_dbg(dport_dev, "Component Registers found for dport: %pa\n",
 			&component_reg_phys);
-
-	dport->dport_dev = dport_dev;
-	dport->port_id = port_id;
-	dport->port = port;
-
-	rc = cxl_dport_setup_regs(dport, component_reg_phys);
-	if (rc)
-		return ERR_PTR(rc);
 
 	cond_cxl_root_lock(port);
 	rc = add_dport(port, dport);
@@ -1217,35 +1245,39 @@ static struct device *grandparent(struct device *dev)
 	return NULL;
 }
 
+static struct device *endpoint_host(struct cxl_port *endpoint)
+{
+	struct cxl_port *port = to_cxl_port(endpoint->dev.parent);
+
+	if (is_cxl_root(port))
+		return port->uport_dev;
+	return &port->dev;
+}
+
 static void delete_endpoint(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
 	struct cxl_port *endpoint = cxlmd->endpoint;
-	struct cxl_port *parent_port;
-	struct device *parent;
+	struct device *host = endpoint_host(endpoint);
 
-	parent_port = cxl_mem_find_port(cxlmd, NULL);
-	if (!parent_port)
-		goto out;
-	parent = &parent_port->dev;
-
-	device_lock(parent);
-	if (parent->driver && !endpoint->dead) {
-		devm_release_action(parent, cxl_unlink_parent_dport, endpoint);
-		devm_release_action(parent, cxl_unlink_uport, endpoint);
-		devm_release_action(parent, unregister_port, endpoint);
+	device_lock(host);
+	if (host->driver && !endpoint->dead) {
+		devm_release_action(host, cxl_unlink_parent_dport, endpoint);
+		devm_release_action(host, cxl_unlink_uport, endpoint);
+		devm_release_action(host, unregister_port, endpoint);
 	}
 	cxlmd->endpoint = NULL;
-	device_unlock(parent);
-	put_device(parent);
-out:
+	device_unlock(host);
 	put_device(&endpoint->dev);
+	put_device(host);
 }
 
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 {
+	struct device *host = endpoint_host(endpoint);
 	struct device *dev = &cxlmd->dev;
 
+	get_device(host);
 	get_device(&endpoint->dev);
 	cxlmd->endpoint = endpoint;
 	cxlmd->depth = endpoint->depth;
@@ -1543,7 +1575,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, CXL);
 static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 				    struct cxl_port *port, int *target_map)
 {
-	int i, rc = 0;
+	int i;
 
 	if (!target_map)
 		return 0;
@@ -1553,19 +1585,16 @@ static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 	if (xa_empty(&port->dports))
 		return -EINVAL;
 
-	write_seqlock(&cxlsd->target_lock);
-	for (i = 0; i < cxlsd->nr_targets; i++) {
+	guard(rwsem_write)(&cxl_region_rwsem);
+	for (i = 0; i < cxlsd->cxld.interleave_ways; i++) {
 		struct cxl_dport *dport = find_dport(port, target_map[i]);
 
-		if (!dport) {
-			rc = -ENXIO;
-			break;
-		}
+		if (!dport)
+			return -ENXIO;
 		cxlsd->target[i] = dport;
 	}
-	write_sequnlock(&cxlsd->target_lock);
 
-	return rc;
+	return 0;
 }
 
 struct cxl_dport *cxl_hb_modulo(struct cxl_root_decoder *cxlrd, int pos)
@@ -1635,7 +1664,6 @@ static int cxl_switch_decoder_init(struct cxl_port *port,
 		return -EINVAL;
 
 	cxlsd->nr_targets = nr_targets;
-	seqlock_init(&cxlsd->target_lock);
 	return cxl_decoder_init(port, &cxlsd->cxld);
 }
 
