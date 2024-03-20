@@ -33,6 +33,10 @@ struct dpdmai_rsp_get_tx_queue {
 	__le32 fqid;
 };
 
+struct dpdmai_cmd_open {
+	__le32 dpdmai_id;
+} __packed;
+
 static inline u64 mc_enc(int lsoffset, int width, u64 val)
 {
 	return (val & MAKE_UMASK64(width)) << lsoffset;
@@ -58,16 +62,16 @@ static inline u64 mc_enc(int lsoffset, int width, u64 val)
 int dpdmai_open(struct fsl_mc_io *mc_io, u32 cmd_flags,
 		int dpdmai_id, u16 *token)
 {
+	struct dpdmai_cmd_open *cmd_params;
 	struct fsl_mc_command cmd = { 0 };
-	__le64 *cmd_dpdmai_id;
 	int err;
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPDMAI_CMDID_OPEN,
 					  cmd_flags, 0);
 
-	cmd_dpdmai_id = cmd.params;
-	*cmd_dpdmai_id = cpu_to_le32(dpdmai_id);
+	cmd_params = (struct dpdmai_cmd_open *)&cmd.params;
+	cmd_params->dpdmai_id = cpu_to_le32(dpdmai_id);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);
