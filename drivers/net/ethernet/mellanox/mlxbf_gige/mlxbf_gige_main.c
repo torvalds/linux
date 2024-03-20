@@ -157,7 +157,7 @@ static int mlxbf_gige_open(struct net_device *netdev)
 
 	err = mlxbf_gige_tx_init(priv);
 	if (err)
-		goto free_irqs;
+		goto phy_deinit;
 	err = mlxbf_gige_rx_init(priv);
 	if (err)
 		goto tx_deinit;
@@ -184,6 +184,9 @@ static int mlxbf_gige_open(struct net_device *netdev)
 
 tx_deinit:
 	mlxbf_gige_tx_deinit(priv);
+
+phy_deinit:
+	phy_stop(phydev);
 
 free_irqs:
 	mlxbf_gige_free_irqs(priv);
