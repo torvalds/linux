@@ -199,7 +199,7 @@ static const struct regmap_config tps51632_regmap_config = {
 	.readable_reg		= is_read_reg,
 	.volatile_reg		= is_volatile_reg,
 	.max_register		= TPS51632_MAX_REG - 1,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 #if defined(CONFIG_OF)
