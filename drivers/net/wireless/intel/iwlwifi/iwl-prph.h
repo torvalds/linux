@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -453,8 +453,6 @@ enum {
 #define REG_CRF_ID_TYPE_HR_NONE_CDB_1X1	0x501
 #define REG_CRF_ID_TYPE_HR_NONE_CDB_CCP	0x532
 #define REG_CRF_ID_TYPE_GF			0x410
-#define REG_CRF_ID_TYPE_GF_TC			0xF08
-#define REG_CRF_ID_TYPE_MR			0x810
 #define REG_CRF_ID_TYPE_FM			0x910
 #define REG_CRF_ID_TYPE_FMI			0x930
 #define REG_CRF_ID_TYPE_FMR			0x900

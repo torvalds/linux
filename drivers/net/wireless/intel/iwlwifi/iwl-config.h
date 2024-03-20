@@ -430,8 +430,6 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_HR2		0x10A
 #define IWL_CFG_RF_TYPE_HR1		0x10C
 #define IWL_CFG_RF_TYPE_GF		0x10D
-#define IWL_CFG_RF_TYPE_MR		0x110
-#define IWL_CFG_RF_TYPE_MS		0x111
 #define IWL_CFG_RF_TYPE_FM		0x112
 #define IWL_CFG_RF_TYPE_WH		0x113
 
