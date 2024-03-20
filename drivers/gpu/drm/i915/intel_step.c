@@ -102,13 +102,6 @@ static const struct intel_step_info adlp_revids[] = {
 	[0xC] = { COMMON_GT_MEDIA_STEP(C0), .display_step = STEP_D0 },
 };
 
-static const struct intel_step_info xehpsdv_revids[] = {
-	[0x0] = { COMMON_GT_MEDIA_STEP(A0) },
-	[0x1] = { COMMON_GT_MEDIA_STEP(A1) },
-	[0x4] = { COMMON_GT_MEDIA_STEP(B0) },
-	[0x8] = { COMMON_GT_MEDIA_STEP(C0) },
-};
-
 static const struct intel_step_info dg2_g10_revid_step_tbl[] = {
 	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_A0 },
 	[0x1] = { COMMON_GT_MEDIA_STEP(A1), .display_step = STEP_A0 },
@@ -190,9 +183,6 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_DG2_G12(i915)) {
 		revids = dg2_g12_revid_step_tbl;
 		size = ARRAY_SIZE(dg2_g12_revid_step_tbl);
-	} else if (IS_XEHPSDV(i915)) {
-		revids = xehpsdv_revids;
-		size = ARRAY_SIZE(xehpsdv_revids);
 	} else if (IS_ALDERLAKE_P_N(i915)) {
 		revids = adlp_n_revids;
 		size = ARRAY_SIZE(adlp_n_revids);

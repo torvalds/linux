@@ -1533,21 +1533,16 @@ static const struct intel_forcewake_range __gen12_fw_ranges[] = {
 		0x12000 - 0x127ff: always on					\
 		0x12800 - 0x12fff: reserved */					\
 	GEN_FW_RANGE(0x13000, 0x131ff, FORCEWAKE_MEDIA_VDBOX0), /* DG2 only */	\
-	GEN_FW_RANGE(0x13200, 0x13fff, FORCEWAKE_MEDIA_VDBOX2), /*		\
+	GEN_FW_RANGE(0x13200, 0x147ff, FORCEWAKE_MEDIA_VDBOX2), /*		\
 		0x13200 - 0x133ff: VD2 (DG2 only)				\
-		0x13400 - 0x13fff: reserved */					\
-	GEN_FW_RANGE(0x14000, 0x141ff, FORCEWAKE_MEDIA_VDBOX0), /* XEHPSDV only */	\
-	GEN_FW_RANGE(0x14200, 0x143ff, FORCEWAKE_MEDIA_VDBOX2), /* XEHPSDV only */	\
-	GEN_FW_RANGE(0x14400, 0x145ff, FORCEWAKE_MEDIA_VDBOX4), /* XEHPSDV only */	\
-	GEN_FW_RANGE(0x14600, 0x147ff, FORCEWAKE_MEDIA_VDBOX6), /* XEHPSDV only */	\
+		0x13400 - 0x147ff: reserved */					\
 	GEN_FW_RANGE(0x14800, 0x14fff, FORCEWAKE_RENDER),			\
 	GEN_FW_RANGE(0x15000, 0x16dff, FORCEWAKE_GT), /*			\
 		0x15000 - 0x15fff: gt (DG2 only)				\
 		0x16000 - 0x16dff: reserved */					\
-	GEN_FW_RANGE(0x16e00, 0x1ffff, FORCEWAKE_RENDER),			\
-	GEN_FW_RANGE(0x20000, 0x21fff, FORCEWAKE_MEDIA_VDBOX0), /*		\
-		0x20000 - 0x20fff: VD0 (XEHPSDV only)				\
-		0x21000 - 0x21fff: reserved */					\
+	GEN_FW_RANGE(0x16e00, 0x21fff, FORCEWAKE_RENDER), /*			\
+		0x16e00 - 0x1ffff: render					\
+		0x20000 - 0x21fff: reserved */					\
 	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_GT),				\
 	GEN_FW_RANGE(0x24000, 0x2417f, 0), /*					\
 		0x24000 - 0x2407f: always on					\
@@ -1626,10 +1621,6 @@ static const struct intel_forcewake_range __gen12_fw_ranges[] = {
 		0x1f6d00 - 0x1f6dff: VD7					\
 		0x1f6e00 - 0x1f7fff: reserved */				\
 	GEN_FW_RANGE(0x1f8000, 0x1fa0ff, FORCEWAKE_MEDIA_VEBOX3),
-
-static const struct intel_forcewake_range __xehp_fw_ranges[] = {
-	XEHP_FWRANGES(FORCEWAKE_GT)
-};
 
 static const struct intel_forcewake_range __dg2_fw_ranges[] = {
 	XEHP_FWRANGES(FORCEWAKE_RENDER)
@@ -2583,10 +2574,6 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, dg2_shadowed_regs);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
-	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
-		ASSIGN_FW_DOMAINS_TABLE(uncore, __xehp_fw_ranges);
-		ASSIGN_SHADOW_TABLE(uncore, gen12_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen12_fw_ranges);

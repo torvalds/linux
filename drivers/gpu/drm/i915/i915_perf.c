@@ -2881,11 +2881,11 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	int ret;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
+	 * Wa_1508761755
 	 * EU NOA signals behave incorrectly if EU clock gating is enabled.
 	 * Disable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
@@ -2911,7 +2911,7 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	/*
 	 * Initialize Super Queue Internal Cnt Register
 	 * Set PMON Enable in order to collect valid metrics.
-	 * Enable byets per clock reporting in OA for XEHPSDV onward.
+	 * Enable bytes per clock reporting in OA.
 	 */
 	sqcnt1 = GEN12_SQCNT1_PMON_ENABLE |
 		 (HAS_OA_BPC_REPORTING(i915) ? GEN12_SQCNT1_OABPC : 0);
@@ -2971,10 +2971,9 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	u32 sqcnt1;
 
 	/*
-	 * Wa_1508761755:xehpsdv, dg2
-	 * Enable thread stall DOP gating and EU DOP gating.
+	 * Wa_1508761755: Enable thread stall DOP gating and EU DOP gating.
 	 */
-	if (IS_XEHPSDV(i915) || IS_DG2(i915)) {
+	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
 					     _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,

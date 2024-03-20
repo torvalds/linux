@@ -119,7 +119,6 @@ int intel_uncore_mock_selftests(void)
 		{ __gen9_fw_ranges, ARRAY_SIZE(__gen9_fw_ranges), true },
 		{ __gen11_fw_ranges, ARRAY_SIZE(__gen11_fw_ranges), true },
 		{ __gen12_fw_ranges, ARRAY_SIZE(__gen12_fw_ranges), true },
-		{ __xehp_fw_ranges, ARRAY_SIZE(__xehp_fw_ranges), true },
 		{ __pvc_fw_ranges, ARRAY_SIZE(__pvc_fw_ranges), true },
 		{ __mtl_fw_ranges, ARRAY_SIZE(__mtl_fw_ranges), true },
 		{ __xelpmp_fw_ranges, ARRAY_SIZE(__xelpmp_fw_ranges), true },

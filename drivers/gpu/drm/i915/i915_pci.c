@@ -734,23 +734,6 @@ static const struct intel_device_info adl_p_info = {
 	.__runtime.media.ip.ver = 12, \
 	.__runtime.media.ip.rel = 50
 
-__maybe_unused
-static const struct intel_device_info xehpsdv_info = {
-	XE_HP_FEATURES,
-	XE_HPM_FEATURES,
-	DGFX_FEATURES,
-	PLATFORM(INTEL_XEHPSDV),
-	.has_64k_pages = 1,
-	.has_media_ratio_mode = 1,
-	.platform_engine_mask =
-		BIT(RCS0) | BIT(BCS0) |
-		BIT(VECS0) | BIT(VECS1) | BIT(VECS2) | BIT(VECS3) |
-		BIT(VCS0) | BIT(VCS1) | BIT(VCS2) | BIT(VCS3) |
-		BIT(VCS4) | BIT(VCS5) | BIT(VCS6) | BIT(VCS7) |
-		BIT(CCS0) | BIT(CCS1) | BIT(CCS2) | BIT(CCS3),
-	.require_force_probe = 1,
-};
-
 #define DG2_FEATURES \
 	XE_HP_FEATURES, \
 	XE_HPM_FEATURES, \

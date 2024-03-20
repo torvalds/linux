@@ -546,47 +546,6 @@ static const u8 gen12_rcs_offsets[] = {
 	END
 };
 
-static const u8 xehp_rcs_offsets[] = {
-	NOP(1),
-	LRI(13, POSTED),
-	REG16(0x244),
-	REG(0x034),
-	REG(0x030),
-	REG(0x038),
-	REG(0x03c),
-	REG(0x168),
-	REG(0x140),
-	REG(0x110),
-	REG(0x1c0),
-	REG(0x1c4),
-	REG(0x1c8),
-	REG(0x180),
-	REG16(0x2b4),
-
-	NOP(5),
-	LRI(9, POSTED),
-	REG16(0x3a8),
-	REG16(0x28c),
-	REG16(0x288),
-	REG16(0x284),
-	REG16(0x280),
-	REG16(0x27c),
-	REG16(0x278),
-	REG16(0x274),
-	REG16(0x270),
-
-	LRI(3, POSTED),
-	REG(0x1b0),
-	REG16(0x5a8),
-	REG16(0x5ac),
-
-	NOP(6),
-	LRI(1, 0),
-	REG(0x0c8),
-
-	END
-};
-
 static const u8 dg2_rcs_offsets[] = {
 	NOP(1),
 	LRI(15, POSTED),
@@ -695,8 +654,6 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 			return mtl_rcs_offsets;
 		else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 			return dg2_rcs_offsets;
-		else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
-			return xehp_rcs_offsets;
 		else if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_rcs_offsets;
 		else if (GRAPHICS_VER(engine->i915) >= 11)

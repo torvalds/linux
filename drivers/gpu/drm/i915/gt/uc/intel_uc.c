@@ -51,8 +51,8 @@ static void uc_expand_default_options(struct intel_uc *uc)
 	/* Default: enable HuC authentication and GuC submission */
 	i915->params.enable_guc = ENABLE_GUC_LOAD_HUC | ENABLE_GUC_SUBMISSION;
 
-	/* XEHPSDV and PVC do not use HuC */
-	if (IS_XEHPSDV(i915) || IS_PONTEVECCHIO(i915))
+	/* PVC does not use HuC */
+	if (IS_PONTEVECCHIO(i915))
 		i915->params.enable_guc &= ~ENABLE_GUC_LOAD_HUC;
 }
 

@@ -922,8 +922,6 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 		; /* noop; none at this time */
 	else if (IS_DG2(i915))
 		dg2_ctx_workarounds_init(engine, wal);
-	else if (IS_XEHPSDV(i915))
-		; /* noop; none at this time */
 	else if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
 	else if (GRAPHICS_VER(i915) == 12)
@@ -1350,9 +1348,6 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 		gt->steering_table[MSLICE] = NULL;
 	}
 
-	if (IS_XEHPSDV(gt->i915) && slice_mask & BIT(0))
-		gt->steering_table[GAM] = NULL;
-
 	slice = __ffs(slice_mask);
 	subslice = intel_sseu_find_first_xehp_dss(sseu, GEN_DSS_PER_GSLICE, slice) %
 		GEN_DSS_PER_GSLICE;
@@ -1517,76 +1512,6 @@ dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_1408615072:dg1 */
 	/* Empirical testing shows this register is unaffected by engine reset. */
 	wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2, VSUNIT_CLKGATE_DIS_TGL);
-}
-
-static void
-xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
-{
-	struct drm_i915_private *i915 = gt->i915;
-
-	xehp_init_mcr(gt, wal);
-
-	/* Wa_1409757795:xehpsdv */
-	wa_mcr_write_or(wal, SCCGCTL94DC, CG3DDISURB);
-
-	/* Wa_18011725039:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
-		wa_mcr_masked_dis(wal, MLTICTXCTL, TDONRENDER);
-		wa_mcr_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
-	}
-
-	/* Wa_16011155590:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE,
-			    TSGUNIT_CLKGATE_DIS);
-
-	/* Wa_14011780169:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_B0, STEP_FOREVER)) {
-		wa_write_or(wal, UNSLCGCTL9440, GAMTLBOACS_CLKGATE_DIS |
-			    GAMTLBVDBOX7_CLKGATE_DIS |
-			    GAMTLBVDBOX6_CLKGATE_DIS |
-			    GAMTLBVDBOX5_CLKGATE_DIS |
-			    GAMTLBVDBOX4_CLKGATE_DIS |
-			    GAMTLBVDBOX3_CLKGATE_DIS |
-			    GAMTLBVDBOX2_CLKGATE_DIS |
-			    GAMTLBVDBOX1_CLKGATE_DIS |
-			    GAMTLBVDBOX0_CLKGATE_DIS |
-			    GAMTLBKCR_CLKGATE_DIS |
-			    GAMTLBGUC_CLKGATE_DIS |
-			    GAMTLBBLT_CLKGATE_DIS);
-		wa_write_or(wal, UNSLCGCTL9444, GAMTLBGFXA0_CLKGATE_DIS |
-			    GAMTLBGFXA1_CLKGATE_DIS |
-			    GAMTLBCOMPA0_CLKGATE_DIS |
-			    GAMTLBCOMPA1_CLKGATE_DIS |
-			    GAMTLBCOMPB0_CLKGATE_DIS |
-			    GAMTLBCOMPB1_CLKGATE_DIS |
-			    GAMTLBCOMPC0_CLKGATE_DIS |
-			    GAMTLBCOMPC1_CLKGATE_DIS |
-			    GAMTLBCOMPD0_CLKGATE_DIS |
-			    GAMTLBCOMPD1_CLKGATE_DIS |
-			    GAMTLBMERT_CLKGATE_DIS   |
-			    GAMTLBVEBOX3_CLKGATE_DIS |
-			    GAMTLBVEBOX2_CLKGATE_DIS |
-			    GAMTLBVEBOX1_CLKGATE_DIS |
-			    GAMTLBVEBOX0_CLKGATE_DIS);
-	}
-
-	/* Wa_16012725990:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_FOREVER))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE, VFUNIT_CLKGATE_DIS);
-
-	/* Wa_14011060649:xehpsdv */
-	wa_14011060649(gt, wal);
-
-	/* Wa_14012362059:xehpsdv */
-	wa_mcr_write_or(wal, XEHP_MERT_MOD_CTRL, FORCE_MISS_FTLB);
-
-	/* Wa_14014368820:xehpsdv */
-	wa_mcr_write_or(wal, XEHP_GAMCNTRL_CTRL,
-			INVALIDATION_BROADCAST_MODE_DIS | GLOBAL_INVALIDATION_MODE);
-
-	/* Wa_14010670810:xehpsdv */
-	wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
 }
 
 static void
@@ -1758,8 +1683,6 @@ gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 		pvc_gt_workarounds_init(gt, wal);
 	else if (IS_DG2(i915))
 		dg2_gt_workarounds_init(gt, wal);
-	else if (IS_XEHPSDV(i915))
-		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
 		dg1_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 12)
@@ -2231,8 +2154,6 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 		pvc_whitelist_build(engine);
 	else if (IS_DG2(i915))
 		dg2_whitelist_build(engine);
-	else if (IS_XEHPSDV(i915))
-		; /* none needed */
 	else if (GRAPHICS_VER(i915) == 12)
 		tgl_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2971,22 +2892,6 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 			   _MASKED_BIT_ENABLE(ENABLE_PREFETCH_INTO_IC),
 			   0 /* write-only, so skip validation */,
 			   true);
-	}
-
-	if (IS_XEHPSDV(i915)) {
-		/* Wa_1409954639 */
-		wa_mcr_masked_en(wal,
-				 GEN8_ROW_CHICKEN,
-				 SYSTOLIC_DOP_CLOCK_GATING_DIS);
-
-		/* Wa_1607196519 */
-		wa_mcr_masked_en(wal,
-				 GEN9_ROW_CHICKEN4,
-				 GEN12_DISABLE_GRF_CLEAR);
-
-		/* Wa_14010449647:xehpsdv */
-		wa_mcr_masked_en(wal, GEN8_HALF_SLICE_CHICKEN1,
-				 GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
 	}
 }
 

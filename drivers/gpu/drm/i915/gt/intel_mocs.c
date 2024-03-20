@@ -367,31 +367,6 @@ static const struct drm_i915_mocs_entry gen12_mocs_table[] = {
 		   L3_3_WB),
 };
 
-static const struct drm_i915_mocs_entry xehpsdv_mocs_table[] = {
-	/* wa_1608975824 */
-	MOCS_ENTRY(0, 0, L3_3_WB | L3_LKUP(1)),
-
-	/* UC - Coherent; GO:L3 */
-	MOCS_ENTRY(1, 0, L3_1_UC | L3_LKUP(1)),
-	/* UC - Coherent; GO:Memory */
-	MOCS_ENTRY(2, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Non-Coherent; GO:Memory */
-	MOCS_ENTRY(3, 0, L3_1_UC | L3_GLBGO(1)),
-	/* UC - Non-Coherent; GO:L3 */
-	MOCS_ENTRY(4, 0, L3_1_UC),
-
-	/* WB */
-	MOCS_ENTRY(5, 0, L3_3_WB | L3_LKUP(1)),
-
-	/* HW Reserved - SW program but never use. */
-	MOCS_ENTRY(48, 0, L3_3_WB | L3_LKUP(1)),
-	MOCS_ENTRY(49, 0, L3_1_UC | L3_LKUP(1)),
-	MOCS_ENTRY(60, 0, L3_1_UC),
-	MOCS_ENTRY(61, 0, L3_1_UC),
-	MOCS_ENTRY(62, 0, L3_1_UC),
-	MOCS_ENTRY(63, 0, L3_1_UC),
-};
-
 static const struct drm_i915_mocs_entry dg2_mocs_table[] = {
 	/* UC - Coherent; GO:L3 */
 	MOCS_ENTRY(0, 0, L3_1_UC | L3_LKUP(1)),
@@ -514,12 +489,6 @@ static unsigned int get_mocs_settings(struct drm_i915_private *i915,
 		table->uc_index = 1;
 		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
 		table->unused_entries_index = 3;
-	} else if (IS_XEHPSDV(i915)) {
-		table->size = ARRAY_SIZE(xehpsdv_mocs_table);
-		table->table = xehpsdv_mocs_table;
-		table->uc_index = 2;
-		table->n_entries = GEN9_NUM_MOCS_ENTRIES;
-		table->unused_entries_index = 5;
 	} else if (IS_DG1(i915)) {
 		table->size = ARRAY_SIZE(dg1_mocs_table);
 		table->table = dg1_mocs_table;

@@ -57,21 +57,9 @@ static const struct intel_mmio_range icl_l3bank_steering_table[] = {
  * are of a "GAM" subclass that has special rules.  Thus we use a separate
  * GAM table farther down for those.
  */
-static const struct intel_mmio_range xehpsdv_mslice_steering_table[] = {
+static const struct intel_mmio_range dg2_mslice_steering_table[] = {
 	{ 0x00DD00, 0x00DDFF },
 	{ 0x00E900, 0x00FFFF }, /* 0xEA00 - OxEFFF is unused */
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_gam_steering_table[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D800, 0x00D8FF },
 	{},
 };
 
@@ -188,17 +176,13 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 	} else if (IS_PONTEVECCHIO(i915)) {
 		gt->steering_table[INSTANCE0] = pvc_instance0_steering_table;
 	} else if (IS_DG2(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
+		gt->steering_table[MSLICE] = dg2_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
 		/*
 		 * No need to hook up the GAM table since it has a dedicated
 		 * steering control register on DG2 and can use implicit
 		 * steering.
 		 */
-	} else if (IS_XEHPSDV(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = xehpsdv_lncf_steering_table;
-		gt->steering_table[GAM] = xehpsdv_gam_steering_table;
 	} else if (GRAPHICS_VER(i915) >= 11 &&
 		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
 		gt->steering_table[L3BANK] = icl_l3bank_steering_table;

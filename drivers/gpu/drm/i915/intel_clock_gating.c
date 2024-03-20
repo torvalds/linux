@@ -343,13 +343,6 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *i915,
 	intel_uncore_write(&i915->uncore, GEN7_MISCCPCTL, misccpctl);
 }
 
-static void xehpsdv_init_clock_gating(struct drm_i915_private *i915)
-{
-	/* Wa_22010146351:xehpsdv */
-	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		intel_uncore_rmw(&i915->uncore, XEHP_CLOCK_GATE_DIS, 0, SGR_DIS);
-}
-
 static void dg2_init_clock_gating(struct drm_i915_private *i915)
 {
 	/* Wa_22010954014:dg2 */
@@ -731,7 +724,6 @@ static const struct drm_i915_clock_gating_funcs platform##_clock_gating_funcs = 
 
 CG_FUNCS(pvc);
 CG_FUNCS(dg2);
-CG_FUNCS(xehpsdv);
 CG_FUNCS(cfl);
 CG_FUNCS(skl);
 CG_FUNCS(kbl);
@@ -768,8 +760,6 @@ void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
 		i915->clock_gating_funcs = &pvc_clock_gating_funcs;
 	else if (IS_DG2(i915))
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
-	else if (IS_XEHPSDV(i915))
-		i915->clock_gating_funcs = &xehpsdv_clock_gating_funcs;
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		i915->clock_gating_funcs = &cfl_clock_gating_funcs;
 	else if (IS_SKYLAKE(i915))
