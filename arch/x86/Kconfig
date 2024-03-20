@@ -2435,14 +2435,17 @@ endmenu
 config CC_HAS_NAMED_AS
 	def_bool CC_IS_GCC && GCC_VERSION >= 120100
 
+config CC_HAS_NAMED_AS_FIXED_ASAN
+	def_bool CC_IS_GCC && GCC_VERSION >= 130300
+
 config USE_X86_SEG_SUPPORT
 	def_bool y
 	depends on CC_HAS_NAMED_AS
 	#
-	# -fsanitize=kernel-address (KASAN) is at the moment incompatible
-	# with named address spaces - see GCC PR sanitizer/111736.
+	# -fsanitize=kernel-address (KASAN) is incompatible with named
+	# address spaces with GCC < 13.3 - see GCC PR sanitizer/111736.
 	#
-	depends on !KASAN
+	depends on !KASAN || CC_HAS_NAMED_AS_FIXED_ASAN
 
 config CC_HAS_SLS
 	def_bool $(cc-option,-mharden-sls=all)
