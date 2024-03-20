@@ -3751,6 +3751,7 @@ static struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
+	.max_register   = CLKCTRL_DEMOD_CLK_CTRL,
 };
 
 static struct meson_clk_hw_data s4_periphs_clks = {
