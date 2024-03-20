@@ -92,13 +92,13 @@
 		.intr_detection_width = -1,                        \
 	}
 
-#define UFS_RESET(pg_name, offset)                                 \
+#define UFS_RESET(pg_name, offset, io)                                 \
 	{                                                          \
 		.name = #pg_name,                                  \
 		.pins = pg_name##_pins,                            \
 		.npins = (unsigned int)ARRAY_SIZE(pg_name##_pins), \
 		.ctl_reg = offset,                                 \
-		.io_reg = offset + 0x4,                            \
+		.io_reg = io,                                      \
 		.intr_cfg_reg = 0,                                 \
 		.intr_status_reg = 0,                              \
 		.intr_target_reg = 0,                              \
@@ -2112,7 +2112,7 @@ static const struct msm_pingroup volcano_groups[] = {
 			 egpio, 0, -1),
 	[166] = PINGROUP(166, qdss_gpio9, NA, NA, NA, NA, NA, NA, NA, NA, NA,
 			 egpio, 0, -1),
-	[167] = UFS_RESET(ufs_reset, 0x1B4004),
+	[167] = UFS_RESET(ufs_reset, 0x1B4004, 0x1B5000),
 	[168] = SDC_QDSD_PINGROUP(sdc2_clk, 0x1AB000, 0, 6),
 	[169] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x1AB000, 12, 3),
 	[170] = SDC_QDSD_PINGROUP(sdc2_data, 0x1AB000, 9, 0),
