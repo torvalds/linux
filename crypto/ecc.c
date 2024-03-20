@@ -1416,6 +1416,12 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 }
 EXPORT_SYMBOL(ecc_point_mult_shamir);
 
+/*
+ * This function performs checks equivalent to Appendix A.4.2 of FIPS 186-5.
+ * Whereas A.4.2 results in an integer in the interval [1, n-1], this function
+ * ensures that the integer is in the range of [2, n-3]. We are slightly
+ * stricter because of the currently used scalar multiplication algorithm.
+ */
 static int __ecc_is_key_valid(const struct ecc_curve *curve,
 			      const u64 *private_key, unsigned int ndigits)
 {
@@ -1455,16 +1461,11 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 EXPORT_SYMBOL(ecc_is_key_valid);
 
 /*
- * ECC private keys are generated using the method of extra random bits,
- * equivalent to that described in FIPS 186-4, Appendix B.4.1.
- *
- * d = (c mod(n–1)) + 1    where c is a string of random bits, 64 bits longer
- *                         than requested
- * 0 <= c mod(n-1) <= n-2  and implies that
- * 1 <= d <= n-1
+ * ECC private keys are generated using the method of rejection sampling,
+ * equivalent to that described in FIPS 186-5, Appendix A.2.2.
  *
  * This method generates a private key uniformly distributed in the range
- * [1, n-1].
+ * [2, n-3].
  */
 int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 {
@@ -1474,12 +1475,15 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	unsigned int nbits = vli_num_bits(curve->n, ndigits);
 	int err;
 
-	/* Check that N is included in Table 1 of FIPS 186-4, section 6.1.1 */
-	if (nbits < 160 || ndigits > ARRAY_SIZE(priv))
+	/*
+	 * Step 1 & 2: check that N is included in Table 1 of FIPS 186-5,
+	 * section 6.1.1.
+	 */
+	if (nbits < 224 || ndigits > ARRAY_SIZE(priv))
 		return -EINVAL;
 
 	/*
-	 * FIPS 186-4 recommends that the private key should be obtained from a
+	 * FIPS 186-5 recommends that the private key should be obtained from a
 	 * RBG with a security strength equal to or greater than the security
 	 * strength associated with N.
 	 *
@@ -1492,12 +1496,13 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	if (crypto_get_default_rng())
 		return -EFAULT;
 
+	/* Step 3: obtain N returned_bits from the DRBG. */
 	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
 	crypto_put_default_rng();
 	if (err)
 		return err;
 
-	/* Make sure the private key is in the valid range. */
+	/* Step 4: make sure the private key is in the valid range. */
 	if (__ecc_is_key_valid(curve, priv, ndigits))
 		return -EINVAL;
 
