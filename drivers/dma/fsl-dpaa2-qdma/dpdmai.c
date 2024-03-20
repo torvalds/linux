@@ -33,16 +33,6 @@ struct dpdmai_rsp_get_tx_queue {
 	__le32 fqid;
 };
 
-#define MC_CMD_OP(_cmd, _param, _offset, _width, _type, _arg) \
-	((_cmd).params[_param] |= mc_enc((_offset), (_width), _arg))
-
-/* cmd, param, offset, width, type, arg_name */
-#define DPDMAI_CMD_CREATE(cmd, cfg) \
-do { \
-	MC_CMD_OP(cmd, 0, 8,  8,  u8,  (cfg)->priorities[0]);\
-	MC_CMD_OP(cmd, 0, 16, 8,  u8,  (cfg)->priorities[1]);\
-} while (0)
-
 static inline u64 mc_enc(int lsoffset, int width, u64 val)
 {
 	return (val & MAKE_UMASK64(width)) << lsoffset;
@@ -114,50 +104,6 @@ int dpdmai_close(struct fsl_mc_io *mc_io, u32 cmd_flags, u16 token)
 	return mc_send_command(mc_io, &cmd);
 }
 EXPORT_SYMBOL_GPL(dpdmai_close);
-
-/**
- * dpdmai_create() - Create the DPDMAI object
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @cfg:	Configuration structure
- * @token:	Returned token; use in subsequent API calls
- *
- * Create the DPDMAI object, allocate required resources and
- * perform required initialization.
- *
- * The object can be created either by declaring it in the
- * DPL file, or by calling this function.
- *
- * This function returns a unique authentication token,
- * associated with the specific object ID and the specific MC
- * portal; this token must be used in all subsequent calls to
- * this specific object. For objects that are created using the
- * DPL file, call dpdmai_open() function to get an authentication
- * token first.
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpdmai_create(struct fsl_mc_io *mc_io, u32 cmd_flags,
-		  const struct dpdmai_cfg *cfg, u16 *token)
-{
-	struct fsl_mc_command cmd = { 0 };
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPDMAI_CMDID_CREATE,
-					  cmd_flags, 0);
-	DPDMAI_CMD_CREATE(cmd, cfg);
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	*token = mc_cmd_hdr_read_token(&cmd);
-
-	return 0;
-}
 
 /**
  * dpdmai_destroy() - Destroy the DPDMAI object and release all its resources.
