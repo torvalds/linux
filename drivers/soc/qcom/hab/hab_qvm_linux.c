@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_qvm.h"
@@ -162,8 +162,7 @@ int habhyp_commdev_create_dispatcher(struct physical_channel *pchan)
 
 	pr_debug("request_irq: irq = %d, pchan name = %s\n",
 			dev->irq, pchan->name);
-	ret = request_irq(dev->irq, shm_irq_handler, IRQF_SHARED |
-			IRQF_NO_SUSPEND, pchan->name, pchan);
+	ret = request_irq(dev->irq, shm_irq_handler, IRQF_SHARED, pchan->name, pchan);
 	if (ret)
 		pr_err("request_irq for %s failed: %d\n",
 			pchan->name, ret);
