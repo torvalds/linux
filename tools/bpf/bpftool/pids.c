@@ -101,7 +101,6 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 	char buf[4096 / sizeof(*e) * sizeof(*e)];
 	struct pid_iter_bpf *skel;
 	int err, ret, fd = -1, i;
-	libbpf_print_fn_t default_print;
 
 	*map = hashmap__new(hash_fn_for_key_as_id, equal_fn_for_key_as_id, NULL);
 	if (IS_ERR(*map)) {
@@ -118,12 +117,18 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 
 	skel->rodata->obj_type = type;
 
-	/* we don't want output polluted with libbpf errors if bpf_iter is not
-	 * supported
-	 */
-	default_print = libbpf_set_print(libbpf_print_none);
-	err = pid_iter_bpf__load(skel);
-	libbpf_set_print(default_print);
+	if (!verifier_logs) {
+		libbpf_print_fn_t default_print;
+
+		/* Unless debug information is on, we don't want the output to
+		 * be polluted with libbpf errors if bpf_iter is not supported.
+		 */
+		default_print = libbpf_set_print(libbpf_print_none);
+		err = pid_iter_bpf__load(skel);
+		libbpf_set_print(default_print);
+	} else {
+		err = pid_iter_bpf__load(skel);
+	}
 	if (err) {
 		/* too bad, kernel doesn't support BPF iterators yet */
 		err = 0;
