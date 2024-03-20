@@ -1108,6 +1108,9 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	mvmvif->ba_enabled = false;
 	mvmvif->ap_sta = NULL;
 
+	mvmvif->esr_active = false;
+	vif->driver_flags &= ~IEEE80211_VIF_EML_ACTIVE;
+
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
 		mvmvif->link[link_id]->ap_sta_id = IWL_MVM_INVALID_STA;
 		mvmvif->link[link_id]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
