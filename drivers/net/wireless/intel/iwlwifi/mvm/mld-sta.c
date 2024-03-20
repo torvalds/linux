@@ -984,6 +984,10 @@ static int iwl_mvm_mld_update_sta_baids(struct iwl_mvm *mvm,
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, RX_BAID_ALLOCATION_CONFIG_CMD);
 	int baid;
 
+	/* mac80211 will remove sessions later, but we ignore all that */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return 0;
+
 	BUILD_BUG_ON(sizeof(struct iwl_rx_baid_cfg_resp) != sizeof(baid));
 
 	for (baid = 0; baid < ARRAY_SIZE(mvm->baid_map); baid++) {
