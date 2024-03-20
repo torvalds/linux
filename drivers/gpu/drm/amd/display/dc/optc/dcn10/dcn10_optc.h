@@ -200,6 +200,7 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC1_WINDOWB_X_CONTROL_READBACK;
 	uint32_t OTG_CRC1_WINDOWB_Y_CONTROL_READBACK;
 	uint32_t OPTC_CLOCK_CONTROL;
+	uint32_t OPTC_WIDTH_CONTROL2;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -590,16 +591,22 @@ struct dcn_optc_registers {
 	type OTG_V_COUNT_STOP;\
 	type OTG_V_COUNT_STOP_TIMER;
 
+#define TG_REG_FIELD_LIST_DCN401(type) \
+	type OPTC_SEGMENT_WIDTH_LAST;
+
+
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
+	TG_REG_FIELD_LIST_DCN401(uint8_t)
 };
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint32_t)
+	TG_REG_FIELD_LIST_DCN401(uint32_t)
 };
 
 void dcn10_timing_generator_init(struct optc *optc);

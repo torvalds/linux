@@ -329,6 +329,29 @@
 	type DPSTREAMCLK2_GATE_DISABLE;\
 	type DPSTREAMCLK3_GATE_DISABLE;\
 
+#define DCCG401_REG_FIELD_LIST(type) \
+	type OTG0_TMDS_PIXEL_RATE_DIV;\
+	type DPDTO0_INT;\
+	type OTG1_TMDS_PIXEL_RATE_DIV;\
+	type DPDTO1_INT;\
+	type OTG2_TMDS_PIXEL_RATE_DIV;\
+	type DPDTO2_INT;\
+	type OTG3_TMDS_PIXEL_RATE_DIV;\
+	type DPDTO3_INT;\
+	type SYMCLK32_ROOT_LE2_GATE_DISABLE;\
+	type SYMCLK32_ROOT_LE3_GATE_DISABLE;\
+	type SYMCLK32_LE2_GATE_DISABLE;\
+	type SYMCLK32_LE3_GATE_DISABLE;\
+	type SYMCLK32_LE2_SRC_SEL;\
+	type SYMCLK32_LE3_SRC_SEL;\
+	type SYMCLK32_LE2_EN;\
+	type SYMCLK32_LE3_EN;\
+	type DP_DTO_ENABLE[MAX_PIPES];\
+	type DSCCLK0_DTO_DB_EN;\
+	type DSCCLK1_DTO_DB_EN;\
+	type DSCCLK2_DTO_DB_EN;\
+	type DSCCLK3_DTO_DB_EN;
+
 struct dccg_shift {
 	DCCG_REG_FIELD_LIST(uint8_t)
 	DCCG3_REG_FIELD_LIST(uint8_t)
@@ -336,6 +359,7 @@ struct dccg_shift {
 	DCCG314_REG_FIELD_LIST(uint8_t)
 	DCCG32_REG_FIELD_LIST(uint8_t)
 	DCCG35_REG_FIELD_LIST(uint8_t)
+	DCCG401_REG_FIELD_LIST(uint8_t)
 };
 
 struct dccg_mask {
@@ -345,6 +369,7 @@ struct dccg_mask {
 	DCCG314_REG_FIELD_LIST(uint32_t)
 	DCCG32_REG_FIELD_LIST(uint32_t)
 	DCCG35_REG_FIELD_LIST(uint32_t)
+	DCCG401_REG_FIELD_LIST(uint32_t)
 };
 
 struct dccg_registers {
@@ -392,6 +417,8 @@ struct dccg_registers {
 	uint32_t SYMCLKC_CLOCK_ENABLE;
 	uint32_t SYMCLKD_CLOCK_ENABLE;
 	uint32_t SYMCLKE_CLOCK_ENABLE;
+	uint32_t DP_DTO_MODULO[MAX_PIPES];
+	uint32_t DP_DTO_PHASE[MAX_PIPES];
 };
 
 struct dcn_dccg {
