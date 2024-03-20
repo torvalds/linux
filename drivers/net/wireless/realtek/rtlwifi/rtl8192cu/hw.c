@@ -1484,7 +1484,6 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	enum wireless_mode wirelessmode = mac->mode;
 	u8 idx = 0;
 
 	switch (variable) {
@@ -1536,36 +1535,15 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_SLOT_TIME:{
 			u8 e_aci;
-			u8 QOS_MODE = 1;
 
 			rtl_write_byte(rtlpriv, REG_SLOT, val[0]);
 			rtl_dbg(rtlpriv, COMP_MLME, DBG_LOUD,
 				"HW_VAR_SLOT_TIME %x\n", val[0]);
-			if (QOS_MODE) {
-				for (e_aci = 0; e_aci < AC_MAX; e_aci++)
-					rtlpriv->cfg->ops->set_hw_reg(hw,
-								HW_VAR_AC_PARAM,
-								&e_aci);
-			} else {
-				u8 sifstime = 0;
-				u8	u1baifs;
 
-				if (IS_WIRELESS_MODE_A(wirelessmode) ||
-				    IS_WIRELESS_MODE_N_24G(wirelessmode) ||
-				    IS_WIRELESS_MODE_N_5G(wirelessmode))
-					sifstime = 16;
-				else
-					sifstime = 10;
-				u1baifs = sifstime + (2 *  val[0]);
-				rtl_write_byte(rtlpriv, REG_EDCA_VO_PARAM,
-					       u1baifs);
-				rtl_write_byte(rtlpriv, REG_EDCA_VI_PARAM,
-					       u1baifs);
-				rtl_write_byte(rtlpriv, REG_EDCA_BE_PARAM,
-					       u1baifs);
-				rtl_write_byte(rtlpriv, REG_EDCA_BK_PARAM,
-					       u1baifs);
-			}
+			for (e_aci = 0; e_aci < AC_MAX; e_aci++)
+				rtlpriv->cfg->ops->set_hw_reg(hw,
+							      HW_VAR_AC_PARAM,
+							      &e_aci);
 			break;
 		}
 	case HW_VAR_ACK_PREAMBLE:{
