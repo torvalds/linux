@@ -1202,8 +1202,6 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_GF << 12);
 		break;
 	case REG_CRF_ID_TYPE_FM:
-	case REG_CRF_ID_TYPE_FMI:
-	case REG_CRF_ID_TYPE_FMR:
 		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_FM << 12);
 		break;
 	case REG_CRF_ID_TYPE_WHP:
