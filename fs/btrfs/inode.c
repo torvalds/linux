@@ -614,14 +614,56 @@ fail:
 	return ret;
 }
 
+static bool can_cow_file_range_inline(struct btrfs_inode *inode,
+				      u64 offset, u64 size,
+				      size_t compressed_size)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	u64 data_len = (compressed_size ?: size);
+
+	/* Inline extents must start at offset 0. */
+	if (offset != 0)
+		return false;
+
+	/*
+	 * Due to the page size limit, for subpage we can only trigger the
+	 * writeback for the dirty sectors of page, that means data writeback
+	 * is doing more writeback than what we want.
+	 *
+	 * This is especially unexpected for some call sites like fallocate,
+	 * where we only increase i_size after everything is done.
+	 * This means we can trigger inline extent even if we didn't want to.
+	 * So here we skip inline extent creation completely.
+	 */
+	if (fs_info->sectorsize != PAGE_SIZE)
+		return false;
+
+	/* Inline extents are limited to sectorsize. */
+	if (size > fs_info->sectorsize)
+		return false;
+
+	/* We cannot exceed the maximum inline data size. */
+	if (data_len > BTRFS_MAX_INLINE_DATA_SIZE(fs_info))
+		return false;
+
+	/* We cannot exceed the user specified max_inline size. */
+	if (data_len > fs_info->max_inline)
+		return false;
+
+	/* Inline extents must be the entirety of the file. */
+	if (size < i_size_read(&inode->vfs_inode))
+		return false;
+
+	return true;
+}
 
 /*
  * conditionally insert an inline extent into the file.  This
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
  */
-static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
-					  size_t compressed_size,
+static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
+					  u64 size, size_t compressed_size,
 					  int compress_type,
 					  struct folio *compressed_folio,
 					  bool update_i_size)
@@ -634,16 +676,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
 	int ret;
 	struct btrfs_path *path;
 
-	/*
-	 * We can create an inline extent if it ends at or beyond the current
-	 * i_size, is no larger than a sector (decompressed), and the (possibly
-	 * compressed) data fits in a leaf and the configured maximum inline
-	 * size.
-	 */
-	if (size < i_size_read(&inode->vfs_inode) ||
-	    size > fs_info->sectorsize ||
-	    data_len > BTRFS_MAX_INLINE_DATA_SIZE(fs_info) ||
-	    data_len > fs_info->max_inline)
+	if (!can_cow_file_range_inline(inode, offset, size, compressed_size))
 		return 1;
 
 	path = btrfs_alloc_path();
@@ -971,43 +1004,38 @@ again:
 	 * Check cow_file_range() for why we don't even try to create inline
 	 * extent for the subpage case.
 	 */
-	if (start == 0 && fs_info->sectorsize == PAGE_SIZE) {
-		if (total_in < actual_end) {
-			ret = cow_file_range_inline(inode, actual_end, 0,
-						    BTRFS_COMPRESS_NONE, NULL,
-						    false);
-		} else {
-			ret = cow_file_range_inline(inode, actual_end,
-						    total_compressed,
-						    compress_type, folios[0],
-						    false);
-		}
-		if (ret <= 0) {
-			unsigned long clear_flags = EXTENT_DELALLOC |
-				EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
-				EXTENT_DO_ACCOUNTING;
+	if (total_in < actual_end)
+		ret = cow_file_range_inline(inode, start, actual_end, 0,
+					    BTRFS_COMPRESS_NONE, NULL, false);
+	else
+		ret = cow_file_range_inline(inode, start, actual_end,
+					    total_compressed, compress_type,
+					    folios[0], false);
+	if (ret <= 0) {
+		unsigned long clear_flags = EXTENT_DELALLOC |
+			EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
+			EXTENT_DO_ACCOUNTING;
 
-			if (ret < 0)
-				mapping_set_error(mapping, -EIO);
+		if (ret < 0)
+			mapping_set_error(mapping, -EIO);
 
-			/*
-			 * inline extent creation worked or returned error,
-			 * we don't need to create any more async work items.
-			 * Unlock and free up our temp pages.
-			 *
-			 * We use DO_ACCOUNTING here because we need the
-			 * delalloc_release_metadata to be done _after_ we drop
-			 * our outstanding extent for clearing delalloc for this
-			 * range.
-			 */
-			extent_clear_unlock_delalloc(inode, start, end,
-						     NULL,
-						     clear_flags,
-						     PAGE_UNLOCK |
-						     PAGE_START_WRITEBACK |
-						     PAGE_END_WRITEBACK);
-			goto free_pages;
-		}
+		/*
+		 * inline extent creation worked or returned error,
+		 * we don't need to create any more async work items.
+		 * Unlock and free up our temp pages.
+		 *
+		 * We use DO_ACCOUNTING here because we need the
+		 * delalloc_release_metadata to be done _after_ we drop
+		 * our outstanding extent for clearing delalloc for this
+		 * range.
+		 */
+		extent_clear_unlock_delalloc(inode, start, end,
+					     NULL,
+					     clear_flags,
+					     PAGE_UNLOCK |
+					     PAGE_START_WRITEBACK |
+					     PAGE_END_WRITEBACK);
+		goto free_pages;
 	}
 
 	/*
@@ -1315,22 +1343,12 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 	inode_should_defrag(inode, start, end, num_bytes, SZ_64K);
 
-	/*
-	 * Due to the page size limit, for subpage we can only trigger the
-	 * writeback for the dirty sectors of page, that means data writeback
-	 * is doing more writeback than what we want.
-	 *
-	 * This is especially unexpected for some call sites like fallocate,
-	 * where we only increase i_size after everything is done.
-	 * This means we can trigger inline extent even if we didn't want to.
-	 * So here we skip inline extent creation completely.
-	 */
-	if (start == 0 && fs_info->sectorsize == PAGE_SIZE && !no_inline) {
+	if (!no_inline) {
 		u64 actual_end = min_t(u64, i_size_read(&inode->vfs_inode),
 				       end + 1);
 
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(inode, actual_end, 0,
+		ret = cow_file_range_inline(inode, start, actual_end, 0,
 					    BTRFS_COMPRESS_NONE, NULL, false);
 		if (ret == 0) {
 			/*
@@ -10266,10 +10284,11 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 		goto out_qgroup_free_data;
 
 	/* Try an inline extent first. */
-	if (start == 0 && encoded->unencoded_len == encoded->len &&
+	if (encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0) {
-		ret = cow_file_range_inline(inode, encoded->len, orig_count,
-					    compression, folios[0], true);
+		ret = cow_file_range_inline(inode, start, encoded->len,
+					    orig_count, compression, folios[0],
+					    true);
 		if (ret <= 0) {
 			if (ret == 0)
 				ret = orig_count;
