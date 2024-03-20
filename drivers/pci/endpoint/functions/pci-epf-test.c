@@ -817,14 +817,13 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 {
 	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
 	struct device *dev = &epf->dev;
-	struct pci_epf_bar *epf_bar;
 	size_t msix_table_size = 0;
 	size_t test_reg_bar_size;
 	size_t pba_size = 0;
 	bool msix_capable;
 	void *base;
-	int bar, add;
 	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	enum pci_barno bar;
 	const struct pci_epc_features *epc_features;
 	size_t test_reg_size;
 
@@ -849,14 +848,12 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	}
 	epf_test->reg[test_reg_bar] = base;
 
-	for (bar = 0; bar < PCI_STD_NUM_BARS; bar += add) {
-		epf_bar = &epf->bar[bar];
-		add = (epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ? 2 : 1;
+	for (bar = BAR_0; bar < PCI_STD_NUM_BARS; bar++) {
+		bar = pci_epc_get_next_free_bar(epc_features, bar);
+		if (bar == NO_BAR)
+			break;
 
 		if (bar == test_reg_bar)
-			continue;
-
-		if (epc_features->bar[bar].type == BAR_RESERVED)
 			continue;
 
 		base = pci_epf_alloc_space(epf, bar_size[bar], bar,
