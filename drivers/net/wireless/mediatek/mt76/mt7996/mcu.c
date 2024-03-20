@@ -4533,3 +4533,16 @@ int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy)
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WM_UNI_CMD(TXPOWER), true);
 }
+
+int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode)
+{
+	__le32 cp_mode;
+
+	if (mode < mt76_connac_lmac_mapping(IEEE80211_AC_BE) ||
+	    mode > mt76_connac_lmac_mapping(IEEE80211_AC_VO))
+		return -EINVAL;
+
+	cp_mode = cpu_to_le32(mode);
+	return mt76_mcu_send_msg(&dev->mt76, MCU_WA_EXT_CMD(CP_SUPPORT),
+				 &cp_mode, sizeof(cp_mode), true);
+}

@@ -35,6 +35,14 @@ int mt7996_run(struct ieee80211_hw *hw)
 		ret = mt7996_mcu_set_hdr_trans(dev, true);
 		if (ret)
 			goto out;
+
+		if (is_mt7992(&dev->mt76)) {
+			u8 queue = mt76_connac_lmac_mapping(IEEE80211_AC_VI);
+
+			ret = mt7996_mcu_cp_support(dev, queue);
+			if (ret)
+				goto out;
+		}
 	}
 
 	mt7996_mac_enable_nf(dev, phy->mt76->band_idx);
