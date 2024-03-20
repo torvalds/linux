@@ -418,6 +418,13 @@ static int __kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned 
 
 int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 {
+	/*
+	 * Explicitly disallow INVALID_GPA so that the magic value can be used
+	 * by KVM to differentiate between GPA-based and HVA-based caches.
+	 */
+	if (WARN_ON_ONCE(kvm_is_error_gpa(gpa)))
+		return -EINVAL;
+
 	return __kvm_gpc_activate(gpc, gpa, KVM_HVA_ERR_BAD, len);
 }
 
