@@ -616,9 +616,6 @@ static void iwl_mvm_mld_set_ap_sta_id(struct ieee80211_sta *sta,
 	}
 }
 
-/* FIXME: consider waiting for mac80211 to add the STA instead of allocating
- * queues here
- */
 static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_sta *sta)
