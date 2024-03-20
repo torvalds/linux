@@ -149,6 +149,14 @@ config ASPEED_OTP
 	tristate "Aspeed OTP Driver"
 	depends on MACH_ASPEED_G6
 
+config ASPEED_DISP_INTF
+	bool "ASPEED Display Interface driver"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Say yes to support control the display interface of ASPEED BMC.
+
 source "drivers/soc/aspeed/rvas/Kconfig"
 
 endmenu
