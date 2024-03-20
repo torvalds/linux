@@ -1586,9 +1586,8 @@ static inline struct page *__rmqueue_cma_fallback(struct zone *zone,
 #endif
 
 /*
- * Move the free pages in a range to the freelist tail of the requested type.
- * Note that start_page and end_pages are not aligned on a pageblock
- * boundary. If alignment is required, use move_freepages_block()
+ * Change the type of a block and move all its free pages to that
+ * type's freelist.
  */
 static int move_freepages(struct zone *zone, unsigned long start_pfn,
 			  unsigned long end_pfn, int migratetype)
@@ -1597,6 +1596,9 @@ static int move_freepages(struct zone *zone, unsigned long start_pfn,
 	unsigned long pfn;
 	unsigned int order;
 	int pages_moved = 0;
+
+	VM_WARN_ON(start_pfn & (pageblock_nr_pages - 1));
+	VM_WARN_ON(start_pfn + pageblock_nr_pages - 1 != end_pfn);
 
 	for (pfn = start_pfn; pfn <= end_pfn;) {
 		page = pfn_to_page(pfn);
@@ -1614,6 +1616,8 @@ static int move_freepages(struct zone *zone, unsigned long start_pfn,
 		pfn += 1 << order;
 		pages_moved += 1 << order;
 	}
+
+	set_pageblock_migratetype(pfn_to_page(start_pfn), migratetype);
 
 	return pages_moved;
 }
@@ -1842,7 +1846,6 @@ steal_suitable_fallback(struct zone *zone, struct page *page,
 	if (free_pages + alike_pages >= (1 << (pageblock_order-1)) ||
 			page_group_by_mobility_disabled) {
 		move_freepages(zone, start_pfn, end_pfn, start_type);
-		set_pageblock_migratetype(page, start_type);
 		return __rmqueue_smallest(zone, order, start_type);
 	}
 
@@ -1916,12 +1919,10 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone)
 	/* Yoink! */
 	mt = get_pageblock_migratetype(page);
 	/* Only reserve normal pageblocks (i.e., they can merge with others) */
-	if (migratetype_is_mergeable(mt)) {
-		if (move_freepages_block(zone, page, MIGRATE_HIGHATOMIC) != -1) {
-			set_pageblock_migratetype(page, MIGRATE_HIGHATOMIC);
+	if (migratetype_is_mergeable(mt))
+		if (move_freepages_block(zone, page,
+					 MIGRATE_HIGHATOMIC) != -1)
 			zone->nr_reserved_highatomic += pageblock_nr_pages;
-		}
-	}
 
 out_unlock:
 	spin_unlock_irqrestore(&zone->lock, flags);
@@ -2000,7 +2001,6 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 			 * not fail on zone boundaries.
 			 */
 			WARN_ON_ONCE(ret == -1);
-			set_pageblock_migratetype(page, ac->migratetype);
 			if (ret > 0) {
 				spin_unlock_irqrestore(&zone->lock, flags);
 				return ret;
@@ -2682,10 +2682,9 @@ int __isolate_free_page(struct page *page, unsigned int order)
 			 * Only change normal pageblocks (i.e., they can merge
 			 * with others)
 			 */
-			if (migratetype_is_mergeable(mt) &&
-			    move_freepages_block(zone, page,
-						 MIGRATE_MOVABLE) != -1)
-				set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+			if (migratetype_is_mergeable(mt))
+				move_freepages_block(zone, page,
+						     MIGRATE_MOVABLE);
 		}
 	}
 

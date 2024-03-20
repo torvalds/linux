@@ -188,7 +188,6 @@ static int set_migratetype_isolate(struct page *page, int migratetype, int isol_
 			return -EBUSY;
 		}
 		__mod_zone_freepage_state(zone, -nr_pages, mt);
-		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
 		zone->nr_isolate_pageblock++;
 		spin_unlock_irqrestore(&zone->lock, flags);
 		return 0;
@@ -262,10 +261,10 @@ static void unset_migratetype_isolate(struct page *page, int migratetype)
 		 */
 		WARN_ON_ONCE(nr_pages == -1);
 		__mod_zone_freepage_state(zone, nr_pages, migratetype);
-	}
-	set_pageblock_migratetype(page, migratetype);
-	if (isolated_page)
+	} else {
+		set_pageblock_migratetype(page, migratetype);
 		__putback_isolated_page(page, order, migratetype);
+	}
 	zone->nr_isolate_pageblock--;
 out:
 	spin_unlock_irqrestore(&zone->lock, flags);
