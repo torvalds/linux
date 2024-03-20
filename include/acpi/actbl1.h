@@ -567,6 +567,10 @@ struct acpi_cedt_cxims {
 	u64 xormap_list[];
 };
 
+struct acpi_cedt_cxims_target_element {
+	u64 xormap;
+};
+
 /* 3: CXL RCEC Downstream Port Association Structure */
 
 struct acpi_cedt_rdpas {
