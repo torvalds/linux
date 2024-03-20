@@ -610,6 +610,12 @@ struct sta_rec_ra_fixed {
 	u8 mmps_mode;
 } __packed;
 
+struct sta_rec_tx_proc {
+	__le16 tag;
+	__le16 len;
+	__le32 flag;
+} __packed;
+
 /* wtbl_rec */
 
 struct wtbl_req_hdr {
@@ -777,6 +783,7 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_ra_fixed) + \
 					 sizeof(struct sta_rec_he_6g_capa) + \
 					 sizeof(struct sta_rec_pn_info) + \
+					 sizeof(struct sta_rec_tx_proc) + \
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
