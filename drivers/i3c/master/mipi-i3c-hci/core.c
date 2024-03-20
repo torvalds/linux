@@ -1171,7 +1171,7 @@ static irqreturn_t i3c_aspeed_irq_handler(int irqn, void *dev_id)
 	int result = -1;
 
 	val = ast_inhouse_read(ASPEED_I3C_INTR_SUM_STATUS);
-	dev_dbg(&hci->master.dev, "Global INTR_STATUS = %#x\n", val);
+	DBG("Global INTR_STATUS = %#x\n", val);
 
 	if (val & ASPEED_INTR_SUM_CAP) {
 		i3c_hci_irq_handler(irqn, dev_id);
@@ -1187,9 +1187,8 @@ static irqreturn_t i3c_aspeed_irq_handler(int irqn, void *dev_id)
 	}
 	if (val & ASPEED_INTR_SUM_INHOUSE) {
 		inhouse_val = ast_inhouse_read(ASPEED_I3C_INTR_STATUS);
-		dev_dbg(&hci->master.dev, "Inhouse INTR_STATUS = %#x/%#x\n",
-			inhouse_val,
-			ast_inhouse_read(ASPEED_I3C_INTR_SIGNAL_ENABLE));
+		DBG("Inhouse INTR_STATUS = %#x/%#x\n", inhouse_val,
+		    ast_inhouse_read(ASPEED_I3C_INTR_SIGNAL_ENABLE));
 		ast_inhouse_write(ASPEED_I3C_INTR_STATUS, inhouse_val);
 		val &= ~ASPEED_INTR_SUM_INHOUSE;
 	}
