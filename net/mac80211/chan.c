@@ -695,26 +695,29 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 }
 
 static void ieee80211_del_chanctx(struct ieee80211_local *local,
-				  struct ieee80211_chanctx *ctx)
+				  struct ieee80211_chanctx *ctx,
+				  bool skip_idle_recalc)
 {
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	drv_remove_chanctx(local, ctx);
 
-	ieee80211_recalc_idle(local);
+	if (!skip_idle_recalc)
+		ieee80211_recalc_idle(local);
 
 	ieee80211_remove_wbrf(local, &ctx->conf.def);
 }
 
 static void ieee80211_free_chanctx(struct ieee80211_local *local,
-				   struct ieee80211_chanctx *ctx)
+				   struct ieee80211_chanctx *ctx,
+				   bool skip_idle_recalc)
 {
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	WARN_ON_ONCE(ieee80211_chanctx_refcount(local, ctx) != 0);
 
 	list_del_rcu(&ctx->list);
-	ieee80211_del_chanctx(local, ctx);
+	ieee80211_del_chanctx(local, ctx, skip_idle_recalc);
 	kfree_rcu(ctx, rcu_head);
 }
 
@@ -1002,7 +1005,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 			list_del_rcu(&ctx->list);
 			kfree_rcu(ctx, rcu_head);
 		} else {
-			ieee80211_free_chanctx(sdata->local, ctx);
+			ieee80211_free_chanctx(sdata->local, ctx, false);
 		}
 	}
 
@@ -1218,7 +1221,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 				     CHANCTX_SWMODE_REASSIGN_VIF);
 	if (err) {
 		if (ieee80211_chanctx_refcount(local, new_ctx) == 0)
-			ieee80211_free_chanctx(local, new_ctx);
+			ieee80211_free_chanctx(local, new_ctx, false);
 
 		goto out;
 	}
@@ -1232,7 +1235,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	ieee80211_check_fast_xmit_iface(sdata);
 
 	if (ieee80211_chanctx_refcount(local, old_ctx) == 0)
-		ieee80211_free_chanctx(local, old_ctx);
+		ieee80211_free_chanctx(local, old_ctx, false);
 
 	ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL);
 	ieee80211_recalc_smps_chanctx(local, new_ctx);
@@ -1286,7 +1289,7 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 	err = ieee80211_assign_link_chanctx(link, new_ctx);
 	if (err) {
 		if (ieee80211_chanctx_refcount(local, new_ctx) == 0)
-			ieee80211_free_chanctx(local, new_ctx);
+			ieee80211_free_chanctx(local, new_ctx, false);
 
 		goto out;
 	}
@@ -1383,7 +1386,7 @@ static int ieee80211_chsw_switch_ctxs(struct ieee80211_local *local)
 		if (!list_empty(&ctx->replace_ctx->assigned_links))
 			continue;
 
-		ieee80211_del_chanctx(local, ctx->replace_ctx);
+		ieee80211_del_chanctx(local, ctx->replace_ctx, false);
 		err = ieee80211_add_chanctx(local, ctx);
 		if (err)
 			goto err;
@@ -1400,7 +1403,7 @@ err:
 		if (!list_empty(&ctx->replace_ctx->assigned_links))
 			continue;
 
-		ieee80211_del_chanctx(local, ctx);
+		ieee80211_del_chanctx(local, ctx, false);
 		WARN_ON(ieee80211_add_chanctx(local, ctx->replace_ctx));
 	}
 
@@ -1652,7 +1655,8 @@ err:
 	return err;
 }
 
-static void __ieee80211_link_release_channel(struct ieee80211_link_data *link)
+void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
+				      bool skip_idle_recalc)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_bss_conf *link_conf = link->conf;
@@ -1680,7 +1684,7 @@ static void __ieee80211_link_release_channel(struct ieee80211_link_data *link)
 
 	ieee80211_assign_link_chanctx(link, NULL);
 	if (ieee80211_chanctx_refcount(local, ctx) == 0)
-		ieee80211_free_chanctx(local, ctx);
+		ieee80211_free_chanctx(local, ctx, skip_idle_recalc);
 
 	link->radar_required = false;
 
@@ -1721,7 +1725,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ret < 0)
 		goto out;
 
-	__ieee80211_link_release_channel(link);
+	__ieee80211_link_release_channel(link, false);
 
 	ctx = ieee80211_find_chanctx(local, chanreq, mode);
 	if (!ctx)
@@ -1737,7 +1741,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ret) {
 		/* if assign fails refcount stays the same */
 		if (ieee80211_chanctx_refcount(local, ctx) == 0)
-			ieee80211_free_chanctx(local, ctx);
+			ieee80211_free_chanctx(local, ctx, false);
 		goto out;
 	}
 
@@ -1930,7 +1934,7 @@ void ieee80211_link_release_channel(struct ieee80211_link_data *link)
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	if (rcu_access_pointer(link->conf->chanctx_conf))
-		__ieee80211_link_release_channel(link);
+		__ieee80211_link_release_channel(link, false);
 }
 
 void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link)

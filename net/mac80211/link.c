@@ -358,7 +358,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_teardown_tdls_peers(link);
 
-		ieee80211_link_release_channel(link);
+		__ieee80211_link_release_channel(link, true);
 	}
 
 	list_for_each_entry(sta, &local->sta_list, list) {
