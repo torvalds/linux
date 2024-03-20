@@ -1117,10 +1117,21 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 		}
 
 		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-			if (WARN_ON(!mvm_sta->link[link_id])) {
+			struct iwl_mvm_link_sta *mvm_link_sta =
+				rcu_dereference_protected(mvm_sta->link[link_id],
+							  lockdep_is_held(&mvm->mutex));
+			u32 sta_id;
+
+			if (WARN_ON(!mvm_link_sta)) {
 				ret = -EINVAL;
 				goto err;
 			}
+
+			sta_id = mvm_link_sta->sta_id;
+
+			rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
+			rcu_assign_pointer(mvm->fw_id_to_link_sta[sta_id],
+					   link_sta);
 		} else {
 			if (WARN_ON(mvm_sta->link[link_id])) {
 				ret = -EINVAL;
