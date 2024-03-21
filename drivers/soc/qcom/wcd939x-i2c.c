@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/usb/typec.h>
@@ -23,7 +23,7 @@
 #define NUM_RCO_MISC2_READ 10
 #define MIN_SURGE_TIMER_PERIOD_SEC 3
 #define MAX_SURGE_TIMER_PERIOD_SEC 20
-#define PM_RUNTIME_RESUME_CNT 5
+#define PM_RUNTIME_RESUME_CNT 8
 #define PM_RUNTIME_RESUME_WAIT_US_MIN  5000
 
 enum {
@@ -512,21 +512,32 @@ static int wcd_usbss_reset_routine(void)
 /* Called with switch_update_lock mutex locked */
 static void wcd_usbss_standby_control_locked(bool enter_standby)
 {
+	int rc = 0;
+
 	if (wcd_usbss_ctxt_->is_in_standby == enter_standby)
 		return;
 
 	if (enter_standby) {
 		dev_dbg(wcd_usbss_ctxt_->dev, "%s: Enabling standby mode\n",
 			__func__);
-		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x10, 0x10);
-		wcd_usbss_ctxt_->is_in_standby = true;
+		rc = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL,
+				0x10, 0x10);
+		if (rc < 0)
+			dev_err(wcd_usbss_ctxt_->dev, "%s: enter standby failed\n", __func__);
+		else
+			wcd_usbss_ctxt_->is_in_standby = true;
 	} else {
 		dev_dbg(wcd_usbss_ctxt_->dev, "%s: Disabling standby mode\n",
 			__func__);
-		regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, 0x10, 0x00);
-		/* 10ms wait recommended to get WCD USBSS out of standby */
-		usleep_range(10000, 10100);
-		wcd_usbss_ctxt_->is_in_standby = false;
+		rc = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL,
+				0x10, 0x00);
+		if (rc < 0) {
+			dev_err(wcd_usbss_ctxt_->dev, "%s: exit standby failed\n", __func__);
+		} else {
+			/* 10ms wait recommended to get WCD USBSS out of standby */
+			usleep_range(10000, 10100);
+			wcd_usbss_ctxt_->is_in_standby = false;
+		}
 	}
 }
 
@@ -1007,6 +1018,24 @@ int wcd_usbss_dpdm_switch_update(bool sw_en, bool eq_en)
 	return ret;
 }
 EXPORT_SYMBOL(wcd_usbss_dpdm_switch_update);
+
+static int wcd_usbss_dpdm_switch_update_from_handler(bool sw_en, bool eq_en)
+{
+	int ret = 0;
+
+	ret = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE,
+				DPDM_SW_EN_MASK, (sw_en ? DPDM_SW_ENABLE : DPDM_SW_DISABLE));
+	if (ret)
+		pr_err("%s(): Failed to write dpdm_en_value ret:%d\n", __func__, ret);
+
+	ret = regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_EQUALIZER1,
+				WCD_USBSS_EQUALIZER1_EQ_EN_MASK,
+				(eq_en ? WCD_USBSS_EQUALIZER1_EQ_EN_MASK : 0x0));
+	if (ret)
+		pr_err("%s(): Failed to write equalizer1_en ret:%d\n", __func__, ret);
+
+	return ret;
+}
 
 /* wcd_usbss_audio_config - configure audio for power mode and Impedance calculations
  *
@@ -1523,7 +1552,7 @@ static int wcd_usbss_sdam_handle_events_locked(int req_state)
 		regmap_update_bits(priv->regmap, WCD_USBSS_MG1_BIAS, 0x01, 0x01);
 		regmap_update_bits(priv->regmap, WCD_USBSS_MG2_BIAS, 0x01, 0x01);
 		/* Disconnect D+/D- switch */
-		wcd_usbss_dpdm_switch_update(false, false);
+		wcd_usbss_dpdm_switch_update_from_handler(false, false);
 
 		/* Enter standby */
 		wcd_usbss_standby_control_locked(true);
@@ -1599,10 +1628,21 @@ static irqreturn_t wcd_usbss_sdam_notifier_handler(int irq, void *data)
 	}
 
 	rc = acquire_runtime_env(wcd_usbss_ctxt_);
-	if (rc < 0) {
+	if (rc == -EACCES) {
+		dev_dbg(priv->dev, "%s: acquire_runtime_env failed: %d, check suspend\n",
+				__func__, rc);
+	} else if (rc < 0) {
 		dev_err(priv->dev, "%s: acquire_runtime_env failed: %d\n",
 				__func__, rc);
 		goto unlock_mutex;
+	}
+
+	if (wcd_usbss_ctxt_->suspended) {
+		wcd_usbss_ctxt_->defer_writes = true;
+		wcd_usbss_ctxt_->req_state = buf[0];
+		dev_dbg(priv->dev, "i2c in suspend, deferring %s transition to resume\n",
+				status_to_str(wcd_usbss_ctxt_->req_state));
+		goto release_runtime;
 	}
 
 	dev_dbg(priv->dev, "executing wcd state transition from %s to %s\n",
@@ -1614,7 +1654,7 @@ static irqreturn_t wcd_usbss_sdam_notifier_handler(int irq, void *data)
 		dev_dbg(priv->dev, "wcd state transition to %s complete\n",
 				status_to_str(priv->wcd_standby_status));
 	}
-
+release_runtime:
 	release_runtime_env(wcd_usbss_ctxt_);
 unlock_mutex:
 	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
@@ -1821,8 +1861,12 @@ static void wcd_usbss_remove(struct i2c_client *i2c)
 #ifdef CONFIG_PM_SLEEP
 static int wcd_usbss_pm_suspend(struct device *dev)
 {
-	if (wcd_usbss_ctxt_)
-		wcd_usbss_ctxt_->suspended = true;
+	if (!wcd_usbss_ctxt_)
+		return 0;
+
+	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
+	wcd_usbss_ctxt_->suspended = true;
+	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 
 	dev_dbg(wcd_usbss_ctxt_->dev, "wcd usbss pm suspended");
 	return 0;
@@ -1830,10 +1874,25 @@ static int wcd_usbss_pm_suspend(struct device *dev)
 
 static int wcd_usbss_pm_resume(struct device *dev)
 {
+	int rc = 0;
+
 	if (!wcd_usbss_ctxt_)
 		return 0;
 
+	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
+	if (wcd_usbss_ctxt_->defer_writes) {
+		dev_dbg(wcd_usbss_ctxt_->dev, "wcd defer writes in progress");
+		rc = wcd_usbss_sdam_handle_events_locked(wcd_usbss_ctxt_->req_state);
+		wcd_usbss_ctxt_->defer_writes = false;
+		if (rc == 0) {
+			wcd_usbss_ctxt_->wcd_standby_status = wcd_usbss_ctxt_->req_state;
+			dev_dbg(wcd_usbss_ctxt_->dev, "wcd state transition to %s complete\n",
+					status_to_str(wcd_usbss_ctxt_->wcd_standby_status));
+		}
+	}
 	wcd_usbss_ctxt_->suspended = false;
+	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
+
 	dev_dbg(wcd_usbss_ctxt_->dev, "wcd usbss pm resume completed");
 	return 0;
 }
