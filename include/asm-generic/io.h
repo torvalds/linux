@@ -9,6 +9,7 @@
 
 #include <asm/page.h> /* I/O is all done through memory accesses */
 #include <linux/string.h> /* for memset() and memcpy() */
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include <linux/instruction_pointer.h>
 

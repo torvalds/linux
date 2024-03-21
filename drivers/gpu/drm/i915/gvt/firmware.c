@@ -30,6 +30,7 @@
 
 #include <linux/firmware.h>
 #include <linux/crc32.h>
+#include <linux/vmalloc.h>
 
 #include "i915_drv.h"
 #include "gvt.h"
