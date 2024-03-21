@@ -558,6 +558,11 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 
+			silicon-id@0 {
+				compatible = "aspeed,ast2700-silicon-id", "aspeed,silicon-id";
+				reg = <0 0x0 0 0x4>;
+			};
+
 			scu_ic0: interrupt-controller@1D0 {
 				#interrupt-cells = <1>;
 				compatible = "aspeed,ast2700-scu-ic0";
