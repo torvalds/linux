@@ -329,10 +329,26 @@ static const struct component_ops dp_display_comp_ops = {
 	.unbind = dp_display_unbind,
 };
 
+static void dp_display_send_hpd_event(struct msm_dp *dp_display)
+{
+	struct dp_display_private *dp;
+	struct drm_connector *connector;
+
+	dp = container_of(dp_display, struct dp_display_private, dp_display);
+
+	connector = dp->dp_display.connector;
+	drm_helper_hpd_irq_event(connector->dev);
+}
+
 static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 					    bool hpd)
 {
-	struct drm_bridge *bridge = dp->dp_display.bridge;
+	if ((hpd && dp->dp_display.link_ready) ||
+			(!hpd && !dp->dp_display.link_ready)) {
+		drm_dbg_dp(dp->drm_dev, "HPD already %s\n",
+				(hpd ? "on" : "off"));
+		return 0;
+	}
 
 	/* reset video pattern flag on disconnect */
 	if (!hpd) {
@@ -348,7 +364,7 @@ static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 
 	drm_dbg_dp(dp->drm_dev, "type=%d hpd=%d\n",
 			dp->dp_display.connector_type, hpd);
-	drm_bridge_hpd_notify(bridge, dp->dp_display.link_ready);
+	dp_display_send_hpd_event(&dp->dp_display);
 
 	return 0;
 }

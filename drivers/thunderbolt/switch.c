@@ -1249,6 +1249,9 @@ int tb_port_update_credits(struct tb_port *port)
 	ret = tb_port_do_update_credits(port);
 	if (ret)
 		return ret;
+
+	if (!port->dual_link_port)
+		return 0;
 	return tb_port_do_update_credits(port->dual_link_port);
 }
 

@@ -96,14 +96,14 @@
 			thermal-sensors = <&sfctemp>;
 
 			trips {
-				cpu_alert0 {
+				cpu-alert0 {
 					/* milliCelsius */
 					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				cpu_crit {
+				cpu-crit {
 					/* milliCelsius */
 					temperature = <90000>;
 					hysteresis = <2000>;
@@ -113,28 +113,28 @@
 		};
 	};
 
-	osc_sys: osc_sys {
+	osc_sys: osc-sys {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
 	};
 
-	osc_aud: osc_aud {
+	osc_aud: osc-aud {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
 	};
 
-	gmac_rmii_ref: gmac_rmii_ref {
+	gmac_rmii_ref: gmac-rmii-ref {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* Should be overridden by the board when needed */
 		clock-frequency = <0>;
 	};
 
-	gmac_gr_mii_rxclk: gmac_gr_mii_rxclk {
+	gmac_gr_mii_rxclk: gmac-gr-mii-rxclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* Should be overridden by the board when needed */

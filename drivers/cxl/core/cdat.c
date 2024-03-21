@@ -210,38 +210,17 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	return 0;
 }
 
-static void add_perf_entry(struct device *dev, struct dsmas_entry *dent,
-			   struct list_head *list)
+static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
+			      struct cxl_dpa_perf *dpa_perf)
 {
-	struct cxl_dpa_perf *dpa_perf;
-
-	dpa_perf = kzalloc(sizeof(*dpa_perf), GFP_KERNEL);
-	if (!dpa_perf)
-		return;
-
 	dpa_perf->dpa_range = dent->dpa_range;
 	dpa_perf->coord = dent->coord;
 	dpa_perf->qos_class = dent->qos_class;
-	list_add_tail(&dpa_perf->list, list);
 	dev_dbg(dev,
 		"DSMAS: dpa: %#llx qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
 		dent->dpa_range.start, dpa_perf->qos_class,
 		dent->coord.read_bandwidth, dent->coord.write_bandwidth,
 		dent->coord.read_latency, dent->coord.write_latency);
-}
-
-static void free_perf_ents(void *data)
-{
-	struct cxl_memdev_state *mds = data;
-	struct cxl_dpa_perf *dpa_perf, *n;
-	LIST_HEAD(discard);
-
-	list_splice_tail_init(&mds->ram_perf_list, &discard);
-	list_splice_tail_init(&mds->pmem_perf_list, &discard);
-	list_for_each_entry_safe(dpa_perf, n, &discard, list) {
-		list_del(&dpa_perf->list);
-		kfree(dpa_perf);
-	}
 }
 
 static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
@@ -263,16 +242,14 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 	xa_for_each(dsmas_xa, index, dent) {
 		if (resource_size(&cxlds->ram_res) &&
 		    range_contains(&ram_range, &dent->dpa_range))
-			add_perf_entry(dev, dent, &mds->ram_perf_list);
+			update_perf_entry(dev, dent, &mds->ram_perf);
 		else if (resource_size(&cxlds->pmem_res) &&
 			 range_contains(&pmem_range, &dent->dpa_range))
-			add_perf_entry(dev, dent, &mds->pmem_perf_list);
+			update_perf_entry(dev, dent, &mds->pmem_perf);
 		else
 			dev_dbg(dev, "no partition for dsmas dpa: %#llx\n",
 				dent->dpa_range.start);
 	}
-
-	devm_add_action_or_reset(&cxlds->cxlmd->dev, free_perf_ents, mds);
 }
 
 static int match_cxlrd_qos_class(struct device *dev, void *data)
@@ -293,24 +270,24 @@ static int match_cxlrd_qos_class(struct device *dev, void *data)
 	return 0;
 }
 
-static void cxl_qos_match(struct cxl_port *root_port,
-			  struct list_head *work_list,
-			  struct list_head *discard_list)
+static void reset_dpa_perf(struct cxl_dpa_perf *dpa_perf)
 {
-	struct cxl_dpa_perf *dpa_perf, *n;
+	*dpa_perf = (struct cxl_dpa_perf) {
+		.qos_class = CXL_QOS_CLASS_INVALID,
+	};
+}
 
-	list_for_each_entry_safe(dpa_perf, n, work_list, list) {
-		int rc;
+static bool cxl_qos_match(struct cxl_port *root_port,
+			  struct cxl_dpa_perf *dpa_perf)
+{
+	if (dpa_perf->qos_class == CXL_QOS_CLASS_INVALID)
+		return false;
 
-		if (dpa_perf->qos_class == CXL_QOS_CLASS_INVALID)
-			return;
+	if (!device_for_each_child(&root_port->dev, &dpa_perf->qos_class,
+				   match_cxlrd_qos_class))
+		return false;
 
-		rc = device_for_each_child(&root_port->dev,
-					   (void *)&dpa_perf->qos_class,
-					   match_cxlrd_qos_class);
-		if (!rc)
-			list_move_tail(&dpa_perf->list, discard_list);
-	}
+	return true;
 }
 
 static int match_cxlrd_hb(struct device *dev, void *data)
@@ -334,23 +311,10 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 	return 0;
 }
 
-static void discard_dpa_perf(struct list_head *list)
-{
-	struct cxl_dpa_perf *dpa_perf, *n;
-
-	list_for_each_entry_safe(dpa_perf, n, list, list) {
-		list_del(&dpa_perf->list);
-		kfree(dpa_perf);
-	}
-}
-DEFINE_FREE(dpa_perf, struct list_head *, if (!list_empty(_T)) discard_dpa_perf(_T))
-
 static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	LIST_HEAD(__discard);
-	struct list_head *discard __free(dpa_perf) = &__discard;
 	struct cxl_port *root_port;
 	int rc;
 
@@ -363,16 +327,17 @@ static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 	root_port = &cxl_root->port;
 
 	/* Check that the QTG IDs are all sane between end device and root decoders */
-	cxl_qos_match(root_port, &mds->ram_perf_list, discard);
-	cxl_qos_match(root_port, &mds->pmem_perf_list, discard);
+	if (!cxl_qos_match(root_port, &mds->ram_perf))
+		reset_dpa_perf(&mds->ram_perf);
+	if (!cxl_qos_match(root_port, &mds->pmem_perf))
+		reset_dpa_perf(&mds->pmem_perf);
 
 	/* Check to make sure that the device's host bridge is under a root decoder */
 	rc = device_for_each_child(&root_port->dev,
-				   (void *)cxlmd->endpoint->host_bridge,
-				   match_cxlrd_hb);
+				   cxlmd->endpoint->host_bridge, match_cxlrd_hb);
 	if (!rc) {
-		list_splice_tail_init(&mds->ram_perf_list, discard);
-		list_splice_tail_init(&mds->pmem_perf_list, discard);
+		reset_dpa_perf(&mds->ram_perf);
+		reset_dpa_perf(&mds->pmem_perf);
 	}
 
 	return rc;
@@ -417,6 +382,7 @@ void cxl_endpoint_parse_cdat(struct cxl_port *port)
 
 	cxl_memdev_set_qos_class(cxlds, dsmas_xa);
 	cxl_qos_class_verify(cxlmd);
+	cxl_memdev_update_perf(cxlmd);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, CXL);
 
