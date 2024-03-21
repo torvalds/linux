@@ -224,8 +224,7 @@ int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 	return 0;
 }
 
-void xe_sync_entry_signal(struct xe_sync_entry *sync, struct xe_sched_job *job,
-			  struct dma_fence *fence)
+void xe_sync_entry_signal(struct xe_sync_entry *sync, struct dma_fence *fence)
 {
 	if (!(sync->flags & DRM_XE_SYNC_FLAG_SIGNAL))
 		return;
@@ -254,10 +253,6 @@ void xe_sync_entry_signal(struct xe_sync_entry *sync, struct xe_sched_job *job,
 			user_fence_put(sync->ufence);
 			dma_fence_put(fence);
 		}
-	} else if (sync->type == DRM_XE_SYNC_TYPE_USER_FENCE) {
-		job->user_fence.used = true;
-		job->user_fence.addr = sync->addr;
-		job->user_fence.value = sync->timeline_value;
 	}
 }
 
