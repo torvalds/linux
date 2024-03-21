@@ -2477,17 +2477,6 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Number requests sent to PCIe from main die : From IRP",
-        "EventCode": "0xC2",
-        "EventName": "UNC_IIO_NUM_REQ_FROM_CPU.IRP",
-        "FCMask": "0x07",
-        "PerPkg": "1",
-        "PortMask": "0xFF",
-        "PublicDescription": "Number requests sent to PCIe from main die : From IRP : Captures Posted/Non-posted allocations from IRP. i.e. either non-confined P2P traffic or from the CPU",
-        "UMask": "0x1",
-        "Unit": "IIO"
-    },
-    {
         "BriefDescription": "Number requests sent to PCIe from main die : From ITC",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_NUM_REQ_FROM_CPU.ITC",

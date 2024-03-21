@@ -1580,7 +1580,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_LOOKUP.CODE_READ",
+        "BriefDescription": "This event is deprecated.",
         "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "UNC_CHA_LLC_LOOKUP.CODE",
@@ -1677,7 +1677,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_LOOKUP.DATA_READ",
+        "BriefDescription": "This event is deprecated.",
         "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "UNC_CHA_LLC_LOOKUP.DATA_READ_ALL",
@@ -6780,6 +6780,24 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : PCIRdCurs issued by IO Devices : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
         "UMask": "0xc8f3ff04",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "PCIRDCUR (read) transactions from an IO device that addresses memory on the local socket",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_PCIRDCUR_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : PCIRdCurs issued by IO Devices and targets local memory : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xc8f2ff04",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "PCIRDCUR (read) transactions from an IO device that addresses memory on a remote socket",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IO_PCIRDCUR_REMOTE",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : PCIRdCurs issued by IO Devices and targets remote memory : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0xc8f37f04",
         "Unit": "CHA"
     },
     {
