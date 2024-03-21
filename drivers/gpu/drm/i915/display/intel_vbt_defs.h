@@ -603,22 +603,22 @@ struct bdb_driver_features {
 	u8 custom_vbt_version;					/* 155+ */
 
 	/* Driver Feature Flags */
-	u16 rmpm_enabled:1;					/* 165+ */
-	u16 s2ddt_enabled:1;					/* 165+ */
-	u16 dpst_enabled:1;					/* 165-227 */
-	u16 bltclt_enabled:1;					/* 165+ */
-	u16 adb_enabled:1;					/* 165-227 */
-	u16 drrs_enabled:1;					/* 165-227 */
-	u16 grs_enabled:1;					/* 165+ */
-	u16 gpmt_enabled:1;					/* 165+ */
-	u16 tbt_enabled:1;					/* 165+ */
+	u16 rmpm_enabled:1;					/* 159+ */
+	u16 s2ddt_enabled:1;					/* 159+ */
+	u16 dpst_enabled:1;					/* 159-227 */
+	u16 bltclt_enabled:1;					/* 159+ */
+	u16 adb_enabled:1;					/* 159-227 */
+	u16 drrs_enabled:1;					/* 159-227 */
+	u16 grs_enabled:1;					/* 159+ */
+	u16 gpmt_enabled:1;					/* 159+ */
+	u16 tbt_enabled:1;					/* 159+ */
 	u16 psr_enabled:1;					/* 165-227 */
 	u16 ips_enabled:1;					/* 165+ */
 	u16 dfps_enabled:1;					/* 165+ */
 	u16 dmrrs_enabled:1;					/* 174-227 */
 	u16 adt_enabled:1;					/* ???-228 */
 	u16 hpd_wake:1;						/* 201-240 */
-	u16 pc_feature_valid:1;
+	u16 pc_feature_valid:1;					/* 159+ */
 } __packed;
 
 /*
