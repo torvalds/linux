@@ -40,6 +40,7 @@ properties:
           - enum:
               - fsl,imx8mm-usb
               - fsl,imx8mn-usb
+              - fsl,imx93-usb
           - const: fsl,imx7d-usb
           - const: fsl,imx27-usb
       - items:
@@ -182,6 +183,23 @@ allOf:
             - const: ipg
             - const: ahb
             - const: per
+
+  # imx93 Soc needs two clocks
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx93-usb
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: usb_ctrl_root
+            - const: usb_wakeup
 
   # imx7d Soc need one clock
   - if:
