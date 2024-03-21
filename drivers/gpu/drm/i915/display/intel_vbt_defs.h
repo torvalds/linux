@@ -918,7 +918,7 @@ struct bdb_lfp_backlight_data {
  * Block 44 - LFP Power Conservation Features Block
  */
 struct lfp_power_features {
-	u8 reserved1:1;
+	u8 dpst_support:1;						/* ???-159 */
 	u8 power_conservation_pref:3;
 	u8 reserved2:1;
 	u8 lace_enabled_status:1;					/* 210+ */
