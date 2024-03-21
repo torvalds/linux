@@ -293,10 +293,10 @@ struct pstate_funcs {
 static struct pstate_funcs pstate_funcs __read_mostly;
 
 static bool hwp_active __ro_after_init;
-static int hwp_mode_bdw __read_mostly;
-static bool per_cpu_limits __read_mostly;
+static int hwp_mode_bdw __ro_after_init;
+static bool per_cpu_limits __ro_after_init;
+static bool hwp_forced __ro_after_init;
 static bool hwp_boost __read_mostly;
-static bool hwp_forced __read_mostly;
 
 static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
