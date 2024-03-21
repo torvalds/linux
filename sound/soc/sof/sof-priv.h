@@ -262,15 +262,6 @@ struct snd_sof_dsp_ops {
 	int (*pcm_ack)(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream); /* optional */
 
 	/*
-	 * optional callback to retrieve the link DMA position for the substream
-	 * when the position is not reported in the shared SRAM windows but
-	 * instead from a host-accessible hardware counter.
-	 */
-	u64 (*get_stream_position)(struct snd_sof_dev *sdev,
-				   struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream); /* optional */
-
-	/*
 	 * optional callback to retrieve the number of frames left/arrived from/to
 	 * the DSP on the DAI side (link/codec/DMIC/etc).
 	 *
