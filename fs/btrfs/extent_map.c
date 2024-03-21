@@ -470,11 +470,13 @@ void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 	RB_CLEAR_NODE(&em->rb_node);
 }
 
-static void replace_extent_mapping(struct extent_map_tree *tree,
+static void replace_extent_mapping(struct btrfs_inode *inode,
 				   struct extent_map *cur,
 				   struct extent_map *new,
 				   int modified)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
+
 	lockdep_assert_held_write(&tree->lock);
 
 	WARN_ON(cur->flags & EXTENT_FLAG_PINNED);
@@ -777,7 +779,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 			split->generation = gen;
 			split->flags = flags;
-			replace_extent_mapping(em_tree, em, split, modified);
+			replace_extent_mapping(inode, em, split, modified);
 			free_extent_map(split);
 			split = split2;
 			split2 = NULL;
@@ -818,8 +820,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			}
 
 			if (extent_map_in_tree(em)) {
-				replace_extent_mapping(em_tree, em, split,
-						       modified);
+				replace_extent_mapping(inode, em, split, modified);
 			} else {
 				int ret;
 
@@ -977,7 +978,7 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_pre->flags = flags;
 	split_pre->generation = em->generation;
 
-	replace_extent_mapping(em_tree, em, split_pre, 1);
+	replace_extent_mapping(inode, em, split_pre, 1);
 
 	/*
 	 * Now we only have an extent_map at:
