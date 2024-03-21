@@ -3110,6 +3110,10 @@
 #define mmCM0_CM_3DLUT_OUT_OFFSET_G_BASE_IDX                                                           2
 #define mmCM0_CM_3DLUT_OUT_OFFSET_B                                                                    0x0e18
 #define mmCM0_CM_3DLUT_OUT_OFFSET_B_BASE_IDX                                                           2
+#define mmCM0_CM_TEST_DEBUG_INDEX                                                                      0x0e19
+#define mmCM0_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define mmCM0_CM_TEST_DEBUG_DATA                                                                       0x0e1a
+#define mmCM0_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp0_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -3798,6 +3802,10 @@
 #define mmCM1_CM_3DLUT_OUT_OFFSET_G_BASE_IDX                                                           2
 #define mmCM1_CM_3DLUT_OUT_OFFSET_B                                                                    0x0f83
 #define mmCM1_CM_3DLUT_OUT_OFFSET_B_BASE_IDX                                                           2
+#define mmCM1_CM_TEST_DEBUG_INDEX                                                                      0x0f84
+#define mmCM1_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define mmCM1_CM_TEST_DEBUG_DATA                                                                       0x0f85
+#define mmCM1_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp1_dispdec_dpp_dcperfmon_dc_perfmon_dispdec

@@ -10701,6 +10701,13 @@
 #define CM0_CM_COEF_FORMAT__CM_BIAS_FORMAT_MASK                                                               0x00000001L
 #define CM0_CM_COEF_FORMAT__CM_POST_CSC_COEF_FORMAT_MASK                                                      0x00000010L
 #define CM0_CM_COEF_FORMAT__CM_GAMUT_REMAP_COEF_FORMAT_MASK                                                   0x00000100L
+
+//CM0_CM_TEST_DEBUG_INDEX
+#define CM0_CM_TEST_DEBUG_INDEX__CM_TEST_DEBUG_INDEX__SHIFT                                                   0x0
+#define CM0_CM_TEST_DEBUG_INDEX__CM_TEST_DEBUG_WRITE_EN__SHIFT                                                0x8
+#define CM0_CM_TEST_DEBUG_INDEX__CM_TEST_DEBUG_INDEX_MASK                                                     0x000000FFL
+#define CM0_CM_TEST_DEBUG_INDEX__CM_TEST_DEBUG_WRITE_EN_MASK                                                  0x00000100L
+
 //CM0_CM_SHAPER_CONTROL
 #define CM0_CM_SHAPER_CONTROL__CM_SHAPER_LUT_MODE__SHIFT                                                      0x0
 #define CM0_CM_SHAPER_CONTROL__CM_SHAPER_MODE_CURRENT__SHIFT                                                  0x2
