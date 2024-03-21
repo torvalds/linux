@@ -2944,7 +2944,8 @@ static int nf_tables_delchain(struct sk_buff *skb, const struct nfnl_info *info,
 	nft_ctx_init(&ctx, net, skb, info->nlh, family, table, chain, nla);
 
 	if (nla[NFTA_CHAIN_HOOK]) {
-		if (chain->flags & NFT_CHAIN_HW_OFFLOAD)
+		if (NFNL_MSG_TYPE(info->nlh->nlmsg_type) == NFT_MSG_DESTROYCHAIN ||
+		    chain->flags & NFT_CHAIN_HW_OFFLOAD)
 			return -EOPNOTSUPP;
 
 		if (nft_is_base_chain(chain)) {
