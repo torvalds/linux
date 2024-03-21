@@ -2,7 +2,7 @@
 Assignment 0 - Kernel API
 =========================
 
--  Deadline: :command:`Sunday, 26 March 2023, 23:00`
+-  Deadline: :command:`Monday, 25 March 2024, 23:59`
 
 Assignment's Objectives
 =======================
