@@ -478,17 +478,17 @@ ice_devlink_reload_down(struct devlink *devlink, bool netns_change,
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
 		if (ice_is_eswitch_mode_switchdev(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Go to legacy mode before doing reinit\n");
+					   "Go to legacy mode before doing reinit");
 			return -EOPNOTSUPP;
 		}
 		if (ice_is_adq_active(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Turn off ADQ before doing reinit\n");
+					   "Turn off ADQ before doing reinit");
 			return -EOPNOTSUPP;
 		}
 		if (ice_has_vfs(pf)) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Remove all VFs before doing reinit\n");
+					   "Remove all VFs before doing reinit");
 			return -EOPNOTSUPP;
 		}
 		ice_devlink_reinit_down(pf);
