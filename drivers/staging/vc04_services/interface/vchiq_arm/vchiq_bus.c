@@ -37,11 +37,21 @@ static int vchiq_bus_probe(struct device *dev)
 	return driver->probe(device);
 }
 
+static void vchiq_bus_remove(struct device *dev)
+{
+	struct vchiq_device *device = to_vchiq_device(dev);
+	struct vchiq_driver *driver = to_vchiq_driver(dev->driver);
+
+	if (driver->remove)
+		driver->remove(device);
+}
+
 const struct bus_type vchiq_bus_type = {
 	.name   = "vchiq-bus",
 	.match  = vchiq_bus_type_match,
 	.uevent = vchiq_bus_uevent,
 	.probe  = vchiq_bus_probe,
+	.remove = vchiq_bus_remove,
 };
 
 static void vchiq_device_release(struct device *dev)
