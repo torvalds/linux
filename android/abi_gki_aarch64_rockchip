@@ -2183,6 +2183,47 @@
   mmc_pwrseq_register
   mmc_pwrseq_unregister
 
+# required by r8168.ko
+  csum_ipv6_magic
+  netif_set_tso_max_segs
+  netif_set_tso_max_size
+  pci_choose_state
+  pci_clear_master
+  pci_clear_mwi
+  pci_disable_msi
+  pci_disable_msix
+  pci_enable_device
+  pci_enable_msi
+  pci_enable_msix_range
+  pci_enable_wake
+  pci_get_slot
+  pci_release_regions
+  pci_request_regions
+  pci_set_mwi
+  pci_wake_from_d3
+  pci_write_config_byte
+  proc_get_parent_data
+  proc_mkdir_data
+
+# required by realtek.ko
+  genphy_handle_interrupt_no_ack
+  genphy_read_abilities
+  genphy_read_mmd_unsupported
+  genphy_update_link
+  genphy_write_mmd_unsupported
+  __mdiobus_read
+  __mdiobus_write
+  phy_basic_t1_features
+  __phy_modify
+  phy_modify
+  phy_modify_changed
+  phy_modify_paged
+  phy_modify_paged_changed
+  phy_read_paged
+  phy_restore_page
+  phy_select_page
+  phy_write_paged
+
 # required by reboot-mode.ko
   devres_release
   kernel_kobj
@@ -2856,6 +2897,25 @@
 # required by twofish_generic.ko
   crypto_register_alg
   crypto_unregister_alg
+
+# required by ufs-rockchip.ko
+  ufshcd_config_pwr_mode
+  ufshcd_dealloc_host
+  ufshcd_dme_set_attr
+  ufshcd_hba_enable
+  ufshcd_hba_stop
+  ufshcd_hold
+  ufshcd_make_hba_operational
+  ufshcd_pltfrm_init
+  ufshcd_pltfrm_shutdown
+  ufshcd_release
+  ufshcd_remove
+  ufshcd_resume_complete
+  ufshcd_runtime_resume
+  ufshcd_runtime_suspend
+  ufshcd_suspend_prepare
+  ufshcd_system_resume
+  ufshcd_system_suspend
 
 # required by usblp.ko
   add_wait_queue
