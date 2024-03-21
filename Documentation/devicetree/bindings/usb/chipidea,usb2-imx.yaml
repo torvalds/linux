@@ -49,6 +49,12 @@ properties:
           - const: fsl,imx6ul-usb
           - const: fsl,imx27-usb
 
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
   clocks:
     minItems: 1
     maxItems: 3
@@ -143,6 +149,76 @@ allOf:
           items:
             - const: idle
             - const: active
+
+  # imx27 Soc needs three clocks
+  - if:
+      properties:
+        compatible:
+          const: fsl,imx27-usb
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: ipg
+            - const: ahb
+            - const: per
+
+  # imx25 and imx35 Soc need three clocks
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx25-usb
+              - fsl,imx35-usb
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: ipg
+            - const: ahb
+            - const: per
+
+  # imx7d Soc need one clock
+  - if:
+      properties:
+        compatible:
+          items:
+            - const: fsl,imx7d-usb
+            - const: fsl,imx27-usb
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names: false
+
+  # other Soc need one clock
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx23-usb
+              - fsl,imx28-usb
+              - fsl,imx50-usb
+              - fsl,imx51-usb
+              - fsl,imx53-usb
+              - fsl,imx6q-usb
+              - fsl,imx6sl-usb
+              - fsl,imx6sx-usb
+              - fsl,imx6ul-usb
+              - fsl,imx8mm-usb
+              - fsl,imx8mn-usb
+              - fsl,vf610-usb
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names: false
 
 unevaluatedProperties: false
 
