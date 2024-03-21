@@ -726,8 +726,9 @@ void free_bulk_waiter(struct vchiq_instance *instance)
 
 int vchiq_shutdown(struct vchiq_instance *instance)
 {
-	int status = 0;
 	struct vchiq_state *state = instance->state;
+	struct vchiq_arm_state *arm_state;
+	int status = 0;
 
 	if (mutex_lock_killable(&state->mutex))
 		return -EAGAIN;
@@ -738,6 +739,9 @@ int vchiq_shutdown(struct vchiq_instance *instance)
 	mutex_unlock(&state->mutex);
 
 	dev_dbg(state->dev, "core: (%p): returning %d\n", instance, status);
+
+	arm_state = vchiq_platform_get_arm_state(state);
+	kthread_stop(arm_state->ka_thread);
 
 	free_bulk_waiter(instance);
 	kfree(instance);
@@ -1310,7 +1314,7 @@ vchiq_keepalive_thread_func(void *v)
 		goto shutdown;
 	}
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		long rc = 0, uc = 0;
 
 		if (wait_for_completion_interruptible(&arm_state->ka_evt)) {
