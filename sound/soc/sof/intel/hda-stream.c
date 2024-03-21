@@ -1064,6 +1064,8 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 	return pos;
 }
 
+#define merge_u64(u32_u, u32_l) (((u64)(u32_u) << 32) | (u32_l))
+
 /**
  * hda_dsp_get_stream_llp - Retrieve the LLP (Linear Link Position) of the stream
  * @sdev: SOF device
@@ -1093,7 +1095,12 @@ u64 hda_dsp_get_stream_llp(struct snd_sof_dev *sdev,
 	llp_l = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPL);
 	llp_u = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPU);
 
-	return ((u64)llp_u << 32) | llp_l;
+	/* Compensate the LLP counter with the saved offset */
+	if (hext_stream->pplcllpl || hext_stream->pplcllpu)
+		return merge_u64(llp_u, llp_l) -
+		       merge_u64(hext_stream->pplcllpu, hext_stream->pplcllpl);
+
+	return merge_u64(llp_u, llp_l);
 }
 
 /**
