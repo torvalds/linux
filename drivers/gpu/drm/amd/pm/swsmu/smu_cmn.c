@@ -437,7 +437,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 			return -EINVAL;
 
 		if (amdgpu_sriov_vf(smu->adev) &&
-		    !msg_mapping.valid_in_vf)
+		    !(msg_mapping.flags & SMU_MSG_VF_FLAG))
 			return -EACCES;
 
 		return msg_mapping.map_to;

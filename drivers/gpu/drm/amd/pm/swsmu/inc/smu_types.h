@@ -445,4 +445,11 @@ enum smu_feature_mask {
 	SMU_FEATURE_COUNT,
 };
 
+/* Message category flags */
+#define SMU_MSG_VF_FLAG			(1U << 0)
+#define SMU_MSG_RAS_PRI			(1U << 1)
+
+/* Firmware capability flags */
+#define SMU_FW_CAP_RAS_PRI		(1U << 0)
+
 #endif

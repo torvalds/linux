@@ -459,7 +459,7 @@ struct smu_umd_pstate_table {
 struct cmn2asic_msg_mapping {
 	int	valid_mapping;
 	int	map_to;
-	int	valid_in_vf;
+	uint32_t flags;
 };
 
 struct cmn2asic_mapping {
@@ -539,6 +539,7 @@ struct smu_context {
 	uint32_t smc_driver_if_version;
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
+	uint32_t smc_fw_caps;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
@@ -1485,8 +1486,8 @@ enum smu_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
-#define MSG_MAP(msg, index, valid_in_vf) \
-	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
+#define MSG_MAP(msg, index, flags) \
+	[SMU_MSG_##msg] = {1, (index), (flags)}
 
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = {1, (index)}
