@@ -1650,6 +1650,10 @@ static int sys_memfd_create(const char *name, unsigned flags)
 	return syscall(__NR_memfd_create, name, flags);
 }
 
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+#endif
+
 static int create_placeholder_fd(void)
 {
 	int fd;
