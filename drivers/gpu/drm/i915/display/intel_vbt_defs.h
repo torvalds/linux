@@ -907,8 +907,8 @@ struct lfp_brightness_level {
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
-	u8 level[16];							/* ???-233 */
-	struct lfp_backlight_control_method backlight_control[16];
+	u8 level[16];							/* 162-233 */
+	struct lfp_backlight_control_method backlight_control[16];	/* 191+ */
 	struct lfp_brightness_level brightness_level[16];		/* 234+ */
 	struct lfp_brightness_level brightness_min_level[16];		/* 234+ */
 	u8 brightness_precision_bits[16];				/* 236+ */
