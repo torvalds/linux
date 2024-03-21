@@ -14544,7 +14544,19 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
 	struct tnum t;
 	u64 val;
 
-again:
+	/* In case of GE/GT/SGE/JST, reuse LE/LT/SLE/SLT logic from below */
+	switch (opcode) {
+	case BPF_JGE:
+	case BPF_JGT:
+	case BPF_JSGE:
+	case BPF_JSGT:
+		opcode = flip_opcode(opcode);
+		swap(reg1, reg2);
+		break;
+	default:
+		break;
+	}
+
 	switch (opcode) {
 	case BPF_JEQ:
 		if (is_jmp32) {
@@ -14687,14 +14699,6 @@ again:
 			reg2->smin_value = max(reg1->smin_value + 1, reg2->smin_value);
 		}
 		break;
-	case BPF_JGE:
-	case BPF_JGT:
-	case BPF_JSGE:
-	case BPF_JSGT:
-		/* just reuse LE/LT logic above */
-		opcode = flip_opcode(opcode);
-		swap(reg1, reg2);
-		goto again;
 	default:
 		return;
 	}
