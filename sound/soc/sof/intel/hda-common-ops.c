@@ -58,6 +58,8 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.pcm_ack	= hda_dsp_pcm_ack,
 
 	.get_stream_position = hda_dsp_get_stream_llp,
+	.get_dai_frame_counter = hda_dsp_get_stream_llp,
+	.get_host_byte_counter = hda_dsp_get_stream_ldp,
 
 	/* firmware loading */
 	.load_firmware = snd_sof_load_firmware_raw,
