@@ -267,7 +267,7 @@
         "CounterMask": "6",
         "EventCode": "0x79",
         "EventName": "IDQ.DSB_CYCLES_OK",
-        "PublicDescription": "Counts the number of cycles where optimal number of uops was delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
+        "PublicDescription": "Counts the number of cycles where optimal number of uops was delivered to the Instruction Decode Queue (IDQ) from the DSB (Decode Stream Buffer) path. Count includes uops that may 'bypass' the IDQ.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
