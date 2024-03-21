@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#define IO_POLL_ALLOC_CACHE_MAX 32
+
 enum {
 	IO_APOLL_OK,
 	IO_APOLL_ABORTED,
