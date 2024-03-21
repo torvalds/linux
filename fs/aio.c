@@ -527,17 +527,19 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		struct page *page;
-		page = find_or_create_page(file->f_mapping,
-					   i, GFP_USER | __GFP_ZERO);
-		if (!page)
-			break;
-		pr_debug("pid(%d) page[%d]->count=%d\n",
-			 current->pid, i, page_count(page));
-		SetPageUptodate(page);
-		unlock_page(page);
+		struct folio *folio;
 
-		ctx->ring_pages[i] = page;
+		folio = __filemap_get_folio(file->f_mapping, i,
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    GFP_USER | __GFP_ZERO);
+		if (IS_ERR(folio))
+			break;
+
+		pr_debug("pid(%d) [%d] folio->count=%d\n", current->pid, i,
+			 folio_ref_count(folio));
+		folio_end_read(folio, true);
+
+		ctx->ring_pages[i] = &folio->page;
 	}
 	ctx->nr_pages = i;
 
