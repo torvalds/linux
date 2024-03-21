@@ -688,8 +688,10 @@ void amdgpu_vm_pt_free_root(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	struct amdgpu_vm_pt_cursor cursor;
 	struct amdgpu_vm_bo_base *entry;
 
-	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry)
-		amdgpu_vm_pt_free(entry);
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry) {
+		if (entry)
+			amdgpu_vm_pt_free(entry);
+	}
 }
 
 /**
