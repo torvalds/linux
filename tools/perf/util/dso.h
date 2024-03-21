@@ -161,15 +161,53 @@ struct dso {
 		u64		addr;
 		struct symbol	*symbol;
 	} last_find_result;
+	struct build_id	 bid;
+	u64		 text_offset;
+	u64		 text_end;
+	const char	 *short_name;
+	const char	 *long_name;
 	void		 *a2l;
 	char		 *symsrc_filename;
+#if defined(__powerpc__)
+	void		*dwfl;			/* DWARF debug info */
+#endif
+	struct nsinfo	*nsinfo;
+	struct auxtrace_cache *auxtrace_cache;
+	union { /* Tool specific area */
+		void	 *priv;
+		u64	 db_id;
+	};
+	/* bpf prog information */
+	struct {
+		struct perf_env	*env;
+		u32		id;
+		u32		sub_id;
+	} bpf_prog;
+	/* dso data file */
+	struct {
+		struct rb_root	 cache;
+		struct list_head open_entry;
+		u64		 file_size;
+		u64		 elf_base_addr;
+		u64		 debug_frame_offset;
+		u64		 eh_frame_hdr_addr;
+		u64		 eh_frame_hdr_offset;
+		int		 fd;
+		int		 status;
+		u32		 status_seen;
+	} data;
+	struct dso_id	 id;
 	unsigned int	 a2l_fails;
-	enum dso_space_type	kernel;
-	bool			is_kmod;
-	enum dso_swap_type	needs_swap;
-	enum dso_binary_type	symtab_type;
-	enum dso_binary_type	binary_type;
+	int		 comp;
+	refcount_t	 refcnt;
 	enum dso_load_errno	load_errno;
+	u16		 long_name_len;
+	u16		 short_name_len;
+	enum dso_binary_type	symtab_type:8;
+	enum dso_binary_type	binary_type:8;
+	enum dso_space_type	kernel:2;
+	enum dso_swap_type	needs_swap:2;
+	bool			is_kmod:1;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 header_build_id:1;
@@ -183,44 +221,6 @@ struct dso {
 	bool		 sorted_by_name;
 	bool		 loaded;
 	u8		 rel;
-	struct build_id	 bid;
-	u64		 text_offset;
-	u64		 text_end;
-	const char	 *short_name;
-	const char	 *long_name;
-	u16		 long_name_len;
-	u16		 short_name_len;
-	void		*dwfl;			/* DWARF debug info */
-	struct auxtrace_cache *auxtrace_cache;
-	int		 comp;
-
-	/* dso data file */
-	struct {
-		struct rb_root	 cache;
-		int		 fd;
-		int		 status;
-		u32		 status_seen;
-		u64		 file_size;
-		struct list_head open_entry;
-		u64		 elf_base_addr;
-		u64		 debug_frame_offset;
-		u64		 eh_frame_hdr_addr;
-		u64		 eh_frame_hdr_offset;
-	} data;
-	/* bpf prog information */
-	struct {
-		u32		id;
-		u32		sub_id;
-		struct perf_env	*env;
-	} bpf_prog;
-
-	union { /* Tool specific area */
-		void	 *priv;
-		u64	 db_id;
-	};
-	struct nsinfo	*nsinfo;
-	struct dso_id	 id;
-	refcount_t	 refcnt;
 	char		 name[];
 };
 
