@@ -339,6 +339,7 @@ config ALPHA_EV4
 	bool
 	depends on ALPHA_JENSEN || (ALPHA_SABLE && !ALPHA_GAMMA) || ALPHA_LYNX || ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
 	default y if !ALPHA_LYNX
+	default y if !ALPHA_EV5
 
 config ALPHA_LCA
 	bool
@@ -366,10 +367,6 @@ config ALPHA_EV5
 	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_LYNX
 	default y if ALPHA_RX164 || ALPHA_RAWHIDE || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_SABLE && ALPHA_GAMMA || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
 
-config ALPHA_EV4
-	bool
-	default y if ALPHA_LYNX && !ALPHA_EV5
-
 config ALPHA_CIA
 	bool
 	depends on ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
@@ -394,15 +391,11 @@ config ALPHA_PRIMO
 	  Say Y if you have an AS 1000 5/xxx or an AS 1000A 5/xxx.
 
 config ALPHA_GAMMA
-	bool "EV5 CPU(s) (model 5/xxx)?"
-	depends on ALPHA_SABLE
+	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_SABLE
+	depends on ALPHA_SABLE || ALPHA_LYNX
+	default ALPHA_LYNX
 	help
 	  Say Y if you have an AS 2000 5/xxx or an AS 2100 5/xxx.
-
-config ALPHA_GAMMA
-	bool
-	depends on ALPHA_LYNX
-	default y
 
 config ALPHA_T2
 	bool

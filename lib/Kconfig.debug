@@ -2127,7 +2127,7 @@ config KCOV_IRQ_AREA_SIZE
 
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
-	def_bool y
+	default y
 
 if RUNTIME_TESTING_MENU
 

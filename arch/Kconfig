@@ -1597,4 +1597,16 @@ config FUNCTION_ALIGNMENT
 	default 4 if FUNCTION_ALIGNMENT_4B
 	default 0
 
+config CC_HAS_MIN_FUNCTION_ALIGNMENT
+	# Detect availability of the GCC option -fmin-function-alignment which
+	# guarantees minimal alignment for all functions, unlike
+	# -falign-functions which the compiler ignores for cold functions.
+	def_bool $(cc-option, -fmin-function-alignment=8)
+
+config CC_HAS_SANE_FUNCTION_ALIGNMENT
+	# Set if the guaranteed alignment with -fmin-function-alignment is
+	# available or extra care is required in the kernel. Clang provides
+	# strict alignment always, even with -falign-functions.
+	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
+
 endmenu
