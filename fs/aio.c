@@ -334,14 +334,15 @@ static void aio_free_ring(struct kioctx *ctx)
 	put_aio_ring_file(ctx);
 
 	for (i = 0; i < ctx->nr_pages; i++) {
-		struct page *page;
-		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
-				page_count(ctx->ring_pages[i]));
-		page = ctx->ring_pages[i];
-		if (!page)
+		struct folio *folio = page_folio(ctx->ring_pages[i]);
+
+		if (!folio)
 			continue;
+
+		pr_debug("pid(%d) [%d] folio->count=%d\n", current->pid, i,
+			 folio_ref_count(folio));
 		ctx->ring_pages[i] = NULL;
-		put_page(page);
+		folio_put(folio);
 	}
 
 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages) {
