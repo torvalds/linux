@@ -29,6 +29,27 @@ struct alloc_tag {
 	struct alloc_tag_counters __percpu	*counters;
 } __aligned(8);
 
+#ifdef CONFIG_MEM_ALLOC_PROFILING_DEBUG
+
+#define CODETAG_EMPTY	((void *)1)
+
+static inline bool is_codetag_empty(union codetag_ref *ref)
+{
+	return ref->ct == CODETAG_EMPTY;
+}
+
+static inline void set_codetag_empty(union codetag_ref *ref)
+{
+	if (ref)
+		ref->ct = CODETAG_EMPTY;
+}
+
+#else /* CONFIG_MEM_ALLOC_PROFILING_DEBUG */
+
+static inline bool is_codetag_empty(union codetag_ref *ref) { return false; }
+
+#endif /* CONFIG_MEM_ALLOC_PROFILING_DEBUG */
+
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 
 struct codetag_bytes {
@@ -150,6 +171,11 @@ static inline void alloc_tag_sub(union codetag_ref *ref, size_t bytes)
 	alloc_tag_sub_check(ref);
 	if (!ref || !ref->ct)
 		return;
+
+	if (is_codetag_empty(ref)) {
+		ref->ct = NULL;
+		return;
+	}
 
 	tag = ct_to_alloc_tag(ref->ct);
 
