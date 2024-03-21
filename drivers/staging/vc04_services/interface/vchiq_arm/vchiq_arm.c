@@ -690,7 +690,6 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance) {
-		dev_err(state->dev, "core: %s: Cannot allocate vchiq instance\n", __func__);
 		ret = -ENOMEM;
 		goto failed;
 	}
@@ -956,10 +955,8 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 		}
 	} else {
 		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
-		if (!waiter) {
-			dev_err(service->state->dev, "core: %s: - Out of memory\n", __func__);
+		if (!waiter)
 			return -ENOMEM;
-		}
 	}
 
 	status = vchiq_bulk_transfer(instance, handle, data, NULL, size,
