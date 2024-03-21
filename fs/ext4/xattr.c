@@ -2158,6 +2158,17 @@ getblk_failed:
 						      ENTRY(header(s->base)+1));
 			if (error)
 				goto getblk_failed;
+			if (ea_inode) {
+				/* Drop the extra ref on ea_inode. */
+				error = ext4_xattr_inode_dec_ref(handle,
+								 ea_inode);
+				if (error)
+					ext4_warning_inode(ea_inode,
+							   "dec ref error=%d",
+							   error);
+				iput(ea_inode);
+				ea_inode = NULL;
+			}
 
 			lock_buffer(new_bh);
 			error = ext4_journal_get_create_access(handle, sb,
