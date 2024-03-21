@@ -782,41 +782,29 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	status = "okay";
 };
 
-&i2c0 {
+&ltpi0_i2c0 {
 	/* SMB_PMBUS1_SCM */
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
 	status = "okay";
 };
 
-&i2c1 {
+&ltpi0_i2c1 {
 	/* SMB_PMBUS2_SCM */
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
 	status = "okay";
 };
 
-&i2c2 {
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
+&ltpi0_i2c2 {
 	status = "okay";
 };
 
-&i2c3 {
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
+&ltpi0_i2c3 {
 	status = "okay";
 };
 
-&i2c4 {
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
+&ltpi0_i2c4 {
 	status = "okay";
 };
 
-&i2c5 {
-	/delete-property/ pinctrl-names;
-	/delete-property/ pinctrl-0;
+&ltpi0_i2c5 {
 	status = "okay";
 };
 
