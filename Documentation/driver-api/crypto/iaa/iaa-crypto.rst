@@ -179,7 +179,9 @@ has the old 'iax' device naming in place) ::
 
   # configure wq1.0
 
-  accel-config config-wq --group-id=0 --mode=dedicated --type=kernel --name="iaa_crypto" --device_name="crypto" iax1/wq1.0
+  accel-config config-wq --group-id=0 --mode=dedicated --type=kernel --priority=10 --name="iaa_crypto" --driver-name="crypto" iax1/wq1.0
+
+  accel-config config-engine iax1/engine1.0 --group-id=0
 
   # enable IAA device iax1
 
@@ -548,12 +550,20 @@ The below script automatically does that::
 
   echo "End Disable IAA"
 
+  echo "Reload iaa_crypto module"
+
+  rmmod iaa_crypto
+  modprobe iaa_crypto
+
+  echo "End Reload iaa_crypto module"
+
   #
   # configure iaa wqs and devices
   #
   echo "Configure IAA"
   for ((i = 1; i < ${num_iaa} * 2; i += 2)); do
-      accel-config config-wq --group-id=0 --mode=dedicated --size=128 --priority=10 --type=kernel --name="iaa_crypto" --driver_name="crypto" iax${i}/wq${i}
+      accel-config config-wq --group-id=0 --mode=dedicated --wq-size=128 --priority=10 --type=kernel --name="iaa_crypto" --driver-name="crypto" iax${i}/wq${i}.0
+      accel-config config-engine iax${i}/engine${i}.0 --group-id=0
   done
 
   echo "End Configure IAA"
@@ -564,10 +574,10 @@ The below script automatically does that::
   echo "Enable IAA"
 
   for ((i = 1; i < ${num_iaa} * 2; i += 2)); do
-      echo enable iaa iaa${i}
-      accel-config enable-device iaa${i}
-      echo enable wq iaa${i}/wq${i}.0
-      accel-config enable-wq iaa${i}/wq${i}.0
+      echo enable iaa iax${i}
+      accel-config enable-device iax${i}
+      echo enable wq iax${i}/wq${i}.0
+      accel-config enable-wq iax${i}/wq${i}.0
   done
 
   echo "End Enable IAA"
