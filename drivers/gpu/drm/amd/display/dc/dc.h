@@ -437,6 +437,7 @@ struct dc_config {
 	bool usb4_bw_alloc_support;
 	bool allow_0_dtb_clk;
 	bool use_assr_psp_message;
+	bool support_edp0_on_dp1;
 };
 
 enum visual_confirm {
