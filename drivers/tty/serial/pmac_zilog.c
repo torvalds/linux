@@ -1714,18 +1714,13 @@ static int __init pmz_attach(struct platform_device *pdev)
 	return uart_add_one_port(&pmz_uart_reg, &uap->port);
 }
 
-static int __exit pmz_detach(struct platform_device *pdev)
+static void __exit pmz_detach(struct platform_device *pdev)
 {
 	struct uart_pmac_port *uap = platform_get_drvdata(pdev);
-
-	if (!uap)
-		return -ENODEV;
 
 	uart_remove_one_port(&pmz_uart_reg, &uap->port);
 
 	uap->port.dev = NULL;
-
-	return 0;
 }
 
 #endif /* !CONFIG_PPC_PMAC */
@@ -1794,7 +1789,7 @@ static struct macio_driver pmz_driver = {
 #else
 
 static struct platform_driver pmz_driver = {
-	.remove		= __exit_p(pmz_detach),
+	.remove_new	= __exit_p(pmz_detach),
 	.driver		= {
 		.name		= "scc",
 	},
