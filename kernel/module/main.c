@@ -56,6 +56,7 @@
 #include <linux/dynamic_debug.h>
 #include <linux/audit.h>
 #include <linux/cfi.h>
+#include <linux/codetag.h>
 #include <linux/debugfs.h>
 #include <uapi/linux/module.h>
 #include "internal.h"
@@ -1242,6 +1243,7 @@ static void free_module(struct module *mod)
 {
 	trace_module_free(mod);
 
+	codetag_unload_module(mod);
 	mod_sysfs_teardown(mod);
 
 	/*
@@ -2994,6 +2996,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	/* Get rid of temporary copy. */
 	free_copy(info, flags);
+
+	codetag_load_module(mod);
 
 	/* Done! */
 	trace_module_load(mod);
