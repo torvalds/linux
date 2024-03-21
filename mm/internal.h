@@ -513,7 +513,8 @@ static inline struct folio *page_rmappable_folio(struct page *page)
 {
 	struct folio *folio = (struct folio *)page;
 
-	folio_prep_large_rmappable(folio);
+	if (folio && folio_test_large(folio))
+		folio_set_large_rmappable(folio);
 	return folio;
 }
 

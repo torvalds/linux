@@ -868,9 +868,9 @@ static inline void ClearPageCompound(struct page *page)
 	BUG_ON(!PageHead(page));
 	ClearPageHead(page);
 }
-PAGEFLAG(LargeRmappable, large_rmappable, PF_SECOND)
+FOLIO_FLAG(large_rmappable, FOLIO_SECOND_PAGE)
 #else
-TESTPAGEFLAG_FALSE(LargeRmappable, large_rmappable)
+FOLIO_FLAG_FALSE(large_rmappable)
 #endif
 
 #define PG_head_mask ((1UL << PG_head))

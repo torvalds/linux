@@ -789,13 +789,6 @@ struct deferred_split *get_deferred_split_queue(struct folio *folio)
 }
 #endif
 
-void folio_prep_large_rmappable(struct folio *folio)
-{
-	if (!folio || !folio_test_large(folio))
-		return;
-	folio_set_large_rmappable(folio);
-}
-
 static inline bool is_transparent_hugepage(struct folio *folio)
 {
 	if (!folio_test_large(folio))
@@ -2862,7 +2855,7 @@ static void __split_huge_page_tail(struct folio *folio, int tail,
 	clear_compound_head(page_tail);
 	if (new_order) {
 		prep_compound_page(page_tail, new_order);
-		folio_prep_large_rmappable(new_folio);
+		folio_set_large_rmappable(new_folio);
 	}
 
 	/* Finally unfreeze refcount. Additional reference from page cache. */
