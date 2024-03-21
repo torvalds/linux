@@ -1317,7 +1317,7 @@ vchiq_keepalive_thread_func(void *v)
 		long rc = 0, uc = 0;
 
 		if (wait_for_completion_interruptible(&arm_state->ka_evt)) {
-			dev_err(state->dev, "suspend: %s: interrupted\n", __func__);
+			dev_dbg(state->dev, "suspend: %s: interrupted\n", __func__);
 			flush_signals(current);
 			continue;
 		}
@@ -1753,7 +1753,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	 */
 	err = vchiq_register_chrdev(&pdev->dev);
 	if (err) {
-		dev_warn(&pdev->dev, "arm: Failed to initialize vchiq cdev\n");
+		dev_err(&pdev->dev, "arm: Failed to initialize vchiq cdev\n");
 		goto error_exit;
 	}
 
@@ -1763,7 +1763,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	return 0;
 
 failed_platform_init:
-	dev_warn(&pdev->dev, "arm: Could not initialize vchiq platform\n");
+	dev_err(&pdev->dev, "arm: Could not initialize vchiq platform\n");
 error_exit:
 	return err;
 }
