@@ -471,12 +471,6 @@ extern void
 vchiq_dump_state(struct seq_file *f, struct vchiq_state *state);
 
 extern void
-vchiq_loud_error_header(void);
-
-extern void
-vchiq_loud_error_footer(void);
-
-extern void
 request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	     int poll_type);
 
