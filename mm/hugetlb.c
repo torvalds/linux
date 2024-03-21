@@ -1619,19 +1619,11 @@ static inline void destroy_compound_gigantic_folio(struct folio *folio,
 						unsigned int order) { }
 #endif
 
-static inline void __clear_hugetlb_destructor(struct hstate *h,
-						struct folio *folio)
-{
-	lockdep_assert_held(&hugetlb_lock);
-
-	__folio_clear_hugetlb(folio);
-}
-
 /*
  * Remove hugetlb folio from lists.
- * If vmemmap exists for the folio, update dtor so that the folio appears
- * as just a compound page.  Otherwise, wait until after allocating vmemmap
- * to update dtor.
+ * If vmemmap exists for the folio, clear the hugetlb flag so that the
+ * folio appears as just a compound page.  Otherwise, wait until after
+ * allocating vmemmap to clear the flag.
  *
  * A reference is held on the folio, except in the case of demote.
  *
@@ -1662,12 +1654,12 @@ static void __remove_hugetlb_folio(struct hstate *h, struct folio *folio,
 	}
 
 	/*
-	 * We can only clear the hugetlb destructor after allocating vmemmap
+	 * We can only clear the hugetlb flag after allocating vmemmap
 	 * pages.  Otherwise, someone (memory error handling) may try to write
 	 * to tail struct pages.
 	 */
 	if (!folio_test_hugetlb_vmemmap_optimized(folio))
-		__clear_hugetlb_destructor(h, folio);
+		__folio_clear_hugetlb(folio);
 
 	 /*
 	  * In the case of demote we do not ref count the page as it will soon
@@ -1741,7 +1733,7 @@ static void add_hugetlb_folio(struct hstate *h, struct folio *folio,
 static void __update_and_free_hugetlb_folio(struct hstate *h,
 						struct folio *folio)
 {
-	bool clear_dtor = folio_test_hugetlb_vmemmap_optimized(folio);
+	bool clear_flag = folio_test_hugetlb_vmemmap_optimized(folio);
 
 	if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported())
 		return;
@@ -1754,11 +1746,11 @@ static void __update_and_free_hugetlb_folio(struct hstate *h,
 		return;
 
 	/*
-	 * If folio is not vmemmap optimized (!clear_dtor), then the folio
+	 * If folio is not vmemmap optimized (!clear_flag), then the folio
 	 * is no longer identified as a hugetlb page.  hugetlb_vmemmap_restore_folio
 	 * can only be passed hugetlb pages and will BUG otherwise.
 	 */
-	if (clear_dtor && hugetlb_vmemmap_restore_folio(h, folio)) {
+	if (clear_flag && hugetlb_vmemmap_restore_folio(h, folio)) {
 		spin_lock_irq(&hugetlb_lock);
 		/*
 		 * If we cannot allocate vmemmap pages, just refuse to free the
@@ -1779,11 +1771,11 @@ static void __update_and_free_hugetlb_folio(struct hstate *h,
 
 	/*
 	 * If vmemmap pages were allocated above, then we need to clear the
-	 * hugetlb destructor under the hugetlb lock.
+	 * hugetlb flag under the hugetlb lock.
 	 */
 	if (folio_test_hugetlb(folio)) {
 		spin_lock_irq(&hugetlb_lock);
-		__clear_hugetlb_destructor(h, folio);
+		__folio_clear_hugetlb(folio);
 		spin_unlock_irq(&hugetlb_lock);
 	}
 
@@ -1885,7 +1877,7 @@ static void bulk_vmemmap_restore_error(struct hstate *h,
 		list_for_each_entry_safe(folio, t_folio, non_hvo_folios, lru) {
 			list_del(&folio->lru);
 			spin_lock_irq(&hugetlb_lock);
-			__clear_hugetlb_destructor(h, folio);
+			__folio_clear_hugetlb(folio);
 			spin_unlock_irq(&hugetlb_lock);
 			update_and_free_hugetlb_folio(h, folio, false);
 			cond_resched();
@@ -1910,7 +1902,7 @@ static void bulk_vmemmap_restore_error(struct hstate *h,
 			} else {
 				list_del(&folio->lru);
 				spin_lock_irq(&hugetlb_lock);
-				__clear_hugetlb_destructor(h, folio);
+				__folio_clear_hugetlb(folio);
 				spin_unlock_irq(&hugetlb_lock);
 				update_and_free_hugetlb_folio(h, folio, false);
 				cond_resched();
@@ -1943,14 +1935,14 @@ retry:
 	 * should only be pages on the non_hvo_folios list.
 	 * Do note that the non_hvo_folios list could be empty.
 	 * Without HVO enabled, ret will be 0 and there is no need to call
-	 * __clear_hugetlb_destructor as this was done previously.
+	 * __folio_clear_hugetlb as this was done previously.
 	 */
 	VM_WARN_ON(!list_empty(folio_list));
 	VM_WARN_ON(ret < 0);
 	if (!list_empty(&non_hvo_folios) && ret) {
 		spin_lock_irq(&hugetlb_lock);
 		list_for_each_entry(folio, &non_hvo_folios, lru)
-			__clear_hugetlb_destructor(h, folio);
+			__folio_clear_hugetlb(folio);
 		spin_unlock_irq(&hugetlb_lock);
 	}
 
@@ -1975,7 +1967,7 @@ void free_huge_folio(struct folio *folio)
 {
 	/*
 	 * Can't pass hstate in here because it is called from the
-	 * compound page destructor.
+	 * generic mm code.
 	 */
 	struct hstate *h = folio_hstate(folio);
 	int nid = folio_nid(folio);
@@ -2125,7 +2117,7 @@ static bool __prep_compound_gigantic_folio(struct folio *folio,
 			set_compound_head(p, &folio->page);
 	}
 	__folio_set_head(folio);
-	/* we rely on prep_new_hugetlb_folio to set the destructor */
+	/* we rely on prep_new_hugetlb_folio to set the hugetlb flag */
 	folio_set_order(folio, order);
 	atomic_set(&folio->_entire_mapcount, -1);
 	atomic_set(&folio->_nr_pages_mapped, 0);
