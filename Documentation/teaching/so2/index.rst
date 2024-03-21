@@ -2,6 +2,11 @@
 Operating Systems 2
 ===================
 
+.. toctree::
+   :caption: Good To Know
+   :maxdepth: 1
+
+   grading.rst
 
 .. toctree::
    :caption: Lectures
