@@ -10,6 +10,7 @@
 #include <linux/page_idle.h>
 #include <linux/page_table_check.h>
 #include <linux/rcupdate.h>
+#include <linux/pgalloc_tag.h>
 
 /*
  * struct page extension
@@ -81,6 +82,9 @@ static struct page_ext_operations *page_ext_ops[] __initdata = {
 #endif
 #if defined(CONFIG_PAGE_IDLE_FLAG) && !defined(CONFIG_64BIT)
 	&page_idle_ops,
+#endif
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+	&page_alloc_tagging_ops,
 #endif
 #ifdef CONFIG_PAGE_TABLE_CHECK
 	&page_table_check_ops,
