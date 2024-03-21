@@ -1054,8 +1054,6 @@ r535_gsp_postinit(struct nvkm_gsp *gsp)
 	/* Release the DMA buffers that were needed only for boot and init */
 	nvkm_gsp_mem_dtor(gsp, &gsp->boot.fw);
 	nvkm_gsp_mem_dtor(gsp, &gsp->libos);
-	nvkm_gsp_mem_dtor(gsp, &gsp->rmargs);
-	nvkm_gsp_mem_dtor(gsp, &gsp->wpr_meta);
 
 	return ret;
 }
@@ -2163,6 +2161,8 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 
 	r535_gsp_dtor_fws(gsp);
 
+	nvkm_gsp_mem_dtor(gsp, &gsp->rmargs);
+	nvkm_gsp_mem_dtor(gsp, &gsp->wpr_meta);
 	nvkm_gsp_mem_dtor(gsp, &gsp->shm.mem);
 	nvkm_gsp_mem_dtor(gsp, &gsp->loginit);
 	nvkm_gsp_mem_dtor(gsp, &gsp->logintr);
@@ -2312,8 +2312,12 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	int ret;
+	bool enable_gsp = fwif->enable;
 
-	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", fwif->enable))
+#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
+	enable_gsp = true;
+#endif
+	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))
 		return -EINVAL;
 
 	if ((ret = r535_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm)) ||

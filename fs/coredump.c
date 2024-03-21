@@ -872,6 +872,9 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 	loff_t pos;
 	ssize_t n;
 
+	if (!page)
+		return 0;
+
 	if (cprm->to_skip) {
 		if (!__dump_skip(cprm, cprm->to_skip))
 			return 0;
@@ -884,7 +887,6 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 	pos = file->f_pos;
 	bvec_set_page(&bvec, page, PAGE_SIZE, 0);
 	iov_iter_bvec(&iter, ITER_SOURCE, &bvec, 1, PAGE_SIZE);
-	iov_iter_set_copy_mc(&iter);
 	n = __kernel_write_iter(cprm->file, &iter, &pos);
 	if (n != PAGE_SIZE)
 		return 0;
@@ -895,10 +897,44 @@ static int dump_emit_page(struct coredump_params *cprm, struct page *page)
 	return 1;
 }
 
+/*
+ * If we might get machine checks from kernel accesses during the
+ * core dump, let's get those errors early rather than during the
+ * IO. This is not performance-critical enough to warrant having
+ * all the machine check logic in the iovec paths.
+ */
+#ifdef copy_mc_to_kernel
+
+#define dump_page_alloc() alloc_page(GFP_KERNEL)
+#define dump_page_free(x) __free_page(x)
+static struct page *dump_page_copy(struct page *src, struct page *dst)
+{
+	void *buf = kmap_local_page(src);
+	size_t left = copy_mc_to_kernel(page_address(dst), buf, PAGE_SIZE);
+	kunmap_local(buf);
+	return left ? NULL : dst;
+}
+
+#else
+
+/* We just want to return non-NULL; it's never used. */
+#define dump_page_alloc() ERR_PTR(-EINVAL)
+#define dump_page_free(x) ((void)(x))
+static inline struct page *dump_page_copy(struct page *src, struct page *dst)
+{
+	return src;
+}
+#endif
+
 int dump_user_range(struct coredump_params *cprm, unsigned long start,
 		    unsigned long len)
 {
 	unsigned long addr;
+	struct page *dump_page;
+
+	dump_page = dump_page_alloc();
+	if (!dump_page)
+		return 0;
 
 	for (addr = start; addr < start + len; addr += PAGE_SIZE) {
 		struct page *page;
@@ -912,14 +948,17 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 		 */
 		page = get_dump_page(addr);
 		if (page) {
-			int stop = !dump_emit_page(cprm, page);
+			int stop = !dump_emit_page(cprm, dump_page_copy(page, dump_page));
 			put_page(page);
-			if (stop)
+			if (stop) {
+				dump_page_free(dump_page);
 				return 0;
+			}
 		} else {
 			dump_skip(cprm, PAGE_SIZE);
 		}
 	}
+	dump_page_free(dump_page);
 	return 1;
 }
 #endif

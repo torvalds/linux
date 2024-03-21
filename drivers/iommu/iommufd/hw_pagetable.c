@@ -263,7 +263,8 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 
 	if (cmd->__reserved)
 		return -EOPNOTSUPP;
-	if (cmd->data_type == IOMMU_HWPT_DATA_NONE && cmd->data_len)
+	if ((cmd->data_type == IOMMU_HWPT_DATA_NONE && cmd->data_len) ||
+	    (cmd->data_type != IOMMU_HWPT_DATA_NONE && !cmd->data_len))
 		return -EINVAL;
 
 	idev = iommufd_get_device(ucmd, cmd->dev_id);
