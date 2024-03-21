@@ -349,8 +349,8 @@ reload:
 			 */
 			remain = more ? INT_MAX : msg_data_left(msg);
 			txb = call->conn->security->alloc_txbuf(call, remain, sk->sk_allocation);
-			if (IS_ERR(txb)) {
-				ret = PTR_ERR(txb);
+			if (!txb) {
+				ret = -ENOMEM;
 				goto maybe_error;
 			}
 		}
