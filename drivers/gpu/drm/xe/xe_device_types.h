@@ -498,10 +498,7 @@ struct xe_device {
 	struct mutex sb_lock;
 
 	/* Should be in struct intel_display */
-	u32 skl_preferred_vco_freq, max_dotclk_freq, hti_state;
-	u8 snps_phy_failed_calibration;
-	struct drm_atomic_state *modeset_restore_state;
-	struct list_head global_obj_list;
+	u32 skl_preferred_vco_freq, max_dotclk_freq;
 
 	union {
 		/* only to allow build, not used functionally */
