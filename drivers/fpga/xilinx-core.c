@@ -171,6 +171,20 @@ static int xilinx_core_write_complete(struct fpga_manager *mgr,
 	return -ETIMEDOUT;
 }
 
+static inline struct gpio_desc *
+xilinx_core_devm_gpiod_get(struct device *dev, const char *con_id,
+			   const char *legacy_con_id, enum gpiod_flags flags)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get(dev, con_id, flags);
+	if (IS_ERR(desc) && PTR_ERR(desc) == -ENOENT &&
+	    of_device_is_compatible(dev->of_node, "xlnx,fpga-slave-serial"))
+		desc = devm_gpiod_get(dev, legacy_con_id, flags);
+
+	return desc;
+}
+
 static const struct fpga_manager_ops xilinx_core_ops = {
 	.state = xilinx_core_state,
 	.write_init = xilinx_core_write_init,
@@ -186,12 +200,14 @@ int xilinx_core_probe(struct xilinx_fpga_core *core)
 		return -EINVAL;
 
 	/* PROGRAM_B is active low */
-	core->prog_b = devm_gpiod_get(core->dev, "prog_b", GPIOD_OUT_LOW);
+	core->prog_b = xilinx_core_devm_gpiod_get(core->dev, "prog", "prog_b",
+						  GPIOD_OUT_LOW);
 	if (IS_ERR(core->prog_b))
 		return dev_err_probe(core->dev, PTR_ERR(core->prog_b),
 				     "Failed to get PROGRAM_B gpio\n");
 
-	core->init_b = devm_gpiod_get_optional(core->dev, "init-b", GPIOD_IN);
+	core->init_b = xilinx_core_devm_gpiod_get(core->dev, "init", "init-b",
+						  GPIOD_IN);
 	if (IS_ERR(core->init_b))
 		return dev_err_probe(core->dev, PTR_ERR(core->init_b),
 				     "Failed to get INIT_B gpio\n");
