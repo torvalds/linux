@@ -967,14 +967,21 @@ static int rproc_panic_handler(struct notifier_block *this,
 	struct qcom_adsp *adsp = container_of(this, struct qcom_adsp, panic_blk);
 	int ret;
 
+	if (!adsp)
+		return NOTIFY_DONE;
 	/* wake up SOCCP during panic to run error handlers on SOCCP */
 	dev_info(adsp->dev, "waking SOCCP from panic path\n");
-	ret = rproc_set_state(adsp->rproc, true);
+	ret = qcom_smem_state_update_bits(adsp->wake_state,
+				    SOCCP_STATE_MASK,
+				    BIT(adsp->wake_bit));
+	if (ret) {
+		dev_err(adsp->dev, "failed to update smem bits for D3 to D0\n");
+		goto done;
+	}
+	ret = rproc_config_check(adsp, SOCCP_D0);
 	if (ret)
-		dev_err(adsp->dev, "state did not changed during panic\n");
-	else
-		dev_info(adsp->dev, "subsystem woke-up done from panic path\n");
-
+		dev_err(adsp->dev, "failed to change to D0\n");
+done:
 	return NOTIFY_DONE;
 }
 
@@ -1004,15 +1011,6 @@ static int adsp_stop(struct rproc *rproc)
 	int ret;
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "enter");
-
-	if (adsp->check_status) {
-		dev_info(adsp->dev, "wakeup: waking subsystem from shutdown path\n");
-		ret = rproc_set_state(rproc, true);
-		if (ret) {
-			dev_err(adsp->dev, "wakeup: state did not changed during shutdown\n");
-			return ret;
-		}
-	}
 
 	ret = qcom_q6v5_request_stop(&adsp->q6v5, adsp->sysmon);
 	if (ret == -ETIMEDOUT)
@@ -1049,13 +1047,6 @@ static int adsp_stop(struct rproc *rproc)
 		ret = mpss_dsm_hyp_assign_control(adsp, false);
 		if (ret)
 			dev_err(adsp->dev, "failed to reclaim mpss dsm mem\n");
-	}
-
-	if (adsp->check_status) {
-		dev_info(adsp->dev, "sleep: subsystem sleep from shutdown path\n");
-		ret = rproc_set_state(rproc, false);
-		if (ret)
-			dev_err(adsp->dev, "sleep: state did not changed during shutdown\n");
 	}
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "exit");
