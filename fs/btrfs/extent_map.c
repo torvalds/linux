@@ -331,8 +331,10 @@ out:
 
 }
 
-void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
+void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
+
 	lockdep_assert_held_write(&tree->lock);
 
 	em->flags &= ~EXTENT_FLAG_LOGGING;
