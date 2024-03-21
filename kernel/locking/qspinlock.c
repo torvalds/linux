@@ -220,21 +220,18 @@ static __always_inline void clear_pending_set_locked(struct qspinlock *lock)
  */
 static __always_inline u32 xchg_tail(struct qspinlock *lock, u32 tail)
 {
-	u32 old, new, val = atomic_read(&lock->val);
+	u32 old, new;
 
-	for (;;) {
-		new = (val & _Q_LOCKED_PENDING_MASK) | tail;
+	old = atomic_read(&lock->val);
+	do {
+		new = (old & _Q_LOCKED_PENDING_MASK) | tail;
 		/*
 		 * We can use relaxed semantics since the caller ensures that
 		 * the MCS node is properly initialized before updating the
 		 * tail.
 		 */
-		old = atomic_cmpxchg_relaxed(&lock->val, val, new);
-		if (old == val)
-			break;
+	} while (!atomic_try_cmpxchg_relaxed(&lock->val, &old, new));
 
-		val = old;
-	}
 	return old;
 }
 #endif /* _Q_PENDING_BITS == 8 */
