@@ -1682,6 +1682,8 @@ ack_intr:
 
 static void intel_pstate_disable_hwp_interrupt(struct cpudata *cpudata)
 {
+	bool cancel_work;
+
 	if (!boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
 		return;
 
@@ -1689,9 +1691,11 @@ static void intel_pstate_disable_hwp_interrupt(struct cpudata *cpudata)
 	wrmsrl_on_cpu(cpudata->cpu, MSR_HWP_INTERRUPT, 0x00);
 
 	spin_lock_irq(&hwp_notify_lock);
-	if (cpumask_test_and_clear_cpu(cpudata->cpu, &hwp_intr_enable_mask))
-		cancel_delayed_work(&cpudata->hwp_notify_work);
+	cancel_work = cpumask_test_and_clear_cpu(cpudata->cpu, &hwp_intr_enable_mask);
 	spin_unlock_irq(&hwp_notify_lock);
+
+	if (cancel_work)
+		cancel_delayed_work_sync(&cpudata->hwp_notify_work);
 }
 
 static void intel_pstate_enable_hwp_interrupt(struct cpudata *cpudata)
