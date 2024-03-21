@@ -109,7 +109,6 @@ enum pageflags {
 	PG_active,
 	PG_workingset,
 	PG_error,
-	PG_slab,
 	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
 	PG_arch_1,
 	PG_reserved,
@@ -524,7 +523,6 @@ PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
 	TESTCLEARFLAG(Active, active, PF_HEAD)
 PAGEFLAG(Workingset, workingset, PF_HEAD)
 	TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
-__PAGEFLAG(Slab, slab, PF_NO_TAIL)
 PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
 
 /* Xen */
@@ -931,7 +929,7 @@ PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
 #endif
 
 /*
- * For pages that are never mapped to userspace (and aren't PageSlab),
+ * For pages that are never mapped to userspace,
  * page_type may be used.  Because it is initialised to -1, we invert the
  * sense of the bit, so __SetPageFoo *clears* the bit used for PageFoo, and
  * __ClearPageFoo *sets* the bit used for PageFoo.  We reserve a few high and
@@ -947,6 +945,7 @@ PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
 #define PG_table	0x00000200
 #define PG_guard	0x00000400
 #define PG_hugetlb	0x00000800
+#define PG_slab		0x00001000
 
 #define PageType(page, flag)						\
 	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
@@ -1041,6 +1040,20 @@ PAGE_TYPE_OPS(Table, table, pgtable)
  */
 PAGE_TYPE_OPS(Guard, guard, guard)
 
+FOLIO_TYPE_OPS(slab, slab)
+
+/**
+ * PageSlab - Determine if the page belongs to the slab allocator
+ * @page: The page to test.
+ *
+ * Context: Any context.
+ * Return: True for slab pages, false for any other kind of page.
+ */
+static inline bool PageSlab(const struct page *page)
+{
+	return folio_test_slab(page_folio(page));
+}
+
 #ifdef CONFIG_HUGETLB_PAGE
 FOLIO_TYPE_OPS(hugetlb, hugetlb)
 #else
@@ -1121,7 +1134,7 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
 	(1UL << PG_lru		| 1UL << PG_locked	|	\
 	 1UL << PG_private	| 1UL << PG_private_2	|	\
 	 1UL << PG_writeback	| 1UL << PG_reserved	|	\
-	 1UL << PG_slab		| 1UL << PG_active 	|	\
+	 1UL << PG_active 	|				\
 	 1UL << PG_unevictable	| __PG_MLOCKED | LRU_GEN_MASK)
 
 /*
