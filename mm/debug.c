@@ -55,18 +55,14 @@ static void __dump_folio(struct folio *folio, struct page *page,
 		unsigned long pfn, unsigned long idx)
 {
 	struct address_space *mapping = folio_mapping(folio);
-	int mapcount = 0;
+	int mapcount = atomic_read(&page->_mapcount) + 1;
 	char *type = "";
 
-	/*
-	 * page->_mapcount space in struct page is used by slab pages to
-	 * encode own info, and we must avoid calling page_folio() again.
-	 */
-	if (!folio_test_slab(folio)) {
-		mapcount = atomic_read(&page->_mapcount) + 1;
-		if (folio_test_large(folio))
-			mapcount += folio_entire_mapcount(folio);
-	}
+	/* Open-code page_mapcount() to avoid looking up a stale folio */
+	if (mapcount < 0)
+		mapcount = 0;
+	if (folio_test_large(folio))
+		mapcount += folio_entire_mapcount(folio);
 
 	pr_warn("page: refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
 			folio_ref_count(folio), mapcount, mapping,
@@ -99,7 +95,8 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	 */
 	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
 		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
-	pr_warn("page_type: %pGt\n", &folio->page.page_type);
+	if (page_has_type(&folio->page))
+		pr_warn("page_type: %pGt\n", &folio->page.page_type);
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
