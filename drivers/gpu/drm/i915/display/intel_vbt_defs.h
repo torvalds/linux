@@ -881,11 +881,12 @@ struct bdb_lvds_lfp_data_tail {
 struct lfp_backlight_data_entry {
 	u8 type:2;
 	u8 active_low_pwm:1;
-	u8 obsolete1:5;
+	u8 i2c_pin:3;						/* obsolete since ? */
+	u8 i2c_speed:2;						/* obsolete since ? */
 	u16 pwm_freq_hz;
 	u8 min_brightness;					/* ???-233 */
-	u8 obsolete2;
-	u8 obsolete3;
+	u8 i2c_address;						/* obsolete since ? */
+	u8 i2c_command;						/* obsolete since ? */
 } __packed;
 
 struct lfp_backlight_control_method {
