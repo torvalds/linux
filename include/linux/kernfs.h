@@ -206,13 +206,14 @@ struct kernfs_node {
 
 	const void		*ns;	/* namespace tag */
 	unsigned int		hash;	/* ns + name hash */
+	unsigned short		flags;
+	umode_t			mode;
+
 	union {
 		struct kernfs_elem_dir		dir;
 		struct kernfs_elem_symlink	symlink;
 		struct kernfs_elem_attr		attr;
 	};
-
-	void			*priv;
 
 	/*
 	 * 64bit unique ID.  On 64bit ino setups, id is the ino.  On 32bit,
@@ -220,9 +221,10 @@ struct kernfs_node {
 	 */
 	u64			id;
 
-	unsigned short		flags;
-	umode_t			mode;
+	void			*priv;
 	struct kernfs_iattrs	*iattr;
+
+	struct rcu_head		rcu;
 };
 
 /*
