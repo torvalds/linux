@@ -2457,7 +2457,7 @@ remove_em:
 			 * hurts the fsync performance for workloads with a data
 			 * size that exceeds or is close to the system's memory).
 			 */
-			remove_extent_mapping(map, em);
+			remove_extent_mapping(btrfs_inode, em);
 			/* once for the rb tree */
 			free_extent_map(em);
 next:

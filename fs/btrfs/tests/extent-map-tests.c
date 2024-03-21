@@ -11,8 +11,9 @@
 #include "../disk-io.h"
 #include "../block-group.h"
 
-static int free_extent_map_tree(struct extent_map_tree *em_tree)
+static int free_extent_map_tree(struct btrfs_inode *inode)
 {
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	struct rb_node *node;
 	int ret = 0;
@@ -21,7 +22,7 @@ static int free_extent_map_tree(struct extent_map_tree *em_tree)
 	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
 		node = rb_first_cached(&em_tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
-		remove_extent_mapping(em_tree, em);
+		remove_extent_mapping(inode, em);
 
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
@@ -142,7 +143,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	}
 	free_extent_map(em);
 out:
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -237,7 +238,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	}
 	free_extent_map(em);
 out:
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -313,7 +314,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	}
 	free_extent_map(em);
 out:
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -435,7 +436,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	}
 	free_extent_map(em);
 out:
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -679,7 +680,7 @@ static int test_case_5(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	if (ret)
 		goto out;
 out:
-	ret2 = free_extent_map_tree(&inode->extent_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -738,7 +739,7 @@ static int test_case_6(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	ret = 0;
 out:
 	free_extent_map(em);
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 
@@ -876,7 +877,7 @@ out:
 	ret2 = unpin_extent_cache(inode, 0, SZ_16K, 0);
 	if (ret == 0)
 		ret = ret2;
-	ret2 = free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(inode);
 	if (ret == 0)
 		ret = ret2;
 

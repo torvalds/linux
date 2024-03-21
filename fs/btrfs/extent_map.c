@@ -449,16 +449,18 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 }
 
 /*
- * Remove an extent_map from the extent tree.
+ * Remove an extent_map from its inode's extent tree.
  *
- * @tree:	extent tree to remove from
+ * @inode:	the inode the extent map belongs to
  * @em:		extent map being removed
  *
- * Remove @em from @tree.  No reference counts are dropped, and no checks
- * are done to see if the range is in use.
+ * Remove @em from the extent tree of @inode.  No reference counts are dropped,
+ * and no checks are done to see if the range is in use.
  */
-void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
+void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
+
 	lockdep_assert_held_write(&tree->lock);
 
 	WARN_ON(em->flags & EXTENT_FLAG_PINNED);
@@ -633,8 +635,10 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
  * if needed. This avoids searching the tree, from the root down to the first
  * extent map, before each deletion.
  */
-static void drop_all_extent_maps_fast(struct extent_map_tree *tree)
+static void drop_all_extent_maps_fast(struct btrfs_inode *inode)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
+
 	write_lock(&tree->lock);
 	while (!RB_EMPTY_ROOT(&tree->map.rb_root)) {
 		struct extent_map *em;
@@ -643,7 +647,7 @@ static void drop_all_extent_maps_fast(struct extent_map_tree *tree)
 		node = rb_first_cached(&tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
 		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
-		remove_extent_mapping(tree, em);
+		remove_extent_mapping(inode, em);
 		free_extent_map(em);
 		cond_resched_rwlock_write(&tree->lock);
 	}
@@ -676,7 +680,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 	WARN_ON(end < start);
 	if (end == (u64)-1) {
 		if (start == 0 && !skip_pinned) {
-			drop_all_extent_maps_fast(em_tree);
+			drop_all_extent_maps_fast(inode);
 			return;
 		}
 		len = (u64)-1;
@@ -854,7 +858,7 @@ remove_em:
 				ASSERT(!split);
 				btrfs_set_inode_full_sync(inode);
 			}
-			remove_extent_mapping(em_tree, em);
+			remove_extent_mapping(inode, em);
 		}
 
 		/*
