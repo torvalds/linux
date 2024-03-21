@@ -2433,7 +2433,7 @@ source "kernel/livepatch/Kconfig"
 endmenu
 
 config CC_HAS_NAMED_AS
-	def_bool CC_IS_GCC && GCC_VERSION >= 120100
+	def_bool CC_IS_GCC && GCC_VERSION >= 90100
 
 config CC_HAS_NAMED_AS_FIXED_ASAN
 	def_bool CC_IS_GCC && GCC_VERSION >= 130300
