@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -55,6 +55,7 @@ struct qcom_cpufreq_soc_data {
 	u32 reg_current_vote;
 	u32 reg_perf_state;
 	u32 reg_cycle_cntr;
+	u32 lut_max_entries;
 	u8 lut_row_size;
 	bool accumulative_counter;
 	bool turbo_ind_support;
@@ -243,7 +244,7 @@ static unsigned int qcom_cpufreq_get_freq(unsigned int cpu)
 	soc_data = data->soc_data;
 
 	index = readl_relaxed(data->base + soc_data->reg_perf_state);
-	index = min(index, LUT_MAX_ENTRIES - 1);
+	index = min(index, soc_data->lut_max_entries - 1);
 
 	return policy->freq_table[index].frequency;
 }
@@ -295,7 +296,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 	struct qcom_cpufreq_data *drv_data = policy->driver_data;
 	const struct qcom_cpufreq_soc_data *soc_data = drv_data->soc_data;
 
-	table = kcalloc(LUT_MAX_ENTRIES + 1, sizeof(*table), GFP_KERNEL);
+	table = kcalloc(soc_data->lut_max_entries + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
@@ -320,7 +321,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 		icc_scaling_enabled = false;
 	}
 
-	for (i = 0; i < LUT_MAX_ENTRIES; i++) {
+	for (i = 0; i < soc_data->lut_max_entries; i++) {
 		data = readl_relaxed(drv_data->base + soc_data->reg_freq_lut +
 				      i * soc_data->lut_row_size);
 		src = FIELD_GET(LUT_SRC, data);
@@ -384,7 +385,7 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 	table[i].frequency = CPUFREQ_TABLE_END;
 	policy->freq_table = table;
 
-	for (i = 0; i < LUT_MAX_ENTRIES && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+	for (i = 0; i < soc_data->lut_max_entries && table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		if (table[i].flags == CPUFREQ_BOOST_FREQ)
 			break;
 
@@ -530,6 +531,7 @@ static const struct qcom_cpufreq_soc_data qcom_soc_data = {
 	.reg_perf_state = 0x920,
 	.reg_cycle_cntr = 0x9c0,
 	.lut_row_size = 32,
+	.lut_max_entries = LUT_MAX_ENTRIES,
 	.accumulative_counter = false,
 	.turbo_ind_support = true,
 };
@@ -544,6 +546,7 @@ static const struct qcom_cpufreq_soc_data epss_soc_data = {
 	.reg_perf_state = 0x320,
 	.reg_cycle_cntr = 0x3c4,
 	.lut_row_size = 4,
+	.lut_max_entries = LUT_MAX_ENTRIES,
 	.accumulative_counter = true,
 	.turbo_ind_support = false,
 	.perf_lock_support = false,
@@ -559,6 +562,39 @@ static const struct qcom_cpufreq_soc_data epss_pdmem_soc_data = {
 	.reg_perf_state = 0x320,
 	.reg_cycle_cntr = 0x3c4,
 	.lut_row_size = 4,
+	.lut_max_entries = LUT_MAX_ENTRIES,
+	.accumulative_counter = true,
+	.turbo_ind_support = false,
+	.perf_lock_support = true,
+};
+
+static const struct qcom_cpufreq_soc_data rimps_soc_data = {
+	.reg_enable = 0x0,
+	.reg_domain_state = 0x20,
+	.reg_dcvs_ctrl = 0xb0,
+	.reg_freq_lut = 0x100,
+	.reg_volt_lut = 0x200,
+	.reg_intr_clr = 0x308,
+	.reg_perf_state = 0x320,
+	.reg_cycle_cntr = 0x3c4,
+	.lut_row_size = 4,
+	.lut_max_entries = 12,
+	.accumulative_counter = true,
+	.turbo_ind_support = false,
+	.perf_lock_support = false,
+};
+
+static const struct qcom_cpufreq_soc_data rimps_pdmem_soc_data = {
+	.reg_enable = 0x0,
+	.reg_domain_state = 0x20,
+	.reg_dcvs_ctrl = 0xb0,
+	.reg_freq_lut = 0x100,
+	.reg_volt_lut = 0x200,
+	.reg_intr_clr = 0x308,
+	.reg_perf_state = 0x320,
+	.reg_cycle_cntr = 0x3c4,
+	.lut_row_size = 4,
+	.lut_max_entries = 12,
 	.accumulative_counter = true,
 	.turbo_ind_support = false,
 	.perf_lock_support = true,
@@ -568,6 +604,8 @@ static const struct of_device_id qcom_cpufreq_hw_match[] = {
 	{ .compatible = "qcom,cpufreq-hw", .data = &qcom_soc_data },
 	{ .compatible = "qcom,cpufreq-epss", .data = &epss_soc_data },
 	{ .compatible = "qcom,cpufreq-epss-pdmem", .data = &epss_pdmem_soc_data },
+	{ .compatible = "qcom,cpufreq-rimps", .data = &rimps_soc_data },
+	{ .compatible = "qcom,cpufreq-rimps-pdmem", .data = &rimps_pdmem_soc_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, qcom_cpufreq_hw_match);
