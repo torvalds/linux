@@ -13,7 +13,7 @@ stat_output=$(mktemp /tmp/__perf_test.stat_output.std.XXXXX)
 
 event_name=(cpu-clock task-clock context-switches cpu-migrations page-faults stalled-cycles-frontend stalled-cycles-backend cycles instructions branches branch-misses)
 event_metric=("CPUs utilized" "CPUs utilized" "/sec" "/sec" "/sec" "frontend cycles idle" "backend cycles idle" "GHz" "insn per cycle" "/sec" "of all branches")
-skip_metric=("stalled cycles per insn" "tma_")
+skip_metric=("stalled cycles per insn" "tma_" "retiring" "frontend_bound" "bad_speculation" "backend_bound")
 
 cleanup() {
   rm -f "${stat_output}"
@@ -40,6 +40,7 @@ function commachecker()
 	;; "--per-node")	prefix=3
 	;; "--per-die")		prefix=3
 	;; "--per-cache")	prefix=3
+	;; "--per-cluster")	prefix=3
 	esac
 
 	while read line
@@ -99,6 +100,7 @@ then
 	check_system_wide_no_aggr "STD" "$perf_cmd"
 	check_per_core "STD" "$perf_cmd"
 	check_per_cache_instance "STD" "$perf_cmd"
+	check_per_cluster "STD" "$perf_cmd"
 	check_per_die "STD" "$perf_cmd"
 	check_per_socket "STD" "$perf_cmd"
 else

@@ -85,6 +85,7 @@ EXPORT_SYMBOL(machine_id);
 
 int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
+int __initdata boot_core_hwid = -1;
 
 #ifdef CONFIG_PPC64
 int boot_cpu_hwid = -1;
@@ -109,7 +110,7 @@ int ppc_do_canonicalize_irqs;
 EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
 #endif
 
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_VMCORE_INFO
 /* This keeps a track of which one is the crashing cpu. */
 int crashing_cpu = -1;
 #endif
@@ -411,6 +412,25 @@ static void __init cpu_init_thread_core_maps(int tpc)
 
 u32 *cpu_to_phys_id = NULL;
 
+static int assign_threads(unsigned int cpu, unsigned int nthreads, bool present,
+			  const __be32 *hw_ids)
+{
+	for (int i = 0; i < nthreads && cpu < nr_cpu_ids; i++) {
+		__be32 hwid;
+
+		hwid = be32_to_cpu(hw_ids[i]);
+
+		DBG("    thread %d -> cpu %d (hard id %d)\n", i, cpu, hwid);
+
+		set_cpu_present(cpu, present);
+		set_cpu_possible(cpu, true);
+		cpu_to_phys_id[cpu] = hwid;
+		cpu++;
+	}
+
+	return cpu;
+}
+
 /**
  * setup_cpu_maps - initialize the following cpu maps:
  *                  cpu_possible_mask
@@ -446,7 +466,7 @@ void __init smp_setup_cpu_maps(void)
 	for_each_node_by_type(dn, "cpu") {
 		const __be32 *intserv;
 		__be32 cpu_be;
-		int j, len;
+		int len;
 
 		DBG("  * %pOF...\n", dn);
 
@@ -468,27 +488,31 @@ void __init smp_setup_cpu_maps(void)
 
 		nthreads = len / sizeof(int);
 
-		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
-			bool avail;
+		bool avail = of_device_is_available(dn);
+		if (!avail)
+			avail = !of_property_match_string(dn,
+					"enable-method", "spin-table");
 
-			DBG("    thread %d -> cpu %d (hard id %d)\n",
-			    j, cpu, be32_to_cpu(intserv[j]));
+		if (boot_core_hwid >= 0) {
+			if (cpu == 0) {
+				pr_info("Skipping CPU node %pOF to allow for boot core.\n", dn);
+				cpu = nthreads;
+				continue;
+			}
 
-			avail = of_device_is_available(dn);
-			if (!avail)
-				avail = !of_property_match_string(dn,
-						"enable-method", "spin-table");
-
-			set_cpu_present(cpu, avail);
-			set_cpu_possible(cpu, true);
-			cpu_to_phys_id[cpu] = be32_to_cpu(intserv[j]);
-			cpu++;
-		}
-
-		if (cpu >= nr_cpu_ids) {
+			if (be32_to_cpu(intserv[0]) == boot_core_hwid) {
+				pr_info("Renumbered boot core %pOF to logical 0\n", dn);
+				assign_threads(0, nthreads, avail, intserv);
+				of_node_put(dn);
+				break;
+			}
+		} else if (cpu >= nr_cpu_ids) {
 			of_node_put(dn);
 			break;
 		}
+
+		if (cpu < nr_cpu_ids)
+			cpu = assign_threads(cpu, nthreads, avail, intserv);
 	}
 
 	/* If no SMT supported, nthreads is forced to 1 */
@@ -615,6 +639,8 @@ static __init void probe_machine(void)
 	     machine_id++) {
 		DBG("  %s ...\n", machine_id->name);
 		if (machine_id->compatible && !of_machine_is_compatible(machine_id->compatible))
+			continue;
+		if (machine_id->compatibles && !of_machine_compatible_match(machine_id->compatibles))
 			continue;
 		memcpy(&ppc_md, machine_id, sizeof(struct machdep_calls));
 		if (ppc_md.probe && !ppc_md.probe())

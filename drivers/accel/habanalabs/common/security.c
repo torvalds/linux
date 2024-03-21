@@ -7,15 +7,31 @@
 
 #include "habanalabs.h"
 
-static const char * const hl_glbl_error_cause[HL_MAX_NUM_OF_GLBL_ERR_CAUSE] = {
+static const char * const hl_glbl_error_cause[] = {
 	"Error due to un-priv read",
 	"Error due to un-secure read",
 	"Error due to read from unmapped reg",
 	"Error due to un-priv write",
 	"Error due to un-secure write",
 	"Error due to write to unmapped reg",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
 	"External I/F write sec violation",
 	"External I/F write to un-mapped reg",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
+	"N/A",
 	"Read to write only",
 	"Write to read only"
 };
@@ -671,10 +687,11 @@ static bool hl_check_block_range_exclusion(struct hl_device *hdev,
 static int hl_read_glbl_errors(struct hl_device *hdev,
 		u32 blk_idx, u32 major, u32 minor, u32 sub_minor, void *data)
 {
-	struct hl_special_block_info *special_blocks = hdev->asic_prop.special_blocks;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_special_block_info *special_blocks = prop->special_blocks;
 	struct hl_special_block_info *current_block = &special_blocks[blk_idx];
 	u32 glbl_err_addr, glbl_err_cause, addr_val, cause_val, block_base,
-		base = current_block->base_addr - lower_32_bits(hdev->asic_prop.cfg_base_address);
+		base = current_block->base_addr - lower_32_bits(prop->cfg_base_address);
 	int i;
 
 	block_base = base + major * current_block->major_offset +
@@ -689,13 +706,13 @@ static int hl_read_glbl_errors(struct hl_device *hdev,
 	glbl_err_addr = block_base + HL_GLBL_ERR_ADDR_OFFSET;
 	addr_val = RREG32(glbl_err_addr);
 
-	for (i = 0 ; i < hdev->asic_prop.glbl_err_cause_num ; i++) {
+	for (i = 0 ; i <= prop->glbl_err_max_cause_num ; i++) {
 		if (cause_val & BIT(i))
 			dev_err_ratelimited(hdev->dev,
-				"%s, addr %#llx\n",
-				hl_glbl_error_cause[i],
-				hdev->asic_prop.cfg_base_address + block_base +
-				FIELD_GET(HL_GLBL_ERR_ADDRESS_MASK, addr_val));
+					"%s, addr %#llx\n",
+					hl_glbl_error_cause[i],
+					prop->cfg_base_address + block_base +
+						FIELD_GET(HL_GLBL_ERR_ADDRESS_MASK, addr_val));
 	}
 
 	WREG32(glbl_err_cause, cause_val);

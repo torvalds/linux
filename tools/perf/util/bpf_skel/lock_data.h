@@ -3,6 +3,13 @@
 #ifndef UTIL_BPF_SKEL_LOCK_DATA_H
 #define UTIL_BPF_SKEL_LOCK_DATA_H
 
+struct tstamp_data {
+	u64 timestamp;
+	u64 lock;
+	u32 flags;
+	u32 stack_id;
+};
+
 struct contention_key {
 	u32 stack_id;
 	u32 pid;

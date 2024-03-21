@@ -442,6 +442,16 @@ What:		/sys/bus/usb/devices/usbX/descriptors
 Description:
 		Contains the interface descriptors, in binary.
 
+What:		/sys/bus/usb/devices/usbX/bos_descriptors
+Date:		March 2024
+Contact:	Elbert Mai <code@elbertmai.com>
+Description:
+		Binary file containing the cached binary device object store (BOS)
+		of the device. This consists of the BOS descriptor followed by the
+		set of device capability descriptors. All descriptors read from
+		this file are in bus-endian format. Note that the kernel will not
+		request the BOS from a device if its bcdUSB is less than 0x0201.
+
 What:		/sys/bus/usb/devices/usbX/idProduct
 Description:
 		Product ID, in hexadecimal.

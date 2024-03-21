@@ -36,6 +36,16 @@ config TYPEC_MUX_INTEL_PMC
 	  control the USB role switch and also the multiplexer/demultiplexer
 	  switches used with USB Type-C Alternate Modes.
 
+config TYPEC_MUX_IT5205
+	tristate "ITE IT5205 Type-C USB Alt Mode Passive MUX driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Driver for the ITE IT5205 Type-C USB Alternate Mode Passive MUX
+	  which provides support for muxing DisplayPort and sideband signals
+	  on a common USB Type-C connector.
+	  If compiled as a module, the module will be named it5205.
+
 config TYPEC_MUX_NB7VPQ904M
 	tristate "On Semiconductor NB7VPQ904M Type-C redriver driver"
 	depends on I2C

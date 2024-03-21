@@ -315,17 +315,7 @@ static struct platform_driver gpu_cc_sm8150_driver = {
 	},
 };
 
-static int __init gpu_cc_sm8150_init(void)
-{
-	return platform_driver_register(&gpu_cc_sm8150_driver);
-}
-subsys_initcall(gpu_cc_sm8150_init);
-
-static void __exit gpu_cc_sm8150_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sm8150_driver);
-}
-module_exit(gpu_cc_sm8150_exit);
+module_platform_driver(gpu_cc_sm8150_driver);
 
 MODULE_DESCRIPTION("QTI GPUCC SM8150 Driver");
 MODULE_LICENSE("GPL v2");

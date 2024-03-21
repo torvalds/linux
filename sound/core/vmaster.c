@@ -56,7 +56,7 @@ struct link_follower {
 
 static int follower_update(struct link_follower *follower)
 {
-	struct snd_ctl_elem_value *uctl;
+	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	int err, ch;
 
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
@@ -65,18 +65,16 @@ static int follower_update(struct link_follower *follower)
 	uctl->id = follower->follower.id;
 	err = follower->follower.get(&follower->follower, uctl);
 	if (err < 0)
-		goto error;
+		return err;
 	for (ch = 0; ch < follower->info.count; ch++)
 		follower->vals[ch] = uctl->value.integer.value[ch];
- error:
-	kfree(uctl);
-	return err < 0 ? err : 0;
+	return 0;
 }
 
 /* get the follower ctl info and save the initial values */
 static int follower_init(struct link_follower *follower)
 {
-	struct snd_ctl_elem_info *uinfo;
+	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
 	int err;
 
 	if (follower->info.count) {
@@ -91,22 +89,18 @@ static int follower_init(struct link_follower *follower)
 		return -ENOMEM;
 	uinfo->id = follower->follower.id;
 	err = follower->follower.info(&follower->follower, uinfo);
-	if (err < 0) {
-		kfree(uinfo);
+	if (err < 0)
 		return err;
-	}
 	follower->info.type = uinfo->type;
 	follower->info.count = uinfo->count;
 	if (follower->info.count > 2  ||
 	    (follower->info.type != SNDRV_CTL_ELEM_TYPE_INTEGER &&
 	     follower->info.type != SNDRV_CTL_ELEM_TYPE_BOOLEAN)) {
 		pr_err("ALSA: vmaster: invalid follower element\n");
-		kfree(uinfo);
 		return -EINVAL;
 	}
 	follower->info.min_val = uinfo->value.integer.min;
 	follower->info.max_val = uinfo->value.integer.max;
-	kfree(uinfo);
 
 	return follower_update(follower);
 }
@@ -341,7 +335,7 @@ static int master_get(struct snd_kcontrol *kcontrol,
 static int sync_followers(struct link_master *master, int old_val, int new_val)
 {
 	struct link_follower *follower;
-	struct snd_ctl_elem_value *uval;
+	struct snd_ctl_elem_value *uval __free(kfree) = NULL;
 
 	uval = kmalloc(sizeof(*uval), GFP_KERNEL);
 	if (!uval)
@@ -353,7 +347,6 @@ static int sync_followers(struct link_master *master, int old_val, int new_val)
 		master->val = new_val;
 		follower_put_val(follower, uval);
 	}
-	kfree(uval);
 	return 0;
 }
 

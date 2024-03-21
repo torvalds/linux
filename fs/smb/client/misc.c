@@ -853,6 +853,40 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 	free_dentry_path(page);
 }
 
+/*
+ * If a dentry has been deleted, all corresponding open handles should know that
+ * so that we do not defer close them.
+ */
+void cifs_mark_open_handles_for_deleted_file(struct inode *inode,
+					     const char *path)
+{
+	struct cifsFileInfo *cfile;
+	void *page;
+	const char *full_path;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+
+	page = alloc_dentry_path();
+	spin_lock(&cinode->open_file_lock);
+
+	/*
+	 * note: we need to construct path from dentry and compare only if the
+	 * inode has any hardlinks. When number of hardlinks is 1, we can just
+	 * mark all open handles since they are going to be from the same file.
+	 */
+	if (inode->i_nlink > 1) {
+		list_for_each_entry(cfile, &cinode->openFileList, flist) {
+			full_path = build_path_from_dentry(cfile->dentry, page);
+			if (!IS_ERR(full_path) && strcmp(full_path, path) == 0)
+				cfile->status_file_deleted = true;
+		}
+	} else {
+		list_for_each_entry(cfile, &cinode->openFileList, flist)
+			cfile->status_file_deleted = true;
+	}
+	spin_unlock(&cinode->open_file_lock);
+	free_dentry_path(page);
+}
+
 /* parses DFS referral V3 structure
  * caller is responsible for freeing target_nodes
  * returns:

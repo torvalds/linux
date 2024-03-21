@@ -20,6 +20,24 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_X1E80100_CAMCC
+	tristate "X1E80100 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	help
+	  Support for the camera clock controller on X1E80100 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
+config CLK_X1E80100_DISPCC
+	tristate "X1E80100 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	help
+	  Support for the two display clock controllers on Qualcomm
+	  Technologies, Inc. X1E80100 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config CLK_X1E80100_GCC
 	tristate "X1E80100 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -29,6 +47,23 @@ config CLK_X1E80100_GCC
 	  X1E80100 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI, I2C,
 	  USB, UFS, SD/eMMC, PCIe, etc.
+
+config CLK_X1E80100_GPUCC
+	tristate "X1E80100 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	help
+	  Support for the graphics clock controller on X1E80100 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config CLK_X1E80100_TCSRCC
+	tristate "X1E80100 TCSR Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QCOM_GDSC
+	help
+	  Support for the TCSR clock controller on X1E80100 devices.
+	  Say Y if you want to use peripheral devices such as SD/UFS.
 
 config QCOM_A53PLL
 	tristate "MSM8916 A53 PLL"
@@ -599,16 +634,6 @@ config SC_LPASS_CORECC_7280
 	  controller on SC7280 devices.
 	  Say Y if you want to use LPASS clocks and power domains of the LPASS
 	  core clock controller.
-
-config SC_MSS_7180
-	tristate "SC7180 Modem Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select SC_GCC_7180
-	help
-	  Support for the Modem Subsystem clock controller on Qualcomm
-	  Technologies, Inc on SC7180 devices.
-	  Say Y if you want to use the Modem branch clocks of the Modem
-	  subsystem clock controller to reset the MSS subsystem.
 
 config SC_VIDEOCC_7180
 	tristate "SC7180 Video Clock Controller"

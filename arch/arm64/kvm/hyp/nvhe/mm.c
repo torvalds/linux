@@ -155,7 +155,7 @@ int hyp_back_vmemmap(phys_addr_t back)
 		start = hyp_memory[i].base;
 		start = ALIGN_DOWN((u64)hyp_phys_to_page(start), PAGE_SIZE);
 		/*
-		 * The begining of the hyp_vmemmap region for the current
+		 * The beginning of the hyp_vmemmap region for the current
 		 * memblock may already be backed by the page backing the end
 		 * the previous region, so avoid mapping it twice.
 		 */
@@ -408,7 +408,7 @@ static void *admit_host_page(void *arg)
 	return pop_hyp_memcache(host_mc, hyp_phys_to_virt);
 }
 
-/* Refill our local memcache by poping pages from the one provided by the host. */
+/* Refill our local memcache by popping pages from the one provided by the host. */
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc)
 {

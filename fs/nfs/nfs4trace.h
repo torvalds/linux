@@ -77,6 +77,36 @@ DEFINE_NFS4_CLIENTID_EVENT(nfs4_bind_conn_to_session);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_sequence);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_reclaim_complete);
 
+TRACE_EVENT(nfs4_trunked_exchange_id,
+		TP_PROTO(
+			const struct nfs_client *clp,
+			const char *addr,
+			int error
+		),
+
+		TP_ARGS(clp, addr, error),
+
+		TP_STRUCT__entry(
+			__string(main_addr, clp->cl_hostname)
+			__string(trunk_addr, addr)
+			__field(unsigned long, error)
+		),
+
+		TP_fast_assign(
+			__entry->error = error < 0 ? -error : 0;
+			__assign_str(main_addr, clp->cl_hostname);
+			__assign_str(trunk_addr, addr);
+		),
+
+		TP_printk(
+			"error=%ld (%s) main_addr=%s trunk_addr=%s",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			__get_str(main_addr),
+			__get_str(trunk_addr)
+		)
+);
+
 TRACE_EVENT(nfs4_sequence_done,
 		TP_PROTO(
 			const struct nfs4_session *session,
@@ -1990,6 +2020,34 @@ DECLARE_EVENT_CLASS(nfs4_deviceid_status,
 			TP_ARGS(server, deviceid, status))
 DEFINE_PNFS_DEVICEID_STATUS(nfs4_getdeviceinfo);
 DEFINE_PNFS_DEVICEID_STATUS(nfs4_find_deviceid);
+
+TRACE_EVENT(fl_getdevinfo,
+		TP_PROTO(
+			const struct nfs_server *server,
+			const struct nfs4_deviceid *deviceid,
+			char *ds_remotestr
+		),
+		TP_ARGS(server, deviceid, ds_remotestr),
+
+		TP_STRUCT__entry(
+			__string(mds_addr, server->nfs_client->cl_hostname)
+			__array(unsigned char, deviceid, NFS4_DEVICEID4_SIZE)
+			__string(ds_ips, ds_remotestr)
+		),
+
+		TP_fast_assign(
+			__assign_str(mds_addr, server->nfs_client->cl_hostname);
+			__assign_str(ds_ips, ds_remotestr);
+			memcpy(__entry->deviceid, deviceid->data,
+			       NFS4_DEVICEID4_SIZE);
+		),
+		TP_printk(
+			"deviceid=%s, mds_addr=%s, ds_ips=%s",
+			__print_hex(__entry->deviceid, NFS4_DEVICEID4_SIZE),
+			__get_str(mds_addr),
+			__get_str(ds_ips)
+		)
+);
 
 DECLARE_EVENT_CLASS(nfs4_flexfiles_io_event,
 		TP_PROTO(

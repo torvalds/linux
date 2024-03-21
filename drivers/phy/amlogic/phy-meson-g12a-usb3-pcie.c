@@ -350,7 +350,7 @@ static int phy_g12a_usb3_pcie_exit(struct phy *phy)
 }
 
 static struct phy *phy_g12a_usb3_pcie_xlate(struct device *dev,
-					    struct of_phandle_args *args)
+					    const struct of_phandle_args *args)
 {
 	struct phy_g12a_usb3_pcie_priv *priv = dev_get_drvdata(dev);
 	unsigned int mode;

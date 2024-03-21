@@ -9,10 +9,12 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "annotate.h"
 #include "annotate-data.h"
 #include "debuginfo.h"
 #include "debug.h"
 #include "dso.h"
+#include "dwarf-regs.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "map.h"
@@ -192,7 +194,8 @@ static bool find_cu_die(struct debuginfo *di, u64 pc, Dwarf_Die *cu_die)
 }
 
 /* The type info will be saved in @type_die */
-static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
+static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
+			  bool is_pointer)
 {
 	Dwarf_Word size;
 
@@ -204,14 +207,18 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 	}
 
 	/*
-	 * It expects a pointer type for a memory access.
-	 * Convert to a real type it points to.
+	 * Usually it expects a pointer type for a memory access.
+	 * Convert to a real type it points to.  But global variables
+	 * and local variables are accessed directly without a pointer.
 	 */
-	if (dwarf_tag(type_die) != DW_TAG_pointer_type ||
-	    die_get_real_type(type_die, type_die) == NULL) {
-		pr_debug("no pointer or no type\n");
-		ann_data_stat.no_typeinfo++;
-		return -1;
+	if (is_pointer) {
+		if ((dwarf_tag(type_die) != DW_TAG_pointer_type &&
+		     dwarf_tag(type_die) != DW_TAG_array_type) ||
+		    die_get_real_type(type_die, type_die) == NULL) {
+			pr_debug("no pointer or no type\n");
+			ann_data_stat.no_typeinfo++;
+			return -1;
+		}
 	}
 
 	/* Get the size of the actual type */
@@ -232,13 +239,18 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 }
 
 /* The result will be saved in @type_die */
-static int find_data_type_die(struct debuginfo *di, u64 pc,
-			      int reg, int offset, Dwarf_Die *type_die)
+static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
+			      const char *var_name, struct annotated_op_loc *loc,
+			      Dwarf_Die *type_die)
 {
 	Dwarf_Die cu_die, var_die;
 	Dwarf_Die *scopes = NULL;
+	int reg, offset;
 	int ret = -1;
 	int i, nr_scopes;
+	int fbreg = -1;
+	bool is_fbreg = false;
+	int fb_offset = 0;
 
 	/* Get a compile_unit for this address */
 	if (!find_cu_die(di, pc, &cu_die)) {
@@ -247,19 +259,81 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 		return -1;
 	}
 
+	reg = loc->reg1;
+	offset = loc->offset;
+
+	if (reg == DWARF_REG_PC) {
+		if (die_find_variable_by_addr(&cu_die, pc, addr, &var_die, &offset)) {
+			ret = check_variable(&var_die, type_die, offset,
+					     /*is_pointer=*/false);
+			loc->offset = offset;
+			goto out;
+		}
+
+		if (var_name && die_find_variable_at(&cu_die, var_name, pc,
+						     &var_die)) {
+			ret = check_variable(&var_die, type_die, 0,
+					     /*is_pointer=*/false);
+			/* loc->offset will be updated by the caller */
+			goto out;
+		}
+	}
+
 	/* Get a list of nested scopes - i.e. (inlined) functions and blocks. */
 	nr_scopes = die_get_scopes(&cu_die, pc, &scopes);
 
+	if (reg != DWARF_REG_PC && dwarf_hasattr(&scopes[0], DW_AT_frame_base)) {
+		Dwarf_Attribute attr;
+		Dwarf_Block block;
+
+		/* Check if the 'reg' is assigned as frame base register */
+		if (dwarf_attr(&scopes[0], DW_AT_frame_base, &attr) != NULL &&
+		    dwarf_formblock(&attr, &block) == 0 && block.length == 1) {
+			switch (*block.data) {
+			case DW_OP_reg0 ... DW_OP_reg31:
+				fbreg = *block.data - DW_OP_reg0;
+				break;
+			case DW_OP_call_frame_cfa:
+				if (die_get_cfa(di->dbg, pc, &fbreg,
+						&fb_offset) < 0)
+					fbreg = -1;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+retry:
+	is_fbreg = (reg == fbreg);
+	if (is_fbreg)
+		offset = loc->offset - fb_offset;
+
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
-		/* Look up variables/parameters in this scope */
-		if (!die_find_variable_by_reg(&scopes[i], pc, reg, &var_die))
-			continue;
+		if (reg == DWARF_REG_PC) {
+			if (!die_find_variable_by_addr(&scopes[i], pc, addr,
+						       &var_die, &offset))
+				continue;
+		} else {
+			/* Look up variables/parameters in this scope */
+			if (!die_find_variable_by_reg(&scopes[i], pc, reg,
+						      &offset, is_fbreg, &var_die))
+				continue;
+		}
 
 		/* Found a variable, see if it's correct */
-		ret = check_variable(&var_die, type_die, offset);
+		ret = check_variable(&var_die, type_die, offset,
+				     reg != DWARF_REG_PC && !is_fbreg);
+		loc->offset = offset;
 		goto out;
 	}
+
+	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
+		reg = loc->reg2;
+		goto retry;
+	}
+
 	if (ret < 0)
 		ann_data_stat.no_var++;
 
@@ -272,15 +346,22 @@ out:
  * find_data_type - Return a data type at the location
  * @ms: map and symbol at the location
  * @ip: instruction address of the memory access
- * @reg: register that holds the base address
- * @offset: offset from the base address
+ * @loc: instruction operand location
+ * @addr: data address of the memory access
+ * @var_name: global variable name
  *
  * This functions searches the debug information of the binary to get the data
- * type it accesses.  The exact location is expressed by (ip, reg, offset).
+ * type it accesses.  The exact location is expressed by (@ip, reg, offset)
+ * for pointer variables or (@ip, @addr) for global variables.  Note that global
+ * variables might update the @loc->offset after finding the start of the variable.
+ * If it cannot find a global variable by address, it tried to fine a declaration
+ * of the variable using @var_name.  In that case, @loc->offset won't be updated.
+ *
  * It return %NULL if not found.
  */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   int reg, int offset)
+					   struct annotated_op_loc *loc, u64 addr,
+					   const char *var_name)
 {
 	struct annotated_data_type *result = NULL;
 	struct dso *dso = map__dso(ms->map);
@@ -300,7 +381,7 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 	 * a file address for DWARF processing.
 	 */
 	pc = map__rip_2objdump(ms->map, ip);
-	if (find_data_type_die(di, pc, reg, offset, &type_die) < 0)
+	if (find_data_type_die(di, pc, addr, var_name, loc, &type_die) < 0)
 		goto out;
 
 	result = dso__findnew_data_type(dso, &type_die);

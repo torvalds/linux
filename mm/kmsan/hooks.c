@@ -359,6 +359,12 @@ void kmsan_handle_dma_sg(struct scatterlist *sg, int nents,
 }
 
 /* Functions from kmsan-checks.h follow. */
+
+/*
+ * To create an origin, kmsan_poison_memory() unwinds the stacks and stores it
+ * into the stack depot. This may cause deadlocks if done from within KMSAN
+ * runtime, therefore we bail out if kmsan_in_runtime().
+ */
 void kmsan_poison_memory(const void *address, size_t size, gfp_t flags)
 {
 	if (!kmsan_enabled || kmsan_in_runtime())
@@ -371,37 +377,11 @@ void kmsan_poison_memory(const void *address, size_t size, gfp_t flags)
 }
 EXPORT_SYMBOL(kmsan_poison_memory);
 
-void kmsan_unpoison_memory(const void *address, size_t size)
-{
-	unsigned long ua_flags;
-
-	if (!kmsan_enabled || kmsan_in_runtime())
-		return;
-
-	ua_flags = user_access_save();
-	kmsan_enter_runtime();
-	/* The users may want to poison/unpoison random memory. */
-	kmsan_internal_unpoison_memory((void *)address, size,
-				       KMSAN_POISON_NOCHECK);
-	kmsan_leave_runtime();
-	user_access_restore(ua_flags);
-}
-EXPORT_SYMBOL(kmsan_unpoison_memory);
-
 /*
- * Version of kmsan_unpoison_memory() that can be called from within the KMSAN
- * runtime.
- *
- * Non-instrumented IRQ entry functions receive struct pt_regs from assembly
- * code. Those regs need to be unpoisoned, otherwise using them will result in
- * false positives.
- * Using kmsan_unpoison_memory() is not an option in entry code, because the
- * return value of in_task() is inconsistent - as a result, certain calls to
- * kmsan_unpoison_memory() are ignored. kmsan_unpoison_entry_regs() ensures that
- * the registers are unpoisoned even if kmsan_in_runtime() is true in the early
- * entry code.
+ * Unlike kmsan_poison_memory(), this function can be used from within KMSAN
+ * runtime, because it does not trigger allocations or call instrumented code.
  */
-void kmsan_unpoison_entry_regs(const struct pt_regs *regs)
+void kmsan_unpoison_memory(const void *address, size_t size)
 {
 	unsigned long ua_flags;
 
@@ -409,9 +389,19 @@ void kmsan_unpoison_entry_regs(const struct pt_regs *regs)
 		return;
 
 	ua_flags = user_access_save();
-	kmsan_internal_unpoison_memory((void *)regs, sizeof(*regs),
+	/* The users may want to poison/unpoison random memory. */
+	kmsan_internal_unpoison_memory((void *)address, size,
 				       KMSAN_POISON_NOCHECK);
 	user_access_restore(ua_flags);
+}
+EXPORT_SYMBOL(kmsan_unpoison_memory);
+
+/*
+ * Version of kmsan_unpoison_memory() called from IRQ entry functions.
+ */
+void kmsan_unpoison_entry_regs(const struct pt_regs *regs)
+{
+	kmsan_unpoison_memory((void *)regs, sizeof(*regs));
 }
 
 void kmsan_check_memory(const void *addr, size_t size)

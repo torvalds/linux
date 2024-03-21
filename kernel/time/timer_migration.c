@@ -751,26 +751,6 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 
 		first_childevt = evt = data->evt;
 
-		/*
-		 * Walking the hierarchy is required in any case when a
-		 * remote expiry was done before. This ensures to not lose
-		 * already queued events in non active groups (see section
-		 * "Required event and timerqueue update after a remote
-		 * expiry" in the documentation at the top).
-		 *
-		 * The two call sites which are executed without a remote expiry
-		 * before, are not prevented from propagating changes through
-		 * the hierarchy by the return:
-		 *  - When entering this path by tmigr_new_timer(), @evt->ignore
-		 *    is never set.
-		 *  - tmigr_inactive_up() takes care of the propagation by
-		 *    itself and ignores the return value. But an immediate
-		 *    return is required because nothing has to be done in this
-		 *    level as the event could be ignored.
-		 */
-		if (evt->ignore && !remote)
-			return true;
-
 		raw_spin_lock(&group->lock);
 
 		childstate.state = 0;

@@ -115,14 +115,58 @@
 			compatible = "ns16550a";
 			reg = <0xc00 0x100>;
 
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
 			clocks = <&sysc MT7621_CLK_UART1>;
 
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SHARED 26 IRQ_TYPE_LEVEL_HIGH>;
 
-			reg-shift = <2>;
-			reg-io-width = <4>;
 			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_pins>;
+		};
+
+		serial1: serial@d00 {
+			compatible = "ns16550a";
+			reg = <0xd00 0x100>;
+
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
+			clocks = <&sysc MT7621_CLK_UART2>;
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 27 IRQ_TYPE_LEVEL_HIGH>;
+
+			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_pins>;
+
+			status = "disabled";
+		};
+
+		serial2: serial@e00 {
+			compatible = "ns16550a";
+			reg = <0xe00 0x100>;
+
+			reg-io-width = <4>;
+			reg-shift = <2>;
+
+			clocks = <&sysc MT7621_CLK_UART3>;
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 28 IRQ_TYPE_LEVEL_HIGH>;
+
+			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart3_pins>;
+
+			status = "disabled";
 		};
 
 		spi0: spi@b00 {
@@ -262,6 +306,9 @@
 		reg = <0x1e1c0000 0x1000
 		       0x1e1d0700 0x0100>;
 		reg-names = "mac", "ippc";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		clocks = <&sysc MT7621_CLK_XTAL>;
 		clock-names = "sys_ck";

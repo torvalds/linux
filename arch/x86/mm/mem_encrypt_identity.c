@@ -141,7 +141,7 @@ static pud_t __head *sme_prepare_pgd(struct sme_populate_pgd_data *ppd)
 		set_pud(pud, __pud(PUD_FLAGS | __pa(pmd)));
 	}
 
-	if (pud_large(*pud))
+	if (pud_leaf(*pud))
 		return NULL;
 
 	return pud;
@@ -157,7 +157,7 @@ static void __head sme_populate_pgd_large(struct sme_populate_pgd_data *ppd)
 		return;
 
 	pmd = pmd_offset(pud, ppd->vaddr);
-	if (pmd_large(*pmd))
+	if (pmd_leaf(*pmd))
 		return;
 
 	set_pmd(pmd, __pmd(ppd->paddr | ppd->pmd_flags));
@@ -181,7 +181,7 @@ static void __head sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 		set_pmd(pmd, __pmd(PMD_FLAGS | __pa(pte)));
 	}
 
-	if (pmd_large(*pmd))
+	if (pmd_leaf(*pmd))
 		return;
 
 	pte = pte_offset_kernel(pmd, ppd->vaddr);

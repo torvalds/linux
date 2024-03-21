@@ -90,7 +90,7 @@ static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
 	if (smp2p->notified)
 		return;
 
-	smp2p->power_on = pm_runtime_get_if_active(smp2p->ipa->dev, true) > 0;
+	smp2p->power_on = pm_runtime_get_if_active(smp2p->ipa->dev) > 0;
 
 	/* Signal whether the IPA power is enabled */
 	mask = BIT(smp2p->enabled_bit);

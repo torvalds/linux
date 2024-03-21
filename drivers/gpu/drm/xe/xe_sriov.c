@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <drm/drm_managed.h>
+
 #include "xe_assert.h"
 #include "xe_sriov.h"
 
@@ -52,4 +54,34 @@ void xe_sriov_probe_early(struct xe_device *xe, bool has_sriov)
 	if (has_sriov)
 		drm_info(&xe->drm, "Running in %s mode\n",
 			 xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
+}
+
+static void fini_sriov(struct drm_device *drm, void *arg)
+{
+	struct xe_device *xe = arg;
+
+	destroy_workqueue(xe->sriov.wq);
+	xe->sriov.wq = NULL;
+}
+
+/**
+ * xe_sriov_init - Initialize SR-IOV specific data.
+ * @xe: the &xe_device to initialize
+ *
+ * In this function we create dedicated workqueue that will be used
+ * by the SR-IOV specific workers.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_init(struct xe_device *xe)
+{
+	if (!IS_SRIOV(xe))
+		return 0;
+
+	xe_assert(xe, !xe->sriov.wq);
+	xe->sriov.wq = alloc_workqueue("xe-sriov-wq", 0, 0);
+	if (!xe->sriov.wq)
+		return -ENOMEM;
+
+	return drmm_add_action_or_reset(&xe->drm, fini_sriov, xe);
 }

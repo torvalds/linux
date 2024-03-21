@@ -21,8 +21,7 @@ description: |
   See ../firmware/nvidia,tegra186-bpmp.yaml for details of the BPMP
   binding.
 
-  This node represents an I2C controller. See ../i2c/i2c.txt for details
-  of the core I2C binding.
+  This node represents an I2C controller.
 
 properties:
   compatible:

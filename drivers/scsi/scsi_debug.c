@@ -899,7 +899,7 @@ static int poll_queues; /* iouring iopoll interface.*/
 static char sdebug_proc_name[] = MY_NAME;
 static const char *my_name = MY_NAME;
 
-static struct bus_type pseudo_lld_bus;
+static const struct bus_type pseudo_lld_bus;
 
 static struct device_driver sdebug_driverfs_driver = {
 	.name 		= sdebug_proc_name,
@@ -8405,7 +8405,7 @@ static void sdebug_driver_remove(struct device *dev)
 	scsi_host_put(sdbg_host->shost);
 }
 
-static struct bus_type pseudo_lld_bus = {
+static const struct bus_type pseudo_lld_bus = {
 	.name = "pseudo",
 	.probe = sdebug_driver_probe,
 	.remove = sdebug_driver_remove,

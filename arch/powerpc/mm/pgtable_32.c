@@ -153,7 +153,6 @@ void mark_rodata_ro(void)
 
 	if (v_block_mapped((unsigned long)_stext + 1)) {
 		mmu_mark_rodata_ro();
-		ptdump_check_wx();
 		return;
 	}
 
@@ -166,23 +165,5 @@ void mark_rodata_ro(void)
 		   PFN_DOWN((unsigned long)_stext);
 
 	set_memory_ro((unsigned long)_stext, numpages);
-
-	// mark_initmem_nx() should have already run by now
-	ptdump_check_wx();
 }
 #endif
-
-#if defined(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC) && defined(CONFIG_DEBUG_PAGEALLOC)
-void __kernel_map_pages(struct page *page, int numpages, int enable)
-{
-	unsigned long addr = (unsigned long)page_address(page);
-
-	if (PageHighMem(page))
-		return;
-
-	if (enable)
-		set_memory_p(addr, numpages);
-	else
-		set_memory_np(addr, numpages);
-}
-#endif /* CONFIG_DEBUG_PAGEALLOC */

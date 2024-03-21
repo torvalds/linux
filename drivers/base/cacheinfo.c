@@ -898,6 +898,37 @@ err:
 	return rc;
 }
 
+static unsigned int cpu_map_shared_cache(bool online, unsigned int cpu,
+					 cpumask_t **map)
+{
+	struct cacheinfo *llc, *sib_llc;
+	unsigned int sibling;
+
+	if (!last_level_cache_is_valid(cpu))
+		return 0;
+
+	llc = per_cpu_cacheinfo_idx(cpu, cache_leaves(cpu) - 1);
+
+	if (llc->type != CACHE_TYPE_DATA && llc->type != CACHE_TYPE_UNIFIED)
+		return 0;
+
+	if (online) {
+		*map = &llc->shared_cpu_map;
+		return cpumask_weight(*map);
+	}
+
+	/* shared_cpu_map of offlined CPU will be cleared, so use sibling map */
+	for_each_cpu(sibling, &llc->shared_cpu_map) {
+		if (sibling == cpu || !last_level_cache_is_valid(sibling))
+			continue;
+		sib_llc = per_cpu_cacheinfo_idx(sibling, cache_leaves(sibling) - 1);
+		*map = &sib_llc->shared_cpu_map;
+		return cpumask_weight(*map);
+	}
+
+	return 0;
+}
+
 /*
  * Calculate the size of the per-CPU data cache slice.  This can be
  * used to estimate the size of the data cache slice that can be used
@@ -929,28 +960,31 @@ static void update_per_cpu_data_slice_size_cpu(unsigned int cpu)
 		ci->per_cpu_data_slice_size = llc->size / nr_shared;
 }
 
-static void update_per_cpu_data_slice_size(bool cpu_online, unsigned int cpu)
+static void update_per_cpu_data_slice_size(bool cpu_online, unsigned int cpu,
+					   cpumask_t *cpu_map)
 {
 	unsigned int icpu;
 
-	for_each_online_cpu(icpu) {
+	for_each_cpu(icpu, cpu_map) {
 		if (!cpu_online && icpu == cpu)
 			continue;
 		update_per_cpu_data_slice_size_cpu(icpu);
+		setup_pcp_cacheinfo(icpu);
 	}
 }
 
 static int cacheinfo_cpu_online(unsigned int cpu)
 {
 	int rc = detect_cache_attributes(cpu);
+	cpumask_t *cpu_map;
 
 	if (rc)
 		return rc;
 	rc = cache_add_dev(cpu);
 	if (rc)
 		goto err;
-	update_per_cpu_data_slice_size(true, cpu);
-	setup_pcp_cacheinfo();
+	if (cpu_map_shared_cache(true, cpu, &cpu_map))
+		update_per_cpu_data_slice_size(true, cpu, cpu_map);
 	return 0;
 err:
 	free_cache_attributes(cpu);
@@ -959,12 +993,16 @@ err:
 
 static int cacheinfo_cpu_pre_down(unsigned int cpu)
 {
+	cpumask_t *cpu_map;
+	unsigned int nr_shared;
+
+	nr_shared = cpu_map_shared_cache(false, cpu, &cpu_map);
 	if (cpumask_test_and_clear_cpu(cpu, &cache_dev_map))
 		cpu_cache_sysfs_exit(cpu);
 
 	free_cache_attributes(cpu);
-	update_per_cpu_data_slice_size(false, cpu);
-	setup_pcp_cacheinfo();
+	if (nr_shared > 1)
+		update_per_cpu_data_slice_size(false, cpu, cpu_map);
 	return 0;
 }
 

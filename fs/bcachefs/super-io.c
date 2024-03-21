@@ -470,6 +470,14 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 			return ret;
 	}
 
+	if (rw == WRITE &&
+	    bch2_sb_member_get(sb, sb->dev_idx).seq != sb->seq) {
+		prt_printf(out, "Invalid superblock: member seq %llu != sb seq %llu",
+			   le64_to_cpu(bch2_sb_member_get(sb, sb->dev_idx).seq),
+			   le64_to_cpu(sb->seq));
+		return -BCH_ERR_invalid_sb_members_missing;
+	}
+
 	return 0;
 }
 
@@ -717,6 +725,7 @@ retry:
 
 	if (IS_ERR(sb->s_bdev_file)) {
 		ret = PTR_ERR(sb->s_bdev_file);
+		prt_printf(&err, "error opening %s: %s", path, bch2_err_str(ret));
 		goto err;
 	}
 	sb->bdev = file_bdev(sb->s_bdev_file);
@@ -743,9 +752,9 @@ retry:
 	prt_printf(&err2, "bcachefs (%s): error reading default superblock: %s\n",
 	       path, err.buf);
 	if (ret == -BCH_ERR_invalid_sb_magic && ignore_notbchfs_msg)
-		printk(KERN_INFO "%s", err2.buf);
+		bch2_print_opts(opts, KERN_INFO "%s", err2.buf);
 	else
-		printk(KERN_ERR "%s", err2.buf);
+		bch2_print_opts(opts, KERN_ERR "%s", err2.buf);
 
 	printbuf_exit(&err2);
 	printbuf_reset(&err);
@@ -803,21 +812,20 @@ got_super:
 		goto err;
 	}
 
-	ret = 0;
 	sb->have_layout = true;
 
 	ret = bch2_sb_validate(sb, &err, READ);
 	if (ret) {
-		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
-		       path, err.buf);
+		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
+				path, err.buf);
 		goto err_no_print;
 	}
 out:
 	printbuf_exit(&err);
 	return ret;
 err:
-	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s\n",
-	       path, err.buf);
+	bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error reading superblock: %s\n",
+			path, err.buf);
 err_no_print:
 	bch2_free_super(sb);
 	goto out;
@@ -977,7 +985,7 @@ int bch2_write_super(struct bch_fs *c)
 		prt_str(&buf, " > ");
 		bch2_version_to_text(&buf, bcachefs_metadata_version_current);
 		prt_str(&buf, ")");
-		bch2_fs_fatal_error(c, "%s", buf.buf);
+		bch2_fs_fatal_error(c, ": %s", buf.buf);
 		printbuf_exit(&buf);
 		return -BCH_ERR_sb_not_downgraded;
 	}
@@ -997,7 +1005,7 @@ int bch2_write_super(struct bch_fs *c)
 
 		if (le64_to_cpu(ca->sb_read_scratch->seq) < ca->disk_sb.seq) {
 			bch2_fs_fatal_error(c,
-				"Superblock write was silently dropped! (seq %llu expected %llu)",
+				": Superblock write was silently dropped! (seq %llu expected %llu)",
 				le64_to_cpu(ca->sb_read_scratch->seq),
 				ca->disk_sb.seq);
 			percpu_ref_put(&ca->io_ref);
@@ -1007,7 +1015,7 @@ int bch2_write_super(struct bch_fs *c)
 
 		if (le64_to_cpu(ca->sb_read_scratch->seq) > ca->disk_sb.seq) {
 			bch2_fs_fatal_error(c,
-				"Superblock modified by another process (seq %llu expected %llu)",
+				": Superblock modified by another process (seq %llu expected %llu)",
 				le64_to_cpu(ca->sb_read_scratch->seq),
 				ca->disk_sb.seq);
 			percpu_ref_put(&ca->io_ref);
@@ -1058,7 +1066,7 @@ int bch2_write_super(struct bch_fs *c)
 				 !can_mount_with_written ||
 				 (can_mount_without_written &&
 				  !can_mount_with_written), c,
-		"Unable to write superblock to sufficient devices (from %ps)",
+		": Unable to write superblock to sufficient devices (from %ps)",
 		(void *) _RET_IP_))
 		ret = -1;
 out:

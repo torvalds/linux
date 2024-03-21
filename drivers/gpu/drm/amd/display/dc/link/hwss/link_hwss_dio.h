@@ -22,6 +22,16 @@
  * Authors: AMD
  *
  */
+
+/**
+ * DOC: overview
+ *
+ * Display Input Output (DIO), is the display input and output unit in DCN. It
+ * includes output encoders to support different display output, like
+ * DisplayPort, HDMI, DVI interface, and others. It also includes the control
+ * and status channels for these interfaces.
+ */
+
 #ifndef __LINK_HWSS_DIO_H__
 #define __LINK_HWSS_DIO_H__
 

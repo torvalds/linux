@@ -32,7 +32,6 @@ description: |
       +-------------------------------+
 
 allOf:
-  - $ref: i2c-mux.yaml
   - $ref: /schemas/i2c/i2c-controller.yaml#
 
 properties:
@@ -41,6 +40,8 @@ properties:
 
   i2c-parent:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       List of phandles of I2C masters available for selection.  The first one
       will be used as default.

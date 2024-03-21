@@ -45,7 +45,7 @@ xfs_uuid_table_free(void)
 {
 	if (xfs_uuid_table_size == 0)
 		return;
-	kmem_free(xfs_uuid_table);
+	kfree(xfs_uuid_table);
 	xfs_uuid_table = NULL;
 	xfs_uuid_table_size = 0;
 }

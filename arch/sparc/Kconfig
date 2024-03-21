@@ -13,6 +13,7 @@ config 64BIT
 config SPARC
 	bool
 	default y
+	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_MIGHT_HAVE_PC_PARPORT if SPARC64 && PCI
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select DMA_OPS
@@ -57,6 +58,8 @@ config SPARC32
 	select CLZ_TAB
 	select DMA_DIRECT_REMAP
 	select GENERIC_ATOMIC64
+	select GENERIC_LIB_CMPDI2
+	select GENERIC_LIB_UCMPDI2
 	select HAVE_UID16
 	select HAVE_PAGE_SIZE_4KB
 	select LOCK_MM_AND_FIND_VMA
@@ -114,10 +117,6 @@ config ARCH_PROC_KCORE_TEXT
 config CPU_BIG_ENDIAN
 	def_bool y
 
-config ARCH_ATU
-	bool
-	default y if SPARC64
-
 config STACKTRACE_SUPPORT
 	bool
 	default y if SPARC64
@@ -141,10 +140,6 @@ config HIGHMEM
 	bool
 	default y if SPARC32
 	select KMAP_LOCAL
-
-config GENERIC_ISA_DMA
-	bool
-	default y if SPARC32
 
 config PGTABLE_LEVELS
 	default 4 if 64BIT
@@ -221,6 +216,8 @@ config EARLYFB
 	bool "Support for early boot text console"
 	default y
 	depends on SPARC64
+	select FONT_SUN8x16
+	select FONT_SUPPORT
 	help
 	  Say Y here to enable a faster early framebuffer boot console.
 

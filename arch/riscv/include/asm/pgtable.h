@@ -241,7 +241,7 @@ static inline int pmd_bad(pmd_t pmd)
 }
 
 #define pmd_leaf	pmd_leaf
-static inline int pmd_leaf(pmd_t pmd)
+static inline bool pmd_leaf(pmd_t pmd)
 {
 	return pmd_present(pmd) && (pmd_val(pmd) & _PAGE_LEAF);
 }
@@ -526,6 +526,8 @@ static inline void __set_pte_at(pte_t *ptep, pte_t pteval)
 
 	set_pte(ptep, pteval);
 }
+
+#define PFN_PTE_SHIFT		_PAGE_PFN_SHIFT
 
 static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 		pte_t *ptep, pte_t pteval, unsigned int nr)

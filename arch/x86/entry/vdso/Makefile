@@ -9,7 +9,9 @@ include $(srctree)/lib/vdso/Makefile
 # Sanitizer runtimes are unavailable and cannot be linked here.
 KASAN_SANITIZE			:= n
 KMSAN_SANITIZE_vclock_gettime.o := n
+KMSAN_SANITIZE_vdso32/vclock_gettime.o	:= n
 KMSAN_SANITIZE_vgetcpu.o	:= n
+KMSAN_SANITIZE_vdso32/vgetcpu.o	:= n
 
 UBSAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n

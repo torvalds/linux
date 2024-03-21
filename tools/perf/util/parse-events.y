@@ -536,8 +536,6 @@ tracepoint_name opt_event_config
 	list = alloc_list();
 	if (!list)
 		YYNOMEM;
-	if (error)
-		error->idx = @1.first_column;
 
 	err = parse_events_add_tracepoint(list, &parse_state->idx, $1.sys, $1.event,
 					error, $2, &@1);

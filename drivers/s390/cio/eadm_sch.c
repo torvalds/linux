@@ -63,7 +63,7 @@ static int eadm_subchannel_start(struct subchannel *sch, struct aob *aob)
 	int cc;
 
 	orb_init(orb);
-	orb->eadm.aob = (u32)virt_to_phys(aob);
+	orb->eadm.aob = virt_to_dma32(aob);
 	orb->eadm.intparm = (u32)virt_to_phys(sch);
 	orb->eadm.key = PAGE_DEFAULT_KEY >> 4;
 
@@ -147,7 +147,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 		css_sched_sch_todo(sch, SCH_TODO_EVAL);
 		return;
 	}
-	scm_irq_handler(phys_to_virt(scsw->aob), error);
+	scm_irq_handler(dma32_to_virt(scsw->aob), error);
 	private->state = EADM_IDLE;
 
 	if (private->completion)

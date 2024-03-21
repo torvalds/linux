@@ -1684,6 +1684,9 @@ static int vcn_v4_0_5_process_interrupt(struct amdgpu_device *adev, struct amdgp
 	case SOC15_IH_CLIENTID_VCN:
 		ip_instance = 0;
 		break;
+	case SOC15_IH_CLIENTID_VCN1:
+		ip_instance = 1;
+		break;
 	default:
 		DRM_ERROR("Unhandled client id: %d\n", entry->client_id);
 		return 0;

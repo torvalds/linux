@@ -11,6 +11,7 @@
 
 #include <linux/efi.h>
 #include <linux/kernel.h>
+#include <linux/overflow.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
 
@@ -201,7 +202,7 @@ void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_si
 	*load_options_size = load_option_unpacked.optional_data_size;
 }
 
-enum efistub_event {
+enum efistub_event_type {
 	EFISTUB_EVT_INITRD,
 	EFISTUB_EVT_LOAD_OPTIONS,
 	EFISTUB_EVT_COUNT,
@@ -227,54 +228,95 @@ static const struct {
 	},
 };
 
+static_assert(sizeof(efi_tcg2_event_t) == sizeof(efi_cc_event_t));
+
+union efistub_event {
+	efi_tcg2_event_t	tcg2_data;
+	efi_cc_event_t		cc_data;
+};
+
+struct efistub_measured_event {
+	union efistub_event	event_data;
+	TCG_PCClientTaggedEvent tagged_event __packed;
+};
+
 static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 					     unsigned long load_size,
-					     enum efistub_event event)
+					     enum efistub_event_type event)
 {
+	union {
+		efi_status_t
+		(__efiapi *hash_log_extend_event)(void *, u64, efi_physical_addr_t,
+						  u64, const union efistub_event *);
+		struct { u32 hash_log_extend_event; } mixed_mode;
+	} method;
+	struct efistub_measured_event *evt;
+	int size = struct_size(evt, tagged_event.tagged_event_data,
+			       events[event].event_data_len);
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_tcg2_protocol_t *tcg2 = NULL;
+	union efistub_event ev;
 	efi_status_t status;
+	void *protocol;
 
 	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
 	if (tcg2) {
-		struct efi_measured_event {
-			efi_tcg2_event_t	event_data;
-			efi_tcg2_tagged_event_t tagged_event;
-			u8			tagged_event_data[];
-		} *evt;
-		int size = sizeof(*evt) + events[event].event_data_len;
-
-		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-				     (void **)&evt);
-		if (status != EFI_SUCCESS)
-			goto fail;
-
-		evt->event_data = (struct efi_tcg2_event){
+		ev.tcg2_data = (struct efi_tcg2_event){
 			.event_size			= size,
-			.event_header.header_size	= sizeof(evt->event_data.event_header),
+			.event_header.header_size	= sizeof(ev.tcg2_data.event_header),
 			.event_header.header_version	= EFI_TCG2_EVENT_HEADER_VERSION,
 			.event_header.pcr_index		= events[event].pcr_index,
 			.event_header.event_type	= EV_EVENT_TAG,
 		};
+		protocol = tcg2;
+		method.hash_log_extend_event =
+			(void *)efi_table_attr(tcg2, hash_log_extend_event);
+	} else {
+		efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
+		efi_cc_protocol_t *cc = NULL;
 
-		evt->tagged_event = (struct efi_tcg2_tagged_event){
-			.tagged_event_id		= events[event].event_id,
-			.tagged_event_data_size		= events[event].event_data_len,
+		efi_bs_call(locate_protocol, &cc_guid, NULL, (void **)&cc);
+		if (!cc)
+			return EFI_UNSUPPORTED;
+
+		ev.cc_data = (struct efi_cc_event){
+			.event_size			= size,
+			.event_header.header_size	= sizeof(ev.cc_data.event_header),
+			.event_header.header_version	= EFI_CC_EVENT_HEADER_VERSION,
+			.event_header.event_type	= EV_EVENT_TAG,
 		};
 
-		memcpy(evt->tagged_event_data, events[event].event_data,
-		       events[event].event_data_len);
-
-		status = efi_call_proto(tcg2, hash_log_extend_event, 0,
-					load_addr, load_size, &evt->event_data);
-		efi_bs_call(free_pool, evt);
-
+		status = efi_call_proto(cc, map_pcr_to_mr_index,
+					events[event].pcr_index,
+					&ev.cc_data.event_header.mr_index);
 		if (status != EFI_SUCCESS)
 			goto fail;
-		return EFI_SUCCESS;
+
+		protocol = cc;
+		method.hash_log_extend_event =
+			(void *)efi_table_attr(cc, hash_log_extend_event);
 	}
 
-	return EFI_UNSUPPORTED;
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size, (void **)&evt);
+	if (status != EFI_SUCCESS)
+		goto fail;
+
+	*evt = (struct efistub_measured_event) {
+		.event_data			     = ev,
+		.tagged_event.tagged_event_id	     = events[event].event_id,
+		.tagged_event.tagged_event_data_size = events[event].event_data_len,
+	};
+
+	memcpy(evt->tagged_event.tagged_event_data, events[event].event_data,
+	       events[event].event_data_len);
+
+	status = efi_fn_call(&method, hash_log_extend_event, protocol, 0,
+			     load_addr, load_size, &evt->event_data);
+	efi_bs_call(free_pool, evt);
+
+	if (status == EFI_SUCCESS)
+		return EFI_SUCCESS;
+
 fail:
 	efi_warn("Failed to measure data for event %d: 0x%lx\n", event, status);
 	return status;

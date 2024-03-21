@@ -1505,6 +1505,16 @@ struct blk_holder_ops {
 	 * Thaw the file system mounted on the block device.
 	 */
 	int (*thaw)(struct block_device *bdev);
+
+	/*
+	 * If needed, get a reference to the holder.
+	 */
+	void (*get_holder)(void *holder);
+
+	/*
+	 * Release the holder.
+	 */
+	void (*put_holder)(void *holder);
 };
 
 /*

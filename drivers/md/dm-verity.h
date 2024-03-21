@@ -54,7 +54,7 @@ struct dm_verity {
 	unsigned char levels;	/* the number of tree levels */
 	unsigned char version;
 	bool hash_failed:1;	/* set if hash of any block failed */
-	bool use_tasklet:1;	/* try to verify in tasklet before work-queue */
+	bool use_bh_wq:1;	/* try to verify in BH wq before normal work-queue */
 	unsigned int digest_size;	/* digest size for the current hash algorithm */
 	unsigned int ahash_reqsize;/* the size of temporary space for crypto */
 	enum verity_mode mode;	/* mode for handling verification errors */
@@ -84,9 +84,10 @@ struct dm_verity_io {
 
 	sector_t block;
 	unsigned int n_blocks;
-	bool in_tasklet;
+	bool in_bh;
 
 	struct work_struct work;
+	struct work_struct bh_work;
 
 	char *recheck_buffer;
 

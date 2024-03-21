@@ -284,7 +284,7 @@ static int set_clr_page_flags(struct x86_mapping_info *info,
 	pudp = pud_offset(p4dp, address);
 	pmdp = pmd_offset(pudp, address);
 
-	if (pmd_large(*pmdp))
+	if (pmd_leaf(*pmdp))
 		ptep = split_large_pmd(info, pmdp, address);
 	else
 		ptep = pte_offset_kernel(pmdp, address);

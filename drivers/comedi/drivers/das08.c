@@ -177,7 +177,6 @@ static int das08_ai_insn_read(struct comedi_device *dev,
 	int ret;
 
 	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 
 	/* clear crap */
 	inb(dev->iobase + DAS08_AI_LSB_REG);

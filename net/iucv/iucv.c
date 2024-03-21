@@ -210,7 +210,7 @@ struct iucv_cmd_dpl {
 	u8  iprmmsg[8];
 	u32 ipsrccls;
 	u32 ipmsgtag;
-	u32 ipbfadr2;
+	dma32_t ipbfadr2;
 	u32 ipbfln2f;
 	u32 res;
 } __attribute__ ((packed,aligned(8)));
@@ -226,11 +226,11 @@ struct iucv_cmd_db {
 	u8  iprcode;
 	u32 ipmsgid;
 	u32 iptrgcls;
-	u32 ipbfadr1;
+	dma32_t ipbfadr1;
 	u32 ipbfln1f;
 	u32 ipsrccls;
 	u32 ipmsgtag;
-	u32 ipbfadr2;
+	dma32_t ipbfadr2;
 	u32 ipbfln2f;
 	u32 res;
 } __attribute__ ((packed,aligned(8)));
@@ -432,7 +432,7 @@ static void iucv_declare_cpu(void *data)
 	/* Declare interrupt buffer. */
 	parm = iucv_param_irq[cpu];
 	memset(parm, 0, sizeof(union iucv_param));
-	parm->db.ipbfadr1 = virt_to_phys(iucv_irq_data[cpu]);
+	parm->db.ipbfadr1 = virt_to_dma32(iucv_irq_data[cpu]);
 	rc = iucv_call_b2f0(IUCV_DECLARE_BUFFER, parm);
 	if (rc) {
 		char *err = "Unknown";
@@ -1081,8 +1081,7 @@ static int iucv_message_receive_iprmdata(struct iucv_path *path,
 		size = (size < 8) ? size : 8;
 		for (array = buffer; size > 0; array++) {
 			copy = min_t(size_t, size, array->length);
-			memcpy((u8 *)(addr_t) array->address,
-				rmmsg, copy);
+			memcpy(dma32_to_virt(array->address), rmmsg, copy);
 			rmmsg += copy;
 			size -= copy;
 		}
@@ -1124,7 +1123,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 
 	parm = iucv_param[smp_processor_id()];
 	memset(parm, 0, sizeof(union iucv_param));
-	parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
+	parm->db.ipbfadr1 = virt_to_dma32(buffer);
 	parm->db.ipbfln1f = (u32) size;
 	parm->db.ipmsgid = msg->id;
 	parm->db.ippathid = path->pathid;
@@ -1242,7 +1241,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		memcpy(parm->dpl.iprmmsg, reply, min_t(size_t, size, 8));
 	} else {
-		parm->db.ipbfadr1 = (u32)virt_to_phys(reply);
+		parm->db.ipbfadr1 = virt_to_dma32(reply);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags;
@@ -1294,7 +1293,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.ipmsgtag = msg->tag;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
-		parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
+		parm->db.ipbfadr1 = virt_to_dma32(buffer);
 		parm->db.ipbfln1f = (u32) size;
 		parm->db.ippathid = path->pathid;
 		parm->db.ipflags1 = flags | IUCV_IPNORPY;
@@ -1379,7 +1378,7 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->dpl.iptrgcls = msg->class;
 		parm->dpl.ipsrccls = srccls;
 		parm->dpl.ipmsgtag = msg->tag;
-		parm->dpl.ipbfadr2 = (u32)virt_to_phys(answer);
+		parm->dpl.ipbfadr2 = virt_to_dma32(answer);
 		parm->dpl.ipbfln2f = (u32) asize;
 		memcpy(parm->dpl.iprmmsg, buffer, 8);
 	} else {
@@ -1388,9 +1387,9 @@ int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 		parm->db.iptrgcls = msg->class;
 		parm->db.ipsrccls = srccls;
 		parm->db.ipmsgtag = msg->tag;
-		parm->db.ipbfadr1 = (u32)virt_to_phys(buffer);
+		parm->db.ipbfadr1 = virt_to_dma32(buffer);
 		parm->db.ipbfln1f = (u32) size;
-		parm->db.ipbfadr2 = (u32)virt_to_phys(answer);
+		parm->db.ipbfadr2 = virt_to_dma32(answer);
 		parm->db.ipbfln2f = (u32) asize;
 	}
 	rc = iucv_call_b2f0(IUCV_SEND, parm);
@@ -1904,6 +1903,6 @@ static void __exit iucv_exit(void)
 subsys_initcall(iucv_init);
 module_exit(iucv_exit);
 
-MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert (felfert@millenux.com)");
+MODULE_AUTHOR("(C) 2001 IBM Corp. by Fritz Elfert <felfert@millenux.com>");
 MODULE_DESCRIPTION("Linux for S/390 IUCV lowlevel driver");
 MODULE_LICENSE("GPL");

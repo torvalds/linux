@@ -39,6 +39,6 @@ additionalProperties: false
 examples:
   - |
     lcd@10008000 {
-            compatible = "arm,versatile-lcd";
-            reg = <0x10008000 0x1000>;
+        compatible = "arm,versatile-lcd";
+        reg = <0x10008000 0x1000>;
     };

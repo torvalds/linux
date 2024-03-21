@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/sprd,sp9860-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum SP9860 watchdog timer
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    const: sprd,sp9860-wdt
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: enable
+      - const: rtc_enable
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - timeout-sec
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sprd,sc9860-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        watchdog@40310000 {
+            compatible = "sprd,sp9860-wdt";
+            reg = <0 0x40310000 0 0x1000>;
+            interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&aon_gate CLK_APCPU_WDG_EB>, <&aon_gate CLK_AP_WDG_RTC_EB>;
+            clock-names = "enable", "rtc_enable";
+            timeout-sec = <12>;
+        };
+    };
+...

@@ -181,6 +181,7 @@ int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
+int debug_kmaps;
 int debug_peo_args;
 
 int eprintf(int level, int var, const char *fmt, ...);

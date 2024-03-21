@@ -586,7 +586,7 @@ static void grpci2_hw_init(struct grpci2_priv *priv)
 	REGSTORE(regs->io_map, REGLOAD(regs->io_map) & 0x0000ffff);
 
 	/* set 1:1 mapping between AHB -> PCI memory space, for all Masters
-	 * Each AHB master has it's own mapping registers. Max 16 AHB masters.
+	 * Each AHB master has its own mapping registers. Max 16 AHB masters.
 	 */
 	for (i = 0; i < 16; i++)
 		REGSTORE(regs->ahbmst_map[i], priv->pci_area);
@@ -889,7 +889,7 @@ err1:
 	return err;
 }
 
-static const struct of_device_id grpci2_of_match[] __initconst = {
+static const struct of_device_id grpci2_of_match[] = {
 	{
 	 .name = "GAISLER_GRPCI2",
 	 },

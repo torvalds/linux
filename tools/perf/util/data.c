@@ -413,7 +413,7 @@ ssize_t perf_data_file__write(struct perf_data_file *file,
 }
 
 ssize_t perf_data__write(struct perf_data *data,
-			      void *buf, size_t size)
+			 void *buf, size_t size)
 {
 	if (data->use_stdio) {
 		if (fwrite(buf, size, 1, data->file.fptr) == 1)
@@ -424,14 +424,12 @@ ssize_t perf_data__write(struct perf_data *data,
 }
 
 int perf_data__switch(struct perf_data *data,
-			   const char *postfix,
-			   size_t pos, bool at_exit,
-			   char **new_filepath)
+		      const char *postfix,
+		      size_t pos, bool at_exit,
+		      char **new_filepath)
 {
 	int ret;
 
-	if (check_pipe(data))
-		return -EINVAL;
 	if (perf_data__is_read(data))
 		return -EINVAL;
 

@@ -427,12 +427,14 @@ static const complex_condition_check ccc[] = {
  * [19:14]	bit number in the FGT register (6 bits)
  * [20]		trap polarity (1 bit)
  * [25:21]	FG filter (5 bits)
- * [62:26]	Unused (37 bits)
+ * [35:26]	Main SysReg table index (10 bits)
+ * [62:36]	Unused (27 bits)
  * [63]		RES0 - Must be zero, as lost on insertion in the xarray
  */
 #define TC_CGT_BITS	10
 #define TC_FGT_BITS	4
 #define TC_FGF_BITS	5
+#define TC_SRI_BITS	10
 
 union trap_config {
 	u64	val;
@@ -442,7 +444,8 @@ union trap_config {
 		unsigned long	bit:6;		 /* Bit number */
 		unsigned long	pol:1;		 /* Polarity */
 		unsigned long	fgf:TC_FGF_BITS; /* Fine Grained Filter */
-		unsigned long	unused:37;	 /* Unused, should be zero */
+		unsigned long	sri:TC_SRI_BITS; /* SysReg Index */
+		unsigned long	unused:27;	 /* Unused, should be zero */
 		unsigned long	mbz:1;		 /* Must Be Zero */
 	};
 };
@@ -1005,18 +1008,6 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 };
 
 static DEFINE_XARRAY(sr_forward_xa);
-
-enum fgt_group_id {
-	__NO_FGT_GROUP__,
-	HFGxTR_GROUP,
-	HDFGRTR_GROUP,
-	HDFGWTR_GROUP,
-	HFGITR_GROUP,
-	HAFGRTR_GROUP,
-
-	/* Must be last */
-	__NR_FGT_GROUP_IDS__
-};
 
 enum fg_filter_id {
 	__NO_FGF__,
@@ -1757,6 +1748,28 @@ static __init void print_nv_trap_error(const struct encoding_to_trap_config *tc,
 		err);
 }
 
+static u32 encoding_next(u32 encoding)
+{
+	u8 op0, op1, crn, crm, op2;
+
+	op0 = sys_reg_Op0(encoding);
+	op1 = sys_reg_Op1(encoding);
+	crn = sys_reg_CRn(encoding);
+	crm = sys_reg_CRm(encoding);
+	op2 = sys_reg_Op2(encoding);
+
+	if (op2 < Op2_mask)
+		return sys_reg(op0, op1, crn, crm, op2 + 1);
+	if (crm < CRm_mask)
+		return sys_reg(op0, op1, crn, crm + 1, 0);
+	if (crn < CRn_mask)
+		return sys_reg(op0, op1, crn + 1, 0, 0);
+	if (op1 < Op1_mask)
+		return sys_reg(op0, op1 + 1, 0, 0, 0);
+
+	return sys_reg(op0 + 1, 0, 0, 0, 0);
+}
+
 int __init populate_nv_trap_config(void)
 {
 	int ret = 0;
@@ -1775,23 +1788,18 @@ int __init populate_nv_trap_config(void)
 			ret = -EINVAL;
 		}
 
-		if (cgt->encoding != cgt->end) {
-			prev = xa_store_range(&sr_forward_xa,
-					      cgt->encoding, cgt->end,
-					      xa_mk_value(cgt->tc.val),
-					      GFP_KERNEL);
-		} else {
-			prev = xa_store(&sr_forward_xa, cgt->encoding,
+		for (u32 enc = cgt->encoding; enc <= cgt->end; enc = encoding_next(enc)) {
+			prev = xa_store(&sr_forward_xa, enc,
 					xa_mk_value(cgt->tc.val), GFP_KERNEL);
 			if (prev && !xa_is_err(prev)) {
 				ret = -EINVAL;
 				print_nv_trap_error(cgt, "Duplicate CGT", ret);
 			}
-		}
 
-		if (xa_is_err(prev)) {
-			ret = xa_err(prev);
-			print_nv_trap_error(cgt, "Failed CGT insertion", ret);
+			if (xa_is_err(prev)) {
+				ret = xa_err(prev);
+				print_nv_trap_error(cgt, "Failed CGT insertion", ret);
+			}
 		}
 	}
 
@@ -1804,6 +1812,7 @@ int __init populate_nv_trap_config(void)
 	for (int i = 0; i < ARRAY_SIZE(encoding_to_fgt); i++) {
 		const struct encoding_to_trap_config *fgt = &encoding_to_fgt[i];
 		union trap_config tc;
+		void *prev;
 
 		if (fgt->tc.fgt >= __NR_FGT_GROUP_IDS__) {
 			ret = -EINVAL;
@@ -1818,8 +1827,13 @@ int __init populate_nv_trap_config(void)
 		}
 
 		tc.val |= fgt->tc.val;
-		xa_store(&sr_forward_xa, fgt->encoding,
-			 xa_mk_value(tc.val), GFP_KERNEL);
+		prev = xa_store(&sr_forward_xa, fgt->encoding,
+				xa_mk_value(tc.val), GFP_KERNEL);
+
+		if (xa_is_err(prev)) {
+			ret = xa_err(prev);
+			print_nv_trap_error(fgt, "Failed FGT insertion", ret);
+		}
 	}
 
 	kvm_info("nv: %ld fine grained trap handlers\n",
@@ -1843,6 +1857,38 @@ check_mcb:
 		xa_destroy(&sr_forward_xa);
 
 	return ret;
+}
+
+int __init populate_sysreg_config(const struct sys_reg_desc *sr,
+				  unsigned int idx)
+{
+	union trap_config tc;
+	u32 encoding;
+	void *ret;
+
+	/*
+	 * 0 is a valid value for the index, but not for the storage.
+	 * We'll store (idx+1), so check against an offset'd limit.
+	 */
+	if (idx >= (BIT(TC_SRI_BITS) - 1)) {
+		kvm_err("sysreg %s (%d) out of range\n", sr->name, idx);
+		return -EINVAL;
+	}
+
+	encoding = sys_reg(sr->Op0, sr->Op1, sr->CRn, sr->CRm, sr->Op2);
+	tc = get_trap_config(encoding);
+
+	if (tc.sri) {
+		kvm_err("sysreg %s (%d) duplicate entry (%d)\n",
+			sr->name, idx - 1, tc.sri);
+		return -EINVAL;
+	}
+
+	tc.sri = idx + 1;
+	ret = xa_store(&sr_forward_xa, encoding,
+		       xa_mk_value(tc.val), GFP_KERNEL);
+
+	return xa_err(ret);
 }
 
 static enum trap_behaviour get_behaviour(struct kvm_vcpu *vcpu,
@@ -1892,29 +1938,70 @@ static enum trap_behaviour compute_trap_behaviour(struct kvm_vcpu *vcpu,
 	return __compute_trap_behaviour(vcpu, tc.cgt, b);
 }
 
-static bool check_fgt_bit(u64 val, const union trap_config tc)
+static u64 kvm_get_sysreg_res0(struct kvm *kvm, enum vcpu_sysreg sr)
 {
-	return ((val >> tc.bit) & 1) == tc.pol;
+	struct kvm_sysreg_masks *masks;
+
+	/* Only handle the VNCR-backed regs for now */
+	if (sr < __VNCR_START__)
+		return 0;
+
+	masks = kvm->arch.sysreg_masks;
+
+	return masks->mask[sr - __VNCR_START__].res0;
 }
 
-#define sanitised_sys_reg(vcpu, reg)			\
-	({						\
-		u64 __val;				\
-		__val = __vcpu_sys_reg(vcpu, reg);	\
-		__val &= ~__ ## reg ## _RES0;		\
-		(__val);				\
-	})
+static bool check_fgt_bit(struct kvm *kvm, bool is_read,
+			  u64 val, const union trap_config tc)
+{
+	enum vcpu_sysreg sr;
 
-bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
+	if (tc.pol)
+		return (val & BIT(tc.bit));
+
+	/*
+	 * FGTs with negative polarities are an absolute nightmare, as
+	 * we need to evaluate the bit in the light of the feature
+	 * that defines it. WTF were they thinking?
+	 *
+	 * So let's check if the bit has been earmarked as RES0, as
+	 * this indicates an unimplemented feature.
+	 */
+	if (val & BIT(tc.bit))
+		return false;
+
+	switch ((enum fgt_group_id)tc.fgt) {
+	case HFGxTR_GROUP:
+		sr = is_read ? HFGRTR_EL2 : HFGWTR_EL2;
+		break;
+
+	case HDFGRTR_GROUP:
+		sr = is_read ? HDFGRTR_EL2 : HDFGWTR_EL2;
+		break;
+
+	case HAFGRTR_GROUP:
+		sr = HAFGRTR_EL2;
+		break;
+
+	case HFGITR_GROUP:
+		sr = HFGITR_EL2;
+		break;
+
+	default:
+		WARN_ONCE(1, "Unhandled FGT group");
+		return false;
+	}
+
+	return !(kvm_get_sysreg_res0(kvm, sr) & BIT(tc.bit));
+}
+
+bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 {
 	union trap_config tc;
 	enum trap_behaviour b;
 	bool is_read;
 	u32 sysreg;
 	u64 esr, val;
-
-	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
-		return false;
 
 	esr = kvm_vcpu_get_esr(vcpu);
 	sysreg = esr_sys64_to_sysreg(esr);
@@ -1926,13 +2013,27 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 	 * A value of 0 for the whole entry means that we know nothing
 	 * for this sysreg, and that it cannot be re-injected into the
 	 * nested hypervisor. In this situation, let's cut it short.
-	 *
-	 * Note that ultimately, we could also make use of the xarray
-	 * to store the index of the sysreg in the local descriptor
-	 * array, avoiding another search... Hint, hint...
 	 */
 	if (!tc.val)
-		return false;
+		goto local;
+
+	/*
+	 * If a sysreg can be trapped using a FGT, first check whether we
+	 * trap for the purpose of forbidding the feature. In that case,
+	 * inject an UNDEF.
+	 */
+	if (tc.fgt != __NO_FGT_GROUP__ &&
+	    (vcpu->kvm->arch.fgu[tc.fgt] & BIT(tc.bit))) {
+		kvm_inject_undefined(vcpu);
+		return true;
+	}
+
+	/*
+	 * If we're not nesting, immediately return to the caller, with the
+	 * sysreg index, should we have it.
+	 */
+	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
+		goto local;
 
 	switch ((enum fgt_group_id)tc.fgt) {
 	case __NO_FGT_GROUP__:
@@ -1940,25 +2041,24 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 
 	case HFGxTR_GROUP:
 		if (is_read)
-			val = sanitised_sys_reg(vcpu, HFGRTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HFGRTR_EL2);
 		else
-			val = sanitised_sys_reg(vcpu, HFGWTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HFGWTR_EL2);
 		break;
 
 	case HDFGRTR_GROUP:
-	case HDFGWTR_GROUP:
 		if (is_read)
-			val = sanitised_sys_reg(vcpu, HDFGRTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HDFGRTR_EL2);
 		else
-			val = sanitised_sys_reg(vcpu, HDFGWTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HDFGWTR_EL2);
 		break;
 
 	case HAFGRTR_GROUP:
-		val = sanitised_sys_reg(vcpu, HAFGRTR_EL2);
+		val = __vcpu_sys_reg(vcpu, HAFGRTR_EL2);
 		break;
 
 	case HFGITR_GROUP:
-		val = sanitised_sys_reg(vcpu, HFGITR_EL2);
+		val = __vcpu_sys_reg(vcpu, HFGITR_EL2);
 		switch (tc.fgf) {
 			u64 tmp;
 
@@ -1966,7 +2066,7 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 			break;
 
 		case HCRX_FGTnXS:
-			tmp = sanitised_sys_reg(vcpu, HCRX_EL2);
+			tmp = __vcpu_sys_reg(vcpu, HCRX_EL2);
 			if (tmp & HCRX_EL2_FGTnXS)
 				tc.fgt = __NO_FGT_GROUP__;
 		}
@@ -1975,10 +2075,11 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 	case __NR_FGT_GROUP_IDS__:
 		/* Something is really wrong, bail out */
 		WARN_ONCE(1, "__NR_FGT_GROUP_IDS__");
-		return false;
+		goto local;
 	}
 
-	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(val, tc))
+	if (tc.fgt != __NO_FGT_GROUP__ && check_fgt_bit(vcpu->kvm, is_read,
+							val, tc))
 		goto inject;
 
 	b = compute_trap_behaviour(vcpu, tc);
@@ -1987,6 +2088,26 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 	    ((b & BEHAVE_FORWARD_WRITE) && !is_read))
 		goto inject;
 
+local:
+	if (!tc.sri) {
+		struct sys_reg_params params;
+
+		params = esr_sys64_to_params(esr);
+
+		/*
+		 * Check for the IMPDEF range, as per DDI0487 J.a,
+		 * D18.3.2 Reserved encodings for IMPLEMENTATION
+		 * DEFINED registers.
+		 */
+		if (!(params.Op0 == 3 && (params.CRn & 0b1011) == 0b1011))
+			print_sys_reg_msg(&params,
+					  "Unsupported guest access at: %lx\n",
+					  *vcpu_pc(vcpu));
+		kvm_inject_undefined(vcpu);
+		return true;
+	}
+
+	*sr_index = tc.sri - 1;
 	return false;
 
 inject:

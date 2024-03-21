@@ -171,12 +171,6 @@ static inline void mmu_mark_rodata_ro(void) { }
 void __init mmu_mapin_immr(void);
 #endif
 
-#ifdef CONFIG_DEBUG_WX
-void ptdump_check_wx(void);
-#else
-static inline void ptdump_check_wx(void) { }
-#endif
-
 static inline bool debug_pagealloc_enabled_or_kfence(void)
 {
 	return IS_ENABLED(CONFIG_KFENCE) || debug_pagealloc_enabled();
@@ -186,3 +180,5 @@ static inline bool debug_pagealloc_enabled_or_kfence(void)
 int create_section_mapping(unsigned long start, unsigned long end,
 			   int nid, pgprot_t prot);
 #endif
+
+int hash__kernel_map_pages(struct page *page, int numpages, int enable);

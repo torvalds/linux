@@ -133,7 +133,9 @@ static struct mdev_type *mbochs_mdev_types[] = {
 };
 
 static dev_t		mbochs_devt;
-static struct class	*mbochs_class;
+static const struct class mbochs_class = {
+	.name = MBOCHS_CLASS_NAME,
+};
 static struct cdev	mbochs_cdev;
 static struct device	mbochs_dev;
 static struct mdev_parent mbochs_parent;
@@ -1422,13 +1424,10 @@ static int __init mbochs_dev_init(void)
 	if (ret)
 		goto err_cdev;
 
-	mbochs_class = class_create(MBOCHS_CLASS_NAME);
-	if (IS_ERR(mbochs_class)) {
-		pr_err("Error: failed to register mbochs_dev class\n");
-		ret = PTR_ERR(mbochs_class);
+	ret = class_register(&mbochs_class);
+	if (ret)
 		goto err_driver;
-	}
-	mbochs_dev.class = mbochs_class;
+	mbochs_dev.class = &mbochs_class;
 	mbochs_dev.release = mbochs_device_release;
 	dev_set_name(&mbochs_dev, "%s", MBOCHS_NAME);
 
@@ -1448,7 +1447,7 @@ err_device:
 	device_del(&mbochs_dev);
 err_put:
 	put_device(&mbochs_dev);
-	class_destroy(mbochs_class);
+	class_unregister(&mbochs_class);
 err_driver:
 	mdev_unregister_driver(&mbochs_driver);
 err_cdev:
@@ -1466,8 +1465,7 @@ static void __exit mbochs_dev_exit(void)
 	mdev_unregister_driver(&mbochs_driver);
 	cdev_del(&mbochs_cdev);
 	unregister_chrdev_region(mbochs_devt, MINORMASK + 1);
-	class_destroy(mbochs_class);
-	mbochs_class = NULL;
+	class_unregister(&mbochs_class);
 }
 
 MODULE_IMPORT_NS(DMA_BUF);

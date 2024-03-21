@@ -129,7 +129,7 @@ struct idt_smb_seq {
 struct idt_eeprom_seq {
 	u8 cmd;
 	u8 eeaddr;
-	u16 memaddr;
+	__le16 memaddr;
 	u8 data;
 } __packed;
 
@@ -141,8 +141,8 @@ struct idt_eeprom_seq {
  */
 struct idt_csr_seq {
 	u8 cmd;
-	u16 csraddr;
-	u32 data;
+	__le16 csraddr;
+	__le32 data;
 } __packed;
 
 /*

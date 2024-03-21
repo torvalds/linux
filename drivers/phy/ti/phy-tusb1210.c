@@ -17,6 +17,10 @@
 #include <linux/property.h>
 #include <linux/workqueue.h>
 
+#define TI_VENDOR_ID		0x0451
+#define TI_DEVICE_TUSB1210	0x1507
+#define TI_DEVICE_TUSB1211	0x1508
+
 #define TUSB1211_POWER_CONTROL				0x3d
 #define TUSB1211_POWER_CONTROL_SET			0x3e
 #define TUSB1211_POWER_CONTROL_CLEAR			0x3f
@@ -52,7 +56,7 @@ enum tusb1210_chg_det_state {
 };
 
 struct tusb1210 {
-	struct ulpi *ulpi;
+	struct device *dev;
 	struct phy *phy;
 	struct gpio_desc *gpio_reset;
 	struct gpio_desc *gpio_cs;
@@ -71,26 +75,27 @@ struct tusb1210 {
 
 static int tusb1210_ulpi_write(struct tusb1210 *tusb, u8 reg, u8 val)
 {
+	struct device *dev = tusb->dev;
 	int ret;
 
-	ret = ulpi_write(tusb->ulpi, reg, val);
+	ret = ulpi_write(to_ulpi_dev(dev), reg, val);
 	if (ret)
-		dev_err(&tusb->ulpi->dev, "error %d writing val 0x%02x to reg 0x%02x\n",
-			ret, val, reg);
+		dev_err(dev, "error %d writing val 0x%02x to reg 0x%02x\n", ret, val, reg);
 
 	return ret;
 }
 
 static int tusb1210_ulpi_read(struct tusb1210 *tusb, u8 reg, u8 *val)
 {
+	struct device *dev = tusb->dev;
 	int ret;
 
-	ret = ulpi_read(tusb->ulpi, reg);
+	ret = ulpi_read(to_ulpi_dev(dev), reg);
 	if (ret >= 0) {
 		*val = ret;
 		ret = 0;
 	} else {
-		dev_err(&tusb->ulpi->dev, "error %d reading reg 0x%02x\n", ret, reg);
+		dev_err(dev, "error %d reading reg 0x%02x\n", ret, reg);
 	}
 
 	return ret;
@@ -178,7 +183,7 @@ static void tusb1210_reset(struct tusb1210 *tusb)
 static void tusb1210_chg_det_set_type(struct tusb1210 *tusb,
 				      enum power_supply_usb_type type)
 {
-	dev_dbg(&tusb->ulpi->dev, "charger type: %d\n", type);
+	dev_dbg(tusb->dev, "charger type: %d\n", type);
 	tusb->chg_type = type;
 	tusb->chg_det_retries = 0;
 	power_supply_changed(tusb->psy);
@@ -189,7 +194,7 @@ static void tusb1210_chg_det_set_state(struct tusb1210 *tusb,
 				       int delay_ms)
 {
 	if (delay_ms)
-		dev_dbg(&tusb->ulpi->dev, "chg_det new state %s in %d ms\n",
+		dev_dbg(tusb->dev, "chg_det new state %s in %d ms\n",
 			tusb1210_chg_det_states[new_state], delay_ms);
 
 	tusb->chg_det_state = new_state;
@@ -253,7 +258,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 	int ret;
 	u8 val;
 
-	dev_dbg(&tusb->ulpi->dev, "chg_det state %s vbus_present %d\n",
+	dev_dbg(tusb->dev, "chg_det state %s vbus_present %d\n",
 		tusb1210_chg_det_states[tusb->chg_det_state], vbus_present);
 
 	switch (tusb->chg_det_state) {
@@ -261,9 +266,9 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 		tusb->chg_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 		tusb->chg_det_retries = 0;
 		/* Power on USB controller for ulpi_read()/_write() */
-		ret = pm_runtime_resume_and_get(tusb->ulpi->dev.parent);
+		ret = pm_runtime_resume_and_get(tusb->dev->parent);
 		if (ret < 0) {
-			dev_err(&tusb->ulpi->dev, "error %d runtime-resuming\n", ret);
+			dev_err(tusb->dev, "error %d runtime-resuming\n", ret);
 			/* Should never happen, skip charger detection */
 			tusb1210_chg_det_set_state(tusb, TUSB1210_CHG_DET_CONNECTED, 0);
 			return;
@@ -332,7 +337,7 @@ static void tusb1210_chg_det_work(struct work_struct *work)
 
 		mutex_unlock(&tusb->phy->mutex);
 
-		pm_runtime_put(tusb->ulpi->dev.parent);
+		pm_runtime_put(tusb->dev->parent);
 		tusb1210_chg_det_set_state(tusb, TUSB1210_CHG_DET_CONNECTED, 0);
 		break;
 	case TUSB1210_CHG_DET_CONNECTED:
@@ -428,13 +433,14 @@ static const struct power_supply_desc tusb1210_psy_desc = {
 static void tusb1210_probe_charger_detect(struct tusb1210 *tusb)
 {
 	struct power_supply_config psy_cfg = { .drv_data = tusb };
-	struct device *dev = &tusb->ulpi->dev;
+	struct device *dev = tusb->dev;
+	struct ulpi *ulpi = to_ulpi_dev(dev);
 	int ret;
 
 	if (!device_property_read_bool(dev->parent, "linux,phy_charger_detect"))
 		return;
 
-	if (tusb->ulpi->id.product != 0x1508) {
+	if (ulpi->id.product != TI_DEVICE_TUSB1211) {
 		dev_err(dev, "error charger detection is only supported on the TUSB1211\n");
 		return;
 	}
@@ -485,25 +491,24 @@ static const struct phy_ops phy_ops = {
 
 static int tusb1210_probe(struct ulpi *ulpi)
 {
+	struct device *dev = &ulpi->dev;
 	struct tusb1210 *tusb;
 	u8 val, reg;
 	int ret;
 
-	tusb = devm_kzalloc(&ulpi->dev, sizeof(*tusb), GFP_KERNEL);
+	tusb = devm_kzalloc(dev, sizeof(*tusb), GFP_KERNEL);
 	if (!tusb)
 		return -ENOMEM;
 
-	tusb->ulpi = ulpi;
+	tusb->dev = dev;
 
-	tusb->gpio_reset = devm_gpiod_get_optional(&ulpi->dev, "reset",
-						   GPIOD_OUT_LOW);
+	tusb->gpio_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(tusb->gpio_reset))
 		return PTR_ERR(tusb->gpio_reset);
 
 	gpiod_set_value_cansleep(tusb->gpio_reset, 1);
 
-	tusb->gpio_cs = devm_gpiod_get_optional(&ulpi->dev, "cs",
-						GPIOD_OUT_LOW);
+	tusb->gpio_cs = devm_gpiod_get_optional(dev, "cs", GPIOD_OUT_LOW);
 	if (IS_ERR(tusb->gpio_cs))
 		return PTR_ERR(tusb->gpio_cs);
 
@@ -519,15 +524,15 @@ static int tusb1210_probe(struct ulpi *ulpi)
 		return ret;
 
 	/* High speed output drive strength configuration */
-	if (!device_property_read_u8(&ulpi->dev, "ihstx", &val))
+	if (!device_property_read_u8(dev, "ihstx", &val))
 		u8p_replace_bits(&reg, val, (u8)TUSB1210_VENDOR_SPECIFIC2_IHSTX_MASK);
 
 	/* High speed output impedance configuration */
-	if (!device_property_read_u8(&ulpi->dev, "zhsdrv", &val))
+	if (!device_property_read_u8(dev, "zhsdrv", &val))
 		u8p_replace_bits(&reg, val, (u8)TUSB1210_VENDOR_SPECIFIC2_ZHSDRV_MASK);
 
 	/* DP/DM swap control */
-	if (!device_property_read_u8(&ulpi->dev, "datapolarity", &val))
+	if (!device_property_read_u8(dev, "datapolarity", &val))
 		u8p_replace_bits(&reg, val, (u8)TUSB1210_VENDOR_SPECIFIC2_DP_MASK);
 
 	ret = tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2, reg);
@@ -561,11 +566,9 @@ static void tusb1210_remove(struct ulpi *ulpi)
 	tusb1210_remove_charger_detect(tusb);
 }
 
-#define TI_VENDOR_ID 0x0451
-
 static const struct ulpi_device_id tusb1210_ulpi_id[] = {
-	{ TI_VENDOR_ID, 0x1507, },  /* TUSB1210 */
-	{ TI_VENDOR_ID, 0x1508, },  /* TUSB1211 */
+	{ TI_VENDOR_ID, TI_DEVICE_TUSB1210 },
+	{ TI_VENDOR_ID, TI_DEVICE_TUSB1211 },
 	{ },
 };
 MODULE_DEVICE_TABLE(ulpi, tusb1210_ulpi_id);

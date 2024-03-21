@@ -1825,7 +1825,7 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_inode_cachep = kmem_cache_create(
 		"ntfs_inode_cache", sizeof(struct ntfs_inode), 0,
-		(SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+		(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
 		init_once);
 	if (!ntfs_inode_cachep) {
 		err = -ENOMEM;
