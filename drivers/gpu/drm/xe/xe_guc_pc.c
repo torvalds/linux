@@ -714,24 +714,28 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 
 	ret = pc_action_query_task_state(pc);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * GuC defaults to some RPmax that is not actually achievable without
 	 * overclocking. Let's adjust it to the Hardware RP0, which is the
 	 * regular maximum
 	 */
-	if (pc_get_max_freq(pc) > pc->rp0_freq)
-		pc_set_max_freq(pc, pc->rp0_freq);
+	if (pc_get_max_freq(pc) > pc->rp0_freq) {
+		ret = pc_set_max_freq(pc, pc->rp0_freq);
+		if (ret)
+			goto out;
+	}
 
 	/*
 	 * Same thing happens for Server platforms where min is listed as
 	 * RPMax
 	 */
 	if (pc_get_min_freq(pc) > pc->rp0_freq)
-		pc_set_min_freq(pc, pc->rp0_freq);
+		ret = pc_set_min_freq(pc, pc->rp0_freq);
 
-	return 0;
+out:
+	return ret;
 }
 
 static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
