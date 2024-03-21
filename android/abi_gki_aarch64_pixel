@@ -481,6 +481,7 @@
   __devm_regmap_init_spi
   __devm_regmap_init_spmi_ext
   devm_regulator_bulk_get
+  devm_regulator_bulk_get_const
   devm_regulator_get
   devm_regulator_get_exclusive
   devm_regulator_get_optional
@@ -1273,6 +1274,7 @@
   kstrtou8_from_user
   kstrtouint
   kstrtouint_from_user
+  kstrtoul_from_user
   kstrtoull
   kstrtoull_from_user
   kthread_bind
@@ -2336,6 +2338,7 @@
   __traceiter_android_rvh_update_load_sum
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
+  __traceiter_android_rvh_usb_dev_suspend
   __traceiter_android_rvh_util_fits_cpu
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_audio_usb_offload_connect
@@ -2360,6 +2363,7 @@
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_si_meminfo_adjust
+  __traceiter_android_vh_sound_usb_support_cpu_suspend
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timerfd_create
   __traceiter_android_vh_typec_store_partner_src_caps
@@ -2377,6 +2381,7 @@
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_ufs_update_sysfs
+  __traceiter_android_vh_usb_dev_resume
   __traceiter_android_vh_use_amu_fie
   __traceiter_clock_set_rate
   __traceiter_cma_alloc_finish
@@ -2455,6 +2460,7 @@
   __tracepoint_android_rvh_update_load_sum
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
+  __tracepoint_android_rvh_usb_dev_suspend
   __tracepoint_android_rvh_util_fits_cpu
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_audio_usb_offload_connect
@@ -2479,6 +2485,7 @@
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_si_meminfo_adjust
+  __tracepoint_android_vh_sound_usb_support_cpu_suspend
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timerfd_create
   __tracepoint_android_vh_typec_store_partner_src_caps
@@ -2496,6 +2503,7 @@
   __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_android_vh_ufs_update_sysfs
+  __tracepoint_android_vh_usb_dev_resume
   __tracepoint_android_vh_use_amu_fie
   __tracepoint_clock_set_rate
   __tracepoint_cma_alloc_finish
