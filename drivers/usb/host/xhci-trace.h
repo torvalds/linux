@@ -172,8 +172,8 @@ DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
 		__field(void *, vdev)
 		__field(unsigned long long, out_ctx)
 		__field(unsigned long long, in_ctx)
-		__field(u8, fake_port)
-		__field(u8, real_port)
+		__field(int, hcd_portnum)
+		__field(int, hw_portnum)
 		__field(u16, current_mel)
 
 	),
@@ -181,13 +181,13 @@ DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
 		__entry->vdev = vdev;
 		__entry->in_ctx = (unsigned long long) vdev->in_ctx->dma;
 		__entry->out_ctx = (unsigned long long) vdev->out_ctx->dma;
-		__entry->fake_port = (u8) vdev->fake_port;
-		__entry->real_port = (u8) vdev->real_port;
+		__entry->hcd_portnum = (int) vdev->rhub_port->hcd_portnum;
+		__entry->hw_portnum = (int) vdev->rhub_port->hw_portnum;
 		__entry->current_mel = (u16) vdev->current_mel;
 		),
-	TP_printk("vdev %p ctx %llx | %llx fake_port %d real_port %d current_mel %d",
+	TP_printk("vdev %p ctx %llx | %llx hcd_portnum %d hw_portnum %d current_mel %d",
 		__entry->vdev, __entry->in_ctx, __entry->out_ctx,
-		__entry->fake_port, __entry->real_port, __entry->current_mel
+		__entry->hcd_portnum, __entry->hw_portnum, __entry->current_mel
 	)
 );
 

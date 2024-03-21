@@ -141,7 +141,7 @@ static void ep_device_release(struct device *dev)
 	kfree(ep_dev);
 }
 
-struct device_type usb_ep_device_type = {
+const struct device_type usb_ep_device_type = {
 	.name =		"usb_endpoint",
 	.release = ep_device_release,
 };
