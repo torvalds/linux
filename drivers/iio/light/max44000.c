@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -19,7 +20,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include <linux/acpi.h>
 
 #define MAX44000_DRV_NAME		"max44000"
 
@@ -603,18 +603,16 @@ static const struct i2c_device_id max44000_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max44000_id);
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id max44000_acpi_match[] = {
 	{"MAX44000", 0},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, max44000_acpi_match);
-#endif
 
 static struct i2c_driver max44000_driver = {
 	.driver = {
 		.name	= MAX44000_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(max44000_acpi_match),
+		.acpi_match_table = max44000_acpi_match,
 	},
 	.probe		= max44000_probe,
 	.id_table	= max44000_id,
