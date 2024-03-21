@@ -7,6 +7,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+#include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_pm.h"
@@ -567,18 +568,6 @@ err_object:
 static void xe_hw_engine_sysfs_kobj_release(struct kobject *kobj)
 {
 	kfree(kobj);
-}
-
-#include "xe_pm.h"
-
-static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
-{
-	return pci_get_drvdata(pdev);
-}
-
-static inline struct xe_device *to_xe_device(const struct drm_device *dev)
-{
-	return container_of(dev, struct xe_device, drm);
 }
 
 static ssize_t xe_hw_engine_class_sysfs_attr_show(struct kobject *kobj,
