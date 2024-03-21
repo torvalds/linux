@@ -927,7 +927,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 	err = request_firmware(&fw, dmc->fw_path, i915->drm.dev);
 
-	if (err == -ENOENT && !i915->params.dmc_firmware_path) {
+	if (err == -ENOENT && !i915->display.params.dmc_firmware_path) {
 		fallback_path = dmc_fallback_path(i915);
 		if (fallback_path) {
 			drm_dbg_kms(&i915->drm, "%s not found, falling back to %s\n",
@@ -1034,14 +1034,14 @@ void intel_dmc_init(struct drm_i915_private *i915)
 		dmc->max_fw_size = BXT_DMC_MAX_FW_SIZE;
 	}
 
-	if (i915->params.dmc_firmware_path) {
-		if (strlen(i915->params.dmc_firmware_path) == 0) {
+	if (i915->display.params.dmc_firmware_path) {
+		if (strlen(i915->display.params.dmc_firmware_path) == 0) {
 			drm_info(&i915->drm,
 				 "Disabling DMC firmware and runtime PM\n");
 			goto out;
 		}
 
-		dmc->fw_path = i915->params.dmc_firmware_path;
+		dmc->fw_path = i915->display.params.dmc_firmware_path;
 	}
 
 	if (!dmc->fw_path) {
