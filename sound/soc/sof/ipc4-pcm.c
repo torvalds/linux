@@ -897,11 +897,12 @@ static snd_pcm_sframes_t sof_ipc4_pcm_delay(struct snd_soc_component *component,
 	}
 
 	/*
-	 * HDaudio links don't support the LLP counter reported by firmware
-	 * the link position is read directly from hardware registers.
+	 * If the LLP counter is not reported by firmware in the SRAM window
+	 * then read the dai (link) position via host accessible means if
+	 * available.
 	 */
 	if (!time_info->llp_offset) {
-		tmp_ptr = snd_sof_pcm_get_stream_position(sdev, component, substream);
+		tmp_ptr = snd_sof_pcm_get_dai_frame_counter(sdev, component, substream);
 		if (!tmp_ptr)
 			return 0;
 	} else {
