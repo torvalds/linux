@@ -369,7 +369,7 @@ static const enum counter_synapse_action ecap_cnt_input_actions[] = {
 };
 
 static struct counter_comp ecap_cnt_clock_ext[] = {
-	COUNTER_COMP_SIGNAL_U64("frequency", ecap_cnt_clk_get_freq, NULL),
+	COUNTER_COMP_FREQUENCY(ecap_cnt_clk_get_freq),
 };
 
 static const enum counter_signal_polarity ecap_cnt_pol_avail[] = {
