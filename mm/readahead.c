@@ -228,6 +228,7 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 */
 	for (i = 0; i < nr_to_read; i++) {
 		struct folio *folio = xa_load(&mapping->i_pages, index + i);
+		int ret;
 
 		if (folio && !xa_is_value(folio)) {
 			/*
@@ -247,9 +248,12 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 		folio = filemap_alloc_folio(gfp_mask, 0);
 		if (!folio)
 			break;
-		if (filemap_add_folio(mapping, folio, index + i,
-					gfp_mask) < 0) {
+
+		ret = filemap_add_folio(mapping, folio, index + i, gfp_mask);
+		if (ret < 0) {
 			folio_put(folio);
+			if (ret == -ENOMEM)
+				break;
 			read_pages(ractl);
 			ractl->_index++;
 			i = ractl->_index + ractl->_nr_pages - index - 1;
