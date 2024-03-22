@@ -22,7 +22,7 @@ static __always_inline void inc_counter(struct counter *counters)
 	unsigned slot;
 
 	if (unlikely(tid == 0))
-		tid = gettid();
+		tid = syscall(SYS_gettid);
 
 	/* multiplicative hashing, it's fast */
 	slot = 2654435769U * tid;
