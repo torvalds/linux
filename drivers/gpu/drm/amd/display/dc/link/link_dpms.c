@@ -55,6 +55,8 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "atomfirmware.h"
+#include "vpg.h"
+
 #define DC_LOGGER \
 	dc_logger
 #define DC_LOGGER_INIT(logger) \
@@ -67,7 +69,6 @@
 #define RETIMER_REDRIVER_INFO(...) \
 	DC_LOG_RETIMER_REDRIVER(  \
 		__VA_ARGS__)
-#include "dc/dcn30/dcn30_vpg.h"
 
 #define MAX_MTP_SLOT_COUNT 64
 #define LINK_TRAINING_ATTEMPTS 4
