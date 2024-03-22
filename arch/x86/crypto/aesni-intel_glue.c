@@ -233,18 +233,16 @@ static int aes_set_key_common(struct crypto_aes_ctx *ctx,
 {
 	int err;
 
-	if (key_len != AES_KEYSIZE_128 && key_len != AES_KEYSIZE_192 &&
-	    key_len != AES_KEYSIZE_256)
-		return -EINVAL;
-
 	if (!crypto_simd_usable())
-		err = aes_expandkey(ctx, in_key, key_len);
-	else {
-		kernel_fpu_begin();
-		err = aesni_set_key(ctx, in_key, key_len);
-		kernel_fpu_end();
-	}
+		return aes_expandkey(ctx, in_key, key_len);
 
+	err = aes_check_keylen(key_len);
+	if (err)
+		return err;
+
+	kernel_fpu_begin();
+	err = aesni_set_key(ctx, in_key, key_len);
+	kernel_fpu_end();
 	return err;
 }
 
